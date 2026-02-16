@@ -300,12 +300,29 @@ func (f *Filter) getStatusFilterResults(
 		}
 
 		if limit.StatusesFilter() {
-			// Wrap limit in filter result cache model.
-			result := cache.StatusFilterResult{
-				Result: &apimodel.FilterResult{
+			// Later stored API result, if any.
+			// (for the HIDE action, it is unset).
+			var apiResult *apimodel.FilterResult
+
+			switch limit.StatusesPolicy {
+			case gtsmodel.StatusesPolicyFilterHide:
+			case gtsmodel.StatusesPolicyFilterWarn:
+				// Wrap domain match in API model.
+				apiResult = &apimodel.FilterResult{
 					Filter:         *typeutils.DomainLimitToAPIFilterV2(limit),
 					KeywordMatches: []string{limit.Domain},
-				},
+				}
+			}
+
+			// Wrap the filter policy in our cache model.
+			// This model simply existing implies this
+			// status has been filtered, defaulting to
+			// action HIDE, or WARN on a non-nil result.
+			result := cache.StatusFilterResult{
+				Result: apiResult,
+
+				// limits *never* expire.
+				Expiry: time.Time{},
 			}
 
 			// Append domain limit result to apply
