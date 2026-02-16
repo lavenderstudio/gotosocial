@@ -18,6 +18,7 @@
 package cache
 
 import (
+	"code.superseriousbusiness.org/gotosocial/internal/cache/timeline"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 )
 
@@ -423,4 +424,20 @@ func (c *Caches) OnInvalidateDomainLimit(domainLimit *gtsmodel.DomainLimit) {
 	// invalidated limit may affect
 	// mutes via an AccountsPolicy.
 	c.Mutes.Clear()
+
+	// Clear all timelines, as filtering
+	// of prepared statuses for the limited
+	// domain may have changed and we don't
+	// want to include "hide" result statuses.
+	for _, timeline := range []*timeline.StatusTimelines{
+		&c.Timelines.Home,
+		&c.Timelines.List,
+		&c.Timelines.Tag,
+	} {
+		timeline.ClearAll()
+	}
+
+	// Clear public timeline
+	// for the same reason.
+	c.Timelines.Public.Clear()
 }
