@@ -83,7 +83,7 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateNewCategory() {
 	suite.True(adminEmoji.VisibleInPicker)
 
 	// emoji should be in the db
-	dbEmoji, err := suite.db.GetEmojiByShortcodeDomain(suite.T().Context(), adminEmoji.Shortcode, "")
+	dbEmoji, err := suite.state.DB.GetEmojiByShortcodeDomain(suite.T().Context(), adminEmoji.Shortcode, "")
 	suite.NoError(err)
 
 	// check fields on the emoji
@@ -106,10 +106,10 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateNewCategory() {
 	suite.NotEmpty(dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	entry, err := suite.storage.Storage.Stat(ctx, dbEmoji.ImagePath)
+	entry, err := suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageFileSize), entry.Size)
-	entry, err = suite.storage.Storage.Stat(ctx, dbEmoji.ImageStaticPath)
+	entry, err = suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageStaticFileSize), entry.Size)
 }
@@ -160,7 +160,7 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateSwitchCategory() {
 	suite.True(adminEmoji.VisibleInPicker)
 
 	// emoji should be in the db
-	dbEmoji, err := suite.db.GetEmojiByShortcodeDomain(suite.T().Context(), adminEmoji.Shortcode, "")
+	dbEmoji, err := suite.state.DB.GetEmojiByShortcodeDomain(suite.T().Context(), adminEmoji.Shortcode, "")
 	suite.NoError(err)
 
 	// check fields on the emoji
@@ -183,10 +183,10 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateSwitchCategory() {
 	suite.NotEmpty(dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	entry, err := suite.storage.Storage.Stat(ctx, dbEmoji.ImagePath)
+	entry, err := suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageFileSize), entry.Size)
-	entry, err = suite.storage.Storage.Stat(ctx, dbEmoji.ImageStaticPath)
+	entry, err = suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageStaticFileSize), entry.Size)
 }
@@ -238,7 +238,7 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateCopyRemoteToLocal() {
 	suite.True(adminEmoji.VisibleInPicker)
 
 	// emoji should be in the db
-	dbEmoji, err := suite.db.GetEmojiByShortcodeDomain(suite.T().Context(), adminEmoji.Shortcode, "")
+	dbEmoji, err := suite.state.DB.GetEmojiByShortcodeDomain(suite.T().Context(), adminEmoji.Shortcode, "")
 	suite.NoError(err)
 
 	// check fields on the emoji
@@ -261,10 +261,10 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateCopyRemoteToLocal() {
 	suite.NotEmpty(dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	entry, err := suite.storage.Storage.Stat(ctx, dbEmoji.ImagePath)
+	entry, err := suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageFileSize), entry.Size)
-	entry, err = suite.storage.Storage.Stat(ctx, dbEmoji.ImageStaticPath)
+	entry, err = suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageStaticFileSize), entry.Size)
 }
@@ -386,7 +386,7 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateModify() {
 	suite.True(adminEmoji.VisibleInPicker)
 
 	// emoji should be in the db
-	dbEmoji, err := suite.db.GetEmojiByShortcodeDomain(suite.T().Context(), adminEmoji.Shortcode, "")
+	dbEmoji, err := suite.state.DB.GetEmojiByShortcodeDomain(suite.T().Context(), adminEmoji.Shortcode, "")
 	suite.NoError(err)
 
 	// check fields on the emoji
@@ -420,10 +420,10 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateModify() {
 	suite.NotEmpty(dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	entry, err := suite.storage.Storage.Stat(ctx, dbEmoji.ImagePath)
+	entry, err := suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageFileSize), entry.Size)
-	entry, err = suite.storage.Storage.Stat(ctx, dbEmoji.ImageStaticPath)
+	entry, err = suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageStaticFileSize), entry.Size)
 }

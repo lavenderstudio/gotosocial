@@ -115,7 +115,7 @@ export interface HandleSignupParams {
 export interface ActionAccountParams {
 	id: string;
 	action: "suspend";
-	reason: string;
+	text: string;
 }
 
 export interface AccountExportStats {

@@ -26,15 +26,10 @@ import (
 	adminactions "code.superseriousbusiness.org/gotosocial/internal/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
-	"code.superseriousbusiness.org/gotosocial/internal/db"
-	"code.superseriousbusiness.org/gotosocial/internal/email"
-	"code.superseriousbusiness.org/gotosocial/internal/federation"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"code.superseriousbusiness.org/gotosocial/internal/media"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
-	"code.superseriousbusiness.org/gotosocial/internal/storage"
 	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
@@ -43,14 +38,9 @@ import (
 type AdminStandardTestSuite struct {
 	// standard suite interfaces
 	suite.Suite
-	db           db.DB
-	storage      *storage.Driver
-	mediaManager *media.Manager
-	federator    *federation.Federator
-	processor    *processing.Processor
-	emailSender  email.Sender
-	sentEmails   map[string]string
-	state        state.State
+	processor  *processing.Processor
+	sentEmails map[string]string
+	state      state.State
 
 	// standard suite models
 	testTokens          map[string]*gtsmodel.Token
@@ -81,36 +71,40 @@ func (suite *AdminStandardTestSuite) SetupSuite() {
 
 func (suite *AdminStandardTestSuite) SetupTest() {
 	suite.state.Caches.Init()
-	testrig.StartNoopWorkers(&suite.state)
 
 	testrig.InitTestConfig()
 	testrig.InitTestLog()
 
-	suite.db = testrig.NewTestDB(&suite.state)
-	suite.state.DB = suite.db
-	suite.state.AdminActions = adminactions.New(suite.state.DB, &suite.state.Workers)
-	suite.storage = testrig.NewInMemoryStorage()
-	suite.state.Storage = suite.storage
+	suite.state.DB = testrig.NewTestDB(&suite.state)
+	suite.state.Storage = testrig.NewInMemoryStorage()
 
-	suite.mediaManager = testrig.NewTestMediaManager(&suite.state)
-	suite.federator = testrig.NewTestFederator(&suite.state, testrig.NewTestTransportController(&suite.state, testrig.NewMockHTTPClient(nil, "../../../../testrig/media")), suite.mediaManager)
+	testrig.StandardDBSetup(suite.state.DB, nil)
+	testrig.StandardStorageSetup(suite.state.Storage, "../../../../testrig/media")
+
+	suite.state.AdminActions = adminactions.New(suite.state.DB, &suite.state.Workers)
+
 	suite.sentEmails = make(map[string]string)
-	suite.emailSender = testrig.NewEmailSender("../../../../web/template/", suite.sentEmails)
 	suite.processor = testrig.NewTestProcessor(
 		&suite.state,
-		suite.federator,
-		suite.emailSender,
+		testrig.NewTestFederator(
+			&suite.state,
+			testrig.NewTestTransportController(
+				&suite.state,
+				testrig.NewMockHTTPClient(nil, "../../../../testrig/media"),
+			),
+			testrig.NewTestMediaManager(&suite.state),
+		),
+		testrig.NewEmailSender("../../../../web/template/", suite.sentEmails),
 		testrig.NewNoopWebPushSender(),
-		suite.mediaManager,
+		testrig.NewTestMediaManager(&suite.state),
 	)
+	testrig.StartWorkers(&suite.state, suite.processor.Workers())
 	suite.adminModule = admin.New(&suite.state, suite.processor)
-	testrig.StandardDBSetup(suite.db, nil)
-	testrig.StandardStorageSetup(suite.storage, "../../../../testrig/media")
 }
 
 func (suite *AdminStandardTestSuite) TearDownTest() {
-	testrig.StandardDBTeardown(suite.db)
-	testrig.StandardStorageTeardown(suite.storage)
+	testrig.StandardDBTeardown(suite.state.DB)
+	testrig.StandardStorageTeardown(suite.state.Storage)
 	testrig.StopWorkers(&suite.state)
 }
 

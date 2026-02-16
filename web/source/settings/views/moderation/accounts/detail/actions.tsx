@@ -65,7 +65,7 @@ export function AccountActions({ account, backLocation }: AccountActionsProps) {
 function ModerateAccount({ account }: { account: AdminAccount }) {
 	const form = {
 		id: useValue("id", account.id),
-		reason: useTextInput("text")
+		text: useTextInput("text")
 	};
 	
 	const reallySuspend = useBoolInput("reallySuspend");
@@ -90,7 +90,7 @@ function ModerateAccount({ account }: { account: AdminAccount }) {
 				<b>Account suspension cannot be reversed.</b>
 			</div>
 			<TextInput
-				field={form.reason}
+				field={form.text}
 				placeholder="Reason for this action"
 				autoCapitalize="sentences"
 			/>
