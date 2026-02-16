@@ -67,7 +67,7 @@ func (suite *EmojiDeleteTestSuite) TestEmojiDelete1() {
 }`, dst.String())
 
 	// emoji should no longer be in the db
-	dbEmoji, err := suite.db.GetEmojiByID(suite.T().Context(), testEmoji.ID)
+	dbEmoji, err := suite.state.DB.GetEmojiByID(suite.T().Context(), testEmoji.ID)
 	suite.Nil(dbEmoji)
 	suite.ErrorIs(err, db.ErrNoEntries)
 }
@@ -90,7 +90,7 @@ func (suite *EmojiDeleteTestSuite) TestEmojiDelete2() {
 	suite.Equal(`{"error":"Bad Request: emoji with id 01GD5KP5CQEE1R3X43Y1EHS2CW was not a local emoji, will not delete"}`, string(b))
 
 	// emoji should still be in the db
-	dbEmoji, err := suite.db.GetEmojiByID(suite.T().Context(), testEmoji.ID)
+	dbEmoji, err := suite.state.DB.GetEmojiByID(suite.T().Context(), testEmoji.ID)
 	suite.NoError(err)
 	suite.NotNil(dbEmoji)
 }

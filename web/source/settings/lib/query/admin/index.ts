@@ -77,13 +77,13 @@ const extended = gtsApi.injectEndpoints({
 		}),
 
 		actionAccount: build.mutation<string, ActionAccountParams>({
-			query: ({ id, action, reason }) => ({
+			query: ({ id, action, text }) => ({
 				method: "POST",
 				url: `/api/v1/admin/accounts/${id}/action`,
 				asForm: true,
 				body: {
 					type: action,
-					text: reason
+					text: text,
 				}
 			}),
 			// Do an optimistic update on this account to mark

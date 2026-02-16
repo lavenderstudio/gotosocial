@@ -76,7 +76,7 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateNewCategory() {
 	suite.True(apiEmoji.VisibleInPicker)
 
 	// emoji should be in the db
-	dbEmoji, err := suite.db.GetEmojiByShortcodeDomain(suite.T().Context(), apiEmoji.Shortcode, "")
+	dbEmoji, err := suite.state.DB.GetEmojiByShortcodeDomain(suite.T().Context(), apiEmoji.Shortcode, "")
 	suite.NoError(err)
 
 	// check fields on the emoji
@@ -99,10 +99,10 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateNewCategory() {
 	suite.NotEmpty(dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	emojiBytes, err := suite.storage.Get(ctx, dbEmoji.ImagePath)
+	emojiBytes, err := suite.state.Storage.Get(ctx, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Len(emojiBytes, dbEmoji.ImageFileSize)
-	emojiStaticBytes, err := suite.storage.Get(ctx, dbEmoji.ImageStaticPath)
+	emojiStaticBytes, err := suite.state.Storage.Get(ctx, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Len(emojiStaticBytes, dbEmoji.ImageStaticFileSize)
 }
@@ -149,7 +149,7 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateExistingCategory() {
 	suite.True(apiEmoji.VisibleInPicker)
 
 	// emoji should be in the db
-	dbEmoji, err := suite.db.GetEmojiByShortcodeDomain(suite.T().Context(), apiEmoji.Shortcode, "")
+	dbEmoji, err := suite.state.DB.GetEmojiByShortcodeDomain(suite.T().Context(), apiEmoji.Shortcode, "")
 	suite.NoError(err)
 
 	// check fields on the emoji
@@ -172,10 +172,10 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateExistingCategory() {
 	suite.Equal(suite.testEmojiCategories["cute stuff"].ID, dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	emojiBytes, err := suite.storage.Get(ctx, dbEmoji.ImagePath)
+	emojiBytes, err := suite.state.Storage.Get(ctx, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Len(emojiBytes, dbEmoji.ImageFileSize)
-	emojiStaticBytes, err := suite.storage.Get(ctx, dbEmoji.ImageStaticPath)
+	emojiStaticBytes, err := suite.state.Storage.Get(ctx, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Len(emojiStaticBytes, dbEmoji.ImageStaticFileSize)
 }
@@ -222,7 +222,7 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateNoCategory() {
 	suite.True(apiEmoji.VisibleInPicker)
 
 	// emoji should be in the db
-	dbEmoji, err := suite.db.GetEmojiByShortcodeDomain(suite.T().Context(), apiEmoji.Shortcode, "")
+	dbEmoji, err := suite.state.DB.GetEmojiByShortcodeDomain(suite.T().Context(), apiEmoji.Shortcode, "")
 	suite.NoError(err)
 
 	// check fields on the emoji
@@ -245,10 +245,10 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateNoCategory() {
 	suite.Empty(dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	emojiBytes, err := suite.storage.Get(ctx, dbEmoji.ImagePath)
+	emojiBytes, err := suite.state.Storage.Get(ctx, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Len(emojiBytes, dbEmoji.ImageFileSize)
-	emojiStaticBytes, err := suite.storage.Get(ctx, dbEmoji.ImageStaticPath)
+	emojiStaticBytes, err := suite.state.Storage.Get(ctx, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Len(emojiStaticBytes, dbEmoji.ImageStaticFileSize)
 }
