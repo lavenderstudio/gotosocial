@@ -318,8 +318,8 @@ func (e *emojiDB) GetRemoteEmojis(ctx context.Context, page *paging.Page) ([]*gt
 func (e *emojiDB) GetCachedEmojis(ctx context.Context, page *paging.Page) ([]*gtsmodel.Emoji, error) {
 	return e.getEmojisPagedByID(ctx, func(q *bun.SelectQuery) *bun.SelectQuery {
 		q = q.Where("domain IS NOT NULL")
-		q = q.Where("image_static_path IS NOT ?", "")
-		q = q.Where("image_path IS NOT ?", "")
+		q = q.Where("image_static_path != ?", "")
+		q = q.Where("image_path != ?", "")
 		return q
 	}, page)
 }
