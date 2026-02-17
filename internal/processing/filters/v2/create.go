@@ -118,8 +118,10 @@ func (p *Processor) createFilterKeywords(ctx context.Context, filter *gtsmodel.F
 
 	var deferred []func() gtserror.WithCode
 
-	// Create filter keywords in the database.
+	// Create filter
+	// keywords in the database.
 	for _, request := range form {
+
 		// Check for valid request.
 		if request.Keyword == "" {
 			const text = "missing keyword"
@@ -174,8 +176,10 @@ func (p *Processor) createFilterStatuses(ctx context.Context, filter *gtsmodel.F
 
 	var deferred []func() gtserror.WithCode
 
-	// Create filter statuses in the database.
+	// Create filter
+	// statuses in the database.
 	for _, request := range form {
+
 		// Check for valid request.
 		if request.StatusID == "" {
 			const text = "missing status"

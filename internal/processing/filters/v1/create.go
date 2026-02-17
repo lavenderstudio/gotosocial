@@ -65,17 +65,23 @@ func (p *Processor) Create(ctx context.Context, requester *gtsmodel.Account, for
 		return nil, errWithCode
 	}
 
-	// Create new keyword attached to filter.
-	filterKeyword := &gtsmodel.FilterKeyword{
+	// Create keyword attached to filter.
+	keyword := &gtsmodel.FilterKeyword{
 		ID:        id.NewULID(),
 		FilterID:  filter.ID,
 		Keyword:   form.Phrase,
 		WholeWord: util.Ptr(util.PtrOrValue(form.WholeWord, false)),
 	}
 
+	// Insert this newly created filter keyword into the database.
+	if err := p.state.DB.PutFilterKeyword(ctx, keyword); err != nil {
+		err := gtserror.Newf("error inserting filter: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
 	// Attach the new keyword to filter before insert.
-	filter.Keywords = append(filter.Keywords, filterKeyword)
-	filter.KeywordIDs = append(filter.KeywordIDs, filterKeyword.ID)
+	filter.Keywords = append(filter.Keywords, keyword)
+	filter.KeywordIDs = append(filter.KeywordIDs, keyword.ID)
 
 	// Insert newly created filter into the database.
 	switch err := p.state.DB.PutFilter(ctx, filter); {
@@ -95,5 +101,5 @@ func (p *Processor) Create(ctx context.Context, requester *gtsmodel.Account, for
 	p.c.OnFilterChanged(ctx, requester)
 
 	// Return as converted frontend filter keyword model.
-	return typeutils.FilterKeywordToAPIFilterV1(filter, filterKeyword), nil
+	return typeutils.FilterKeywordToAPIFilterV1(filter, keyword), nil
 }
