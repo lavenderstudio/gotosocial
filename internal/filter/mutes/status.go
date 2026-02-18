@@ -183,6 +183,12 @@ func (f *Filter) loadOneStatusMuteDetails(
 	status *gtsmodel.Status,
 	details *muteDetails,
 ) error {
+	if status.AccountID == requester.ID {
+		// Status by requester, this
+		// cannot be muted to them.
+		return nil
+	}
+
 	// Check if the author of the status, or the boostee (if applicable)
 	// are from a domain with a limit enforcing AccountsPolicy = mute.
 	mutedByLimit, err := f.isStatusMutedByDomainLimit(ctx, requester, status)
@@ -241,12 +247,6 @@ func (f *Filter) getStatusRelatedUserMutes(
 	[]*gtsmodel.UserMute,
 	error,
 ) {
-	if status.AccountID == requester.ID {
-		// Status is by requester, we don't take
-		// into account related attached user mutes.
-		return nil, nil
-	}
-
 	// Preallocate a slice of worst possible case no. user mutes.
 	mutes := make([]*gtsmodel.UserMute, 0, 2+len(status.Mentions))
 
@@ -265,19 +265,25 @@ func (f *Filter) getStatusRelatedUserMutes(
 			}
 		}
 
-		// Look for mute against booster.
-		mute, err := f.state.DB.GetMute(
-			gtscontext.SetBarebones(ctx),
-			requester.ID,
-			status.AccountID,
-		)
-		if err != nil && !errors.Is(err, db.ErrNoEntries) {
-			return nil, gtserror.Newf("db error getting status author mute: %w", err)
-		}
+		// Only if the boost is by someone other than
+		// the original status author do we need to check,
+		// otherwise the account will get checked below.
+		if status.BoostOfAccountID != status.AccountID {
 
-		if mute != nil {
-			// Append author mute to total.
-			mutes = append(mutes, mute)
+			// Look for mute against booster.
+			mute, err := f.state.DB.GetMute(
+				gtscontext.SetBarebones(ctx),
+				requester.ID,
+				status.AccountID,
+			)
+			if err != nil && !errors.Is(err, db.ErrNoEntries) {
+				return nil, gtserror.Newf("db error getting status author mute: %w", err)
+			}
+
+			if mute != nil {
+				// Append author mute to total.
+				mutes = append(mutes, mute)
+			}
 		}
 
 		// From here look at details
@@ -344,9 +350,9 @@ func (f *Filter) isStatusMutedByDomainLimit(
 ) (bool, error) {
 	var err error
 
-	// Make sure account is loaded
-	// as we need its account domain.
 	if status.Account == nil {
+		// Ensure status author is loaded as we need its
+		// account domain for domain limit checking below.
 		status.Account, err = f.state.DB.GetAccountByID(
 			gtscontext.SetBarebones(ctx),
 			status.AccountID,
@@ -364,9 +370,9 @@ func (f *Filter) isStatusMutedByDomainLimit(
 	}
 
 	if limit.AccountsMute() {
-		// If the domain limit does have a mute policy
-		// on accounts, the mute only applies if the
-		// requester does not follow the author.
+		// If domain limit does have a mute policy
+		// on accounts, the mute only applies if
+		// the requester does not follow the author.
 		following, err := f.state.DB.IsFollowing(ctx,
 			requester.ID,
 			status.AccountID,
@@ -383,12 +389,16 @@ func (f *Filter) isStatusMutedByDomainLimit(
 		}
 	}
 
-	if status.BoostOfAccountID != "" {
-		// If the status is a boost, check for
-		// a domain limit applying to the boostee.
-		//
-		// We need the boostee loaded for this.
+	// If the status is a boost (and not
+	// just by original author), we need
+	// to also check for limit on its author.
+	if status.BoostOfAccountID != "" &&
+		status.BoostOfAccountID != status.AccountID {
+		var limit *gtsmodel.DomainLimit
+
 		if status.BoostOfAccount == nil {
+			// Ensure boostee author is loaded as we need its
+			// account domain for domain limit checking below.
 			status.BoostOfAccount, err = f.state.DB.GetAccountByID(
 				gtscontext.SetBarebones(ctx),
 				status.BoostOfAccountID,
@@ -398,22 +408,22 @@ func (f *Filter) isStatusMutedByDomainLimit(
 			}
 		}
 
+		// Only if the boost author is on a different domain do we
+		// need to refetch the limit, otherwise its already checked.
 		if status.BoostOfAccount.Domain != status.Account.Domain {
-			// Check if boostee's domain has domain limits.
-			limit, err = f.state.DB.MatchDomainLimit(ctx,
-				status.Account.Domain)
+			limit, err = f.state.DB.MatchDomainLimit(ctx, status.BoostOfAccount.Domain)
 			if err != nil {
 				return false, gtserror.Newf("error matching domain limit: %w", err)
 			}
 		}
 
 		if limit.AccountsMute() {
-			// If the domain limit does have a mute policy
-			// on accounts, the mute only applies if the
-			// requester does not follow the boostee.
+			// If domain limit does have a mute policy
+			// on accounts, the mute only applies if
+			// the requester does not follow boostee author.
 			following, err := f.state.DB.IsFollowing(ctx,
 				requester.ID,
-				status.AccountID,
+				status.BoostOfAccount.ID,
 			)
 			if err != nil {
 				return false, gtserror.Newf("db error checking following: %w", err)
