@@ -58,16 +58,10 @@ type expiryTime struct {
 // set 'never' flag, newly setting it if necessary,
 // or simply incrementing if 't' is after current.
 func (e *expiryTime) Update(t time.Time) {
-	if e.never {
-		return
-	}
-	if e.Time.IsZero() {
-		e.Never()
-		return
-	}
 	switch {
 	case e.never:
-		// never expires
+		// never
+		// expires
 
 	case t.IsZero():
 		// set time to
