@@ -43,12 +43,14 @@ func (c *Converter) WrapAccountableInUpdate(accountable ap.Accountable) (vocab.A
 	// Set the accountable as the object of the update.
 	objectProp := streams.NewActivityStreamsObjectProperty()
 	switch t := accountable.(type) {
+	case vocab.ActivityStreamsApplication:
+		objectProp.AppendActivityStreamsApplication(t)
 	case vocab.ActivityStreamsPerson:
 		objectProp.AppendActivityStreamsPerson(t)
 	case vocab.ActivityStreamsService:
 		objectProp.AppendActivityStreamsService(t)
 	default:
-		log.Panicf(nil, "%T was neither person nor service", t)
+		log.Panicf(nil, "%T was neither Application, Person, nor Service", t)
 	}
 	update.SetActivityStreamsObject(objectProp)
 
