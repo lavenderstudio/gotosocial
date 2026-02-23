@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 
+	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
@@ -109,4 +110,116 @@ func (p *Processor) StoreLocalEmoji(
 	}
 
 	return emoji, nil
+}
+
+// LoadAccountMedia ensures that all media for
+// given remote account is loaded where possible.
+func (p *Processor) LoadAccountMedia(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	account *gtsmodel.Account,
+) {
+	if requester == nil {
+		return
+	}
+	p.loadAccountMedia(ctx, requester, account)
+}
+
+// LoadStatusMedia ensures that all media for
+// given remote status is loaded where possible.
+func (p *Processor) LoadStatusMedia(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	status *gtsmodel.Status,
+) {
+	if requester == nil {
+		return
+	}
+	p.loadAccountMedia(ctx, requester, status.Account)
+	if status.BoostOfAccount != nil {
+		p.loadAccountMedia(ctx, requester, status.BoostOfAccount)
+	}
+	p.loadStatusMedia(ctx, requester, status)
+	if status.BoostOf != nil {
+		p.loadStatusMedia(ctx, requester, status.BoostOf)
+	}
+}
+
+// loadAccountMedia contains the
+// "meat" of LoadAccountMedia().
+func (p *Processor) loadAccountMedia(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	account *gtsmodel.Account,
+) {
+	if account.IsLocal() {
+		return
+	}
+
+	var err error
+
+	if account.HeaderMediaAttachment != nil {
+		// Ensure account header attachment is loaded and cached.
+		//
+		// If media attachment is still processing, this call will block.
+		account.HeaderMediaAttachment, err = p.federator.RefreshMedia(ctx,
+			requester.Username,
+			account.HeaderMediaAttachment,
+			media.AdditionalMediaInfo{},
+			false, // force
+			false, // async
+		)
+		if err != nil {
+			log.Errorf(ctx, "error refreshing header attachment %s: %v", account.HeaderMediaAttachment.RemoteURL, err)
+		}
+	}
+
+	if account.AvatarMediaAttachment != nil {
+		// Ensure account avatar attachment is loaded and cached.
+		//
+		// If media attachment is still processing, this call will block.
+		account.AvatarMediaAttachment, err = p.federator.RefreshMedia(ctx,
+			requester.Username,
+			account.AvatarMediaAttachment,
+			media.AdditionalMediaInfo{},
+			false, // force
+			false, // async
+		)
+		if err != nil {
+			log.Errorf(ctx, "error refreshing avatar attachment %s: %v", account.AvatarMediaAttachment.RemoteURL, err)
+		}
+	}
+}
+
+// loadStatusMedia contains the
+// "meat" of LoadStatusMedia().
+func (p *Processor) loadStatusMedia(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	status *gtsmodel.Status,
+) {
+	if !status.IsLocal() {
+		return
+	}
+
+	// Ensure status media attachments are loaded,
+	// the below funcion checks if already cached.
+	//
+	// If media attachments are already processing
+	// from previous dereference, this will block.
+	for i, attach := range status.Attachments {
+		attach, err := p.federator.RefreshMedia(ctx,
+			requester.Username,
+			attach,
+			media.AdditionalMediaInfo{},
+			false, // force
+			false, // async
+		)
+		if err != nil {
+			log.Errorf(ctx, "error refreshing media attachment %s: %v", attach.RemoteURL, err)
+		}
+
+		// Set media attachment model.
+		status.Attachments[i] = attach
+	}
 }

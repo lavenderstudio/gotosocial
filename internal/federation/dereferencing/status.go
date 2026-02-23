@@ -840,12 +840,12 @@ func (d *Dereferencer) fetchStatusAttachments(
 	// Allocate new slice to take the yet-to-be fetched attachment IDs.
 	status.AttachmentIDs = make([]string, len(status.Attachments))
 	for i := range status.Attachments {
-
 		placeholder := status.Attachments[i]
 
 		// Look for existing media attachment with remote URL first.
 		existing, ok := existing.GetAttachmentByRemoteURL(placeholder.RemoteURL)
 		if ok && existing.ID != "" {
+
 			info := media.AdditionalMediaInfo{
 				// Pass reject reason ptr, which
 				// will skip downloading if set.

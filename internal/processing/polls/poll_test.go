@@ -62,7 +62,7 @@ func (suite *PollTestSuite) SetupTest() {
 	suite.visFilter = visibility.NewFilter(&suite.state)
 	suite.muteFilter = mutes.NewFilter(&suite.state)
 	statusFilter := status.NewFilter(&suite.state)
-	surfacer := testrig.NewTestSurfacer(&suite.state, testrig.NewEmailSender("../../../web/template", nil), testrig.NewNoopWebPushSender())
+	surfacer := testrig.NewTestSurfacer(&suite.state, federator, testrig.NewEmailSender("../../../web/template", nil), testrig.NewNoopWebPushSender())
 	common := common.New(&suite.state, mediaMgr, converter, federator, suite.visFilter, suite.muteFilter, statusFilter, surfacer)
 	suite.polls = polls.New(&common, &suite.state, converter)
 }

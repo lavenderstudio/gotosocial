@@ -224,7 +224,7 @@ func NewProcessor(
 	// Instantiate sub processors used by other sub-processors.
 	processor.stream = stream.New(state, oauthServer)
 	processor.conversations = conversations.New(state, converter, visFilter, muteFilter, statusFilter)
-	surfacer := surfacing.New(state, converter, &processor.stream, visFilter, muteFilter, statusFilter, emailSender, webPushSender, &processor.conversations)
+	surfacer := surfacing.New(state, converter, federator, &processor.stream, visFilter, muteFilter, statusFilter, emailSender, webPushSender, &processor.conversations)
 	common := common.New(state, mediaManager, converter, federator, visFilter, muteFilter, statusFilter, surfacer)
 	processor.account = account.New(&common, state, converter, mediaManager, federator, visFilter, statusFilter, parseMentionFunc)
 	processor.media = media.New(&common, state, converter, federator, mediaManager, federator.TransportController())
@@ -245,7 +245,7 @@ func NewProcessor(
 	processor.push = push.New(state, converter)
 	processor.report = report.New(state, converter)
 	processor.tags = tags.New(state, converter)
-	processor.timeline = timeline.New(state, converter, visFilter, muteFilter, statusFilter)
+	processor.timeline = timeline.New(state, &common, converter, visFilter, muteFilter, statusFilter)
 	processor.search = search.New(state, federator, converter, visFilter, surfacer)
 	processor.status = status.New(state, &common, &processor.polls, &processor.interactionRequests, federator, converter, visFilter, muteFilter, statusFilter, intFilter, parseMentionFunc)
 	processor.user = user.New(state, converter, oauthServer, emailSender)

@@ -19,6 +19,7 @@ package surfacing
 
 import (
 	"code.superseriousbusiness.org/gotosocial/internal/email"
+	"code.superseriousbusiness.org/gotosocial/internal/federation"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/mutes"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/status"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
@@ -38,6 +39,7 @@ import (
 type Surfacer struct {
 	state         *state.State
 	converter     *typeutils.Converter
+	federator     *federation.Federator
 	stream        *stream.Processor
 	visFilter     *visibility.Filter
 	muteFilter    *mutes.Filter
@@ -52,6 +54,7 @@ type Surfacer struct {
 func New(
 	state *state.State,
 	converter *typeutils.Converter,
+	federator *federation.Federator,
 	stream *stream.Processor,
 	visFilter *visibility.Filter,
 	muteFilter *mutes.Filter,
@@ -63,6 +66,7 @@ func New(
 	return &Surfacer{
 		state:         state,
 		converter:     converter,
+		federator:     federator,
 		stream:        stream,
 		visFilter:     visFilter,
 		muteFilter:    muteFilter,

@@ -22,11 +22,8 @@ import (
 	"testing"
 	"time"
 
-	"code.superseriousbusiness.org/gotosocial/internal/filter/mutes"
-	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"code.superseriousbusiness.org/gotosocial/internal/surfacing"
 	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
@@ -53,18 +50,7 @@ const (
 func (suite *SurfacingTestSuite) TestSpamNotifs() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-
-	surface := surfacing.New(
-		testStructs.State,
-		testStructs.TypeConverter,
-		testStructs.Processor.Stream(),
-		visibility.NewFilter(testStructs.State),
-		mutes.NewFilter(testStructs.State),
-		testStructs.StatusFilter,
-		testStructs.EmailSender,
-		testStructs.WebPushSender,
-		testStructs.Processor.Conversations(),
-	)
+	surface := testStructs.Surfacer
 
 	var (
 		ctx              = suite.T().Context()

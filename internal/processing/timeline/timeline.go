@@ -32,6 +32,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
+	"code.superseriousbusiness.org/gotosocial/internal/processing/common"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 )
@@ -46,6 +47,9 @@ var (
 )
 
 type Processor struct {
+	// embedded common logic
+	c *common.Processor
+
 	state        *state.State
 	converter    *typeutils.Converter
 	visFilter    *visibility.Filter
@@ -55,12 +59,14 @@ type Processor struct {
 
 func New(
 	state *state.State,
+	common *common.Processor,
 	converter *typeutils.Converter,
 	visFilter *visibility.Filter,
 	muteFilter *mutes.Filter,
 	statusFilter *status.Filter,
 ) Processor {
 	return Processor{
+		c:            common,
 		state:        state,
 		converter:    converter,
 		visFilter:    visFilter,
@@ -135,6 +141,9 @@ func (p *Processor) getStatusTimeline(
 			} else if hide {
 				return nil, nil
 			}
+
+			// Ensure status media is cached locally.
+			p.c.LoadStatusMedia(ctx, requester, status)
 
 			// Finally, pass status to get converted to API model.
 			apiStatus, err := p.converter.StatusToAPIStatus(ctx,

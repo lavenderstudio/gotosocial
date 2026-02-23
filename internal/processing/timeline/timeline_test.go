@@ -24,8 +24,13 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/filter/status"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/media"
+	"code.superseriousbusiness.org/gotosocial/internal/processing/common"
+	"code.superseriousbusiness.org/gotosocial/internal/processing/conversations"
+	"code.superseriousbusiness.org/gotosocial/internal/processing/stream"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/timeline"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
+	"code.superseriousbusiness.org/gotosocial/internal/surfacing"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
@@ -60,12 +65,50 @@ func (suite *TimelineStandardTestSuite) SetupTest() {
 	suite.state.DB = suite.db
 	suite.state.AdminActions = admin.New(suite.state.DB, &suite.state.Workers)
 
+	typeconv := typeutils.NewConverter(&suite.state)
+	media := media.NewManager(&suite.state)
+	transport := testrig.NewTestTransportController(&suite.state, nil)
+
+	federator := testrig.NewTestFederator(&suite.state, transport, media)
+
+	visFilter := visibility.NewFilter(&suite.state)
+	muteFilter := mutes.NewFilter(&suite.state)
+	statusFilter := status.NewFilter(&suite.state)
+
+	stream := stream.New(&suite.state, testrig.NewTestOauthServer(&suite.state))
+	conversations := conversations.New(&suite.state, typeconv, visFilter, muteFilter, statusFilter)
+
+	surfacer := surfacing.New(
+		&suite.state,
+		typeconv,
+		federator,
+		&stream,
+		visFilter,
+		muteFilter,
+		statusFilter,
+		testrig.NewEmailSender("../../../web/template/", nil),
+		testrig.NewNoopWebPushSender(),
+		&conversations,
+	)
+
+	common := common.New(
+		&suite.state,
+		media,
+		typeconv,
+		federator,
+		visFilter,
+		muteFilter,
+		statusFilter,
+		surfacer,
+	)
+
 	suite.timeline = timeline.New(
 		&suite.state,
-		typeutils.NewConverter(&suite.state),
-		visibility.NewFilter(&suite.state),
-		mutes.NewFilter(&suite.state),
-		status.NewFilter(&suite.state),
+		&common,
+		typeconv,
+		visFilter,
+		muteFilter,
+		statusFilter,
 	)
 
 	testrig.StandardDBSetup(suite.db, suite.testAccounts)

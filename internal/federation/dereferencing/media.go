@@ -148,23 +148,22 @@ func (d *Dereferencer) RefreshMedia(
 		// to force a dereference.
 		attach.Error = 0
 
-	case attach.Cached():
-		// Return early, is already
-		// cached and no force flag.
+	case attach.Cached() || !attach.Error.SupportsRetry():
+		// Return early, is already cached or
+		// error that does not support retry.
 		return attach, nil
-	}
-
-	// Ensure we have a valid remote URL.
-	url, err := url.Parse(attach.RemoteURL)
-	if err != nil {
-		err := gtserror.Newf("invalid media remote url %s: %w", attach.RemoteURL, err)
-		return nil, err
 	}
 
 	// Pass along for safe processing.
 	return d.processMediaSafely(ctx,
 		attach.RemoteURL,
 		func() (*media.ProcessingMedia, error) {
+
+			// Ensure we have a valid remote URL.
+			url, err := url.Parse(attach.RemoteURL)
+			if err != nil {
+				return nil, gtserror.Newf("invalid media remote url %s: %w", attach.RemoteURL, err)
+			}
 
 			// Fetch transport for the provided request user from controller.
 			tsport, err := d.transportController.NewTransportForUsername(ctx,
