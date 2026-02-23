@@ -146,6 +146,9 @@ func (p *Processor) GetAPIAccount(
 		// Only return sensitive account model _if_ requester = target.
 		apiAcc, err = p.converter.AccountToAPIAccountSensitive(ctx, target)
 	} else {
+		// Ensure account media attachments loaded.
+		p.LoadAccountMedia(ctx, requester, target)
+
 		// Else, fall back to returning the public account model.
 		apiAcc, err = p.converter.AccountToAPIAccountPublic(ctx, target)
 	}
@@ -254,6 +257,9 @@ func (p *Processor) getVisibleAPIAccounts(
 			// Not visible to requester.
 			continue
 		}
+
+		// Ensure account media attachments loaded.
+		p.LoadAccountMedia(ctx, requester, account)
 
 		// Convert the account to a public API model representation.
 		apiAcc, err := p.converter.AccountToAPIAccountPublic(ctx, account)

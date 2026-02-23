@@ -78,7 +78,7 @@ func (suite *MediaStandardTestSuite) SetupTest() {
 	visFilter := visibility.NewFilter(&suite.state)
 	muteFilter := mutes.NewFilter(&suite.state)
 	statusFilter := status.NewFilter(&suite.state)
-	surfacer := testrig.NewTestSurfacer(&suite.state, testrig.NewEmailSender("../../../web/template", nil), testrig.NewNoopWebPushSender())
+	surfacer := testrig.NewTestSurfacer(&suite.state, federator, testrig.NewEmailSender("../../../web/template", nil), testrig.NewNoopWebPushSender())
 	common := common.New(&suite.state, suite.mediaManager, suite.tc, federator, visFilter, muteFilter, statusFilter, surfacer)
 
 	suite.mediaProcessor = mediaprocessing.New(&common, &suite.state, suite.tc, federator, suite.mediaManager, suite.transportController)

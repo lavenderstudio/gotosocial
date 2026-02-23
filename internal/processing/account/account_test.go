@@ -109,7 +109,7 @@ func (suite *AccountStandardTestSuite) SetupTest() {
 	visFilter := visibility.NewFilter(&suite.state)
 	mutesFilter := mutes.NewFilter(&suite.state)
 	statusFilter := status.NewFilter(&suite.state)
-	surfacer := testrig.NewTestSurfacer(&suite.state, suite.emailSender, testrig.NewNoopWebPushSender())
+	surfacer := testrig.NewTestSurfacer(&suite.state, suite.federator, suite.emailSender, testrig.NewNoopWebPushSender())
 	common := common.New(&suite.state, suite.mediaManager, suite.tc, suite.federator, visFilter, mutesFilter, statusFilter, surfacer)
 	suite.accountProcessor = account.New(&common, &suite.state, suite.tc, suite.mediaManager, suite.federator, visFilter, statusFilter, processing.GetParseMentionFunc(&suite.state, suite.federator))
 	testrig.StandardDBSetup(suite.db, nil)

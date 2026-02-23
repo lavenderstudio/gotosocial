@@ -19,6 +19,7 @@ package testrig
 
 import (
 	"code.superseriousbusiness.org/gotosocial/internal/email"
+	"code.superseriousbusiness.org/gotosocial/internal/federation"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/mutes"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/status"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
@@ -33,6 +34,7 @@ import (
 
 func NewTestSurfacer(
 	state *state.State,
+	federator *federation.Federator,
 	emailSender email.Sender,
 	webPushSender webpush.Sender,
 ) *surfacing.Surfacer {
@@ -40,10 +42,10 @@ func NewTestSurfacer(
 	visFilter := visibility.NewFilter(state)
 	muteFilter := mutes.NewFilter(state)
 	statusFilter := status.NewFilter(state)
-
 	return surfacing.New(
 		state,
 		converter,
+		federator,
 		util.Ptr(stream.New(state, NewTestOauthServer(state))),
 		visFilter,
 		muteFilter,

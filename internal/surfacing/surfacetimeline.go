@@ -30,6 +30,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/media"
 	"code.superseriousbusiness.org/gotosocial/internal/stream"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
@@ -646,6 +647,9 @@ func (s *Surfacer) prepareStatusForTimeline(
 		return nil, false, nil
 	}
 
+	// Ensure status media loaded.
+	s.loadStatusMedia(ctx, status)
+
 	// Attempt to convert status to frontend API model.
 	apiStatus, err = s.converter.StatusToAPIStatus(ctx,
 		status,
@@ -726,8 +730,8 @@ func (s *Surfacer) isListEligible(
 	}
 }
 
-// DeleteStatusFromTimelines completely removes the given status from all timelines.
-// It will also stream deletion of the status to all open streams.
+// DeleteStatusFromTimelines completely removes the given status from all
+// timelines. It will also stream deletion of the status to all open streams.
 func (s *Surfacer) DeleteStatusFromTimelines(ctx context.Context, statusID string) {
 	s.state.Caches.Timelines.Public.RemoveByStatusIDs(statusID)
 	s.state.Caches.Timelines.Local.RemoveByStatusIDs(statusID)
@@ -746,7 +750,9 @@ func (s *Surfacer) RemoveTimelineEntriesByAccount(accountID string) {
 	s.state.Caches.Timelines.Tag.RemoveByAccountIDs(accountID)
 }
 
+// RemoveRelationshipFromTimelines removes all cached entries on account ID's timeline by given target account ID.
 func (s *Surfacer) RemoveRelationshipFromTimelines(ctx context.Context, timelineAccountID string, targetAccountID string) {
+
 	// Remove all statuses by target account
 	// from given account's home timeline.
 	s.state.Caches.Timelines.Home.
@@ -764,5 +770,78 @@ func (s *Surfacer) RemoveRelationshipFromTimelines(ctx context.Context, timeline
 		// from given account's list timelines.
 		s.state.Caches.Timelines.List.MustGet(listID).
 			RemoveByAccountIDs(targetAccountID)
+	}
+}
+
+// loadStatusMedia ensures that relevant account status media is loaded and cached locally.
+func (s *Surfacer) loadStatusMedia(ctx context.Context, status *gtsmodel.Status) {
+	account := status.Account
+	if account.IsLocal() {
+		return
+	}
+	s.loadAccountAttachments(ctx, status.Account)
+	if status.BoostOfAccount != nil {
+		s.loadAccountAttachments(ctx, status.BoostOfAccount)
+	}
+	s.loadStatusAttachments(ctx, status)
+	if status.BoostOf != nil {
+		s.loadStatusAttachments(ctx, status.BoostOf)
+	}
+}
+
+func (s *Surfacer) loadAccountAttachments(ctx context.Context, account *gtsmodel.Account) {
+	var err error
+	if account.HeaderMediaAttachment != nil {
+		// Ensure account header attachment is loaded and cached.
+		//
+		// If media attachment is still processing, this call will block.
+		account.HeaderMediaAttachment, err = s.federator.RefreshMedia(ctx,
+			"", // instance account
+			account.HeaderMediaAttachment,
+			media.AdditionalMediaInfo{},
+			false, // force
+			false, // async
+		)
+		if err != nil {
+			log.Errorf(ctx, "error refreshing boost header attachment %s: %v", account.HeaderMediaAttachment.RemoteURL, err)
+		}
+	}
+	if account.AvatarMediaAttachment != nil {
+		// Ensure account avatar attachment is loaded and cached.
+		//
+		// If media attachment is still processing, this call will block.
+		account.AvatarMediaAttachment, err = s.federator.RefreshMedia(ctx,
+			"", // instance account
+			account.AvatarMediaAttachment,
+			media.AdditionalMediaInfo{},
+			false, // force
+			false, // async
+		)
+		if err != nil {
+			log.Errorf(ctx, "error refreshing boost avatar attachment %s: %v", account.AvatarMediaAttachment.RemoteURL, err)
+		}
+	}
+}
+
+func (s *Surfacer) loadStatusAttachments(ctx context.Context, status *gtsmodel.Status) {
+	// Ensure status media attachments are loaded,
+	// the below funcion checks if already cached.
+	//
+	// If media attachments are already processing
+	// from previous dereference, this will block.
+	for i, attach := range status.Attachments {
+		attach, err := s.federator.RefreshMedia(ctx,
+			"", // as instance account
+			attach,
+			media.AdditionalMediaInfo{},
+			false, // force
+			false, // async
+		)
+		if err != nil {
+			log.Errorf(ctx, "error refreshing media attachment %s: %v", attach.RemoteURL, err)
+		}
+
+		// Set media attachment model.
+		status.Attachments[i] = attach
 	}
 }

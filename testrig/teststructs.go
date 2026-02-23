@@ -29,6 +29,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/processing/common"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/internal/subscriptions"
+	"code.superseriousbusiness.org/gotosocial/internal/surfacing"
 	"code.superseriousbusiness.org/gotosocial/internal/transport"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 )
@@ -53,6 +54,7 @@ type TestStructs struct {
 	TransportController transport.Controller
 	InteractionFilter   *interaction.Filter
 	StatusFilter        *status.Filter
+	Surfacer            *surfacing.Surfacer
 }
 
 func SetupTestStructs(
@@ -79,13 +81,13 @@ func SetupTestStructs(
 	httpClient.TestRemotePeople = NewTestFediPeople()
 	httpClient.TestRemoteStatuses = NewTestFediStatuses()
 
-	transportController := NewTestTransportController(&state, httpClient)
+	transport := NewTestTransportController(&state, httpClient)
 	mediaManager := NewTestMediaManager(&state)
-	federator := NewTestFederator(&state, transportController, mediaManager)
+	federator := NewTestFederator(&state, transport, mediaManager)
 	oauthServer := NewTestOauthServer(&state)
 	emailSender := NewEmailSender(rTemplatePath, nil)
 	webPushSender := NewWebPushMockSender()
-	surfacer := NewTestSurfacer(&state, emailSender, webPushSender)
+	surfacer := NewTestSurfacer(&state, federator, emailSender, webPushSender)
 
 	common := common.New(
 		&state,
@@ -100,7 +102,7 @@ func SetupTestStructs(
 
 	processor := processing.NewProcessor(
 		cleaner.New(&state),
-		subscriptions.New(&state, transportController, typeconverter),
+		subscriptions.New(&state, transport, typeconverter),
 		typeconverter,
 		federator,
 		oauthServer,
@@ -127,9 +129,10 @@ func SetupTestStructs(
 		TypeConverter:       typeconverter,
 		EmailSender:         emailSender,
 		WebPushSender:       webPushSender,
-		TransportController: transportController,
+		TransportController: transport,
 		InteractionFilter:   intFilter,
 		StatusFilter:        statusFilter,
+		Surfacer:            surfacer,
 	}
 }
 
