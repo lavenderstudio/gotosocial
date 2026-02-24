@@ -9957,6 +9957,72 @@ paths:
             summary: View status debug visibility information.
             tags:
                 - statuses
+    /api/v1/directory:
+        get:
+            description: |-
+                If instance-directory-mode is set to "full" then this API endpoint will be available without authentication, otherwise a token must be provided.
+
+                Unlike Mastodon and other fedi softwares, this endpoint only supports showing local accounts.
+            operationId: directoryGet
+            parameters:
+                - description: Skip the first n results. If offset is provided, other paging parameters will be ignored.
+                  in: query
+                  name: offset
+                  type: integer
+                - description: Return only items after than the given max ID. The item with the specified ID will not be included in the response. Parameter ignored if offset is specified.
+                  in: query
+                  name: max_id
+                  type: string
+                - description: Return only items before the given since ID. The item with the specified ID will not be included in the response. Parameter ignored if offset is specified.
+                  in: query
+                  name: since_id
+                  type: string
+                - description: Return only items *IMMEDIATELY BEFORE* the given min ID. The item with the specified ID will not be included in the response. Parameter ignored if offset is specified.
+                  in: query
+                  name: min_id
+                  type: string
+                - default: 40
+                  description: Number of accounts to return.
+                  in: query
+                  maximum: 80
+                  minimum: 1
+                  name: limit
+                  type: integer
+                - description: Use 'active' to sort by most recently posted statuses (default), or 'new' to sort by most recently created profiles.
+                  in: query
+                  name: order
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Array of accounts.
+                    headers:
+                        Link:
+                            description: Links to the next and previous queries.
+                            type: string
+                    schema:
+                        items:
+                            $ref: '#/definitions/account'
+                        type: array
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - read:directory
+            summary: Get an array of accounts **on this instance** that have marked themselves as being "discoverable" in the directory.
+            tags:
+                - directory
     /api/v1/exports/blocks.csv:
         get:
             operationId: exportBlocks

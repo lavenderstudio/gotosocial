@@ -22,6 +22,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type RobotsHeadersMode int
+
+const (
+	// Disallow indexing via noindex, nofollow.
+	// Includes anti-"ai" headers.
+	RobotsHeadersModeDefault RobotsHeadersMode = iota
+	// Just set anti-"ai" headers and
+	// leave the other headers be.
+	RobotsHeadersModeDisallowAIOnly
+	// Allow some limited indexing.
+	// Includes anti-"ai" headers.
+	RobotsHeadersModeAllowSome
+)
+
 // RobotsHeaders adds robots directives to the X-Robots-Tag HTTP header.
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Robots-Tag
 //
@@ -32,36 +46,23 @@ import (
 //
 // If mode == "" then noai, noimageai, noindex, and nofollow will be set
 // (ie., as restrictive as possible).
-func RobotsHeaders(mode string) gin.HandlerFunc {
-	const (
-		key = "X-Robots-Tag"
-		// Some AI scrapers respect the following tags
-		// to opt-out of their crawling and datasets.
-		// We add them regardless of allowSome.
-		noai = "noai, noimageai"
-	)
+func RobotsHeaders(mode RobotsHeadersMode) gin.HandlerFunc {
+	const key = "X-Robots-Tag"
 
 	switch mode {
-
-	// Just set ai headers and
-	// leave the other headers be.
-	case "aiOnly":
+	case RobotsHeadersModeDisallowAIOnly:
 		return func(c *gin.Context) {
-			c.Writer.Header().Set(key, noai)
+			c.Writer.Header().Set(key, apiutil.RobotsDirectiveDisallowAI)
 		}
 
-	// Allow some limited indexing.
-	case "allowSome":
+	case RobotsHeadersModeAllowSome:
 		return func(c *gin.Context) {
 			c.Writer.Header().Set(key, apiutil.RobotsDirectivesAllowSome)
-			c.Writer.Header().Add(key, noai)
 		}
 
-	// Disallow indexing via noindex, nofollow.
 	default:
 		return func(c *gin.Context) {
-			c.Writer.Header().Set(key, apiutil.RobotsDirectivesDisallow)
-			c.Writer.Header().Add(key, noai)
+			c.Writer.Header().Set(key, apiutil.RobotsDirectivesDisallowIndex)
 		}
 	}
 }

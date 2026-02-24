@@ -51,9 +51,9 @@ func (m *Module) Route(attachHandler func(method string, path string, f ...gin.H
 	// In all other cases, disallow everything.
 	var robots gin.HandlerFunc
 	if config.GetInstanceStatsMode() == config.InstanceStatsModeServe {
-		robots = middleware.RobotsHeaders("allowSome")
+		robots = middleware.RobotsHeaders(middleware.RobotsHeadersModeAllowSome)
 	} else {
-		robots = middleware.RobotsHeaders("")
+		robots = middleware.RobotsHeaders(middleware.RobotsHeadersModeDefault)
 	}
 
 	// Attach handler, injecting robots http header middleware.

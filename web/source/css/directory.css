@@ -1,0 +1,193 @@
+/*
+	GoToSocial
+	Copyright (C) GoToSocial Authors admin@gotosocial.org
+	SPDX-License-Identifier: AGPL-3.0-or-later
+
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
+
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+main.directory {
+	& > h3#directory {
+		margin-top: 0;
+	}
+
+	padding: 2rem;
+	background: $bg-accent;
+	box-shadow: $boxshadow;
+	border: $boxshadow-border;
+	border-radius: $br;
+
+	.backnextlinks {
+		margin-top: 1rem;
+		display: flex;
+		justify-content: space-between;
+		.next {
+			margin-left: auto;
+		}
+	}
+
+	& > ol.directory-list {
+		list-style-type: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+
+		& > li.directory-list-entry > address {
+			width: 100%;
+			height: 100%;
+			border-radius: $br;
+			box-shadow:$boxshadow;
+			border: $boxshadow-border;
+			
+			background: $list-entry-bg;
+			&:hover {
+				background: $list-entry-alternate-bg;
+			}
+
+			color: inherit;
+			text-decoration: none;
+			font-style: normal;
+			
+			& > a {
+				$avatar-size: 8.5rem;
+				$name-size: 3rem;
+				$username-size: 2rem;
+				$overlap: calc($avatar-size - $name-size - $username-size);
+				
+				color: inherit;
+				text-decoration: none;
+				font-style: normal;
+
+				position: relative;
+				display: grid;
+				gap: 0 1rem;
+				box-sizing: border-box;
+				grid-template-columns: $avatar-size auto 1fr;
+				grid-template-rows: auto $name-size auto;
+				grid-template-areas:
+					"header header header"
+					"avatar strap  strap"
+					"avatar strap  strap";
+
+				& > picture.header {
+					grid-area: header;
+					position: relative;
+					aspect-ratio: 3;
+					height: 100%;
+					width: 100%;
+					border-radius: $br $br 0 0;
+
+					& > img {
+						position: absolute;
+						top: 0;
+						left: 0;
+						right: 0;
+						width: 100%;
+						height: 100%;
+						object-fit: cover;
+						border-radius: $br $br 0 0;
+					}
+				}
+
+				& > picture.avatar {
+					z-index: 1;
+					grid-area: avatar;
+					/*
+						Margin top to inset profile pic into
+						header image, margin sides and bottom to inset.
+					*/
+					margin: calc(-1 * $overlap) 1rem 1rem 1rem;
+					height: $avatar-size;
+					width: $avatar-size;
+					object-fit: cover;
+					border: 0.2rem solid $avatar-border;
+					border-radius: $br;
+					overflow: hidden; /* hides corners from img overflowing */
+
+					& > img {
+						height: 100%;
+						width: 100%;
+						object-fit: cover;
+						background: $bg;
+						border-radius: $br-inner;
+					}
+				}
+
+				& > .strap {
+					grid-area: strap;
+					display: flex;
+					flex-direction: column;
+					margin-left: 1rem;
+					font-weight: bold;
+
+					.displayname {
+						line-height: $name-size;
+						font-size: 1.5rem;
+					}
+
+					.username {
+						color: $link-fg;
+					}
+				}
+			}
+
+			& > .note {
+				margin: 0 1rem 1rem 1rem;
+				max-height: 1.5rem;
+  				-webkit-mask-image: linear-gradient(to right, black 80%, transparent 100%);
+  				mask-image: linear-gradient(to right, black 80%, transparent 100%);
+			}
+		}
+	}
+}
+
+/*
+	Tablet-ish-kinda size.
+*/
+@media screen and (max-width: 750px) {
+	main.directory > ol.directory-list > li.directory-list-entry > address > a {
+		grid-template-areas:
+			"header header header"
+			"avatar .      .     "
+			"avatar .      .     "
+			"strap  strap  strap ";
+		
+		& > picture.avatar {
+			margin-bottom: 0;
+		}
+
+		& > .strap {
+			margin-bottom: 1rem;
+			
+			& > .displayname {
+				font-size: 1.2rem;
+				line-height: 2rem;
+				margin-top: 0.82rem;
+			}
+		}
+	}
+}
+
+/*
+	Phone-ish-kinda size.
+*/
+@media screen and (max-width: 500px) {
+	main.directory > ol.directory-list > li.directory-list-entry > address > a {
+		$avatar-size: 5rem;
+		$name-size: 1.2rem;
+		$username-size: 1rem;
+	}
+}

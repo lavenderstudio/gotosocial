@@ -155,14 +155,15 @@ This option is often referred to on the fediverse as "locking" your account.
 
 After ticking or unticking the checkbox, be sure to click on the `Save profile info` button at the bottom to save your new settings.
 
-#### Mark Account as Discoverable by Search Engines and Directories
+#### Mark Your Account as Discoverable by Search Engines and Include it in the Instance Directory
 
 This setting updates the 'discoverable' setting on your account.
 
 Checking the discoverable box for your account does the following:
 
 - Indicate to remote instances that your account may be included in public directories and indexes.
-- If 'indexable' is also checked, update robots meta tags for your account, allowing your profile and posts to be indexed by web search engines and appear in web search engine results.
+- Show your account in your instance's own accounts directory (if enabled by instance admin).
+- If [indexable](#mark-accounts-posts-as-full-text-indexable) is also checked, update robots meta tags for your web profile page, allowing your profile and posts to be indexed by web search engines and appear in web search engine results.
 
 Turning on the discoverable setting may take a week or more to propagate; your account will not immediately appear in search results.
 

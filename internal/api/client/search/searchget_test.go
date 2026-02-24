@@ -85,7 +85,7 @@ func (suite *SearchGetTestSuite) getSearch(
 	}
 
 	if offset != nil {
-		queryParts = append(queryParts, apiutil.SearchOffsetKey+"="+strconv.Itoa(*offset))
+		queryParts = append(queryParts, apiutil.OffsetKey+"="+strconv.Itoa(*offset))
 	}
 
 	queryParts = append(queryParts, apiutil.SearchQueryKey+"="+url.QueryEscape(query))

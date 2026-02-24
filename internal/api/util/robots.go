@@ -23,9 +23,10 @@ package util
 //   - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Robots-Tag
 //   - https://www.rfc-editor.org/rfc/rfc9309.html
 const (
-	RobotsDirectivesDisallow  = "noindex, nofollow"
-	RobotsDirectivesAllowSome = "noarchive, nositelinkssearchbox, max-image-preview:standard"
-	RobotsTxt                 = `# GoToSocial robots.txt -- to edit, see internal/api/util/robots.go
+	RobotsDirectiveDisallowAI     = "noai, noimageai"
+	RobotsDirectivesDisallowIndex = "noindex, nofollow" + ", " + RobotsDirectiveDisallowAI
+	RobotsDirectivesAllowSome     = "noarchive, nositelinkssearchbox, max-image-preview:standard" + ", " + RobotsDirectiveDisallowAI
+	RobotsTxt                     = `# GoToSocial robots.txt -- to edit, see internal/api/util/robots.go
 # More info @ https://developers.google.com/search/docs/crawling-indexing/robots/intro
 
 # AI scrapers and the like.

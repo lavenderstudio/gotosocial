@@ -49,9 +49,9 @@ func (w *NodeInfo) Route(r *router.Router, m ...gin.HandlerFunc) {
 	// crawl nodeinfo endpoints in a limited capacity.
 	// In all other cases, disallow everything.
 	if config.GetInstanceStatsMode() == config.InstanceStatsModeServe {
-		nodeInfoGroup.Use(middleware.RobotsHeaders("allowSome"))
+		nodeInfoGroup.Use(middleware.RobotsHeaders(middleware.RobotsHeadersModeAllowSome))
 	} else {
-		nodeInfoGroup.Use(middleware.RobotsHeaders(""))
+		nodeInfoGroup.Use(middleware.RobotsHeaders(middleware.RobotsHeadersModeDefault))
 	}
 
 	w.nodeInfo.Route(nodeInfoGroup.Handle)

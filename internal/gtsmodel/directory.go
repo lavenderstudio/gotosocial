@@ -15,51 +15,27 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package db
+package gtsmodel
+
+// DirectoryOrderBy is for doing db queries
+// to get accounts from the directory.
+type DirectoryOrderBy enumType
 
 const (
-	// DBTypePostgres represents an underlying POSTGRES database type.
-	DBTypePostgres string = "POSTGRES"
+	DirectoryOrderByUnknown DirectoryOrderBy = iota
+	// Order by last active date.
+	DirectoryOrderByActive
+	// Order by creation date.
+	DirectoryOrderByNew
 )
 
-// DB provides methods for interacting with an underlying database or other storage mechanism.
-type DB interface {
-	Account
-	Admin
-	AdvancedMigration
-	Application
-	Basic
-	Conversation
-	Directory
-	Domain
-	Emoji
-	HeaderFilter
-	Instance
-	Interaction
-	Filter
-	List
-	Marker
-	Media
-	Mention
-	Move
-	Notification
-	Poll
-	Relationship
-	Report
-	Rule
-	ScheduledStatus
-	Search
-	Session
-	SinBinStatus
-	Status
-	StatusBookmark
-	StatusEdit
-	StatusFave
-	Tag
-	Thread
-	Timeline
-	User
-	Tombstone
-	WebPush
-	WorkerTask
+func (d DirectoryOrderBy) String() string {
+	switch d {
+	case DirectoryOrderByActive:
+		return "active"
+	case DirectoryOrderByNew:
+		return "new"
+	default:
+		return "unknown"
+	}
 }
