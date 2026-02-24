@@ -56,3 +56,54 @@ func GetHTTPClientOutgoingScheme() (schema string) {
 
 	return "https://"
 }
+
+type InstanceDirectoryMode int16
+
+const (
+	InstanceDirectoryModeUnknown InstanceDirectoryMode = iota
+	InstanceDirectoryModeOff
+	InstanceDirectoryModeWebOnly
+	InstanceDirectoryModeOpen
+)
+
+// MarshalText implements encoding.TextMarshaler{}.
+func (i *InstanceDirectoryMode) MarshalText() ([]byte, error) {
+	return []byte(i.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler{}.
+func (i *InstanceDirectoryMode) UnmarshalText(text []byte) error {
+	return i.Set(string(text))
+}
+
+func (i *InstanceDirectoryMode) String() string {
+	switch *i {
+	case InstanceDirectoryModeOff:
+		return "off"
+	case InstanceDirectoryModeWebOnly:
+		return "webonly"
+	case InstanceDirectoryModeOpen:
+		return "open"
+	default:
+		return "unknown"
+	}
+}
+
+func (i *InstanceDirectoryMode) Set(in string) error {
+	if i == nil {
+		return errors.New("nil receiver")
+	}
+	switch in {
+	case "off":
+		*i = InstanceDirectoryModeOff
+		return nil
+	case "webonly", "":
+		*i = InstanceDirectoryModeWebOnly
+		return nil
+	case "open":
+		*i = InstanceDirectoryModeOpen
+		return nil
+	default:
+		return errors.New("unrecognized instance directory mode '" + in + "'")
+	}
+}

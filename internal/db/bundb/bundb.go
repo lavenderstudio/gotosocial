@@ -46,6 +46,7 @@ type DBService struct {
 	db.Application
 	db.Basic
 	db.Conversation
+	db.Directory
 	db.Domain
 	db.Emoji
 	db.HeaderFilter
@@ -181,6 +182,10 @@ func NewBunDBService(ctx context.Context, state *state.State) (db.DB, error) {
 			db: db,
 		},
 		Conversation: &conversationDB{
+			db:    db,
+			state: state,
+		},
+		Directory: &directoryDB{
 			db:    db,
 			state: state,
 		},

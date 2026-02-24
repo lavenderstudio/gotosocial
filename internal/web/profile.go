@@ -123,8 +123,8 @@ func (m *Module) prepareProfile(c *gin.Context) *profile {
 	}
 
 	// Since we serve the profile and posts together,
-	// only allow search robots
-	// if account is discoverable *and* indexable.
+	// only allow search robots if account is discoverable
+	// *and* indexable.
 	var robotsMeta string
 	if account.Discoverable && account.Indexable {
 		robotsMeta = apiutil.RobotsDirectivesAllowSome

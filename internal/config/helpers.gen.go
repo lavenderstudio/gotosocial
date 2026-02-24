@@ -70,6 +70,7 @@ const (
 	InstanceExposeAllowlistWebFlag                = "instance-expose-allowlist-web"
 	InstanceExposePublicTimelineFlag              = "instance-expose-public-timeline"
 	InstanceExposeCustomEmojisFlag                = "instance-expose-custom-emojis"
+	InstanceDirectoryModeFlag                     = "instance-directory-mode"
 	InstanceDeliverToSharedInboxesFlag            = "instance-deliver-to-shared-inboxes"
 	InstanceInjectMastodonVersionFlag             = "instance-inject-mastodon-version"
 	InstanceLanguagesFlag                         = "instance-languages"
@@ -77,6 +78,7 @@ const (
 	InstanceSubscriptionsProcessEveryFlag         = "instance-subscriptions-process-every"
 	InstanceStatsModeFlag                         = "instance-stats-mode"
 	InstanceAllowBackdatingStatusesFlag           = "instance-allow-backdating-statuses"
+	InstanceRobotsAllowIndexingFlag               = "instance-robots-allow-indexing"
 	AccountsRegistrationOpenFlag                  = "accounts-registration-open"
 	AccountsReasonRequiredFlag                    = "accounts-reason-required"
 	AccountsRegistrationDailyLimitFlag            = "accounts-registration-daily-limit"
@@ -274,6 +276,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Bool("instance-expose-allowlist-web", cfg.InstanceExposeAllowlistWeb, "Expose list of explicitly allowed domains as webpage on /about/domain_allows")
 	flags.Bool("instance-expose-public-timeline", cfg.InstanceExposePublicTimeline, "Allow unauthenticated users to query /api/v1/timelines/public")
 	flags.Bool("instance-expose-custom-emojis", cfg.InstanceExposeCustomEmojis, "Allow unauthenticated access to /api/v1/custom_emojis")
+	flags.String("instance-directory-mode", cfg.InstanceDirectoryMode.String(), "Customize if and how the instance accounts directory is served: one of '' or 'off', 'webonly', or 'open'")
 	flags.Bool("instance-deliver-to-shared-inboxes", cfg.InstanceDeliverToSharedInboxes, "Deliver federated messages to shared inboxes, if they're available.")
 	flags.Bool("instance-inject-mastodon-version", cfg.InstanceInjectMastodonVersion, "This injects a Mastodon compatible version in /api/v1/instance to help Mastodon clients that use that version for feature detection")
 	flags.StringSlice("instance-languages", cfg.InstanceLanguages.Strings(), "BCP47 language tags for the instance. Used to indicate the preferred languages of instance residents (in order from most-preferred to least-preferred).")
@@ -281,6 +284,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Duration("instance-subscriptions-process-every", cfg.InstanceSubscriptionsProcessEvery, "Period to elapse between instance subscriptions processing jobs, starting from instance-subscriptions-process-from.")
 	flags.String("instance-stats-mode", cfg.InstanceStatsMode, "Allows you to customize the way stats are served to crawlers: one of '', 'serve', 'zero', 'baffle'. Home page stats remain unchanged.")
 	flags.Bool("instance-allow-backdating-statuses", cfg.InstanceAllowBackdatingStatuses, "Allow local accounts to backdate statuses using the scheduled_at param to /api/v1/statuses")
+	flags.Bool("instance-robots-allow-indexing", cfg.InstanceRobotsAllowIndexing, "Return robots headers and meta tags that allow search engine indexing of instance home page, directory (if enabled), and accounts that have opted in to being discoverable.")
 	flags.Bool("accounts-registration-open", cfg.AccountsRegistrationOpen, "Allow anyone to submit an account signup request. If false, server will be invite-only.")
 	flags.Bool("accounts-reason-required", cfg.AccountsReasonRequired, "Do new account signups require a reason to be submitted on registration?")
 	flags.Int("accounts-registration-daily-limit", cfg.AccountsRegistrationDailyLimit, "Limit amount of approved account sign-ups allowed per 24hrs before registration is closed. 0 or less = no limit.")
@@ -428,7 +432,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 }
 
 func (cfg *Configuration) MarshalMap() map[string]any {
-	cfgmap := make(map[string]any, 201)
+	cfgmap := make(map[string]any, 203)
 	cfgmap["log-level"] = cfg.LogLevel
 	cfgmap["log-format"] = cfg.LogFormat
 	cfgmap["log-timestamp-format"] = cfg.LogTimestampFormat
@@ -470,6 +474,7 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["instance-expose-allowlist-web"] = cfg.InstanceExposeAllowlistWeb
 	cfgmap["instance-expose-public-timeline"] = cfg.InstanceExposePublicTimeline
 	cfgmap["instance-expose-custom-emojis"] = cfg.InstanceExposeCustomEmojis
+	cfgmap["instance-directory-mode"] = cfg.InstanceDirectoryMode.String()
 	cfgmap["instance-deliver-to-shared-inboxes"] = cfg.InstanceDeliverToSharedInboxes
 	cfgmap["instance-inject-mastodon-version"] = cfg.InstanceInjectMastodonVersion
 	cfgmap["instance-languages"] = cfg.InstanceLanguages.Strings()
@@ -477,6 +482,7 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["instance-subscriptions-process-every"] = cfg.InstanceSubscriptionsProcessEvery
 	cfgmap["instance-stats-mode"] = cfg.InstanceStatsMode
 	cfgmap["instance-allow-backdating-statuses"] = cfg.InstanceAllowBackdatingStatuses
+	cfgmap["instance-robots-allow-indexing"] = cfg.InstanceRobotsAllowIndexing
 	cfgmap["accounts-registration-open"] = cfg.AccountsRegistrationOpen
 	cfgmap["accounts-reason-required"] = cfg.AccountsReasonRequired
 	cfgmap["accounts-registration-daily-limit"] = cfg.AccountsRegistrationDailyLimit
@@ -970,6 +976,17 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		}
 	}
 
+	if ival, ok := cfgmap["instance-directory-mode"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'instance-directory-mode': %w", ival, err)
+		}
+		cfg.InstanceDirectoryMode = 0
+		if err := cfg.InstanceDirectoryMode.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'instance-directory-mode': %w", ival, err)
+		}
+	}
+
 	if ival, ok := cfgmap["instance-deliver-to-shared-inboxes"]; ok {
 		var err error
 		cfg.InstanceDeliverToSharedInboxes, err = cast.ToBoolE(ival)
@@ -1028,6 +1045,14 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		cfg.InstanceAllowBackdatingStatuses, err = cast.ToBoolE(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> bool for 'instance-allow-backdating-statuses': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["instance-robots-allow-indexing"]; ok {
+		var err error
+		cfg.InstanceRobotsAllowIndexing, err = cast.ToBoolE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> bool for 'instance-robots-allow-indexing': %w", ival, err)
 		}
 	}
 
@@ -3186,6 +3211,28 @@ func GetInstanceExposeCustomEmojis() bool { return global.GetInstanceExposeCusto
 // SetInstanceExposeCustomEmojis safely sets the value for global configuration 'InstanceExposeCustomEmojis' field
 func SetInstanceExposeCustomEmojis(v bool) { global.SetInstanceExposeCustomEmojis(v) }
 
+// GetInstanceDirectoryMode safely fetches the Configuration value for state's 'InstanceDirectoryMode' field
+func (st *ConfigState) GetInstanceDirectoryMode() (v InstanceDirectoryMode) {
+	st.mutex.RLock()
+	v = st.config.InstanceDirectoryMode
+	st.mutex.RUnlock()
+	return
+}
+
+// SetInstanceDirectoryMode safely sets the Configuration value for state's 'InstanceDirectoryMode' field
+func (st *ConfigState) SetInstanceDirectoryMode(v InstanceDirectoryMode) {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+	st.config.InstanceDirectoryMode = v
+	st.reloadToViper()
+}
+
+// GetInstanceDirectoryMode safely fetches the value for global configuration 'InstanceDirectoryMode' field
+func GetInstanceDirectoryMode() InstanceDirectoryMode { return global.GetInstanceDirectoryMode() }
+
+// SetInstanceDirectoryMode safely sets the value for global configuration 'InstanceDirectoryMode' field
+func SetInstanceDirectoryMode(v InstanceDirectoryMode) { global.SetInstanceDirectoryMode(v) }
+
 // GetInstanceDeliverToSharedInboxes safely fetches the Configuration value for state's 'InstanceDeliverToSharedInboxes' field
 func (st *ConfigState) GetInstanceDeliverToSharedInboxes() (v bool) {
 	st.mutex.RLock()
@@ -3345,6 +3392,28 @@ func GetInstanceAllowBackdatingStatuses() bool { return global.GetInstanceAllowB
 
 // SetInstanceAllowBackdatingStatuses safely sets the value for global configuration 'InstanceAllowBackdatingStatuses' field
 func SetInstanceAllowBackdatingStatuses(v bool) { global.SetInstanceAllowBackdatingStatuses(v) }
+
+// GetInstanceRobotsAllowIndexing safely fetches the Configuration value for state's 'InstanceRobotsAllowIndexing' field
+func (st *ConfigState) GetInstanceRobotsAllowIndexing() (v bool) {
+	st.mutex.RLock()
+	v = st.config.InstanceRobotsAllowIndexing
+	st.mutex.RUnlock()
+	return
+}
+
+// SetInstanceRobotsAllowIndexing safely sets the Configuration value for state's 'InstanceRobotsAllowIndexing' field
+func (st *ConfigState) SetInstanceRobotsAllowIndexing(v bool) {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+	st.config.InstanceRobotsAllowIndexing = v
+	st.reloadToViper()
+}
+
+// GetInstanceRobotsAllowIndexing safely fetches the value for global configuration 'InstanceRobotsAllowIndexing' field
+func GetInstanceRobotsAllowIndexing() bool { return global.GetInstanceRobotsAllowIndexing() }
+
+// SetInstanceRobotsAllowIndexing safely sets the value for global configuration 'InstanceRobotsAllowIndexing' field
+func SetInstanceRobotsAllowIndexing(v bool) { global.SetInstanceRobotsAllowIndexing(v) }
 
 // GetAccountsRegistrationOpen safely fetches the Configuration value for state's 'AccountsRegistrationOpen' field
 func (st *ConfigState) GetAccountsRegistrationOpen() (v bool) {

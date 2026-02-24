@@ -17,49 +17,13 @@
 
 package db
 
-const (
-	// DBTypePostgres represents an underlying POSTGRES database type.
-	DBTypePostgres string = "POSTGRES"
+import (
+	"context"
+
+	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/paging"
 )
 
-// DB provides methods for interacting with an underlying database or other storage mechanism.
-type DB interface {
-	Account
-	Admin
-	AdvancedMigration
-	Application
-	Basic
-	Conversation
-	Directory
-	Domain
-	Emoji
-	HeaderFilter
-	Instance
-	Interaction
-	Filter
-	List
-	Marker
-	Media
-	Mention
-	Move
-	Notification
-	Poll
-	Relationship
-	Report
-	Rule
-	ScheduledStatus
-	Search
-	Session
-	SinBinStatus
-	Status
-	StatusBookmark
-	StatusEdit
-	StatusFave
-	Tag
-	Thread
-	Timeline
-	User
-	Tombstone
-	WebPush
-	WorkerTask
+type Directory interface {
+	GetDirectoryPage(ctx context.Context, page *paging.Page, offset int, orderBy gtsmodel.DirectoryOrderBy) ([]*gtsmodel.Account, error)
 }

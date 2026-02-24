@@ -32,6 +32,7 @@ const (
 	scopeBookmarks     = "bookmarks"
 	scopeConversations = "conversations"
 	scopeCustomEmojis  = "custom_emojis"
+	scopeDirectory     = "directory"
 	scopeDomainAllows  = "domain_allows"
 	scopeDomainBlocks  = "domain_blocks"
 	scopeDomainLimits  = "domain_limits"
@@ -68,6 +69,7 @@ const (
 	ScopeWriteBookmarks         Scope = ScopeWrite + ":" + scopeBookmarks
 	ScopeWriteConversations     Scope = ScopeWrite + ":" + scopeConversations
 	ScopeReadCustomEmojis       Scope = ScopeRead + ":" + scopeCustomEmojis
+	ScopeReadDirectory          Scope = ScopeRead + ":" + scopeDirectory
 	ScopeReadFavourites         Scope = ScopeRead + ":" + scopeFavourites
 	ScopeWriteFavourites        Scope = ScopeWrite + ":" + scopeFavourites
 	ScopeReadFilters            Scope = ScopeRead + ":" + scopeFilters

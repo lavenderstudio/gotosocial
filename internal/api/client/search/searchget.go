@@ -218,7 +218,7 @@ func (m *Module) SearchGETHandler(c *gin.Context) {
 		return
 	}
 
-	offset, errWithCode := apiutil.ParseSearchOffset(c.Query(apiutil.SearchOffsetKey), 0, 10, 0)
+	offset, errWithCode := apiutil.ParseOffset(c.Query(apiutil.OffsetKey), 0, 10, 0)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
 		return

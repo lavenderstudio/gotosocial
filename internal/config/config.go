@@ -89,22 +89,24 @@ type Configuration struct {
 	WebTemplateBaseDir string `name:"web-template-base-dir" usage:"Basedir for html templating files for rendering pages and composing emails."`
 	WebAssetBaseDir    string `name:"web-asset-base-dir" usage:"Directory to serve static assets from, accessible at example.org/assets/"`
 
-	InstanceFederationMode            string             `name:"instance-federation-mode" usage:"Set instance federation mode."`
-	InstanceFederationSpamFilter      bool               `name:"instance-federation-spam-filter" usage:"Enable basic spam filter heuristics for messages coming from other instances, and drop messages identified as spam"`
-	InstanceExposePeers               bool               `name:"instance-expose-peers" usage:"Allow unauthenticated users to query /api/v1/instance/peers?filter=open"`
-	InstanceExposeBlocklist           bool               `name:"instance-expose-blocklist" usage:"Expose list of blocked domains via web UI, and allow unauthenticated users to query /api/v1/instance/peers?filter=blocked and /api/v1/instance/domain_blocks"`
-	InstanceExposeBlocklistWeb        bool               `name:"instance-expose-blocklist-web" usage:"Expose list of explicitly blocked domains as webpage on /about/domain_blocks"`
-	InstanceExposeAllowlist           bool               `name:"instance-expose-allowlist" usage:"Expose list of allowed domains via web UI, and allow unauthenticated users to query /api/v1/instance/peers?filter=allowed and /api/v1/instance/domain_allows"`
-	InstanceExposeAllowlistWeb        bool               `name:"instance-expose-allowlist-web" usage:"Expose list of explicitly allowed domains as webpage on /about/domain_allows"`
-	InstanceExposePublicTimeline      bool               `name:"instance-expose-public-timeline" usage:"Allow unauthenticated users to query /api/v1/timelines/public"`
-	InstanceExposeCustomEmojis        bool               `name:"instance-expose-custom-emojis" usage:"Allow unauthenticated access to /api/v1/custom_emojis"`
-	InstanceDeliverToSharedInboxes    bool               `name:"instance-deliver-to-shared-inboxes" usage:"Deliver federated messages to shared inboxes, if they're available."`
-	InstanceInjectMastodonVersion     bool               `name:"instance-inject-mastodon-version" usage:"This injects a Mastodon compatible version in /api/v1/instance to help Mastodon clients that use that version for feature detection"`
-	InstanceLanguages                 language.Languages `name:"instance-languages" usage:"BCP47 language tags for the instance. Used to indicate the preferred languages of instance residents (in order from most-preferred to least-preferred)."`
-	InstanceSubscriptionsProcessFrom  string             `name:"instance-subscriptions-process-from" usage:"Time of day from which to start running instance subscriptions processing jobs. Should be in the format 'hh:mm:ss', eg., '15:04:05'."`
-	InstanceSubscriptionsProcessEvery time.Duration      `name:"instance-subscriptions-process-every" usage:"Period to elapse between instance subscriptions processing jobs, starting from instance-subscriptions-process-from."`
-	InstanceStatsMode                 string             `name:"instance-stats-mode" usage:"Allows you to customize the way stats are served to crawlers: one of '', 'serve', 'zero', 'baffle'. Home page stats remain unchanged."`
-	InstanceAllowBackdatingStatuses   bool               `name:"instance-allow-backdating-statuses" usage:"Allow local accounts to backdate statuses using the scheduled_at param to /api/v1/statuses"`
+	InstanceFederationMode            string                `name:"instance-federation-mode" usage:"Set instance federation mode."`
+	InstanceFederationSpamFilter      bool                  `name:"instance-federation-spam-filter" usage:"Enable basic spam filter heuristics for messages coming from other instances, and drop messages identified as spam"`
+	InstanceExposePeers               bool                  `name:"instance-expose-peers" usage:"Allow unauthenticated users to query /api/v1/instance/peers?filter=open"`
+	InstanceExposeBlocklist           bool                  `name:"instance-expose-blocklist" usage:"Expose list of blocked domains via web UI, and allow unauthenticated users to query /api/v1/instance/peers?filter=blocked and /api/v1/instance/domain_blocks"`
+	InstanceExposeBlocklistWeb        bool                  `name:"instance-expose-blocklist-web" usage:"Expose list of explicitly blocked domains as webpage on /about/domain_blocks"`
+	InstanceExposeAllowlist           bool                  `name:"instance-expose-allowlist" usage:"Expose list of allowed domains via web UI, and allow unauthenticated users to query /api/v1/instance/peers?filter=allowed and /api/v1/instance/domain_allows"`
+	InstanceExposeAllowlistWeb        bool                  `name:"instance-expose-allowlist-web" usage:"Expose list of explicitly allowed domains as webpage on /about/domain_allows"`
+	InstanceExposePublicTimeline      bool                  `name:"instance-expose-public-timeline" usage:"Allow unauthenticated users to query /api/v1/timelines/public"`
+	InstanceExposeCustomEmojis        bool                  `name:"instance-expose-custom-emojis" usage:"Allow unauthenticated access to /api/v1/custom_emojis"`
+	InstanceDirectoryMode             InstanceDirectoryMode `name:"instance-directory-mode" usage:"Customize if and how the instance accounts directory is served: one of '' or 'off', 'webonly', or 'open'"`
+	InstanceDeliverToSharedInboxes    bool                  `name:"instance-deliver-to-shared-inboxes" usage:"Deliver federated messages to shared inboxes, if they're available."`
+	InstanceInjectMastodonVersion     bool                  `name:"instance-inject-mastodon-version" usage:"This injects a Mastodon compatible version in /api/v1/instance to help Mastodon clients that use that version for feature detection"`
+	InstanceLanguages                 language.Languages    `name:"instance-languages" usage:"BCP47 language tags for the instance. Used to indicate the preferred languages of instance residents (in order from most-preferred to least-preferred)."`
+	InstanceSubscriptionsProcessFrom  string                `name:"instance-subscriptions-process-from" usage:"Time of day from which to start running instance subscriptions processing jobs. Should be in the format 'hh:mm:ss', eg., '15:04:05'."`
+	InstanceSubscriptionsProcessEvery time.Duration         `name:"instance-subscriptions-process-every" usage:"Period to elapse between instance subscriptions processing jobs, starting from instance-subscriptions-process-from."`
+	InstanceStatsMode                 string                `name:"instance-stats-mode" usage:"Allows you to customize the way stats are served to crawlers: one of '', 'serve', 'zero', 'baffle'. Home page stats remain unchanged."`
+	InstanceAllowBackdatingStatuses   bool                  `name:"instance-allow-backdating-statuses" usage:"Allow local accounts to backdate statuses using the scheduled_at param to /api/v1/statuses"`
+	InstanceRobotsAllowIndexing       bool                  `name:"instance-robots-allow-indexing" usage:"Return robots headers and meta tags that allow search engine indexing of instance home page, directory (if enabled), and accounts that have opted in to being discoverable."`
 
 	AccountsRegistrationOpen         bool `name:"accounts-registration-open" usage:"Allow anyone to submit an account signup request. If false, server will be invite-only."`
 	AccountsReasonRequired           bool `name:"accounts-reason-required" usage:"Do new account signups require a reason to be submitted on registration?"`

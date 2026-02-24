@@ -18,11 +18,13 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
+	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 )
 
 const (
@@ -44,6 +46,7 @@ const (
 	AccountIDKey       = "account_id"
 	TargetAccountIDKey = "target_account_id"
 	ResolvedKey        = "resolved"
+	OffsetKey          = "offset"
 
 	/* AP endpoint keys */
 
@@ -54,7 +57,6 @@ const (
 	SearchExcludeUnreviewedKey = "exclude_unreviewed"
 	SearchFollowingKey         = "following"
 	SearchLookupKey            = "acct"
-	SearchOffsetKey            = "offset"
 	SearchQueryKey             = "q"
 	SearchResolveKey           = "resolve"
 	SearchTypeKey              = "type"
@@ -101,6 +103,10 @@ const (
 	/* Web view keys */
 
 	WebIncludeBoostsKey = "include_boosts"
+
+	/* Directory keys */
+
+	DirectoryOrderKey = "order"
 )
 
 /*
@@ -156,8 +162,8 @@ func ParseSearchFollowing(value string, defaultValue bool) (bool, gtserror.WithC
 	return parseBool(value, defaultValue, SearchFollowingKey)
 }
 
-func ParseSearchOffset(value string, defaultValue int, max, min int) (int, gtserror.WithCode) {
-	return parseInt(value, defaultValue, max, min, SearchOffsetKey)
+func ParseOffset(value string, defaultValue int, max, min int) (int, gtserror.WithCode) {
+	return parseInt(value, defaultValue, max, min, OffsetKey)
 }
 
 func ParseSearchResolve(value string, defaultValue bool) (bool, gtserror.WithCode) {
@@ -218,6 +224,20 @@ func ParseInteractionReblogs(value string, defaultValue bool) (bool, gtserror.Wi
 
 func ParseWebIncludeBoosts(value string, defaultValue *bool) (*bool, gtserror.WithCode) {
 	return parseBoolPtr(value, defaultValue, WebIncludeBoostsKey)
+}
+
+func ParseDirectoryOrder(value string, defaultValue gtsmodel.DirectoryOrderBy) (gtsmodel.DirectoryOrderBy, gtserror.WithCode) {
+	switch strings.ToLower(value) {
+	case "":
+		return defaultValue, nil
+	case "active":
+		return gtsmodel.DirectoryOrderByActive, nil
+	case "new":
+		return gtsmodel.DirectoryOrderByNew, nil
+	default:
+		const errText = "invalid value for order, valid values are '', 'active', or 'new'"
+		return gtsmodel.DirectoryOrderByUnknown, gtserror.NewErrorBadRequest(errors.New(errText), errText)
+	}
 }
 
 /*

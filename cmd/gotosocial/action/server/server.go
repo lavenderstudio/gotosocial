@@ -542,8 +542,8 @@ func Start(ctx context.Context) error {
 	//
 	// Other endpoints like .well-known and nodeinfo handle
 	// robots headers themselves based on configuration.
-	robotsDisallowAll := middleware.RobotsHeaders("")
-	robotsDisallowAIOnly := middleware.RobotsHeaders("aiOnly")
+	robotsDisallowAll := middleware.RobotsHeaders(middleware.RobotsHeadersModeDefault)
+	robotsDisallowAIOnly := middleware.RobotsHeaders(middleware.RobotsHeadersModeDisallowAIOnly)
 
 	// Gzip middleware is applied to all endpoints except
 	// fileserver (compression too expensive for those),

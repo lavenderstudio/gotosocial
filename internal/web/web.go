@@ -67,6 +67,7 @@ const (
 	cssProfileGallery = distPathPrefix + "/profile-gallery.css"
 	cssSettings       = distPathPrefix + "/settings-style.css"
 	cssTag            = distPathPrefix + "/tag.css"
+	cssDirectory      = distPathPrefix + "/directory.css"
 
 	jsFrontend          = distPathPrefix + "/frontend.js"           // Progressive enhancement frontend JS.
 	jsFrontendPrerender = distPathPrefix + "/frontend_prerender.js" // Frontend JS that should run before page renders.
@@ -130,6 +131,7 @@ func (m *Module) Route(r *router.Router, mi ...gin.HandlerFunc) {
 	everythingElseGroup.Handle(http.MethodGet, signupPath, m.signupGETHandler)
 	everythingElseGroup.Handle(http.MethodGet, authorizeInteractionPath, m.authorizeInteractionGETHandler)
 	everythingElseGroup.Handle(http.MethodPost, signupPath, m.signupPOSTHandler)
+	everythingElseGroup.Handle(http.MethodGet, directoryPath, m.directoryGETHandler)
 
 	// Redirects from old endpoints for back compat.
 	r.AttachHandler(http.MethodGet, "/auth/edit", func(c *gin.Context) { c.Redirect(http.StatusMovedPermanently, userPanelPath) })

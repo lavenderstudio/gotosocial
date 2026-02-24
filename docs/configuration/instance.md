@@ -229,4 +229,36 @@ instance-stats-mode: ""
 # Options: [true, false]
 # Default: true
 instance-allow-backdating-statuses: true
+
+# String. Allows you to customize if and how your instance exposes a directory
+# of *local* accounts that have opted in to discoverability via the settings panel.
+#
+# There are three possible values for this setting:
+#
+# "off": The instance directory is not exposed via the web, but authenticated
+# local accounts will still be able to access /api/v1/directory using an access token.
+#
+# "webonly" (default): The instance directory is exposed via the web, and authenticated
+# local accounts will be able to access /api/v1/directory using an access token.
+#
+# "open": The instance directory is exposed via the web, and the /api/v1/directory API
+# endpoint is available to any callers *without* having to provide an access token.
+#
+# Options: ["off", "webonly", "open"]
+# Default: "webonly"
+instance-directory-mode: "webonly"
+
+# Bool. If true, use robots http headers and robots HTML meta tags to explicitly allow
+# search engine crawlers to index the instance home page, the directory page (if enabled),
+# and any accounts that have set "discoverable" to "true" in the instance settings panel.
+#
+# Note that even if you set this variable to "false" (default) it is no guarantee that
+# crawlers will not try to scrape your instance, it only asks them politely not to do so.
+#
+# You will probably want to set this to "true" on instances that host public accounts that
+# actually want to be indexed by eg., Google, Bing, etc, and become searchable thereby.
+#
+# Options: [true, false]
+# Default: false
+instance-robots-allow-indexing: false
 ```

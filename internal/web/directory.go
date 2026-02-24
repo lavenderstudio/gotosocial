@@ -19,17 +19,22 @@ package web
 
 import (
 	"context"
-	"net/http"
-	"strings"
+	"errors"
 
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
+	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/paging"
 	"github.com/gin-gonic/gin"
 )
 
-func (m *Module) indexHandler(c *gin.Context) {
+const (
+	directoryPath = "/directory"
+)
+
+func (m *Module) directoryGETHandler(c *gin.Context) {
 	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
 	if errWithCode != nil {
 		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
@@ -48,11 +53,55 @@ func (m *Module) indexHandler(c *gin.Context) {
 		return
 	}
 
-	// If a landingPageUser is set in the config, redirect to
-	// that user's profile instead of rendering landing/index page.
-	if landingPageUser := config.GetLandingPageUser(); landingPageUser != "" {
-		c.Redirect(http.StatusFound, "/@"+strings.ToLower(landingPageUser))
+	// Only serve the directory if permitte to do so.
+	directoryMode := config.GetInstanceDirectoryMode()
+	if directoryMode != config.InstanceDirectoryModeOpen &&
+		directoryMode != config.InstanceDirectoryModeWebOnly {
+		const errText = "directory not exposed"
+		const errTextHelpful = "this instance does not currently expose an account directory"
+		errWithCode := gtserror.NewErrorNotFound(errors.New(errText), errTextHelpful)
+		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
 		return
+	}
+
+	// Parse paging params, forcing limit of 40.
+	page, errWithCode := paging.ParseIDPage(c,
+		40, // min limit
+		40, // max limit
+		40, // default limit
+	)
+	if errWithCode != nil {
+		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		return
+	}
+
+	// Parse order (default "active").
+	orderBy, errWithCode := apiutil.ParseDirectoryOrder(
+		c.Query(apiutil.DirectoryOrderKey),
+		gtsmodel.DirectoryOrderByActive,
+	)
+	if errWithCode != nil {
+		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		return
+	}
+
+	// Get web model accounts.
+	resp, errWithCode := m.processor.Account().WebDirectoryGet(
+		c.Request.Context(),
+		page,
+		orderBy,
+	)
+	if errWithCode != nil {
+		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		return
+	}
+
+	// If we're not on the first page
+	// of results, show previous link.
+	var accountsPrev string
+	paging := page.GetMax() != ""
+	if paging {
+		accountsPrev = resp.PrevLink
 	}
 
 	// If indexing is allowed, set robots
@@ -62,24 +111,17 @@ func (m *Module) indexHandler(c *gin.Context) {
 		robotsMeta = apiutil.RobotsDirectivesAllowSome
 	}
 
-	page := apiutil.WebPage{
-		Template:    "index.tmpl",
+	apiutil.TemplateWebPage(c, apiutil.WebPage{
+		Template:    "directory.tmpl",
 		Instance:    instance,
 		OGMeta:      apiutil.OGBase(instance),
-		Stylesheets: []string{cssAbout, cssIndex},
+		Stylesheets: []string{cssFA, cssDirectory},
 		Extra: map[string]any{
-			// Render "home to x
-			// users [etc]" strap.
-			"showStrap": true,
-			// Show "log in" button
-			// in top-right corner.
-			"showLoginButton": true,
-			// Allow limited indexing
-			// or use empty string
-			// for default restrictive.
-			"robotsMeta": robotsMeta,
+			"showStrap":     true,
+			"accounts":      resp.Items,
+			"accounts_next": resp.NextLink,
+			"accounts_prev": accountsPrev,
+			"robotsMeta":    robotsMeta,
 		},
-	}
-
-	apiutil.TemplateWebPage(c, page)
+	})
 }

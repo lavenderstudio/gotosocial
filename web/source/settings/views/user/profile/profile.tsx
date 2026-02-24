@@ -318,7 +318,7 @@ function ProfileForm({ data: profile }: ProfileFormProps) {
 			/>
 			<Checkbox
 				field={form.discoverable}
-				label="Mark account as discoverable by search engines and directories."
+				label="Mark your account as discoverable by search engines and include it in the instance directory."
 			/>
 			<Checkbox
 				field={form.indexable}

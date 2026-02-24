@@ -42,5 +42,5 @@ func New(processor *processing.Processor) *Module {
 
 func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
 	// Attach handler, injecting robots http header middleware to disallow all.
-	attachHandler(http.MethodGet, HostMetaPath, middleware.RobotsHeaders(""), m.HostMetaGETHandler)
+	attachHandler(http.MethodGet, HostMetaPath, middleware.RobotsHeaders(middleware.RobotsHeadersModeDefault), m.HostMetaGETHandler)
 }
