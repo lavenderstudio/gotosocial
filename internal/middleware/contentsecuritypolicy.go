@@ -77,8 +77,10 @@ func BuildContentSecurityPolicy(extraURIs ...string) string {
 
 	// Restrictive default policy, but
 	// include ListenBrainz API for fields.
+	// Same goes for Träwelling API.
 	const listenBrains = "https://api.listenbrainz.org/1/user/"
-	values[connectSrc] = append(values[defaultSrc], listenBrains) //nolint
+	const senkYouForTraewelling = "https://traewelling.de/api/v1/user/"
+	values[connectSrc] = append(values[defaultSrc], listenBrains, senkYouForTraewelling) //nolint
 
 	/*
 		object-src
