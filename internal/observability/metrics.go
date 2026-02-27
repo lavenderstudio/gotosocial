@@ -21,15 +21,20 @@ package observability
 
 import (
 	"context"
-	"fmt"
+	"net/http"
+	"os"
+	"time"
 
+	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
+	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/contrib/exporters/autoexport"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric"
 	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/exemplar"
@@ -37,24 +42,28 @@ import (
 
 func InitializeMetrics(ctx context.Context, state *state.State) error {
 	if !config.GetMetricsEnabled() {
+		// Noop.
 		return nil
 	}
 
 	r, err := Resource()
 	if err != nil {
-		// this can happen if semconv versioning is out-of-sync
-		return fmt.Errorf("building tracing resource: %w", err)
+		// This can happen if semconv versioning is out-of-sync.
+		return gtserror.Newf("error building tracing resource: %w", err)
 	}
 
-	mt, err := autoexport.NewMetricReader(ctx)
+	// The exporter embeds a default OpenTelemetry Reader
+	// and implements prometheus.Collector, allowing it
+	// to be used as both a Reader and Collector.
+	exporter, err := prometheus.New()
 	if err != nil {
-		return err
+		return gtserror.Newf("error initializing prometheus: %w", err)
 	}
 
 	meterProvider := sdk.NewMeterProvider(
 		sdk.WithExemplarFilter(exemplar.AlwaysOffFilter),
 		sdk.WithResource(r),
-		sdk.WithReader(mt),
+		sdk.WithReader(exporter),
 	)
 
 	otel.SetMeterProvider(meterProvider)
@@ -260,6 +269,50 @@ func InitializeMetrics(ctx context.Context, state *state.State) error {
 	if err != nil {
 		return err
 	}
+
+	// Create Prometheus metrics server.
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+
+	// Nick these env vars from the autoexporter,
+	// keeping the same defaults as are used there.
+	host, ok := os.LookupEnv("OTEL_EXPORTER_PROMETHEUS_HOST")
+	if !ok {
+		host = "localhost"
+	}
+	port, ok := os.LookupEnv("OTEL_EXPORTER_PROMETHEUS_PORT")
+	if !ok {
+		port = "9464"
+	}
+	addr := host + ":" + port
+
+	// Run Prometheus metrics server.
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 30 * time.Second,
+	}
+	go func() {
+		log.Infof(ctx, "prometheus http server listening on %s", addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Errorf(ctx, "prometheus http server error: %v", err)
+		}
+	}()
+
+	// Prepare graceful shutdown
+	// of Prometheus metrics server.
+	go func() {
+		// Block until passed context
+		// (server context) is done.
+		_ = <-ctx.Done()
+		timeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+
+		// Shut down the metrics server.
+		if err := server.Shutdown(timeout); err != nil {
+			log.Errorf(ctx, "error shutting down prometheus http server: %v", err)
+		}
+	}()
 
 	return nil
 }
