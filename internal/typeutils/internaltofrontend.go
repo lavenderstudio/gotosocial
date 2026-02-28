@@ -3038,40 +3038,28 @@ func (c *Converter) DomainLimitToAPIDomainLimit(
 	}, nil
 }
 
-func DomainLimitToAPIFilterV1(domainLimit *gtsmodel.DomainLimit) *apimodel.FilterV1 {
-	return &apimodel.FilterV1{
-		ID:     domainLimit.ID,
-		Phrase: "domain limit: " + domainLimit.Domain,
-		Context: []apimodel.FilterContext{
-			apimodel.FilterContextHome,
-			apimodel.FilterContextPublic,
-			apimodel.FilterContextThread,
-		},
-		Irreversible: domainLimit.StatusesPolicy == gtsmodel.StatusesPolicyFilterHide,
+func DomainLimitToAPIFilterV2(limit *gtsmodel.DomainLimit) *apimodel.FilterV2 {
+	return FilterToAPIFilterV2(domainLimitToFilter(limit))
+}
+
+func domainLimitToFilter(limit *gtsmodel.DomainLimit) *gtsmodel.Filter {
+	return &gtsmodel.Filter{
+		ID:       limit.ID,
+		Title:    "domain limit: " + limit.Domain,
+		Action:   domainLimitStatusesPolicyToFilterAction(limit.StatusesPolicy),
+		Contexts: gtsmodel.FilterContexts(gtsmodel.FilterContextHome | gtsmodel.FilterContextPublic | gtsmodel.FilterContextThread),
+		Keywords: []*gtsmodel.FilterKeyword{{ID: limit.ID, FilterID: limit.ID, Keyword: limit.Domain, WholeWord: util.Ptr(false)}},
 	}
 }
 
-func DomainLimitToAPIFilterV2(domainLimit *gtsmodel.DomainLimit) *apimodel.FilterV2 {
-	return &apimodel.FilterV2{
-		ID:           domainLimit.ID,
-		Title:        "domain limit: " + domainLimit.Domain,
-		FilterAction: domainLimitStatusesPolicyToFilterAction(domainLimit.StatusesPolicy),
-		Context: []apimodel.FilterContext{
-			apimodel.FilterContextHome,
-			apimodel.FilterContextPublic,
-			apimodel.FilterContextThread,
-		},
-	}
-}
-
-func domainLimitStatusesPolicyToFilterAction(p gtsmodel.StatusesPolicy) apimodel.FilterAction {
+func domainLimitStatusesPolicyToFilterAction(p gtsmodel.StatusesPolicy) gtsmodel.FilterAction {
 	switch p {
 	case gtsmodel.StatusesPolicyFilterWarn:
-		return apimodel.FilterActionWarn
+		return gtsmodel.FilterActionWarn
 	case gtsmodel.StatusesPolicyFilterHide:
-		return apimodel.FilterActionHide
+		return gtsmodel.FilterActionHide
 	default:
-		return apimodel.FilterActionNone
+		return gtsmodel.FilterActionNone
 	}
 }
 
