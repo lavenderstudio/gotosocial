@@ -248,8 +248,8 @@ function StatusMediaEntry({ media }: { media: MediaAttachment }) {
 						src={media.url}
 						loading="lazy"
 						alt={media.description}
-						width={media.meta.original.width}
-						height={media.meta.original.height}
+						width={media.meta?.original.width ?? undefined}
+						height={media.meta?.original.height ?? undefined}
 					/>
 				</a>
 			</details>

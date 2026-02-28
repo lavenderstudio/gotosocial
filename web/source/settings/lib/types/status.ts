@@ -59,7 +59,7 @@ export interface MediaAttachment {
 	preview_url: string;
 	remote_url: string | null;
 	preview_remote_url: string | null;
-	meta: MediaAttachmentMeta;
+	meta: MediaAttachmentMeta | null;
 	description: string;
 	blurhash: string;
 }

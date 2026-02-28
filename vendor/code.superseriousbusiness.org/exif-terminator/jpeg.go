@@ -19,7 +19,6 @@
 package terminator
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -78,8 +77,7 @@ type jpegVisitor struct {
 // We don't really care about many of the parameters, since all we're interested
 // in here is the very last segment that was scanned.
 func (v *jpegVisitor) HandleSegment(segmentMarker byte, _ string, _ int, _ bool) error {
-	segmentList := v.js.Segments()
-	segments := segmentList.Segments()
+	segments := v.js.Segments().Segments()
 	mostRecentSegment := segments[len(segments)-1]
 	return v.writeSegment(mostRecentSegment)
 }
@@ -100,30 +98,34 @@ func (v *jpegVisitor) writeSegment(s *jpegstructure.Segment) error {
 		}
 	}
 
-	// The scan-data will have a marker-ID of (0) because it doesn't have a marker-ID or length.
+	// The scan-data will have a marker-ID of (0)
+	// because it doesn't have a marker-ID or length.
 	if s.MarkerId != 0 {
 		_, err := w.Write([]byte{0xff, s.MarkerId})
 		if err != nil {
 			return err
 		}
-
 		sizeLen, found := markerLen[s.MarkerId]
 		if !found || sizeLen == 2 {
 			l := uint16(len(s.Data) + 2)
-			b := make([]byte, 2)
-			binary.BigEndian.PutUint16(b, l)
-			if _, err := w.Write(b); err != nil {
+			if _, err := w.Write([]byte{
+				byte(l >> 8),
+				byte(l),
+			}); err != nil {
 				return err
 			}
 		} else if sizeLen == 4 {
 			l := uint32(len(s.Data) + 4)
-			b := make([]byte, 4)
-			binary.BigEndian.PutUint32(b, l)
-			if _, err := w.Write(b); err != nil {
+			if _, err := w.Write([]byte{
+				byte(l >> 24),
+				byte(l >> 16),
+				byte(l >> 8),
+				byte(l),
+			}); err != nil {
 				return err
 			}
 		} else if sizeLen != 0 {
-			return fmt.Errorf("not a supported marker-size: MARKER-ID=(0x%02x) MARKER-SIZE-LEN=(%d)", s.MarkerId, sizeLen)
+			return fmt.Errorf("unsupported marker-size: MARKER-ID=(0x%02x) MARKER-SIZE-LEN=(%d)", s.MarkerId, sizeLen)
 		}
 	}
 

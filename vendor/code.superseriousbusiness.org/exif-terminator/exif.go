@@ -19,6 +19,7 @@
 package terminator
 
 import (
+	"fmt"
 	"strings"
 
 	exif "github.com/dsoprea/go-exif/v3"
@@ -30,24 +31,61 @@ type withEXIF interface {
 	SetExif(ib *exif.IfdBuilder) (err error)
 }
 
-func terminateEXIF(data withEXIF) error {
-	ifd, _, err := data.Exif()
+func terminateEXIF(data withEXIF) (err error) {
+	var ifd *exif.Ifd
+
+	// Read EXIF from data chunk.
+	ifd, _, err = data.Exif()
+	if err != nil &&
+		strings.Contains(err.Error(), "no exif data") {
+
+		// The only actionable error is if there's
+		// no removable EXIF data, i.e. return early.
+		return nil
+	}
+
+	var ifdb *exif.IfdBuilder
+
+	// Get IB chain from EXIF IFD chain (can be nil).
+	ifdb, err = newIfdBuilderFromExistingChain(ifd)
 	if err != nil {
-		if strings.Contains(err.Error(), "no exif data") {
-			err = nil
+		err = nil
+		return
+	}
+
+	if ifd != nil {
+		// Search for existing orientation data in EXIF chunk.
+		orientation, _ := ifdb.FindTagWithName("Orientation")
+
+		// Start new IFD chain from fesh mapping and indices.
+		im, ti := exifcommon.NewIfdMapping(), exif.NewTagIndex()
+		ifdb = exif.NewIfdBuilder(im, ti, ifd.IfdIdentity(), ifd.ByteOrder())
+
+		if orientation != nil {
+			// Set old orientation.
+			ifdb.Add(orientation)
 		}
-		return err
 	}
 
-	ifdb := exif.NewIfdBuilderFromExistingChain(ifd)
-	orientation, _ := ifdb.FindTagWithName("Orientation")
-
-	im, ti := exifcommon.NewIfdMapping(), exif.NewTagIndex()
-	ifdb = exif.NewIfdBuilder(im, ti, ifd.IfdIdentity(), ifd.ByteOrder())
-
-	if orientation != nil {
-		ifdb.Add(orientation)
+	// Set new empty IFD chain on EXIF chunk.
+	if err = data.SetExif(ifdb); err != nil {
+		return fmt.Errorf("error setting exif: %w", err)
 	}
 
-	return data.SetExif(ifdb)
+	return nil
+}
+
+// newIfdBuilderFromExistingChain wraps exif.NewIfdBuilderFromExistingChain(), recovering uncaught panics.
+func newIfdBuilderFromExistingChain(ifd *exif.Ifd) (ifdb *exif.IfdBuilder, err error) {
+	defer func() {
+		switch r := recover().(type) {
+		case nil:
+		case error:
+			err = r
+		default:
+			err = fmt.Errorf("recovered panic: %v", r)
+		}
+	}()
+	ifdb = exif.NewIfdBuilderFromExistingChain(ifd)
+	return
 }

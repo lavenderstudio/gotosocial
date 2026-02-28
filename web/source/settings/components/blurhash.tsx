@@ -23,9 +23,9 @@ import { decode } from "blurhash";
 
 export default function BlurhashCanvas({ media }: { media: MediaAttachment }) {
 	const hash = media.blurhash;
-	const thumbHeight = media.meta.small.height;
-	const thumbWidth = media.meta.small.width;
-	const thumbAspect = media.meta.small.aspect;	
+	const thumbHeight = media.meta?.small.height ?? 1;
+	const thumbWidth = media.meta?.small.width ?? 1;
+	const thumbAspect = media.meta?.small.aspect ?? 1;	
 
 	/*
 		It's very expensive to draw big canvases
