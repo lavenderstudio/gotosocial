@@ -31,14 +31,14 @@ type pngVisitor struct {
 }
 
 func (v *pngVisitor) split(data []byte, atEOF bool) (int, []byte, error) {
-	// execute the ps split function to read in data
+	// execute the ps split function to read in data.
 	advance, token, err := v.ps.Split(data, atEOF)
 	if err != nil {
 		return advance, token, err
 	}
 
 	// if we haven't written anything at all yet, then
-	// write the png header back into the writer first
+	// write the png header back into the writer first.
 	if v.lastWrittenChunk == -1 {
 		if _, err := v.writer.Write(pngstructure.PngSignature[:]); err != nil {
 			return advance, token, err
@@ -52,11 +52,10 @@ func (v *pngVisitor) split(data []byte, atEOF bool) (int, []byte, error) {
 		return advance, token, err
 	}
 
-	// Write each chunk by passing it
-	// through our custom write func,
-	// which strips out exif and fixes
-	// the CRC of each chunk.
+	// Extract chunks from slice.
 	chunks := chunkSlice.Chunks()
+
+	// Iterate, terminate and write chunks, from last written.
 	for i := v.lastWrittenChunk + 1; i < len(chunks); i++ {
 		chunk := chunks[i]
 
@@ -70,10 +69,12 @@ func (v *pngVisitor) split(data []byte, atEOF bool) (int, []byte, error) {
 			chunk.UpdateCrc32()
 		}
 
-		// Write this new chunk.
+		// Write this particular chunk to underlying writer.
 		if _, err := chunk.WriteTo(v.writer); err != nil {
 			return advance, token, err
 		}
+
+		// Update chunk index.
 		v.lastWrittenChunk = i
 
 		// Zero data; here you

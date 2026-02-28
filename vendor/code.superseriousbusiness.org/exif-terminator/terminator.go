@@ -29,7 +29,12 @@ import (
 	pngstructure "code.superseriousbusiness.org/go-png-image-structure/v2"
 )
 
+// Terminate will attempt to strip EXIF from image of 'mediaType' contained
+// in reader, returning a reader that streams the resulting cleaned image.
+//
+// NOTE: You should prefer using TerminateInto() which is more performant.
 func Terminate(in io.Reader, mediaType string) (io.Reader, error) {
+
 	// To avoid keeping too much stuff
 	// in memory we want to pipe data
 	// directly to the reader.
@@ -46,6 +51,17 @@ func Terminate(in io.Reader, mediaType string) (io.Reader, error) {
 		var err error
 
 		defer func() {
+			// Try recover any error, since
+			// disproprea libraries do much
+			// error handling via panicking :|
+			switch r := recover().(type) {
+			case nil:
+			case error:
+				err = r
+			default:
+				err = fmt.Errorf("recovered panic: %v", r)
+			}
+
 			// Always close writer, using returned
 			// scanner error (if any). If err is nil
 			// then the standard io.EOF will be used.
@@ -64,12 +80,27 @@ func Terminate(in io.Reader, mediaType string) (io.Reader, error) {
 	return pr, nil
 }
 
+// TerminateInto will attempt to strip EXIF from image of 'mediaType' contained in reader, writing to output.
 func TerminateInto(out io.Writer, in io.Reader, mediaType string) error {
+
 	// Setup scanner to terminate exif from 'in' to 'out'.
 	scanner, err := terminatingScanner(out, in, mediaType)
 	if err != nil {
 		return err
 	}
+
+	defer func() {
+		// Try recover any error, since
+		// disproprea libraries do much
+		// error handling via panicking :|
+		switch r := recover().(type) {
+		case nil:
+		case error:
+			err = r
+		default:
+			err = fmt.Errorf("recovered panic: %v", r)
+		}
+	}()
 
 	// Scan through input.
 	for scanner.Scan() {
@@ -90,9 +121,7 @@ func terminatingScanner(out io.Writer, in io.Reader, mediaType string) (*bufio.S
 
 	switch mediaType {
 	case "image/jpeg", "jpeg", "jpg":
-		v := &jpegVisitor{
-			writer: out,
-		}
+		v := &jpegVisitor{writer: out}
 
 		// Provide the visitor to the splitter so
 		// that it triggers on every section scan.
