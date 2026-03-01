@@ -62,7 +62,7 @@ func (s *statusDB) GetStatusesByIDs(ctx context.Context, ids []string) ([]*gtsmo
 			// the remaining (uncached) status IDs.
 			if err := s.db.NewSelect().
 				Model(&statuses).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}
@@ -489,7 +489,7 @@ func (s *statusDB) fixStatusThreading(ctx context.Context, tx bun.Tx, threadIDs 
 	if _, err := tx.
 		NewUpdate().
 		Table("statuses").
-		Where("? IN (?)", bun.Ident("thread_id"), bun.In(threadIDs)).
+		Where("? IN (?)", bun.Ident("thread_id"), bun.List(threadIDs)).
 		Set("? = ?", bun.Ident("thread_id"), threadID).
 		Returning("?", bun.Ident("id")).
 		Exec(ctx, &statusIDs); err != nil && !errors.Is(err, db.ErrNoEntries) {
@@ -501,7 +501,7 @@ func (s *statusDB) fixStatusThreading(ctx context.Context, tx bun.Tx, threadIDs 
 	if _, err := tx.
 		NewUpdate().
 		Table("thread_mutes").
-		Where("? IN (?)", bun.Ident("thread_id"), bun.In(threadIDs)).
+		Where("? IN (?)", bun.Ident("thread_id"), bun.List(threadIDs)).
 		Set("? = ?", bun.Ident("thread_id"), threadID).
 		Returning("?", bun.Ident("id")).
 		Exec(ctx, &muteIDs); err != nil && !errors.Is(err, db.ErrNoEntries) {
@@ -513,7 +513,7 @@ func (s *statusDB) fixStatusThreading(ctx context.Context, tx bun.Tx, threadIDs 
 	if _, err := tx.
 		NewDelete().
 		Table("threads").
-		Where("? IN (?)", bun.Ident("id"), bun.In(threadIDs)).
+		Where("? IN (?)", bun.Ident("id"), bun.List(threadIDs)).
 		Exec(ctx); err != nil {
 		return "", gtserror.Newf("error deleting threads: %w", err)
 	}

@@ -119,7 +119,7 @@ func (n *notificationDB) GetNotificationsByIDs(ctx context.Context, ids []string
 			// the remaining (uncached) IDs.
 			if err := n.db.NewSelect().
 				Model(&notifs).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}
@@ -243,12 +243,12 @@ func (n *notificationDB) GetAccountNotifications(
 
 	if len(types) > 0 {
 		// Include only requested notification types.
-		q = q.Where("? IN (?)", bun.Ident("notification.notification_type"), bun.In(types))
+		q = q.Where("? IN (?)", bun.Ident("notification.notification_type"), bun.List(types))
 	}
 
 	if len(excludeTypes) > 0 {
 		// Filter out unwanted notif types.
-		q = q.Where("? NOT IN (?)", bun.Ident("notification.notification_type"), bun.In(excludeTypes))
+		q = q.Where("? NOT IN (?)", bun.Ident("notification.notification_type"), bun.List(excludeTypes))
 	}
 
 	// Return only notifs for this account.
@@ -317,7 +317,7 @@ func (n *notificationDB) DeleteNotifications(ctx context.Context, types []gtsmod
 		Table("notifications")
 
 	if len(types) > 0 {
-		q = q.Where("? IN (?)", bun.Ident("notification_type"), bun.In(types))
+		q = q.Where("? IN (?)", bun.Ident("notification_type"), bun.List(types))
 	}
 
 	if targetAccountID != "" {

@@ -155,7 +155,7 @@ func (s *scheduledStatusDB) GetScheduledStatusesByIDs(ctx context.Context, ids [
 			// the remaining (uncached) IDs.
 			if err := s.db.NewSelect().
 				Model(&statuses).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}

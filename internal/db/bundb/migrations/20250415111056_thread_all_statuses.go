@@ -602,7 +602,7 @@ func (sr *statusRethreader) rethreadStatus(ctx context.Context, tx bun.Tx, statu
 		threadIDs = xslices.Deduplicate(threadIDs)
 		if _, err := tx.NewUpdate().
 			Table("thread_mutes").
-			Where("? IN (?)", bun.Ident("thread_id"), bun.In(threadIDs)).
+			Where("? IN (?)", bun.Ident("thread_id"), bun.List(threadIDs)).
 			Set("? = ?", bun.Ident("thread_id"), threadID).
 			Exec(ctx); err != nil {
 			return 0, gtserror.Newf("error updating mute thread ids: %w", err)
@@ -750,9 +750,9 @@ func (sr *statusRethreader) getStragglers(ctx context.Context, tx bun.Tx, idx in
 		Column("id", "thread_id", "in_reply_to_id", "thread_id_new").
 		Where("? IN (?) AND ? NOT IN (?)",
 			bun.Ident("thread_id"),
-			bun.In(threadIDs),
+			bun.List(threadIDs),
 			bun.Ident("id"),
-			bun.In(sr.statusIDs),
+			bun.List(sr.statusIDs),
 		).
 		Scan(ctx); err != nil && err != db.ErrNoEntries {
 		return err

@@ -94,7 +94,7 @@ func (r *relationshipDB) getMutesByIDs(ctx context.Context, ids []string) ([]*gt
 			// the remaining (uncached) IDs.
 			if err := r.db.NewSelect().
 				Model(&mutes).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}

@@ -80,7 +80,7 @@ func (s *statusBookmarkDB) GetStatusBookmarksByIDs(ctx context.Context, ids []st
 			// the remaining (uncached) bookmarks.
 			if err := s.db.NewSelect().
 				Model(&bookmarks).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}

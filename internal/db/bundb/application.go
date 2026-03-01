@@ -149,7 +149,7 @@ func (a *applicationDB) getApplicationsByIDs(ctx context.Context, ids []string) 
 			// the remaining (uncached) app IDs.
 			if err := a.db.NewSelect().
 				Model(&apps).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}
@@ -220,7 +220,7 @@ func (a *applicationDB) GetAllTokens(ctx context.Context) ([]*gtsmodel.Token, er
 			// the remaining (uncached) token IDs.
 			if err := a.db.NewSelect().
 				Model(&tokens).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}
@@ -329,7 +329,7 @@ func (a *applicationDB) getTokensByIDs(ctx context.Context, ids []string) ([]*gt
 			// the remaining (uncached) token IDs.
 			if err := a.db.NewSelect().
 				Model(&tokens).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}

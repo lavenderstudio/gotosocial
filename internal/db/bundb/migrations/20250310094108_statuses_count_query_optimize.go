@@ -43,7 +43,7 @@ func init() {
 					bun.Ident("statuses_local_count_view"),
 					bun.Ident("statuses"),
 					bun.Ident("local"), true,
-					bun.Ident("visibility"), bun.In(in),
+					bun.Ident("visibility"), bun.List(in),
 					bun.Ident("pending_approval"), false,
 				).
 				Exec(ctx); err != nil {

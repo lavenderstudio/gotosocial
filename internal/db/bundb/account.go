@@ -72,7 +72,7 @@ func (a *accountDB) GetAccountsByIDs(ctx context.Context, ids []string) ([]*gtsm
 			// the remaining (uncached) account IDs.
 			if err := a.db.NewSelect().
 				Model(&accounts).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}
@@ -554,7 +554,7 @@ func (a *accountDB) GetAccounts(
 			return nil, nil
 		}
 
-		q = q.Where("? IN (?)", bun.Ident("account.id"), bun.In(accountIDIn))
+		q = q.Where("? IN (?)", bun.Ident("account.id"), bun.List(accountIDIn))
 	}
 
 	if limit > 0 {

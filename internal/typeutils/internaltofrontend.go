@@ -698,34 +698,43 @@ func AttachmentToAPIAttachment(media *gtsmodel.MediaAttachment) apimodel.Attachm
 		return api
 	}
 
-	if media.URL != "" {
-		// Allocate media metadata object.
-		api.Meta = new(apimodel.MediaMeta)
+	if media.URL == "" {
+		// If the URL isn't set yet (which it *should* be),
+		// this likely indicates a bug with placeholder being
+		// returned for still-processing media. Set an error
+		// so it gets filtered out with placeholder text.
+		const errText = "still processing"
+		api.Error = new(string)
+		*api.Error = errText
+		return api
+	}
 
-		// Set file focus details.
-		// (this doesn't make much sense if media
-		// has no image, but the API doesn't yet
-		// distinguish between zero values vs. none).
-		api.Meta.Focus = new(apimodel.MediaFocus)
-		api.Meta.Focus.X = media.FileMeta.Focus.X
-		api.Meta.Focus.Y = media.FileMeta.Focus.Y
+	// Allocate media metadata object.
+	api.Meta = new(apimodel.MediaMeta)
 
-		// If the URL is set, either the file is currently
-		// processing, or is successfully stored locally.
-		api.TextURL = util.Ptr(media.URL)
-		api.URL = api.TextURL
+	// Set file focus details.
+	// (this doesn't make much sense if media
+	// has no image, but the API doesn't yet
+	// distinguish between zero values vs. none).
+	api.Meta.Focus = new(apimodel.MediaFocus)
+	api.Meta.Focus.X = media.FileMeta.Focus.X
+	api.Meta.Focus.Y = media.FileMeta.Focus.Y
 
-		// Only add file details if we have any stored.
-		if media.FileMeta.Original != zeroOriginal {
-			api.Meta.Original = apimodel.MediaDimensions{
-				Width:     media.FileMeta.Original.Width,
-				Height:    media.FileMeta.Original.Height,
-				Aspect:    media.FileMeta.Original.Aspect,
-				Size:      toAPISize(media.FileMeta.Original.Width, media.FileMeta.Original.Height),
-				FrameRate: toAPIFrameRate(media.FileMeta.Original.Framerate),
-				Duration:  util.PtrOrZero(media.FileMeta.Original.Duration),
-				Bitrate:   util.PtrOrZero(media.FileMeta.Original.Bitrate),
-			}
+	// If the URL is set, either the file is currently
+	// processing, or is successfully stored locally.
+	api.TextURL = util.Ptr(media.URL)
+	api.URL = api.TextURL
+
+	// Only add file details if we have any stored.
+	if media.FileMeta.Original != zeroOriginal {
+		api.Meta.Original = apimodel.MediaDimensions{
+			Width:     media.FileMeta.Original.Width,
+			Height:    media.FileMeta.Original.Height,
+			Aspect:    media.FileMeta.Original.Aspect,
+			Size:      toAPISize(media.FileMeta.Original.Width, media.FileMeta.Original.Height),
+			FrameRate: toAPIFrameRate(media.FileMeta.Original.Framerate),
+			Duration:  util.PtrOrZero(media.FileMeta.Original.Duration),
+			Bitrate:   util.PtrOrZero(media.FileMeta.Original.Bitrate),
 		}
 	}
 
@@ -888,8 +897,7 @@ func (c *Converter) StatusToAPIStatus(
 		ctx,
 		status,
 		requestingAccount,
-		true,
-		true,
+		true, // addPendingNote
 	)
 }
 
@@ -901,9 +909,13 @@ func (c *Converter) statusToAPIStatus(
 	ctx context.Context,
 	status *gtsmodel.Status,
 	requestingAccount *gtsmodel.Account,
-	placeholdAttachments bool,
 	addPendingNote bool,
 ) (*apimodel.Status, error) {
+
+	// previously used to be a function
+	// argument but we only ever set true.
+	const placeholdAttachments = true
+
 	apiStatus, err := c.statusToFrontend(
 		ctx,
 		status,
@@ -1469,7 +1481,11 @@ func (c *Converter) StatusToEditHistory(
 
 			// Convert and append each media attachment to slice.
 			apiAttachment := AttachmentToAPIAttachment(attachment)
-			apiAttachments = append(apiAttachments, &apiAttachment)
+			if apiAttachment.Error != nil {
+
+				// Only include attachment if it's loadable and usable.
+				apiAttachments = append(apiAttachments, &apiAttachment)
+			}
 		}
 
 		// If media descriptions are set, update API model descriptions.
@@ -2214,11 +2230,9 @@ func (c *Converter) ReportToAdminAPIReport(ctx context.Context, r *gtsmodel.Repo
 		}
 	}
 	for _, s := range r.Statuses {
-		status, err := c.statusToAPIStatus(
-			ctx,
+		status, err := c.statusToAPIStatus(ctx,
 			s,
 			requestingAccount,
-			true, // Placehold unknown attachments.
 
 			// Don't add note about
 			// pending, it's not
@@ -2783,11 +2797,9 @@ func (c *Converter) InteractionReqToAPIInteractionReq(
 
 	var reply *apimodel.Status
 	if req.InteractionType == gtsmodel.InteractionReply && req.Reply != nil {
-		reply, err = c.statusToAPIStatus(
-			ctx,
+		reply, err = c.statusToAPIStatus(ctx,
 			req.Reply,
 			requestingAcct,
-			true, // Placehold unknown attachments.
 
 			// Don't add note about pending;
 			// requester already knows it's
