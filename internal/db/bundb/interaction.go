@@ -112,7 +112,7 @@ func (i *interactionDB) GetInteractionRequestsByIDs(ctx context.Context, ids []s
 			// the remaining (uncached) IDs.
 			if err := i.db.NewSelect().
 				Model(&requests).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}
@@ -364,7 +364,7 @@ func (i *interactionDB) GetInteractionsRequestsForAcct(
 	if boosts {
 		wantTypes = append(wantTypes, gtsmodel.InteractionAnnounce)
 	}
-	q = q.Where("? IN (?)", bun.Ident("interaction_type"), bun.In(wantTypes))
+	q = q.Where("? IN (?)", bun.Ident("interaction_type"), bun.List(wantTypes))
 
 	// Add paging param max ID.
 	if maxID != "" {

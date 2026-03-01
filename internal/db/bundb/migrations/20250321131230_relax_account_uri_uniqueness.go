@@ -169,7 +169,7 @@ func init() {
 				batchQ := tx.
 					NewSelect().
 					Model(&oldAccounts).
-					Where("? IN (?)", bun.Ident("id"), bun.In(oldAccountIDs))
+					Where("? IN (?)", bun.Ident("id"), bun.List(oldAccountIDs))
 
 				// Order batch by usernameDomain
 				// to ensure paging consistent.

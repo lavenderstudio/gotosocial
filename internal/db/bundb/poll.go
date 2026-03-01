@@ -301,7 +301,7 @@ func (p *pollDB) GetPollVotes(ctx context.Context, pollID string) ([]*gtsmodel.P
 			// the remaining (uncached) IDs.
 			if err := p.db.NewSelect().
 				Model(&votes).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}

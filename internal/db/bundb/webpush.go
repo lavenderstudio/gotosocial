@@ -220,7 +220,7 @@ func (w *webPushDB) GetWebPushSubscriptionsByAccountID(ctx context.Context, acco
 			if err := w.db.
 				NewSelect().
 				Model(&subscriptions).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); // nocollapse
 			err != nil {
 				return nil, err

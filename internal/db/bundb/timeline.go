@@ -58,7 +58,7 @@ func (t *timelineDB) GetHomeTimeline(ctx context.Context, accountID string, page
 			q = q.Where(
 				"? IN (?)",
 				bun.Ident("status.account_id"),
-				bun.In(accountIDs),
+				bun.List(accountIDs),
 			)
 
 			// Only include statuses that aren't pending approval.

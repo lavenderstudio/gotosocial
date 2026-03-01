@@ -77,7 +77,7 @@ func (f *filterDB) GetFiltersByIDs(ctx context.Context, ids []string) ([]*gtsmod
 			if err := f.db.
 				NewSelect().
 				Model(&filters).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}

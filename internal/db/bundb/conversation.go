@@ -195,7 +195,7 @@ func (c *conversationDB) getConversationsByLastStatusIDs(
 			if err := c.db.NewSelect().
 				Model(&conversations).
 				Where("? = ?", bun.Ident("account_id"), accountID).
-				Where("? IN (?)", bun.Ident("last_status_id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("last_status_id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}
@@ -317,7 +317,7 @@ func (c *conversationDB) DeleteConversationsByOwnerAccountID(ctx context.Context
 		// matching the deleted conversation IDs.
 		if _, err := tx.NewDelete().
 			Model((*gtsmodel.ConversationToStatus)(nil)).
-			Where("? IN (?)", bun.Ident("conversation_id"), bun.In(deletedConversationIDs)).
+			Where("? IN (?)", bun.Ident("conversation_id"), bun.List(deletedConversationIDs)).
 			Exec(ctx); // nocollapse
 		err != nil {
 			return gtserror.Newf("error deleting conversation-to-status links for account %s: %w", accountID, err)

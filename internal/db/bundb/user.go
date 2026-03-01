@@ -59,7 +59,7 @@ func (u *userDB) GetUsersByIDs(ctx context.Context, ids []string) ([]*gtsmodel.U
 			// the remaining (uncached) user IDs.
 			if err := u.db.NewSelect().
 				Model(&users).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}

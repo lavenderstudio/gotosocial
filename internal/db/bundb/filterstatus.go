@@ -56,7 +56,7 @@ func (f *filterDB) GetFilterStatusesByIDs(ctx context.Context, ids []string) ([]
 			if err := f.db.
 				NewSelect().
 				Model(&filterStatuses).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}
@@ -101,7 +101,7 @@ func (f *filterDB) DeleteFilterStatusesByIDs(ctx context.Context, ids ...string)
 	if _, err := f.db.
 		NewDelete().
 		Model((*gtsmodel.FilterStatus)(nil)).
-		Where("? IN (?)", bun.Ident("id"), bun.In(ids)).
+		Where("? IN (?)", bun.Ident("id"), bun.List(ids)).
 		Exec(ctx); err != nil {
 		return err
 	}

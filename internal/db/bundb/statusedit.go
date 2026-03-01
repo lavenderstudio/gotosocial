@@ -84,7 +84,7 @@ func (s *statusEditDB) GetStatusEditsByIDs(ctx context.Context, ids []string) ([
 			// the remaining (uncached) edit IDs.
 			if err := s.db.NewSelect().
 				Model(&edits).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}
@@ -157,7 +157,7 @@ func (s *statusEditDB) DeleteStatusEdits(ctx context.Context, ids []string) erro
 	// to given slice, returning status IDs.
 	if _, err := s.db.NewDelete().
 		Model(&deleted).
-		Where("? IN (?)", bun.Ident("id"), bun.In(ids)).
+		Where("? IN (?)", bun.Ident("id"), bun.List(ids)).
 		Returning("?", bun.Ident("status_id")).
 		Exec(ctx); err != nil &&
 		!errors.Is(err, db.ErrNoEntries) {

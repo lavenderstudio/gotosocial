@@ -80,7 +80,7 @@ func init() {
 					Column("id", "created_at").
 					Where("? IN (?)",
 						bun.Ident("id"),
-						bun.In(status.EditIDs),
+						bun.List(status.EditIDs),
 					).
 					Scan(ctx); err != nil {
 					return fmt.Errorf("error selecting other status edits: %w", err)

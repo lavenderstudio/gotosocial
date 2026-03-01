@@ -318,7 +318,7 @@ func (l *listDB) GetListsByIDs(ctx context.Context, ids []string) ([]*gtsmodel.L
 			// the remaining (uncached) IDs.
 			if err := l.db.NewSelect().
 				Model(&lists).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}
@@ -433,7 +433,7 @@ func (l *listDB) DeleteAllListEntriesByFollows(ctx context.Context, followIDs ..
 	// ID, returning IDs and list IDs.
 	if _, err := l.db.NewDelete().
 		Table("list_entries").
-		Where("? IN (?)", bun.Ident("follow_id"), bun.In(followIDs)).
+		Where("? IN (?)", bun.Ident("follow_id"), bun.List(followIDs)).
 		Returning("?", bun.Ident("list_id")).
 		Exec(ctx, &listIDs); err != nil &&
 		!errors.Is(err, db.ErrNoEntries) {

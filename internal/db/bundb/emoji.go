@@ -577,7 +577,7 @@ func (e *emojiDB) GetEmojisByIDs(ctx context.Context, ids []string) ([]*gtsmodel
 			// the remaining (uncached) IDs.
 			if err := e.db.NewSelect().
 				Model(&emojis).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}
@@ -641,7 +641,7 @@ func (e *emojiDB) GetEmojiCategoriesByIDs(ctx context.Context, ids []string) ([]
 			// the remaining (uncached) IDs.
 			if err := e.db.NewSelect().
 				Model(&categories).
-				Where("? IN (?)", bun.Ident("id"), bun.In(uncached)).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
 				Scan(ctx); err != nil {
 				return nil, err
 			}
