@@ -446,11 +446,24 @@ func (c *Converter) ASStatusToStatus(ctx context.Context, statusable ap.Statusab
 		status.Account,
 	)
 
-	// Set approvedByURI if present,
-	// for later dereferencing.
-	if wab, ok := statusable.(ap.WithApprovedBy); ok {
-		approvedByURI := ap.GetApprovedBy(wab)
+	// Check if this is a reply
+	// with an authorization URI.
+	if status.InReplyToURI != "" {
+		var approvedByURI *url.URL
+		// Try replyAuthorization property first.
+		if wrp, ok := statusable.(ap.WithReplyAuthorization); ok {
+			approvedByURI = ap.GetReplyAuthorization(wrp)
+		}
+
+		// Fall back to deprecated approvedBy property.
+		if approvedByURI == nil {
+			if wab, ok := statusable.(ap.WithApprovedBy); ok {
+				approvedByURI = ap.GetApprovedBy(wab)
+			}
+		}
+
 		if approvedByURI != nil {
+			// Set approvedByURI for later dereferencing.
 			status.ApprovedByURI = approvedByURI.String()
 		}
 	}
