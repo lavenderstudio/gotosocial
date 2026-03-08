@@ -54,7 +54,17 @@ func (m *MediaAttachment) IsRemote() bool {
 
 // Cached returns whether MediaAttachment is cached locally.
 func (m *MediaAttachment) Cached() bool {
-	return m.File.Cached() && m.Thumbnail.Cached()
+	// Original file must be cached.
+	//
+	// Thumbnail must either exist and be cached,
+	// or not exist (for audio files with no cover).
+	return m.File.Cached() && (m.Thumbnail.Cached() || !m.HasThumbnail())
+}
+
+// HasThumbnail returns whether MediaAttachment has a thumbnail.
+// Will be false in the case of audio files with no cover image.
+func (m *MediaAttachment) HasThumbnail() bool {
+	return m.FileMeta.Small.Height > 0 && m.FileMeta.Small.Width > 0
 }
 
 // Stub will reset all non-essential attachment
