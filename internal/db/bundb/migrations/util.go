@@ -39,6 +39,26 @@ import (
 	"github.com/uptrace/bun/schema"
 )
 
+// BunExpr encompasses the arguments
+// that get passed to a bun._Expr() type
+// function, also usefully to Where()!
+type BunExpr struct {
+	Fmt string
+	Arg []any
+}
+
+// idents is syntactic sugar for
+// converting a variable slice of
+// string arguments to bun.Ident()
+// types for use as bun []any args.
+func idents(s ...string) []any {
+	a := make([]any, len(s))
+	for i, s := range s {
+		a[i] = bun.Ident(s)
+	}
+	return a
+}
+
 // bunArrayType wraps the given type in a pgdialect.Array
 // if needed, which postgres wants for serializing arrays.
 func bunArrayType(db bun.IDB, arr any) any {
@@ -289,16 +309,18 @@ func dropColumn(ctx context.Context, db bun.IDB, model any, fieldName string) er
 	return nil
 }
 
-func createIndex(ctx context.Context, db bun.IDB, indexName, tableName, colExpr string, colArgs ...any) error {
+func createIndex(ctx context.Context, db bun.IDB, indexName, tableName string, cols BunExpr, where ...BunExpr) error {
 	log.Infof(ctx, "creating index '%s' on '%s'", indexName, tableName)
 
-	// Attempt to create this index.
-	_, err := db.NewCreateIndex().
+	// Attempt to create index.
+	q := db.NewCreateIndex().
 		Table(tableName).
 		Index(indexName).
-		ColumnExpr(colExpr, colArgs...).
-		Exec(ctx)
-	if err != nil {
+		ColumnExpr(cols.Fmt, cols.Arg...)
+	for _, where := range where {
+		q = q.Where(where.Fmt, where.Arg...)
+	}
+	if _, err := q.Exec(ctx); err != nil {
 		return gtserror.Newf("error creating index '%s': %w", indexName, err)
 	}
 

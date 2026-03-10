@@ -961,8 +961,7 @@ func (c *Converter) statusToAPIStatus(
 		// If this status is pending approval and
 		// replies to the requester, add a note
 		// about how to approve or reject the reply.
-		pendingApproval := util.PtrOrValue(status.PendingApproval, false)
-		if pendingApproval &&
+		if status.Flags.PendingApproval() &&
 			requestingAccount != nil &&
 			requestingAccount.ID == status.InReplyToAccountID {
 			pendingNote, err := c.pendingReplyNote(ctx, status)
@@ -1081,7 +1080,7 @@ func (c *Converter) StatusToWebStatus(
 	}
 
 	// Mark local.
-	webStatus.Local = *s.Local
+	webStatus.Local = s.Flags.Local()
 
 	// Get edit history for this
 	// status, if it's been edited.
@@ -1257,7 +1256,9 @@ func (c *Converter) baseStatusToFrontend(
 	// Post is sensitive if there's a content
 	// warning, or it's explicitly marked as
 	// sensitive, or a domain limit says so.
-	sensitive := contentWarning != "" || *status.Sensitive || limit.MediaMarkSensitive()
+	sensitive := contentWarning != "" ||
+		status.Flags.Sensitive() ||
+		limit.MediaMarkSensitive()
 
 	repliesCount, err := c.state.DB.CountStatusReplies(ctx, status.ID)
 	if err != nil {
@@ -1301,7 +1302,7 @@ func (c *Converter) baseStatusToFrontend(
 		InReplyToAccountID: nil, // Set below.
 		Sensitive:          sensitive,
 		Visibility:         VisToAPIVis(status.Visibility),
-		LocalOnly:          status.IsLocalOnly(),
+		LocalOnly:          status.LocalOnly(),
 		Language:           nil, // Set below.
 		URI:                status.URI,
 		URL:                status.URL,
@@ -1452,7 +1453,7 @@ func (c *Converter) StatusToEditHistory(
 	edits := append(status.Edits, &gtsmodel.StatusEdit{ //nolint:gocritic
 		Content:                status.Content,
 		ContentWarning:         status.ContentWarning,
-		Sensitive:              status.Sensitive,
+		Sensitive:              util.Ptr(status.Flags.Sensitive()),
 		PollOptions:            options,
 		PollVotes:              votes,
 		AttachmentIDs:          status.AttachmentIDs,

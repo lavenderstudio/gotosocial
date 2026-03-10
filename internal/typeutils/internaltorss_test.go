@@ -23,7 +23,6 @@ import (
 
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -81,14 +80,13 @@ func (suite *InternalToRSSTestSuite) TestStatusToRSSItem3() {
 		ID:                  "01H7G0VW1ACBZTRHN6RSA4JWVH",
 		URI:                 "http://localhost:8080/users/admin/statuses/01H7G0VW1ACBZTRHN6RSA4JWVH",
 		URL:                 "http://localhost:8080/@admin/statuses/01H7G0VW1ACBZTRHN6RSA4JWVH",
+		Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagLocal | gtsmodel.StatusFlagFederated),
 		ContentWarning:      "这是简体中文帖子的一些示例内容。\n\n我希望我能读到这个，因为与无聊的旧 ASCII 相比，这些字符绝对漂亮。 不幸的是，我是一个愚蠢的西方人。\n\n无论如何，无论是谁读到这篇文章，你今天过得怎么样？ 希望你过得愉快！ 如果您有一段时间没有这样做，请从椅子上站起来，喝一杯水，并将您的眼睛集中在远处的物体上，而不是电脑屏幕上！",
 		Content:             "这是另一段，只是为了确保这篇文章足够长。 通过前肢上长而弯曲的爪子的数量可以轻松识别不同的树懒类别。 顾名思义，二趾树懒的前肢上有两个爪子，而三趾树懒的四个肢上都有三个爪子。 二趾树懒也比三趾树懒稍大，并且都属于不同的分类科。 美洲共有六种树懒，主要分布在中美洲和南美洲的热带雨林中。\n\n\n\n\t霍夫曼二趾树懒 (Choloepus hoffmanni)\n\n\t林奈二趾树懒 (Choloepus didactylus)\n\n\t侏儒三趾树懒 (Bradypus pygmaeus)\n\n\t鬃三趾树懒 (Bradypus torquatus)\n\n\t棕喉树懒 (Bradypus variegatus)\n\n\t浅喉树懒 (Bradypus tridactylus)\n\n\n\n目前，有 4 种树懒被 IUCN 濒危物种红色名录列为最不受关注的物种。 鬃毛三趾树懒很脆弱，而侏儒三趾树懒则极度濒危，树懒物种面临最大的灭绝风险。",
-		Local:               util.Ptr(true),
 		AccountURI:          account.URI,
 		AccountID:           account.ID,
 		Visibility:          gtsmodel.VisibilityDefault,
 		ActivityStreamsType: ap.ObjectNote,
-		Federated:           util.Ptr(true),
 	}
 	item, err := suite.typeconverter.StatusToRSSItem(suite.T().Context(), s)
 	suite.NoError(err)

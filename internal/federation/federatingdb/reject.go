@@ -241,7 +241,7 @@ func (f *DB) rejectStatusIRI(
 		return nil
 	}
 
-	if !status.IsLocal() {
+	if !status.Flags.Local() {
 		// We don't process Rejects of statuses
 		// that weren't created on our instance.
 		// Just return.

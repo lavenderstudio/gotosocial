@@ -66,7 +66,6 @@ func (c *Converter) StatusToBoost(
 		URL: accountURIs.StatusesURL + "/" + boostID,
 
 		// Inherit some fields from the booster account.
-		Local:                    util.Ptr(booster.IsLocal()),
 		AccountID:                booster.ID,
 		Account:                  booster,
 		AccountURI:               booster.URI,
@@ -84,9 +83,6 @@ func (c *Converter) StatusToBoost(
 		MentionIDs:    []string{},
 		EmojiIDs:      []string{},
 
-		// Boosts are not considered sensitive even if their target is.
-		Sensitive: util.Ptr(false),
-
 		// Remaining fields all
 		// taken from boosted status.
 		ActivityStreamsType: target.ActivityStreamsType,
@@ -95,8 +91,16 @@ func (c *Converter) StatusToBoost(
 		BoostOfAccountID:    target.AccountID,
 		BoostOfAccount:      target.Account,
 		Visibility:          target.Visibility,
-		Federated:           util.Ptr(*target.Federated),
 	}
+
+	// Set local flag if the
+	// boosting account is local.
+	isLocal := booster.IsLocal()
+	boost.Flags.SetLocal(isLocal)
+
+	// Boost inherits federated flag.
+	federated := target.Flags.Federated()
+	boost.Flags.SetFederated(federated)
 
 	return boost, nil
 }
@@ -183,7 +187,7 @@ func (c *Converter) StatusToSinBinStatus(
 		PollOptions:         pollOptions,
 		ContentWarning:      status.ContentWarning,
 		Visibility:          status.Visibility,
-		Sensitive:           status.Sensitive,
+		Sensitive:           util.Ptr(status.Flags.Sensitive()),
 		Language:            status.Language,
 		ActivityStreamsType: status.ActivityStreamsType,
 	}, nil

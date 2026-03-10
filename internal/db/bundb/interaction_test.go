@@ -47,11 +47,10 @@ func (suite *InteractionTestSuite) markInteractionsPending(
 
 	// Mark each reply as pending approval.
 	for _, reply := range replies {
-		reply.PendingApproval = util.Ptr(true)
-		if err := suite.state.DB.UpdateStatus(
-			ctx,
+		reply.Flags.SetPendingApproval(true)
+		if err := suite.state.DB.UpdateStatus(ctx,
 			reply,
-			"pending_approval",
+			"flags",
 		); err != nil {
 			suite.FailNow(err.Error())
 		}
@@ -87,11 +86,10 @@ func (suite *InteractionTestSuite) markInteractionsPending(
 
 	// Mark each boost as pending approval.
 	for _, boost := range boosts {
-		boost.PendingApproval = util.Ptr(true)
-		if err := suite.state.DB.UpdateStatus(
-			ctx,
+		boost.Flags.SetPendingApproval(true)
+		if err := suite.state.DB.UpdateStatus(ctx,
 			boost,
-			"pending_approval",
+			"flags",
 		); err != nil {
 			suite.FailNow(err.Error())
 		}

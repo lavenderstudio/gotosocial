@@ -52,9 +52,7 @@ func init() {
 	}
 
 	down := func(ctx context.Context, db *bun.DB) error {
-		return db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-			return nil
-		})
+		return nil
 	}
 
 	if err := Migrations.Register(up, down); err != nil {

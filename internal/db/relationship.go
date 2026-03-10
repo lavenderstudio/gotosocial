@@ -140,6 +140,15 @@ type Relationship interface {
 	// RejectFollowRequest fetches a follow request from the database, and then deletes it.
 	RejectFollowRequest(ctx context.Context, originAccountID string, targetAccountID string) error
 
+	// CountAccountFollows ...
+	CountAccountFollows(ctx context.Context, accountID string) (int, error)
+
+	// CountAccountFollowers ...
+	CountAccountFollowers(ctx context.Context, accountID string) (int, error)
+
+	// CountAccountFollowRequests ...
+	CountAccountFollowRequests(ctx context.Context, accountID string) (int, error)
+
 	// GetAccountFollows returns a slice of follows owned by the given accountID.
 	GetAccountFollows(ctx context.Context, accountID string, page *paging.Page) ([]*gtsmodel.Follow, error)
 

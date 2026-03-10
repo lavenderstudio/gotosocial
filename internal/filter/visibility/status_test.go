@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -166,7 +165,7 @@ func (suite *StatusVisibleTestSuite) TestVisiblePending() {
 	// that replies to zork.
 	testStatus := new(gtsmodel.Status)
 	*testStatus = *suite.testStatuses["admin_account_status_3"]
-	testStatus.PendingApproval = util.Ptr(true)
+	testStatus.Flags.SetPendingApproval(true)
 	if err := suite.state.DB.UpdateStatus(ctx, testStatus); err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -202,7 +201,7 @@ func (suite *StatusVisibleTestSuite) TestVisiblePending() {
 	}
 
 	// Update the status to mark it as approved.
-	testStatus.PendingApproval = util.Ptr(false)
+	testStatus.Flags.SetPendingApproval(false)
 	testStatus.ApprovedByURI = "http://localhost:8080/some/accept/uri"
 	if err := suite.state.DB.UpdateStatus(ctx, testStatus); err != nil {
 		suite.FailNow(err.Error())

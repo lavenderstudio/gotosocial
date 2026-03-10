@@ -49,7 +49,7 @@ func init() {
 			if err := createIndex(ctx, tx,
 				"media_attachments_cleanup_idx",
 				"media_attachments",
-				"?, ?", bun.Ident("file_path"), bun.Ident("thumbnail_path"),
+				BunExpr{"?, ?", []any{bun.Ident("file_path"), bun.Ident("thumbnail_path")}},
 			); err != nil {
 				return err
 			}
@@ -95,9 +95,7 @@ func init() {
 	}
 
 	down := func(ctx context.Context, db *bun.DB) error {
-		return db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-			return nil
-		})
+		return nil
 	}
 
 	if err := Migrations.Register(up, down); err != nil {

@@ -156,7 +156,7 @@ func (ctxs FilterContexts) Account() bool {
 	return ctxs&FilterContexts(FilterContextAccount) != 0
 }
 
-// SetAccount will set / unset the FilterContextAccount bit.
+// SetAccount will set the FilterContextAccount bit.
 func (ctxs *FilterContexts) SetAccount() {
 	*ctxs |= FilterContexts(FilterContextAccount)
 }
@@ -169,7 +169,6 @@ func (ctxs *FilterContexts) UnsetAccount() {
 // String returns a single human-readable form of FilterContexts.
 func (ctxs FilterContexts) String() string {
 	var buf byteutil.Buffer
-	buf.Guarantee(72) // worst-case estimate
 	buf.B = append(buf.B, '{')
 	buf.B = append(buf.B, "home="...)
 	buf.B = strconv.AppendBool(buf.B, ctxs.Home())

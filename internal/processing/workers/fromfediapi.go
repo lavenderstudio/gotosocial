@@ -259,7 +259,7 @@ func (p *fediAPI) CreateStatus(ctx context.Context, fMsg *messages.FromFediAPI) 
 		// into RefreshStatus(), which it will
 		// further populate and insert as new.
 		bareStatus := new(gtsmodel.Status)
-		bareStatus.Local = util.Ptr(false)
+		bareStatus.Flags.SetLocal(false)
 		bareStatus.URI = ap.GetJSONLDId(statusable).String()
 
 		// Call RefreshStatus() to parse and process the provided
@@ -311,7 +311,7 @@ func (p *fediAPI) CreateStatus(ctx context.Context, fMsg *messages.FromFediAPI) 
 	// If pending approval is true then
 	// status must reply to a LOCAL status
 	// that requires approval for the reply.
-	if util.PtrOrZero(status.PendingApproval) {
+	if status.Flags.PendingApproval() {
 		intReqID := id.NewULIDFromTime(status.CreatedAt)
 		intReq := &gtsmodel.InteractionRequest{
 			ID:                    intReqID,
@@ -370,12 +370,11 @@ func (p *fediAPI) CreateStatus(ctx context.Context, fMsg *messages.FromFediAPI) 
 		// Mark the status as now approved, referring to
 		// the accepted interaction request we just stored.
 		status.PreApproved = false
-		status.PendingApproval = util.Ptr(false)
+		status.Flags.SetPendingApproval(false)
 		status.ApprovedByURI = intReq.AuthorizationURI
-		if err := p.state.DB.UpdateStatus(
-			ctx,
+		if err := p.state.DB.UpdateStatus(ctx,
 			status,
-			"pending_approval",
+			"flags",
 			"approved_by_uri",
 		); err != nil {
 			return gtserror.Newf("db error updating status: %w", err)
@@ -414,14 +413,13 @@ func (p *fediAPI) CreateReplyRequest(ctx context.Context, fMsg *messages.FromFed
 	replyURI := ap.GetJSONLDId(statusable).String()
 	reply, _, err := p.federate.RefreshStatus(ctx,
 		fMsg.Receiving.Username,
-		&gtsmodel.Status{
-			URI:   replyURI,
-			Local: util.Ptr(false),
-		},
+		&gtsmodel.Status{URI: replyURI},
 		statusable,
+
 		// Force refresh
 		// within 5min window.
 		dereferencing.Fresh,
+
 		// Don't pass callback;
 		// we're only interested
 		// in enriching the reply.
@@ -452,8 +450,9 @@ func (p *fediAPI) CreateReplyRequest(ctx context.Context, fMsg *messages.FromFed
 
 	// The reply is permitted. Check if we
 	// should send out an Accept immediately.
-	manualApproval := *reply.PendingApproval && !reply.PreApproved
+	manualApproval := reply.Flags.PendingApproval() && !reply.PreApproved
 	if manualApproval {
+
 		// The reply requires manual approval.
 		//
 		// Just notify target account about
@@ -461,7 +460,6 @@ func (p *fediAPI) CreateReplyRequest(ctx context.Context, fMsg *messages.FromFed
 		if err := p.surfacer.NotifyPendingReply(ctx, reply); err != nil {
 			return gtserror.Newf("error notifying pending reply: %w", err)
 		}
-
 		return nil
 	}
 
@@ -475,11 +473,9 @@ func (p *fediAPI) CreateReplyRequest(ctx context.Context, fMsg *messages.FromFed
 	// Mark the request as accepted.
 	req.AcceptedAt = time.Now()
 	req.ResponseURI = uris.GenerateURIForAccept(
-		req.TargetAccount.Username, req.ID,
-	)
+		req.TargetAccount.Username, req.ID)
 	req.AuthorizationURI = uris.GenerateURIForAuthorization(
-		req.TargetAccount.Username, req.ID,
-	)
+		req.TargetAccount.Username, req.ID)
 
 	// Update in the db.
 	if err := p.state.DB.UpdateInteractionRequest(
@@ -495,12 +491,11 @@ func (p *fediAPI) CreateReplyRequest(ctx context.Context, fMsg *messages.FromFed
 	// Mark the reply as now approved, referring to
 	// the accepted interaction request we just stored.
 	reply.PreApproved = false
-	reply.PendingApproval = util.Ptr(false)
+	reply.Flags.SetPendingApproval(false)
 	reply.ApprovedByURI = req.AuthorizationURI
-	if err := p.state.DB.UpdateStatus(
-		ctx,
+	if err := p.state.DB.UpdateStatus(ctx,
 		reply,
-		"pending_approval",
+		"flags",
 		"approved_by_uri",
 	); err != nil {
 		return gtserror.Newf("db error updating status: %w", err)
@@ -547,7 +542,7 @@ func (p *fediAPI) CreatePollVote(ctx context.Context, fMsg *messages.FromFediAPI
 	status := vote.Poll.Status
 	status.Poll = vote.Poll
 
-	if *status.Local {
+	if status.Flags.Local() {
 		// Before federating it, increment the poll vote
 		// and voter counts, *only on our local copy*.
 		status.Poll.IncrementVotes(vote.Choices, true)
@@ -583,7 +578,7 @@ func (p *fediAPI) UpdatePollVote(ctx context.Context, fMsg *messages.FromFediAPI
 	// Get the origin status.
 	reply := vote.Poll.Status
 
-	if *reply.Local {
+	if reply.Flags.Local() {
 		// These were poll votes in a local status, we need to
 		// federate the updated status model with latest vote counts.
 		if err := p.federate.UpdateStatus(ctx, reply); err != nil {
@@ -812,8 +807,7 @@ func (p *fediAPI) CreateLike(ctx context.Context, fMsg *messages.FromFediAPI) er
 		fave.PendingApproval = util.Ptr(false)
 		fave.PreApproved = false
 		fave.ApprovedByURI = intReq.AuthorizationURI
-		if err := p.state.DB.UpdateStatusFave(
-			ctx,
+		if err := p.state.DB.UpdateStatusFave(ctx,
 			fave,
 			"pending_approval",
 			"approved_by_uri",
@@ -891,8 +885,7 @@ func (p *fediAPI) CreateLikeRequest(ctx context.Context, fMsg *messages.FromFedi
 	req.Like.PreApproved = false
 	req.Like.PendingApproval = util.Ptr(false)
 	req.Like.ApprovedByURI = req.AuthorizationURI
-	if err := p.state.DB.UpdateStatusFave(
-		ctx,
+	if err := p.state.DB.UpdateStatusFave(ctx,
 		req.Like,
 		"pending_approval",
 		"approved_by_uri",
@@ -953,7 +946,7 @@ func (p *fediAPI) CreateAnnounce(ctx context.Context, fMsg *messages.FromFediAPI
 	// If pending approval is true then
 	// boost must target a LOCAL status
 	// that requires approval for the boost.
-	if util.PtrOrZero(boost.PendingApproval) {
+	if boost.Flags.PendingApproval() {
 		intReqID := id.NewULIDFromTime(boost.CreatedAt)
 		intReq := &gtsmodel.InteractionRequest{
 			ID:                    intReqID,
@@ -1010,13 +1003,12 @@ func (p *fediAPI) CreateAnnounce(ctx context.Context, fMsg *messages.FromFediAPI
 		}
 
 		// Mark the boost itself as now approved.
-		boost.PendingApproval = util.Ptr(false)
+		boost.Flags.SetPendingApproval(false)
 		boost.PreApproved = false
 		boost.ApprovedByURI = intReq.AuthorizationURI
-		if err := p.state.DB.UpdateStatus(
-			ctx,
+		if err := p.state.DB.UpdateStatus(ctx,
 			boost,
-			"pending_approval",
+			"flags",
 			"approved_by_uri",
 		); err != nil {
 			return gtserror.Newf("db error updating status: %w", err)
@@ -1106,8 +1098,9 @@ func (p *fediAPI) CreateAnnounceRequest(ctx context.Context, fMsg *messages.From
 
 	// The announce is permitted. Check if we
 	// should send out an Accept immediately.
-	manualApproval := *boost.PendingApproval && !boost.PreApproved
+	manualApproval := boost.Flags.PendingApproval() && !boost.PreApproved
 	if manualApproval {
+
 		// The announce requires manual approval.
 		//
 		// Just notify target account about
@@ -1115,7 +1108,6 @@ func (p *fediAPI) CreateAnnounceRequest(ctx context.Context, fMsg *messages.From
 		if err := p.surfacer.NotifyPendingAnnounce(ctx, boost); err != nil {
 			return gtserror.Newf("error notifying pending announce: %w", err)
 		}
-
 		return nil
 	}
 
@@ -1123,15 +1115,12 @@ func (p *fediAPI) CreateAnnounceRequest(ctx context.Context, fMsg *messages.From
 	// mark the request as accepted.
 	req.AcceptedAt = time.Now()
 	req.ResponseURI = uris.GenerateURIForAccept(
-		req.TargetAccount.Username, req.ID,
-	)
+		req.TargetAccount.Username, req.ID)
 	req.AuthorizationURI = uris.GenerateURIForAuthorization(
-		req.TargetAccount.Username, req.ID,
-	)
+		req.TargetAccount.Username, req.ID)
 
 	// Update in the db.
-	if err := p.state.DB.UpdateInteractionRequest(
-		ctx,
+	if err := p.state.DB.UpdateInteractionRequest(ctx,
 		req,
 		"accepted_at",
 		"response_uri",
@@ -1143,12 +1132,11 @@ func (p *fediAPI) CreateAnnounceRequest(ctx context.Context, fMsg *messages.From
 	// Mark the boost as now approved, referring to
 	// the accepted interaction request we just stored.
 	boost.PreApproved = false
-	boost.PendingApproval = util.Ptr(false)
+	boost.Flags.SetPendingApproval(false)
 	boost.ApprovedByURI = req.AuthorizationURI
-	if err := p.state.DB.UpdateStatus(
-		ctx,
+	if err := p.state.DB.UpdateStatus(ctx,
 		boost,
-		"pending_approval",
+		"flags",
 		"approved_by_uri",
 	); err != nil {
 		return gtserror.Newf("db error updating status: %w", err)

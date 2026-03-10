@@ -26,7 +26,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
 // EnrichAnnounce enriches the given boost wrapper status
@@ -82,8 +81,9 @@ func (d *Dereferencer) EnrichAnnounce(
 	// original URI was an indirect link.
 	boost.BoostOfURI = target.URI
 
-	// Boosts are not considered sensitive even if their target is.
-	boost.Sensitive = util.Ptr(false)
+	// Boosts are not considered
+	// sensitive even if their target is.
+	boost.Flags.SetSensitive(false)
 
 	// Populate remaining fields on
 	// the boost wrapper using target.
@@ -93,7 +93,7 @@ func (d *Dereferencer) EnrichAnnounce(
 	boost.BoostOfAccountID = target.AccountID
 	boost.BoostOfAccount = target.Account
 	boost.Visibility = target.Visibility
-	boost.Federated = target.Federated
+	boost.Flags.SetFederated(target.Flags.Federated())
 
 	// Ensure this Announce is permitted by the Announcee.
 	permit, err := d.isPermittedStatus(ctx, requestUser, nil, boost, true)

@@ -55,6 +55,7 @@ type DB interface {
 	StatusBookmark
 	StatusEdit
 	StatusFave
+	StatusPin
 	Tag
 	Thread
 	Timeline

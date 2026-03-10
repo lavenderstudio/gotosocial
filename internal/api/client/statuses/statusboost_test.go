@@ -621,7 +621,7 @@ func (suite *StatusBoostTestSuite) TestPostBoostImplicitAccept() {
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
-	suite.False(*dbStatus.PendingApproval)
+	suite.False(dbStatus.Flags.PendingApproval())
 
 	// There should be an Accept
 	// stored for the target status.

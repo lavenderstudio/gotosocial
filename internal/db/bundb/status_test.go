@@ -19,14 +19,12 @@ package bundb_test
 
 import (
 	"testing"
-	"time"
 
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -46,7 +44,7 @@ func (suite *StatusTestSuite) TestGetStatusByID() {
 	suite.Nil(status.BoostOfAccount)
 	suite.Nil(status.InReplyTo)
 	suite.Nil(status.InReplyToAccount)
-	suite.True(*status.Federated)
+	suite.True(status.Flags.Federated())
 }
 
 func (suite *StatusTestSuite) TestGetStatusesByIDs() {
@@ -72,7 +70,7 @@ func (suite *StatusTestSuite) TestGetStatusesByIDs() {
 	suite.Nil(status1.BoostOfAccount)
 	suite.Nil(status1.InReplyTo)
 	suite.Nil(status1.InReplyToAccount)
-	suite.True(*status1.Federated)
+	suite.True(status1.Flags.Federated())
 
 	status2 := statuses[1]
 	suite.NotNil(status2)
@@ -82,7 +80,7 @@ func (suite *StatusTestSuite) TestGetStatusesByIDs() {
 	suite.Nil(status2.BoostOfAccount)
 	suite.Nil(status2.InReplyTo)
 	suite.Nil(status2.InReplyToAccount)
-	suite.True(*status2.Federated)
+	suite.True(status2.Flags.Federated())
 }
 
 func (suite *StatusTestSuite) TestGetStatusByURI() {
@@ -97,7 +95,7 @@ func (suite *StatusTestSuite) TestGetStatusByURI() {
 	suite.Nil(status.BoostOfAccount)
 	suite.Nil(status.InReplyTo)
 	suite.Nil(status.InReplyToAccount)
-	suite.True(*status.Federated)
+	suite.True(status.Flags.Federated())
 }
 
 func (suite *StatusTestSuite) TestGetStatusWithExtras() {
@@ -111,7 +109,7 @@ func (suite *StatusTestSuite) TestGetStatusWithExtras() {
 	suite.NotEmpty(status.Tags)
 	suite.NotEmpty(status.Attachments)
 	suite.NotEmpty(status.Emojis)
-	suite.True(*status.Federated)
+	suite.True(status.Flags.Federated())
 }
 
 func (suite *StatusTestSuite) TestGetStatusWithMention() {
@@ -125,7 +123,7 @@ func (suite *StatusTestSuite) TestGetStatusWithMention() {
 	suite.NotEmpty(status.MentionIDs)
 	suite.NotEmpty(status.InReplyToID)
 	suite.NotEmpty(status.InReplyToAccountID)
-	suite.True(*status.Federated)
+	suite.True(status.Flags.Federated())
 }
 
 // The below test was originally used to ensure that a second
@@ -185,31 +183,6 @@ func (suite *StatusTestSuite) TestDeleteStatus() {
 
 	_, err = suite.db.GetStatusByID(suite.T().Context(), targetStatus.ID)
 	suite.ErrorIs(err, db.ErrNoEntries)
-}
-
-// This test was added specifically to ensure that Postgres wasn't getting upset
-// about trying to use a transaction in which an error has already occurred, which
-// was previously leading to errors like 'current transaction is aborted, commands
-// ignored until end of transaction block' when updating a status that already had
-// emojis or tags set on it.
-//
-// To run this test for postgres specifically, start a postgres container on localhost
-// and then run:
-//
-// GTS_DB_TYPE=postgres GTS_DB_ADDRESS=localhost go test ./internal/db/bundb -run '^TestStatusTestSuite$' -testify.m '^(TestUpdateStatus)$' code.superseriousbusiness.org/gotosocial/internal/db/bundb
-func (suite *StatusTestSuite) TestUpdateStatus() {
-	// Take a copy of the status.
-	targetStatus := &gtsmodel.Status{}
-	*targetStatus = *suite.testStatuses["admin_account_status_1"]
-
-	targetStatus.PinnedAt = time.Time{}
-
-	err := suite.db.UpdateStatus(suite.T().Context(), targetStatus, "pinned_at")
-	suite.NoError(err)
-
-	updated, err := suite.db.GetStatusByID(suite.T().Context(), targetStatus.ID)
-	suite.NoError(err)
-	suite.True(updated.PinnedAt.IsZero())
 }
 
 func (suite *StatusTestSuite) TestPutPopulatedStatus() {
@@ -274,8 +247,7 @@ func (suite *StatusTestSuite) TestPutStatusThreadingBoostOfIDSet() {
 		URI:                 statusURI,
 		AccountID:           accountID,
 		AccountURI:          accountURI,
-		Local:               util.Ptr(false),
-		Federated:           util.Ptr(true),
+		Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagFederated),
 		ActivityStreamsType: ap.ObjectNote,
 	}
 
@@ -294,8 +266,7 @@ func (suite *StatusTestSuite) TestPutStatusThreadingBoostOfIDSet() {
 		AccountURI:          accountURI,
 		BoostOfID:           statusID,
 		BoostOfAccountID:    accountID,
-		Local:               util.Ptr(false),
-		Federated:           util.Ptr(true),
+		Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagFederated),
 		ActivityStreamsType: ap.ObjectNote,
 	}
 
@@ -324,8 +295,7 @@ func (suite *StatusTestSuite) TestPutStatusThreadingInReplyToIDSet() {
 		URI:                 statusURI,
 		AccountID:           accountID,
 		AccountURI:          accountURI,
-		Local:               util.Ptr(false),
-		Federated:           util.Ptr(true),
+		Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagFederated),
 		ActivityStreamsType: ap.ObjectNote,
 	}
 
@@ -345,8 +315,7 @@ func (suite *StatusTestSuite) TestPutStatusThreadingInReplyToIDSet() {
 		InReplyToID:         statusID,
 		InReplyToURI:        statusURI,
 		InReplyToAccountID:  accountID,
-		Local:               util.Ptr(false),
-		Federated:           util.Ptr(true),
+		Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagFederated),
 		ActivityStreamsType: ap.ObjectNote,
 	}
 
@@ -373,8 +342,7 @@ func (suite *StatusTestSuite) TestPutStatusThreadingSiblings() {
 		URI:                 statusURI,
 		AccountID:           accountID,
 		AccountURI:          accountURI,
-		Local:               util.Ptr(false),
-		Federated:           util.Ptr(true),
+		Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagFederated),
 		ActivityStreamsType: ap.ObjectNote,
 	}
 
@@ -395,8 +363,7 @@ func (suite *StatusTestSuite) TestPutStatusThreadingSiblings() {
 			AccountID:           accountID,
 			AccountURI:          accountURI,
 			InReplyToURI:        statusURI,
-			Local:               util.Ptr(false),
-			Federated:           util.Ptr(true),
+			Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagFederated),
 			ActivityStreamsType: ap.ObjectNote,
 		})
 	}
@@ -448,8 +415,7 @@ func (suite *StatusTestSuite) TestPutStatusThreadingReconcile() {
 			AccountURI:          accountURI,
 			InReplyToID:         lastID,
 			InReplyToURI:        lastURI,
-			Local:               util.Ptr(false),
-			Federated:           util.Ptr(true),
+			Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagFederated),
 			ActivityStreamsType: ap.ObjectNote,
 		})
 		lastURI = uri
@@ -472,8 +438,7 @@ func (suite *StatusTestSuite) TestPutStatusThreadingReconcile() {
 			AccountURI:          accountURI,
 			InReplyToID:         lastID,
 			InReplyToURI:        lastURI,
-			Local:               util.Ptr(false),
-			Federated:           util.Ptr(true),
+			Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagFederated),
 			ActivityStreamsType: ap.ObjectNote,
 		})
 		lastURI = uri

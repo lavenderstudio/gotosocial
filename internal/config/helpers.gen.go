@@ -210,6 +210,7 @@ const (
 	CacheStatusEditMemRatioFlag                   = "cache-status-edit-mem-ratio"
 	CacheStatusFaveMemRatioFlag                   = "cache-status-fave-mem-ratio"
 	CacheStatusFaveIDsMemRatioFlag                = "cache-status-fave-ids-mem-ratio"
+	CacheStatusPinnedIDsMemRatioFlag              = "cache-status-pinned-ids-mem-ratio"
 	CacheTagMemRatioFlag                          = "cache-tag-mem-ratio"
 	CacheThreadMuteMemRatioFlag                   = "cache-thread-mute-mem-ratio"
 	CacheTokenMemRatioFlag                        = "cache-token-mem-ratio"
@@ -416,6 +417,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Float64("cache-status-edit-mem-ratio", cfg.Cache.StatusEditMemRatio, "")
 	flags.Float64("cache-status-fave-mem-ratio", cfg.Cache.StatusFaveMemRatio, "")
 	flags.Float64("cache-status-fave-ids-mem-ratio", cfg.Cache.StatusFaveIDsMemRatio, "")
+	flags.Float64("cache-status-pinned-ids-mem-ratio", cfg.Cache.StatusPinnedIDsMemRatio, "")
 	flags.Float64("cache-tag-mem-ratio", cfg.Cache.TagMemRatio, "")
 	flags.Float64("cache-thread-mute-mem-ratio", cfg.Cache.ThreadMuteMemRatio, "")
 	flags.Float64("cache-token-mem-ratio", cfg.Cache.TokenMemRatio, "")
@@ -432,7 +434,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 }
 
 func (cfg *Configuration) MarshalMap() map[string]any {
-	cfgmap := make(map[string]any, 203)
+	cfgmap := make(map[string]any, 204)
 	cfgmap["log-level"] = cfg.LogLevel
 	cfgmap["log-format"] = cfg.LogFormat
 	cfgmap["log-timestamp-format"] = cfg.LogTimestampFormat
@@ -614,6 +616,7 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["cache-status-edit-mem-ratio"] = cfg.Cache.StatusEditMemRatio
 	cfgmap["cache-status-fave-mem-ratio"] = cfg.Cache.StatusFaveMemRatio
 	cfgmap["cache-status-fave-ids-mem-ratio"] = cfg.Cache.StatusFaveIDsMemRatio
+	cfgmap["cache-status-pinned-ids-mem-ratio"] = cfg.Cache.StatusPinnedIDsMemRatio
 	cfgmap["cache-tag-mem-ratio"] = cfg.Cache.TagMemRatio
 	cfgmap["cache-thread-mute-mem-ratio"] = cfg.Cache.ThreadMuteMemRatio
 	cfgmap["cache-token-mem-ratio"] = cfg.Cache.TokenMemRatio
@@ -2127,6 +2130,14 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		cfg.Cache.StatusFaveIDsMemRatio, err = cast.ToFloat64E(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> float64 for 'cache-status-fave-ids-mem-ratio': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["cache-status-pinned-ids-mem-ratio"]; ok {
+		var err error
+		cfg.Cache.StatusPinnedIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> float64 for 'cache-status-pinned-ids-mem-ratio': %w", ival, err)
 		}
 	}
 
@@ -6309,6 +6320,28 @@ func GetCacheStatusFaveIDsMemRatio() float64 { return global.GetCacheStatusFaveI
 // SetCacheStatusFaveIDsMemRatio safely sets the value for global configuration 'Cache.StatusFaveIDsMemRatio' field
 func SetCacheStatusFaveIDsMemRatio(v float64) { global.SetCacheStatusFaveIDsMemRatio(v) }
 
+// GetCacheStatusPinnedIDsMemRatio safely fetches the Configuration value for state's 'Cache.StatusPinnedIDsMemRatio' field
+func (st *ConfigState) GetCacheStatusPinnedIDsMemRatio() (v float64) {
+	st.mutex.RLock()
+	v = st.config.Cache.StatusPinnedIDsMemRatio
+	st.mutex.RUnlock()
+	return
+}
+
+// SetCacheStatusPinnedIDsMemRatio safely sets the Configuration value for state's 'Cache.StatusPinnedIDsMemRatio' field
+func (st *ConfigState) SetCacheStatusPinnedIDsMemRatio(v float64) {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+	st.config.Cache.StatusPinnedIDsMemRatio = v
+	st.reloadToViper()
+}
+
+// GetCacheStatusPinnedIDsMemRatio safely fetches the value for global configuration 'Cache.StatusPinnedIDsMemRatio' field
+func GetCacheStatusPinnedIDsMemRatio() float64 { return global.GetCacheStatusPinnedIDsMemRatio() }
+
+// SetCacheStatusPinnedIDsMemRatio safely sets the value for global configuration 'Cache.StatusPinnedIDsMemRatio' field
+func SetCacheStatusPinnedIDsMemRatio(v float64) { global.SetCacheStatusPinnedIDsMemRatio(v) }
+
 // GetCacheTagMemRatio safely fetches the Configuration value for state's 'Cache.TagMemRatio' field
 func (st *ConfigState) GetCacheTagMemRatio() (v float64) {
 	st.mutex.RLock()
@@ -6851,6 +6884,7 @@ func (st *ConfigState) GetTotalOfMemRatios() (total float64) {
 	total += st.config.Cache.StatusEditMemRatio
 	total += st.config.Cache.StatusFaveMemRatio
 	total += st.config.Cache.StatusFaveIDsMemRatio
+	total += st.config.Cache.StatusPinnedIDsMemRatio
 	total += st.config.Cache.TagMemRatio
 	total += st.config.Cache.ThreadMuteMemRatio
 	total += st.config.Cache.TokenMemRatio
@@ -7752,6 +7786,17 @@ func flattenConfigMap(cfgmap map[string]any) {
 		ival, ok := mapGet(cfgmap, key...)
 		if ok {
 			cfgmap["cache-status-fave-ids-mem-ratio"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"cache", "status-pinned-ids-mem-ratio"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["cache-status-pinned-ids-mem-ratio"] = ival
 			nestedKeys[key[0]] = struct{}{}
 			break
 		}

@@ -330,16 +330,13 @@ func (suite *AccountTestSuite) populateTestStatus(testAccountKey string, status 
 	status.AccountID = testAccount.ID
 	status.AccountURI = testAccount.URI
 	status.URI = fmt.Sprintf("http://localhost:8080/users/%s/statuses/%s", testAccount.Username, status.ID)
-	status.Local = util.Ptr(true)
+	status.Flags.SetLocal(true)
 
 	if status.Visibility == 0 {
 		status.Visibility = gtsmodel.VisibilityDefault
 	}
 	if status.ActivityStreamsType == "" {
 		status.ActivityStreamsType = ap.ObjectNote
-	}
-	if status.Federated == nil {
-		status.Federated = util.Ptr(true)
 	}
 
 	if inReplyTo != nil {
@@ -634,7 +631,7 @@ func (suite *AccountTestSuite) TestGetAccountPinnedStatusesNothingPinned() {
 	testAccount := suite.testAccounts["local_account_1"]
 
 	statuses, err := suite.db.GetAccountPinnedStatuses(suite.T().Context(), testAccount.ID)
-	suite.ErrorIs(err, db.ErrNoEntries)
+	suite.NoError(err)
 	suite.Empty(statuses) // This account has nothing pinned.
 }
 

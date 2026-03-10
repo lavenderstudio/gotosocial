@@ -80,6 +80,7 @@ EXPECT=$(cat << "EOF"
     "cache-status-fave-mem-ratio": 2,
     "cache-status-filter-mem-ratio": 7,
     "cache-status-mem-ratio": 5,
+    "cache-status-pinned-ids-mem-ratio": 3,
     "cache-tag-mem-ratio": 2,
     "cache-tag-timeline-timeout": 600000000000,
     "cache-thread-mute-mem-ratio": 0.2,

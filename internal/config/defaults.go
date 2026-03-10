@@ -243,6 +243,7 @@ var Defaults = Configuration{
 		StatusEditMemRatio:                   2,
 		StatusFaveMemRatio:                   2,
 		StatusFaveIDsMemRatio:                3,
+		StatusPinnedIDsMemRatio:              3,
 		TagMemRatio:                          2,
 		ThreadMuteMemRatio:                   0.2,
 		TokenMemRatio:                        0.75,

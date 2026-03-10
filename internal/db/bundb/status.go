@@ -404,7 +404,7 @@ func (s *statusDB) PutStatus(ctx context.Context, status *gtsmodel.Status) error
 				threadIDs = append(threadIDs, ids...)
 			}
 
-			if !*status.Local {
+			if !status.Flags.Local() {
 				var ids []string
 
 				// For remote statuses specifically, check to
@@ -587,22 +587,6 @@ func insertStatus(ctx context.Context, tx bun.Tx, status *gtsmodel.Status) error
 }
 
 func (s *statusDB) UpdateStatus(ctx context.Context, status *gtsmodel.Status, columns ...string) error {
-	// Check if pinning or unpinning
-	// based on whether the pinned_at
-	// column is being updated.
-	var isPinning, isUnpinning bool
-	if slices.Contains(columns, "pinned_at") {
-		if !status.PinnedAt.IsZero() {
-			// Status is
-			// becoming pinned.
-			isPinning = true
-		} else {
-			// Status is
-			// becoming unpinned.
-			isUnpinning = true
-		}
-	}
-
 	return s.state.Caches.DB.Status.Store(status, func() error {
 		// It is safe to run this database transaction within cache.Store
 		// as the cache does not attempt a mutex lock until AFTER hook.
@@ -662,26 +646,7 @@ func (s *statusDB) UpdateStatus(ctx context.Context, status *gtsmodel.Status, co
 				return err
 			}
 
-			// If pinning or unpinning,
-			// update account stats.
-			switch {
-			case isPinning:
-				// Increment author pinned statistics.
-				return incrementAccountStats(ctx, tx,
-					"statuses_pinned_count",
-					status.AccountID,
-				)
-
-			case isUnpinning:
-				// Decrement author pinned statistics.
-				return decrementAccountStats(ctx, tx,
-					"statuses_pinned_count",
-					status.AccountID,
-				)
-			default:
-				// Nothing.
-				return nil
-			}
+			return nil
 		})
 	})
 }
@@ -705,7 +670,7 @@ func (s *statusDB) DeleteStatusByID(ctx context.Context, id string) error {
 				bun.Ident("in_reply_to_id"),
 				bun.Ident("attachments"),
 				bun.Ident("poll_id"),
-				bun.Ident("pinned_at"),
+				bun.Ident("flags"),
 			).
 			Exec(ctx); err != nil {
 
@@ -735,24 +700,10 @@ func (s *statusDB) DeleteStatusByID(ctx context.Context, id string) error {
 		}
 
 		// decrement status author statistics.
-		if err := decrementAccountStats(ctx, tx,
+		return decrementAccountStats(ctx, tx,
 			"statuses_count",
 			deleted.AccountID,
-		); err != nil {
-			return err
-		}
-
-		if !deleted.PinnedAt.IsZero() {
-			// decrement author pinned statistics.
-			if err := decrementAccountStats(ctx, tx,
-				"statuses_pinned_count",
-				deleted.AccountID,
-			); err != nil {
-				return err
-			}
-		}
-
-		return nil
+		)
 	}); err != nil && !errors.Is(err, db.ErrNoEntries) {
 		return err
 	}
@@ -842,28 +793,29 @@ func (s *statusDB) GetStatusReplies(ctx context.Context, statusID string) ([]*gt
 }
 
 func (s *statusDB) CountStatusReplies(ctx context.Context, statusID string) (int, error) {
-	statusIDs, err := s.getStatusReplyIDs(ctx, statusID)
-	return len(statusIDs), err
+	return s.state.Caches.DB.InReplyToIDs.Count(statusID, func() ([]string, error) {
+		return getStatusReplyIDs(ctx, s.db, statusID)
+	})
 }
 
 func (s *statusDB) getStatusReplyIDs(ctx context.Context, statusID string) ([]string, error) {
 	return s.state.Caches.DB.InReplyToIDs.Load(statusID, func() ([]string, error) {
-		var statusIDs []string
-
-		// Status reply IDs not in
-		// cache, perform DB query!
-		if err := s.db.
-			NewSelect().
-			Table("statuses").
-			Column("id").
-			Where("? = ?", bun.Ident("in_reply_to_id"), statusID).
-			Order("id DESC").
-			Scan(ctx, &statusIDs); err != nil {
-			return nil, err
-		}
-
-		return statusIDs, nil
+		return getStatusReplyIDs(ctx, s.db, statusID)
 	})
+}
+
+func getStatusReplyIDs(ctx context.Context, bundb *bun.DB, statusID string) ([]string, error) {
+	var statusIDs []string
+	err := bundb.NewSelect().
+		Table("statuses").
+		Column("id").
+		Where("? = ?", bun.Ident("in_reply_to_id"), statusID).
+		Order("id DESC").
+		Scan(ctx, &statusIDs)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return nil, err
+	}
+	return statusIDs, nil
 }
 
 func (s *statusDB) GetStatusBoosts(ctx context.Context, statusID string) ([]*gtsmodel.Status, error) {
@@ -887,28 +839,29 @@ func (s *statusDB) IsStatusBoostedBy(ctx context.Context, statusID string, accou
 }
 
 func (s *statusDB) CountStatusBoosts(ctx context.Context, statusID string) (int, error) {
-	statusIDs, err := s.getStatusBoostIDs(ctx, statusID)
-	return len(statusIDs), err
+	return s.state.Caches.DB.BoostOfIDs.Count(statusID, func() ([]string, error) {
+		return getStatusBoostIDs(ctx, s.db, statusID)
+	})
 }
 
 func (s *statusDB) getStatusBoostIDs(ctx context.Context, statusID string) ([]string, error) {
 	return s.state.Caches.DB.BoostOfIDs.Load(statusID, func() ([]string, error) {
-		var statusIDs []string
-
-		// Status boost IDs not in
-		// cache, perform DB query!
-		if err := s.db.
-			NewSelect().
-			Table("statuses").
-			Column("id").
-			Where("? = ?", bun.Ident("boost_of_id"), statusID).
-			Order("id DESC").
-			Scan(ctx, &statusIDs); err != nil {
-			return nil, err
-		}
-
-		return statusIDs, nil
+		return getStatusBoostIDs(ctx, s.db, statusID)
 	})
+}
+
+func getStatusBoostIDs(ctx context.Context, bundb *bun.DB, statusID string) ([]string, error) {
+	var statusIDs []string
+	err := bundb.NewSelect().
+		Table("statuses").
+		Column("id").
+		Where("? = ?", bun.Ident("boost_of_id"), statusID).
+		Order("id DESC").
+		Scan(ctx, &statusIDs)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return nil, err
+	}
+	return statusIDs, nil
 }
 
 func (s *statusDB) MaxDirectStatusID(ctx context.Context) (string, error) {

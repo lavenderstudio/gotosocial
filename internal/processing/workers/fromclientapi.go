@@ -353,13 +353,12 @@ func (p *clientAPI) CreateReplyRequest(ctx context.Context, cMsg *messages.FromC
 
 	// Mark the status as now approved, referring to
 	// the accepted interaction request we just stored.
-	reply.PendingApproval = util.Ptr(false)
+	reply.Flags.SetPendingApproval(false)
 	reply.PreApproved = false
 	reply.ApprovedByURI = intReq.AuthorizationURI
-	if err := p.state.DB.UpdateStatus(
-		ctx,
+	if err := p.state.DB.UpdateStatus(ctx,
 		reply,
-		"pending_approval",
+		"flags",
 		"approved_by_uri",
 	); err != nil {
 		return gtserror.Newf("db error updating status: %w", err)
@@ -405,7 +404,7 @@ func (p *clientAPI) CreatePollVote(ctx context.Context, cMsg *messages.FromClien
 	status := vote.Poll.Status
 	status.Poll = vote.Poll
 
-	if *status.Local {
+	if status.Flags.Local() {
 		// These are poll votes in a local status, we only need to
 		// federate the updated status model with latest vote counts.
 		if err := p.federate.UpdateStatus(ctx, status); err != nil {
@@ -561,8 +560,7 @@ func (p *clientAPI) CreateLikeRequest(ctx context.Context, cMsg *messages.FromCl
 	fave.PendingApproval = util.Ptr(false)
 	fave.PreApproved = false
 	fave.ApprovedByURI = intReq.AuthorizationURI
-	if err := p.state.DB.UpdateStatusFave(
-		ctx,
+	if err := p.state.DB.UpdateStatusFave(ctx,
 		fave,
 		"pending_approval",
 		"approved_by_uri",
@@ -679,13 +677,12 @@ func (p *clientAPI) CreateAnnounceRequest(ctx context.Context, cMsg *messages.Fr
 
 	// Mark the status as now approved, referring to
 	// the accepted interaction request we just stored.
-	boost.PendingApproval = util.Ptr(false)
+	boost.Flags.SetPendingApproval(false)
 	boost.PreApproved = false
 	boost.ApprovedByURI = intReq.AuthorizationURI
-	if err := p.state.DB.UpdateStatus(
-		ctx,
+	if err := p.state.DB.UpdateStatus(ctx,
 		boost,
-		"pending_approval",
+		"flags",
 		"approved_by_uri",
 	); err != nil {
 		return gtserror.Newf("db error updating status: %w", err)

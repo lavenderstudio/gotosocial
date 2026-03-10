@@ -135,8 +135,7 @@ func (p *Processor) acceptLike(
 	req.Like.PendingApproval = util.Ptr(false)
 	req.Like.PreApproved = false
 	req.Like.ApprovedByURI = req.AuthorizationURI
-	if err := p.state.DB.UpdateStatusFave(
-		ctx,
+	if err := p.state.DB.UpdateStatusFave(ctx,
 		req.Like,
 		"pending_approval",
 		"approved_by_uri",
@@ -173,13 +172,12 @@ func (p *Processor) acceptReply(
 	}
 
 	// Update the Reply.
-	req.Reply.PendingApproval = util.Ptr(false)
 	req.Reply.PreApproved = false
+	req.Reply.Flags.SetPendingApproval(false)
 	req.Reply.ApprovedByURI = req.AuthorizationURI
-	if err := p.state.DB.UpdateStatus(
-		ctx,
+	if err := p.state.DB.UpdateStatus(ctx,
 		req.Reply,
-		"pending_approval",
+		"flags",
 		"approved_by_uri",
 	); err != nil {
 		err := gtserror.Newf("db error updating status reply: %w", err)
@@ -214,13 +212,12 @@ func (p *Processor) acceptAnnounce(
 	}
 
 	// Update the Announce.
-	req.Announce.PendingApproval = util.Ptr(false)
 	req.Announce.PreApproved = false
+	req.Announce.Flags.SetPendingApproval(false)
 	req.Announce.ApprovedByURI = req.AuthorizationURI
-	if err := p.state.DB.UpdateStatus(
-		ctx,
+	if err := p.state.DB.UpdateStatus(ctx,
 		req.Announce,
-		"pending_approval",
+		"flags",
 		"approved_by_uri",
 	); err != nil {
 		err := gtserror.Newf("db error updating status announce: %w", err)

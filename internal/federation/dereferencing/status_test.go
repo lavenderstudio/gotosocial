@@ -52,7 +52,7 @@ func (suite *StatusTestSuite) TestDereferenceSimpleStatus() {
 	suite.Equal("https://unknown-instance.com/users/@brand_new_person/01FE4NTHKWW7THT67EF10EB839", status.URL)
 	suite.Equal("Hello world!", status.Content)
 	suite.Equal("https://unknown-instance.com/users/brand_new_person", status.AccountURI)
-	suite.False(*status.Local)
+	suite.False(status.Flags.Local())
 	suite.Empty(status.ContentWarning)
 	suite.Equal(gtsmodel.VisibilityPublic, status.Visibility)
 	suite.Equal(ap.ObjectNote, status.ActivityStreamsType)
@@ -61,7 +61,7 @@ func (suite *StatusTestSuite) TestDereferenceSimpleStatus() {
 	dbStatus, err := suite.db.GetStatusByURI(suite.T().Context(), status.URI)
 	suite.NoError(err)
 	suite.Equal(status.ID, dbStatus.ID)
-	suite.True(*dbStatus.Federated)
+	suite.True(dbStatus.Flags.Federated())
 
 	// account should be in the database now too
 	account, err := suite.db.GetAccountByURI(suite.T().Context(), status.AccountURI)
@@ -90,7 +90,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithMention() {
 	suite.Equal("https://unknown-instance.com/users/@brand_new_person/01FE5Y30E3W4P7TRE0R98KAYQV", status.URL)
 	suite.Equal("Hey @the_mighty_zork@localhost:8080 how&#39;s it going?", status.Content)
 	suite.Equal("https://unknown-instance.com/users/brand_new_person", status.AccountURI)
-	suite.False(*status.Local)
+	suite.False(status.Flags.Local())
 	suite.Empty(status.ContentWarning)
 	suite.Equal(gtsmodel.VisibilityPublic, status.Visibility)
 	suite.Equal(ap.ObjectNote, status.ActivityStreamsType)
@@ -99,7 +99,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithMention() {
 	dbStatus, err := suite.db.GetStatusByURI(suite.T().Context(), status.URI)
 	suite.NoError(err)
 	suite.Equal(status.ID, dbStatus.ID)
-	suite.True(*dbStatus.Federated)
+	suite.True(dbStatus.Flags.Federated())
 
 	// account should be in the database now too
 	account, err := suite.db.GetAccountByURI(suite.T().Context(), status.AccountURI)
@@ -139,7 +139,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithTag() {
 	suite.Equal("https://unknown-instance.com/users/@brand_new_person/01H641QSRS3TCXSVC10X4GPKW7", status.URL)
 	suite.Equal("<p><span class=\"h-card\"><a href=\"http://fossbros-anonymous.io/@foss_satan\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>foss_satan</span></a></span>Babe are you okay, you&#39;ve hardly touched your <a href=\"https://unknown-instance.com/tags/piss\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\">#<span>piss</span></a></p>", status.Content)
 	suite.Equal("https://unknown-instance.com/users/brand_new_person", status.AccountURI)
-	suite.False(*status.Local)
+	suite.False(status.Flags.Local())
 	suite.Empty(status.ContentWarning)
 	suite.Equal(gtsmodel.VisibilityPublic, status.Visibility)
 	suite.Equal(ap.ObjectNote, status.ActivityStreamsType)
@@ -152,7 +152,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithTag() {
 	dbStatus, err := suite.db.GetStatusByURI(suite.T().Context(), status.URI)
 	suite.NoError(err)
 	suite.Equal(status.ID, dbStatus.ID)
-	suite.True(*dbStatus.Federated)
+	suite.True(dbStatus.Flags.Federated())
 
 	// account should be in the database now too
 	account, err := suite.db.GetAccountByURI(suite.T().Context(), status.AccountURI)
@@ -187,7 +187,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithImageAndNoContent() {
 	suite.Equal("https://turnip.farm/@turniplover6969/70c53e54-3146-42d5-a630-83c8b6c7c042", status.URL)
 	suite.Equal("", status.Content)
 	suite.Equal("https://turnip.farm/users/turniplover6969", status.AccountURI)
-	suite.False(*status.Local)
+	suite.False(status.Flags.Local())
 	suite.Empty(status.ContentWarning)
 	suite.Equal(gtsmodel.VisibilityPublic, status.Visibility)
 	suite.Equal(ap.ObjectNote, status.ActivityStreamsType)
@@ -196,7 +196,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithImageAndNoContent() {
 	dbStatus, err := suite.db.GetStatusByURI(suite.T().Context(), status.URI)
 	suite.NoError(err)
 	suite.Equal(status.ID, dbStatus.ID)
-	suite.True(*dbStatus.Federated)
+	suite.True(dbStatus.Flags.Federated())
 
 	// account should be in the database now too
 	account, err := suite.db.GetAccountByURI(suite.T().Context(), status.AccountURI)
@@ -274,11 +274,11 @@ func (suite *StatusTestSuite) TestDereferencerRefreshStatusUpdated() {
 		{
 			editedContent:        "updated status content!",
 			editedContentWarning: "CW: edited status content",
-			editedLanguage:       testStatus.Language,        // no change
-			editedSensitive:      *testStatus.Sensitive,      // no change
-			editedAttachmentIDs:  testStatus.AttachmentIDs,   // no change
-			editedPollOptions:    getPollOptions(testStatus), // no change
-			editedPollVotes:      getPollVotes(testStatus),   // no change
+			editedLanguage:       testStatus.Language,          // no change
+			editedSensitive:      testStatus.Flags.Sensitive(), // no change
+			editedAttachmentIDs:  testStatus.AttachmentIDs,     // no change
+			editedPollOptions:    getPollOptions(testStatus),   // no change
+			editedPollVotes:      getPollVotes(testStatus),     // no change
 			editedAt:             time.Now(),
 		},
 	} {
@@ -337,7 +337,7 @@ func (suite *StatusTestSuite) TestDereferencerRefreshStatusUpdated() {
 				Content:        testStatus.Content,
 				ContentWarning: testStatus.ContentWarning,
 				Language:       testStatus.Language,
-				Sensitive:      testStatus.Sensitive,
+				Sensitive:      util.Ptr(testStatus.Flags.Sensitive()),
 				AttachmentIDs:  testStatus.AttachmentIDs,
 				PollOptions:    getPollOptions(testStatus),
 				PollVotes:      getPollVotes(testStatus),
@@ -375,11 +375,11 @@ func (suite *StatusTestSuite) TestDereferencerRefreshStatusRace() {
 	suite.editStatusable(testStatusable,
 		"updated status content!",
 		"CW: edited status content",
-		beforeEdit.Language,        // no change
-		*beforeEdit.Sensitive,      // no change
-		beforeEdit.AttachmentIDs,   // no change
-		getPollOptions(beforeEdit), // no change
-		getPollVotes(beforeEdit),   // no change
+		beforeEdit.Language,          // no change
+		beforeEdit.Flags.Sensitive(), // no change
+		beforeEdit.AttachmentIDs,     // no change
+		getPollOptions(beforeEdit),   // no change
+		getPollVotes(beforeEdit),     // no change
 		time.Now(),
 	)
 
@@ -410,7 +410,7 @@ func (suite *StatusTestSuite) TestDereferencerRefreshStatusRace() {
 			Content:        "updated status content!",
 			ContentWarning: "CW: edited status content",
 			Language:       beforeEdit.Language,
-			Sensitive:      beforeEdit.Sensitive,
+			Sensitive:      util.Ptr(beforeEdit.Flags.Sensitive()),
 			AttachmentIDs:  beforeEdit.AttachmentIDs,
 			PollOptions:    getPollOptions(beforeEdit),
 			PollVotes:      getPollVotes(beforeEdit),
@@ -422,7 +422,7 @@ func (suite *StatusTestSuite) TestDereferencerRefreshStatusRace() {
 			Content:        beforeEdit.Content,
 			ContentWarning: beforeEdit.ContentWarning,
 			Language:       beforeEdit.Language,
-			Sensitive:      beforeEdit.Sensitive,
+			Sensitive:      util.Ptr(beforeEdit.Flags.Sensitive()),
 			AttachmentIDs:  beforeEdit.AttachmentIDs,
 			PollOptions:    getPollOptions(beforeEdit),
 			PollVotes:      getPollVotes(beforeEdit),
@@ -511,7 +511,7 @@ func (suite *StatusTestSuite) verifyEditedStatusUpdate(
 	suite.Equal(current.Content, status.Content)
 	suite.Equal(current.ContentWarning, status.ContentWarning)
 	suite.Equal(current.Language, status.Language)
-	suite.Equal(*current.Sensitive, *status.Sensitive)
+	suite.Equal(*current.Sensitive, status.Flags.Sensitive())
 	suite.Equal(current.AttachmentIDs, status.AttachmentIDs)
 	suite.Equal(current.PollOptions, getPollOptions(status))
 	suite.Equal(current.PollVotes, getPollVotes(status))

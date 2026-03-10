@@ -198,7 +198,7 @@ func (p *Processor) loadStatusMedia(
 	requester *gtsmodel.Account,
 	status *gtsmodel.Status,
 ) {
-	if !status.IsLocal() {
+	if !status.Flags.Local() {
 		return
 	}
 

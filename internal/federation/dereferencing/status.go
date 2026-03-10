@@ -56,7 +56,7 @@ func statusFresh(
 		window = DefaultStatusFreshness
 	}
 
-	if status.IsLocal() {
+	if status.Flags.Local() {
 		// Can't refresh
 		// local statuses.
 		return true
@@ -178,11 +178,9 @@ func (d *Dereferencer) getStatusByURI(
 			return nil, nil, false, gtserror.SetUnretrievable(err)
 		}
 
-		// Create and pass-through a new bare-bones model for deref.
-		return d.enrichStatusSafely(ctx, requestUser, uri, &gtsmodel.Status{
-			Local: util.Ptr(false),
-			URI:   uriStr,
-		}, nil)
+		// Create and pass-through a bare-bones model for deref.
+		return d.enrichStatusSafely(ctx, requestUser, uri,
+			&gtsmodel.Status{URI: uriStr}, nil)
 	}
 
 	if statusFresh(status, DefaultStatusFreshness) {
@@ -522,10 +520,8 @@ func (d *Dereferencer) enrichStatus(
 	// Set latest fetch time and carry-
 	// over some values from "old" status.
 	latestStatus.FetchedAt = time.Now()
-	latestStatus.PinnedAt = status.PinnedAt
-
-	// These will always be remote.
-	latestStatus.Local = new(bool)
+	pendAppr := status.Flags.PendingApproval()
+	latestStatus.Flags.SetPendingApproval(pendAppr)
 
 	// Carry-over approvals. Remote instances might not yet
 	// serve statuses with the `approved_by` field, but we
@@ -1125,8 +1121,8 @@ func (d *Dereferencer) handleStatusEdit(
 	}
 
 	// Check for edited status sensitive flag.
-	if *existing.Sensitive != *status.Sensitive {
-		cols = append(cols, "sensitive")
+	if existing.Flags.Sensitive() != status.Flags.Sensitive() {
+		cols = append(cols, "flags")
 		edited = true
 	}
 
@@ -1203,7 +1199,7 @@ func (d *Dereferencer) handleStatusEdit(
 		edit.Text = existing.Text
 		edit.ContentType = existing.ContentType
 		edit.Language = existing.Language
-		edit.Sensitive = existing.Sensitive
+		edit.Sensitive = util.Ptr(existing.Flags.Sensitive())
 		edit.StatusID = status.ID
 		edit.CreatedAt = createdAt
 

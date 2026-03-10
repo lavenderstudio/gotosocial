@@ -71,6 +71,7 @@ type DBService struct {
 	db.StatusBookmark
 	db.StatusEdit
 	db.StatusFave
+	db.StatusPin
 	db.Tag
 	db.Thread
 	db.Timeline
@@ -281,6 +282,10 @@ func NewBunDBService(ctx context.Context, state *state.State) (db.DB, error) {
 			state: state,
 		},
 		StatusFave: &statusFaveDB{
+			db:    db,
+			state: state,
+		},
+		StatusPin: &statusPinDB{
 			db:    db,
 			state: state,
 		},

@@ -624,7 +624,6 @@ func sizeofStatus() uintptr {
 		CreatedAt:                exampleTime,
 		EditedAt:                 exampleTime,
 		FetchedAt:                exampleTime,
-		Local:                    func() *bool { ok := false; return &ok }(),
 		AccountURI:               exampleURI,
 		AccountID:                exampleID,
 		InReplyToID:              exampleID,
@@ -635,10 +634,8 @@ func sizeofStatus() uintptr {
 		ContentWarning:           exampleUsername, // similar length
 		ContentWarningText:       exampleUsername, // similar length
 		Visibility:               gtsmodel.VisibilityPublic,
-		Sensitive:                func() *bool { ok := false; return &ok }(),
 		Language:                 "en",
 		CreatedWithApplicationID: exampleID,
-		Federated:                func() *bool { ok := true; return &ok }(),
 		ActivityStreamsType:      ap.ObjectNote,
 	}))
 }

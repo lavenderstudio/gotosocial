@@ -25,7 +25,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/cache"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
 // StatusesVisible calls StatusVisible for each status in the statuses slice, and returns a slice of only statuses which are visible to the requester.
@@ -109,7 +108,7 @@ func (f *Filter) isStatusVisible(
 		return false, nil
 	}
 
-	if util.PtrOrZero(status.PendingApproval) {
+	if status.Flags.PendingApproval() {
 		// Use a different visibility heuristic
 		// for pending approval statuses.
 		return isPendingStatusVisible(
@@ -127,7 +126,7 @@ func (f *Filter) isStatusVisible(
 		From this point down we know the request is authed.
 	*/
 
-	if requester.IsRemote() && status.IsLocalOnly() {
+	if requester.IsRemote() && status.LocalOnly() {
 		// Remote accounts can't see local-only
 		// posts regardless of their visibility.
 		return false, nil
@@ -248,7 +247,7 @@ func (f *Filter) isStatusVisibleUnauthed(status *gtsmodel.Status) bool {
 
 	// If status is local only,
 	// never show without auth.
-	if status.IsLocalOnly() {
+	if status.LocalOnly() {
 		return false
 	}
 

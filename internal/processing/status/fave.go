@@ -31,7 +31,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/id"
 	"code.superseriousbusiness.org/gotosocial/internal/messages"
 	"code.superseriousbusiness.org/gotosocial/internal/uris"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
 func (p *Processor) getFaveableStatus(
@@ -125,7 +124,7 @@ func (p *Processor) FaveCreate(
 		// prove it's been Accepted by the target.
 		pendingApproval = true
 
-		if *status.Local {
+		if status.Flags.Local() {
 			// If the target is local we don't need
 			// to wait for an Accept from remote,
 			// we can just preapprove it and have
@@ -174,7 +173,7 @@ func (p *Processor) FaveCreate(
 	// target status as no longer pending approval so
 	// it's serialized properly via the API.
 	if implicitlyAccepted {
-		status.PendingApproval = util.Ptr(false)
+		status.Flags.SetPendingApproval(false)
 	}
 
 	if pendingApproval {

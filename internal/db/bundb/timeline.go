@@ -62,7 +62,7 @@ func (t *timelineDB) GetHomeTimeline(ctx context.Context, accountID string, page
 			)
 
 			// Only include statuses that aren't pending approval.
-			q = q.Where("NOT ? = ?", bun.Ident("status.pending_approval"), true)
+			q = q.Where(db.BitNotSet("flags", gtsmodel.StatusFlagPendingApproval))
 
 			return q, nil
 		},
@@ -84,7 +84,7 @@ func (t *timelineDB) GetPublicTimeline(ctx context.Context, page *paging.Page) (
 			q = q.Where("? IS NULL", bun.Ident("status.boost_of_id"))
 
 			// Only include statuses that aren't pending approval.
-			q = q.Where("? = ?", bun.Ident("status.pending_approval"), false)
+			q = q.Where(db.BitNotSet("flags", gtsmodel.StatusFlagPendingApproval))
 
 			return q, nil
 		},
@@ -100,13 +100,13 @@ func (t *timelineDB) GetLocalTimeline(ctx context.Context, page *paging.Page) ([
 
 		func(q *bun.SelectQuery) (*bun.SelectQuery, error) {
 			// Local only.
-			q = q.Where("? = ?", bun.Ident("status.local"), true)
+			q = q.Where(db.BitIsSet("status.flags", gtsmodel.StatusFlagLocal))
 
 			// Public only.
 			q = q.Where("? = ?", bun.Ident("status.visibility"), gtsmodel.VisibilityPublic)
 
 			// Only include statuses that aren't pending approval.
-			q = q.Where("? = ?", bun.Ident("status.pending_approval"), false)
+			q = q.Where(db.BitNotSet("status.flags", gtsmodel.StatusFlagPendingApproval))
 
 			// Ignore boosts.
 			q = q.Where("? IS NULL", bun.Ident("status.boost_of_id"))
@@ -168,8 +168,11 @@ func (t *timelineDB) GetFavedTimeline(ctx context.Context, accountID string, max
 		}
 	})
 
-	// Convert fave IDs to status IDs.
+	// Convert list of faves to status IDs.
 	statusIDs := make([]string, len(faves))
+	if len(statusIDs) != len(faves) {
+		panic(gtserror.New("bound check elimination"))
+	}
 	for i, fave := range faves {
 		statusIDs[i] = fave.StatusID
 	}
@@ -195,28 +198,29 @@ func (t *timelineDB) GetListTimeline(ctx context.Context, listID string, page *p
 		// of any paging parameters, it selects by list entries.
 		func(q *bun.SelectQuery) (*bun.SelectQuery, error) {
 
-			// Get IDs of all accounts in the list.
-			accountIDs, err := t.state.DB.GetAccountIDsInList(
-				ctx, listID, nil,
-			)
+			// Get IDs of all accounts contained in user's list.
+			accountIDs, err := t.state.DB.GetAccountIDsInList(ctx,
+				listID, nil)
 			if err != nil {
 				return nil, gtserror.Newf("error getting account IDs in list: %w", err)
 			}
 
-			// Provide account IDs as common table expression values.
-			values := make([]accountIDValue, 0, len(accountIDs))
-			for _, accountID := range accountIDs {
-				values = append(values, accountIDValue{accountID})
+			// Provide IDs as common table expression values.
+			values := make([]accountIDValue, len(accountIDs))
+			if len(values) != len(accountIDs) {
+				panic(gtserror.New("bound check elimination"))
+			}
+			for i, id := range accountIDs {
+				values[i] = accountIDValue{id}
 			}
 
 			// "Join" on the CTE values to select only
 			// statuses belonging to those account IDs.
-			q = q.
-				With("_data", t.db.NewValues(&values)).
+			q = q.With("_data", t.db.NewValues(&values)).
 				Table("_data").
 				Where("? = ?", bun.Ident("status.account_id"), bun.Ident("_data.account_id")).
 				// Only include statuses that aren't pending approval.
-				Where("NOT ? = ?", bun.Ident("status.pending_approval"), true)
+				Where(db.BitNotSet("flags", gtsmodel.StatusFlagPendingApproval))
 
 			return q, nil
 		},

@@ -24,7 +24,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
 func (p *Processor) implicitlyAccept(
@@ -39,8 +38,7 @@ func (p *Processor) implicitlyAccept(
 		return false, nil
 	}
 
-	targetPendingApproval := util.PtrOrValue(status.PendingApproval, false)
-	if !targetPendingApproval {
+	if !status.Flags.PendingApproval() {
 		// Status isn't pending approval,
 		// nothing to implicitly accept.
 		return false, nil

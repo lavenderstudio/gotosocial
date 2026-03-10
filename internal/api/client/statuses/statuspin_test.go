@@ -19,12 +19,11 @@ package statuses_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
-	"time"
 
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/statuses"
@@ -34,7 +33,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
 	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
@@ -69,7 +67,7 @@ func (suite *StatusPinTestSuite) createPin(
 	result := recorder.Result()
 	defer result.Body.Close()
 
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -130,11 +128,13 @@ func (suite *StatusPinTestSuite) TestPinStatusTwiceError() {
 	// Try to pin a status that's already been pinned.
 	targetStatus := &gtsmodel.Status{}
 	*targetStatus = *suite.testStatuses["local_account_1_status_5"]
-	targetStatus.PinnedAt = time.Now()
 	testAccount := new(gtsmodel.Account)
 	*testAccount = *suite.testAccounts["local_account_1"]
 
-	if err := suite.db.UpdateStatus(suite.T().Context(), targetStatus, "pinned_at"); err != nil {
+	if err := suite.db.PutStatusPin(suite.T().Context(), &gtsmodel.StatusPin{
+		AccountID: targetStatus.AccountID,
+		StatusID:  targetStatus.ID,
+	}); err != nil {
 		suite.FailNow(err.Error())
 	}
 
@@ -174,17 +174,21 @@ func (suite *StatusPinTestSuite) TestPinStatusTooManyPins() {
 	for i := range make([]interface{}, 10) {
 		status := &gtsmodel.Status{
 			ID:                  id.NewULID(),
-			PinnedAt:            time.Now(),
 			URL:                 "stub " + strconv.Itoa(i),
 			URI:                 "stub " + strconv.Itoa(i),
-			Local:               util.Ptr(true),
+			Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagLocal | gtsmodel.StatusFlagFederated),
 			AccountID:           testAccount.ID,
 			AccountURI:          testAccount.URI,
 			Visibility:          gtsmodel.VisibilityPublic,
-			Federated:           util.Ptr(true),
 			ActivityStreamsType: ap.ObjectNote,
 		}
 		if err := suite.db.PutStatus(ctx, status); err != nil {
+			suite.FailNow(err.Error())
+		}
+		if err := suite.db.PutStatusPin(ctx, &gtsmodel.StatusPin{
+			AccountID: status.AccountID,
+			StatusID:  status.ID,
+		}); err != nil {
 			suite.FailNow(err.Error())
 		}
 	}

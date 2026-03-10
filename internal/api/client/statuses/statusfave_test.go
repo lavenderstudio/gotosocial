@@ -295,7 +295,7 @@ func (suite *StatusFaveTestSuite) TestPostFaveImplicitAccept() {
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
-	suite.False(*dbStatus.PendingApproval)
+	suite.False(dbStatus.Flags.PendingApproval())
 	suite.NotEmpty(dbStatus.ApprovedByURI)
 
 	// There should be an Accept

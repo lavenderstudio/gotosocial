@@ -134,13 +134,13 @@ func (f *federate) DeleteAccount(ctx context.Context, account *gtsmodel.Account)
 func (f *federate) CreateStatus(ctx context.Context, status *gtsmodel.Status) error {
 	// Do nothing if the status
 	// shouldn't be federated.
-	if status.IsLocalOnly() {
+	if status.LocalOnly() {
 		return nil
 	}
 
 	// Do nothing if this
 	// isn't our status.
-	if !*status.Local {
+	if !status.Flags.Local() {
 		return nil
 	}
 
@@ -175,13 +175,13 @@ func (f *federate) CreatePollVote(ctx context.Context, poll *gtsmodel.Poll, vote
 
 	// Do nothing if the status
 	// shouldn't be federated.
-	if status.IsLocalOnly() {
+	if status.LocalOnly() {
 		return nil
 	}
 
 	// Do nothing if this is
 	// a vote in our status.
-	if *status.Local {
+	if !status.Flags.Local() {
 		return nil
 	}
 
@@ -213,13 +213,13 @@ func (f *federate) CreatePollVote(ctx context.Context, poll *gtsmodel.Poll, vote
 func (f *federate) DeleteStatus(ctx context.Context, status *gtsmodel.Status) error {
 	// Do nothing if the status
 	// shouldn't be federated.
-	if status.IsLocalOnly() {
+	if status.LocalOnly() {
 		return nil
 	}
 
 	// Do nothing if this
 	// isn't our status.
-	if !*status.Local {
+	if !status.Flags.Local() {
 		return nil
 	}
 
@@ -251,13 +251,13 @@ func (f *federate) DeleteStatus(ctx context.Context, status *gtsmodel.Status) er
 func (f *federate) UpdateStatus(ctx context.Context, status *gtsmodel.Status) error {
 	// Do nothing if the status
 	// shouldn't be federated.
-	if status.IsLocalOnly() {
+	if status.LocalOnly() {
 		return nil
 	}
 
 	// Do nothing if this
 	// isn't our status.
-	if !*status.Local {
+	if !status.Flags.Local() {
 		return nil
 	}
 

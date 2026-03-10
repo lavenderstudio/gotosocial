@@ -77,11 +77,6 @@ func (r *relationshipDB) GetMute(
 	)
 }
 
-func (r *relationshipDB) CountAccountMutes(ctx context.Context, accountID string) (int, error) {
-	muteIDs, err := r.getAccountMuteIDs(ctx, accountID, nil)
-	return len(muteIDs), err
-}
-
 func (r *relationshipDB) getMutesByIDs(ctx context.Context, ids []string) ([]*gtsmodel.UserMute, error) {
 	// Load all mutes IDs via cache loader callbacks.
 	mutes, err := r.state.Caches.DB.UserMute.LoadIDs("ID",
@@ -262,11 +257,7 @@ func (r *relationshipDB) DeleteAccountMutes(ctx context.Context, accountID strin
 	return nil
 }
 
-func (r *relationshipDB) GetAccountMutes(
-	ctx context.Context,
-	accountID string,
-	page *paging.Page,
-) ([]*gtsmodel.UserMute, error) {
+func (r *relationshipDB) GetAccountMutes(ctx context.Context, accountID string, page *paging.Page) ([]*gtsmodel.UserMute, error) {
 	muteIDs, err := r.getAccountMuteIDs(ctx, accountID, page)
 	if err != nil {
 		return nil, err
@@ -274,36 +265,42 @@ func (r *relationshipDB) GetAccountMutes(
 	return r.getMutesByIDs(ctx, muteIDs)
 }
 
+func (r *relationshipDB) CountAccountMutes(ctx context.Context, accountID string) (int, error) {
+	return r.state.Caches.DB.UserMuteIDs.Count(accountID, func() ([]string, error) {
+		return getAccountMuteIDs(ctx, r.db, accountID)
+	})
+}
+
 func (r *relationshipDB) getAccountMuteIDs(ctx context.Context, accountID string, page *paging.Page) ([]string, error) {
 	return loadPagedIDs(&r.state.Caches.DB.UserMuteIDs, accountID, page, func() ([]string, error) {
-		var muteIDs []string
-
-		// Mute IDs not in cache. Perform DB query.
-		if _, err := r.db.
-			NewSelect().
-			TableExpr("?", bun.Ident("user_mutes")).
-			ColumnExpr("?", bun.Ident("id")).
-			Where("? = ?", bun.Ident("account_id"), accountID).
-			WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
-				var notYetExpiredSQL string
-				switch r.db.Dialect().Name() {
-				case dialect.SQLite:
-					notYetExpiredSQL = "? > DATE('now')"
-				case dialect.PG:
-					notYetExpiredSQL = "? > NOW()"
-				default:
-					log.Panicf(nil, "db conn %s was neither pg nor sqlite", r.db)
-				}
-				return q.
-					Where("? IS NULL", bun.Ident("expires_at")).
-					WhereOr(notYetExpiredSQL, bun.Ident("expires_at"))
-			}).
-			OrderExpr("? DESC", bun.Ident("id")).
-			Exec(ctx, &muteIDs); // nocollapse
-		err != nil && !errors.Is(err, db.ErrNoEntries) {
-			return nil, err
-		}
-
-		return muteIDs, nil
+		return getAccountMuteIDs(ctx, r.db, accountID)
 	})
+}
+
+func getAccountMuteIDs(ctx context.Context, bundb *bun.DB, accountID string) ([]string, error) {
+	var muteIDs []string
+	_, err := bundb.NewSelect().
+		TableExpr("?", bun.Ident("user_mutes")).
+		ColumnExpr("?", bun.Ident("id")).
+		Where("? = ?", bun.Ident("account_id"), accountID).
+		WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
+			var notYetExpiredSQL string
+			switch bundb.Dialect().Name() {
+			case dialect.SQLite:
+				notYetExpiredSQL = "? > DATE('now')"
+			case dialect.PG:
+				notYetExpiredSQL = "? > NOW()"
+			default:
+				panic("unreachable")
+			}
+			return q.
+				Where("? IS NULL", bun.Ident("expires_at")).
+				WhereOr(notYetExpiredSQL, bun.Ident("expires_at"))
+		}).
+		OrderExpr("? DESC", bun.Ident("id")).
+		Exec(ctx, &muteIDs)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return nil, err
+	}
+	return muteIDs, err
 }

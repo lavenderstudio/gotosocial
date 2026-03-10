@@ -253,6 +253,9 @@ type DBCaches struct {
 	// StatusFaveIDs provides access to the status fave IDs list database cache.
 	StatusFaveIDs SliceCache[string]
 
+	// StatusPinIDs provides access to the status pinned IDs list database cache.
+	StatusPinnedIDs SliceCache[string]
+
 	// Tag provides access to the gtsmodel Tag database cache.
 	Tag StructCache[*gtsmodel.Tag]
 
@@ -1583,6 +1586,17 @@ func (c *Caches) initStatusFaveIDs() {
 	log.Infof(nil, "cache size = %d", cap)
 
 	c.DB.StatusFaveIDs.Init(0, cap)
+}
+
+func (c *Caches) initStatusPinnedIDs() {
+	// Calculate maximum cache size.
+	cap := calculateSliceCacheMax(
+		config.GetCacheStatusPinnedIDsMemRatio(),
+	)
+
+	log.Infof(nil, "cache size = %d", cap)
+
+	c.DB.StatusPinnedIDs.Init(0, cap)
 }
 
 func (c *Caches) initTag() {

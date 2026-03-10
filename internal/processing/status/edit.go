@@ -34,6 +34,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
 	"code.superseriousbusiness.org/gotosocial/internal/messages"
+	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
 // Edit ...
@@ -186,13 +187,13 @@ func (p *Processor) Edit(
 		cols = append(cols, "language")
 	}
 
-	if *status.Sensitive != form.Sensitive {
+	if status.Flags.Sensitive() != form.Sensitive {
 		// Update status sensitivity pref.
 		//
 		// Note we don't update these
 		// status fields right away so
 		// we can save current version.
-		cols = append(cols, "sensitive")
+		cols = append(cols, "flags")
 	}
 
 	if mediaChanged {
@@ -266,7 +267,7 @@ func (p *Processor) Edit(
 	edit.Text = status.Text
 	edit.ContentType = status.ContentType
 	edit.Language = status.Language
-	edit.Sensitive = status.Sensitive
+	edit.Sensitive = util.Ptr(status.Flags.Sensitive())
 	edit.StatusID = status.ID
 	edit.CreatedAt = status.UpdatedAt()
 
@@ -309,7 +310,7 @@ func (p *Processor) Edit(
 	status.Text = form.Status // raw
 	status.ContentType = contentType
 	status.Language = content.Language
-	status.Sensitive = &form.Sensitive
+	status.Flags.SetSensitive(form.Sensitive)
 	status.AttachmentIDs = form.MediaIDs
 	status.Attachments = media
 	status.EditedAt = now

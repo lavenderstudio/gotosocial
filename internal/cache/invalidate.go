@@ -360,7 +360,7 @@ func (c *Caches) OnInvalidateStatus(status *gtsmodel.Status) {
 		c.DB.Poll.Invalidate("ID", status.PollID)
 	}
 
-	if status.Local != nil && *status.Local {
+	if status.Flags.Local() {
 		// Invalidate the local statuses count.
 		c.DB.LocalInstance.Statuses.Store(nil)
 	}

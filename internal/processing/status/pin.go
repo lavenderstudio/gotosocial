@@ -21,7 +21,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
@@ -76,46 +75,52 @@ func (p *Processor) getPinnableStatus(ctx context.Context, requestingAccount *gt
 //   - Limit of pinned statuses not yet met or exceeded.
 //
 // If the conditions can't be met, then code 422 Unprocessable Entity will be returned.
-func (p *Processor) PinCreate(ctx context.Context, requestingAccount *gtsmodel.Account, targetStatusID string) (*apimodel.Status, gtserror.WithCode) {
-	targetStatus, errWithCode := p.getPinnableStatus(ctx, requestingAccount, targetStatusID)
+func (p *Processor) PinCreate(ctx context.Context, requester *gtsmodel.Account, targetStatusID string) (*apimodel.Status, gtserror.WithCode) {
+	targetStatus, errWithCode := p.getPinnableStatus(ctx, requester, targetStatusID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
-	// Get a lock on this account.
-	unlock := p.state.ProcessingLocks.Lock(requestingAccount.URI)
-	defer unlock()
+	pinned, err := p.state.DB.IsStatusPinned(ctx, requester.ID, targetStatusID)
+	if err != nil {
+		err = gtserror.Newf("db error checking status pin: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
 
-	if !targetStatus.PinnedAt.IsZero() {
-		err := errors.New("status already pinned")
-		return nil, gtserror.NewErrorUnprocessableEntity(err, err.Error())
+	if pinned {
+		const text = "status already pinned"
+		return nil, gtserror.NewErrorUnprocessableEntity(
+			errors.New(text),
+			text,
+		)
 	}
 
 	// Ensure account stats populated.
-	if err := p.state.DB.PopulateAccountStats(ctx, requestingAccount); err != nil {
+	if err := p.state.DB.PopulateAccountStats(ctx, requester); err != nil {
 		err = gtserror.Newf("db error getting account stats: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	pinnedCount := *requestingAccount.Stats.StatusesPinnedCount
+	pinnedCount := *requester.Stats.StatusesPinnedCount
 	if pinnedCount >= allowedPinnedCount {
 		err := fmt.Errorf("status pin limit exceeded, you've already pinned %d status(es) out of %d", pinnedCount, allowedPinnedCount)
 		return nil, gtserror.NewErrorUnprocessableEntity(err, err.Error())
 	}
 
-	// Update "pinned_at" for this status.
-	// This will also update account stats in the db.
-	targetStatus.PinnedAt = time.Now()
-	if err := p.state.DB.UpdateStatus(ctx, targetStatus, "pinned_at"); err != nil {
+	// Add a new pin in the database for this status.
+	if err := p.state.DB.PutStatusPin(ctx, &gtsmodel.StatusPin{
+		StatusID:  targetStatusID,
+		AccountID: requester.ID,
+	}); err != nil {
 		err = gtserror.Newf("db error pinning status: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
 	// Increment pinned count on in-memory
 	// account model before returning it.
-	*requestingAccount.Stats.StatusesPinnedCount++
+	*requester.Stats.StatusesPinnedCount++
 
-	return p.c.GetAPIStatus(ctx, requestingAccount, targetStatus)
+	return p.c.GetAPIStatus(ctx, requester, targetStatus)
 }
 
 // PinRemove unpins the target status from the top of requestingAccount's profile, if possible.
@@ -129,31 +134,32 @@ func (p *Processor) PinCreate(ctx context.Context, requestingAccount *gtsmodel.A
 //
 // Unlike with PinCreate, statuses that are already unpinned will not return 422, but just do
 // nothing and return the api model representation of the status, to conform to the masto API.
-func (p *Processor) PinRemove(ctx context.Context, requestingAccount *gtsmodel.Account, targetStatusID string) (*apimodel.Status, gtserror.WithCode) {
-	targetStatus, errWithCode := p.getPinnableStatus(ctx, requestingAccount, targetStatusID)
+func (p *Processor) PinRemove(ctx context.Context, requester *gtsmodel.Account, targetStatusID string) (*apimodel.Status, gtserror.WithCode) {
+	targetStatus, errWithCode := p.getPinnableStatus(ctx, requester, targetStatusID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
-	// Get a lock on this account.
-	unlock := p.state.ProcessingLocks.Lock(requestingAccount.URI)
-	defer unlock()
+	pinned, err := p.state.DB.IsStatusPinned(ctx, requester.ID, targetStatusID)
+	if err != nil {
+		err = gtserror.Newf("db error checking status pin: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
 
-	if targetStatus.PinnedAt.IsZero() {
+	if !pinned {
 		// Status already not pinned.
-		return p.c.GetAPIStatus(ctx, requestingAccount, targetStatus)
+		return p.c.GetAPIStatus(ctx, requester, targetStatus)
 	}
 
 	// Ensure account stats populated.
-	if err := p.state.DB.PopulateAccountStats(ctx, requestingAccount); err != nil {
+	if err := p.state.DB.PopulateAccountStats(ctx, requester); err != nil {
 		err = gtserror.Newf("db error getting account stats: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	// Update "pinned_at" for this status.
-	// This will also update account stats in the db.
-	targetStatus.PinnedAt = time.Time{}
-	if err := p.state.DB.UpdateStatus(ctx, targetStatus, "pinned_at"); err != nil {
+	// Add a new pin in the database for this status.
+	// Delete the existing pin status model in the database.
+	if err := p.state.DB.DeleteStatusPin(ctx, targetStatusID); err != nil {
 		err = gtserror.Newf("db error unpinning status: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
 	}
@@ -161,10 +167,10 @@ func (p *Processor) PinRemove(ctx context.Context, requestingAccount *gtsmodel.A
 	// Decrement pinned count on in-memory
 	// account model before returning it,
 	// clamping to 0 to avoid funny business.
-	*requestingAccount.Stats.StatusesPinnedCount--
-	if *requestingAccount.Stats.StatusesPinnedCount < 0 {
-		*requestingAccount.Stats.StatusesPinnedCount = 0
+	*requester.Stats.StatusesPinnedCount--
+	if *requester.Stats.StatusesPinnedCount < 0 {
+		*requester.Stats.StatusesPinnedCount = 0
 	}
 
-	return p.c.GetAPIStatus(ctx, requestingAccount, targetStatus)
+	return p.c.GetAPIStatus(ctx, requester, targetStatus)
 }

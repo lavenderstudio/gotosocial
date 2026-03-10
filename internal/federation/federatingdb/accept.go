@@ -450,8 +450,7 @@ func (f *DB) acceptStoredStatus(
 	unlock := f.state.FedLocks.Lock(status.URI)
 	defer unlock()
 
-	pendingApproval := util.PtrOrValue(status.PendingApproval, false)
-	if !pendingApproval {
+	if !status.Flags.PendingApproval() {
 		// Status doesn't need approval or it's
 		// already been approved by an Accept.
 		// Just return.
@@ -472,12 +471,12 @@ func (f *DB) acceptStoredStatus(
 		return gtserror.NewErrorForbidden(err, err.Error())
 	}
 
-	// Mark the status as approved by this URI.
-	status.PendingApproval = util.Ptr(false)
+	// Mark status as approved by this URI.
+	status.Flags.SetPendingApproval(false)
 	status.ApprovedByURI = approvedByURI.String()
 	if err := f.state.DB.UpdateStatus(ctx,
 		status,
-		"pending_approval",
+		"flags",
 		"approved_by_uri",
 	); err != nil {
 		err := gtserror.Newf("db error accepting status: %w", err)
@@ -878,11 +877,11 @@ func (f *DB) acceptPoliteReplyRequest(
 	}
 
 	reply.ApprovedByURI = authURIStr
-	reply.PendingApproval = util.Ptr(false)
+	reply.Flags.SetPendingApproval(false)
 	if err := f.state.DB.UpdateStatus(
 		ctx, reply,
 		"approved_by_uri",
-		"pending_approval",
+		"flags",
 	); err != nil {
 		return gtserror.Newf("db error updating status: %w", err)
 	}

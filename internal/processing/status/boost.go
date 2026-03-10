@@ -28,7 +28,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/messages"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
 // BoostCreate processes the boost/reblog of target
@@ -109,7 +108,7 @@ func (p *Processor) BoostCreate(
 		// prove it's been Accepted by the target.
 		pendingApproval = true
 
-		if *target.Local {
+		if target.Flags.Local() {
 			// If the target is local we don't need
 			// to wait for an Accept from remote,
 			// we can just preapprove it and have
@@ -123,9 +122,8 @@ func (p *Processor) BoostCreate(
 		pendingApproval = false
 	}
 
-	boost.PendingApproval = &pendingApproval
-
-	// Store the new boost.
+	// Store new boost with pending approval flag.
+	boost.Flags.SetPendingApproval(pendingApproval)
 	if err := p.state.DB.PutStatus(ctx, boost); err != nil {
 		return nil, gtserror.NewErrorInternalError(err)
 	}
@@ -144,7 +142,7 @@ func (p *Processor) BoostCreate(
 	// target status as no longer pending approval so
 	// it's serialized properly via the API.
 	if implicitlyAccepted {
-		target.PendingApproval = util.Ptr(false)
+		target.Flags.SetPendingApproval(false)
 	}
 
 	if pendingApproval {

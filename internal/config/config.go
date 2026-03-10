@@ -271,6 +271,7 @@ type CacheConfiguration struct {
 	StatusEditMemRatio                   float64       `name:"status-edit-mem-ratio"`
 	StatusFaveMemRatio                   float64       `name:"status-fave-mem-ratio"`
 	StatusFaveIDsMemRatio                float64       `name:"status-fave-ids-mem-ratio"`
+	StatusPinnedIDsMemRatio              float64       `name:"status-pinned-ids-mem-ratio"`
 	TagMemRatio                          float64       `name:"tag-mem-ratio"`
 	ThreadMuteMemRatio                   float64       `name:"thread-mute-mem-ratio"`
 	TokenMemRatio                        float64       `name:"token-mem-ratio"`
