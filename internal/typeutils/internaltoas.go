@@ -674,7 +674,7 @@ func (c *Converter) StatusToAS(ctx context.Context, s *gtsmodel.Status) (ap.Stat
 	ap.SetReplies(statusable, replies)
 
 	// `sensitive` property.
-	if sensitive := *s.Sensitive; sensitive {
+	if sensitive := s.Flags.Sensitive(); sensitive {
 		ap.AppendSensitive(statusable, sensitive)
 	}
 

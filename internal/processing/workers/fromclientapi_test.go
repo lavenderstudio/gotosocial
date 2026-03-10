@@ -64,14 +64,13 @@ func (suite *FromClientAPITestSuite) newStatus(
 		ID:                  statusID,
 		URI:                 protocol + "://" + host + "/users/" + account.Username + "/statuses/" + statusID,
 		URL:                 protocol + "://" + host + "/@" + account.Username + "/statuses/" + statusID,
+		Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagLocal | gtsmodel.StatusFlagFederated),
 		Content:             "pee pee poo poo",
 		TagIDs:              tagIDs,
-		Local:               util.Ptr(true),
 		AccountURI:          account.URI,
 		AccountID:           account.ID,
 		Visibility:          visibility,
 		ActivityStreamsType: ap.ObjectNote,
-		Federated:           util.Ptr(true),
 	}
 
 	if replyToStatus != nil {

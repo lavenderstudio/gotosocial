@@ -182,7 +182,7 @@ func (suite *ASToInternalTestSuite) TestParseReplyWithMention() {
 	suite.Equal(inReplyToAccount.ID, status.InReplyToAccountID)
 	suite.Equal(inReplyToStatus.ID, status.InReplyToID)
 	suite.Equal(inReplyToStatus.URI, status.InReplyToURI)
-	suite.True(*status.Federated)
+	suite.True(status.Flags.Federated())
 	suite.Equal(`<p><span class="h-card"><a href="http://localhost:8080/@the_mighty_zork" class="u-url mention">@<span>the_mighty_zork</span></a></span> nice there it is:</p><p><a href="http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY/activity" rel="nofollow noopener noreferrer" target="_blank"><span class="invisible">https://</span><span class="ellipsis">social.pixie.town/users/f0x/st</span><span class="invisible">atuses/106221628567855262/activity</span></a></p>`, status.Content)
 	suite.Len(status.Mentions, 1)
 	m1 := status.Mentions[0]

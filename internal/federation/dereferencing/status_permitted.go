@@ -204,7 +204,7 @@ func (d *Dereferencer) isPermittedReply(
 
 	// If parent is a local status
 	// check visibility to replyer.
-	if parent.IsLocal() {
+	if parent.Flags.Local() {
 		visible, err := d.visFilter.StatusVisible(ctx,
 			reply.Account,
 			parent,
@@ -278,7 +278,7 @@ func (d *Dereferencer) isPermittedReply(
 	// pending approval, though we know at this point
 	// that the status did not include an approvedBy URI.
 
-	if !parent.IsLocal() {
+	if !parent.Flags.Local() {
 		// If the replied-to status is remote, we should just
 		// drop this reply at this point, as we can't verify
 		// that the remote replied-to account approves it, and
@@ -300,7 +300,7 @@ func (d *Dereferencer) isPermittedReply(
 		// replier in the appropriate collection. Pre-approval
 		// lets the processor know it should send out an Accept
 		// straight away on behalf of the replied-to account.
-		reply.PendingApproval = util.Ptr(true)
+		reply.Flags.SetPendingApproval(true)
 		reply.PreApproved = true
 		return true, nil
 	}
@@ -308,7 +308,7 @@ func (d *Dereferencer) isPermittedReply(
 	// Reply just requires approval from the local account
 	// it replies to. Set PendingApproval so the processor
 	// knows to create a pending interaction request.
-	reply.PendingApproval = util.Ptr(true)
+	reply.Flags.SetPendingApproval(true)
 	return true, nil
 }
 
@@ -429,7 +429,7 @@ func (d *Dereferencer) isPermittedByAuthURI(
 	// Reply is permitted by this approval.
 	// If it was previously rejected or
 	// pending approval, clear that now.
-	reply.PendingApproval = util.Ptr(false)
+	reply.Flags.SetPendingApproval(false)
 	if thisReq != nil {
 		thisReq.ResponseURI = approvedByIRI
 		thisReq.AcceptedAt = time.Now()
@@ -469,7 +469,7 @@ func (d *Dereferencer) rejectedByPolicy(
 		rejectID = id.NewULID()
 	}
 
-	if inReplyTo.IsLocal() {
+	if inReplyTo.Flags.Local() {
 		// If this a reply to one of our statuses
 		// we should generate a URI for the Reject,
 		// else just use an implicit (empty) URI.
@@ -539,7 +539,7 @@ func (d *Dereferencer) isPermittedBoost(
 
 	// Check visibility of local
 	// boostOf to boosting account.
-	if boostOf.IsLocal() {
+	if boostOf.Flags.Local() {
 		visible, err := d.visFilter.StatusVisible(ctx,
 			status.Account,
 			boostOf,
@@ -602,8 +602,8 @@ func (d *Dereferencer) isPermittedBoost(
 		//
 		// For boosts of remote statuses, though
 		// we should be polite and just drop it.
-		if boostOf.IsLocal() {
-			status.PendingApproval = util.Ptr(true)
+		if boostOf.Flags.Local() {
+			status.Flags.SetPendingApproval(true)
 			status.PreApproved = boostable.MatchedOnCollection()
 			return true, nil
 		}
@@ -636,7 +636,7 @@ func (d *Dereferencer) isPermittedBoost(
 	}
 
 	// Status has been approved.
-	status.PendingApproval = util.Ptr(false)
+	status.Flags.SetPendingApproval(false)
 	return true, nil
 }
 

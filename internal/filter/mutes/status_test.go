@@ -51,8 +51,7 @@ func (suite *StatusMuteTestSuite) TestMutedStatusAuthor() {
 		InReplyToID:         status.ID,
 		InReplyToURI:        status.URI,
 		InReplyToAccountID:  status.AccountID,
-		Local:               util.Ptr(false),
-		Federated:           util.Ptr(true),
+		Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagFederated),
 		ActivityStreamsType: ap.ObjectNote,
 	}
 
@@ -134,8 +133,7 @@ func (suite *StatusMuteTestSuite) TestMutedStatusMentionee() {
 		InReplyToID:         status.ID,
 		InReplyToURI:        status.URI,
 		InReplyToAccountID:  status.AccountID,
-		Local:               util.Ptr(false),
-		Federated:           util.Ptr(true),
+		Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagFederated),
 		ActivityStreamsType: ap.ObjectNote,
 	}
 
@@ -216,8 +214,7 @@ func (suite *StatusMuteTestSuite) TestMutedStatusThread() {
 		InReplyToID:         status.ID,
 		InReplyToURI:        status.URI,
 		InReplyToAccountID:  status.AccountID,
-		Local:               util.Ptr(false),
-		Federated:           util.Ptr(true),
+		Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagFederated),
 		ActivityStreamsType: ap.ObjectNote,
 	}
 

@@ -93,11 +93,6 @@ func (l *listDB) GetListsByAccountID(ctx context.Context, accountID string) ([]*
 	return l.GetListsByIDs(ctx, listIDs)
 }
 
-func (l *listDB) CountListsByAccountID(ctx context.Context, accountID string) (int, error) {
-	listIDs, err := l.GetListIDsByAccountID(ctx, accountID)
-	return len(listIDs), err
-}
-
 func (l *listDB) GetListsContainingFollowID(ctx context.Context, followID string) ([]*gtsmodel.List, error) {
 	listIDs, err := l.getListIDsWithFollowID(ctx, followID)
 	if err != nil {
@@ -226,22 +221,28 @@ func (l *listDB) DeleteListByID(ctx context.Context, id string) error {
 
 func (l *listDB) GetListIDsByAccountID(ctx context.Context, accountID string) ([]string, error) {
 	return l.state.Caches.DB.ListIDs.Load("a"+accountID, func() ([]string, error) {
-		var listIDs []string
-
-		// List IDs not in cache.
-		// Perform the DB query.
-		if _, err := l.db.NewSelect().
-			Table("lists").
-			Column("id").
-			Where("? = ?", bun.Ident("account_id"), accountID).
-			OrderExpr("? DESC", bun.Ident("created_at")).
-			Exec(ctx, &listIDs); err != nil &&
-			!errors.Is(err, db.ErrNoEntries) {
-			return nil, err
-		}
-
-		return listIDs, nil
+		return getListIDsByAccountID(ctx, l.db, accountID)
 	})
+}
+
+func (l *listDB) CountListsByAccountID(ctx context.Context, accountID string) (int, error) {
+	return l.state.Caches.DB.ListIDs.Count("a"+accountID, func() ([]string, error) {
+		return getListIDsByAccountID(ctx, l.db, accountID)
+	})
+}
+
+func getListIDsByAccountID(ctx context.Context, bundb *bun.DB, accountID string) ([]string, error) {
+	var listIDs []string
+	_, err := bundb.NewSelect().
+		Table("lists").
+		Column("id").
+		Where("? = ?", bun.Ident("account_id"), accountID).
+		OrderExpr("? DESC", bun.Ident("created_at")).
+		Exec(ctx, &listIDs)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return nil, err
+	}
+	return listIDs, err
 }
 
 func (l *listDB) getListIDsWithFollowID(ctx context.Context, followID string) ([]string, error) {

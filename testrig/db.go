@@ -56,6 +56,7 @@ var testModels = []interface{}{
 	&gtsmodel.StatusEdit{},
 	&gtsmodel.StatusFave{},
 	&gtsmodel.StatusBookmark{},
+	&gtsmodel.StatusPin{},
 	&gtsmodel.Tag{},
 	&gtsmodel.Thread{},
 	&gtsmodel.ThreadMute{},
@@ -211,6 +212,12 @@ func StandardDBSetup(db db.DB, accounts map[string]*gtsmodel.Account) {
 				{"error", err},
 				{"status", v},
 			}...)
+		}
+	}
+
+	for _, v := range NewTestStatusPins() {
+		if err := db.Put(ctx, v); err != nil {
+			log.Panic(ctx, err)
 		}
 	}
 

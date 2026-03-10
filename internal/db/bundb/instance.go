@@ -94,7 +94,7 @@ func (i *instanceDB) CountInstanceStatuses(ctx context.Context, domain string) (
 		).
 		Where("? = ?", bun.Ident("account.domain"), domain).
 		// Ignore pending approval.
-		Where("? = ?", bun.Ident("status.pending_approval"), false).
+		Where(db.BitNotSet("status.flags", gtsmodel.StatusFlagPendingApproval)).
 		// Ignore direct messages.
 		Where("NOT ? = ?", bun.Ident("status.visibility"), gtsmodel.VisibilityDirect)
 

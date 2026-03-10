@@ -66,7 +66,7 @@ func (suite *AcceptTestSuite) TestAccept() {
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
-	suite.False(*dbStatus.PendingApproval)
+	suite.False(dbStatus.Flags.PendingApproval())
 	suite.Equal(dbReq.AuthorizationURI, dbStatus.ApprovedByURI)
 
 	// Wait for a notification

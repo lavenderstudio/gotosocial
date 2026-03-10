@@ -160,13 +160,12 @@ func (p *Processor) Create(
 		ID:                       statusID,
 		URI:                      accountURIs.StatusesURI + "/" + statusID,
 		URL:                      accountURIs.StatusesURL + "/" + statusID,
+		Flags:                    gtsmodel.StatusFlags(gtsmodel.StatusFlagLocal),
 		CreatedAt:                createdAt,
-		Local:                    util.Ptr(true),
 		Account:                  requester,
 		AccountID:                requester.ID,
 		AccountURI:               requester.URI,
 		ActivityStreamsType:      ap.ObjectNote,
-		Sensitive:                &form.Sensitive,
 		CreatedWithApplicationID: application.ID,
 
 		// Set validated language.
@@ -193,11 +192,10 @@ func (p *Processor) Create(
 		// Set gathered media.
 		AttachmentIDs: form.MediaIDs,
 		Attachments:   media,
-
-		// Assume not pending approval; this may
-		// change when permissivity is checked.
-		PendingApproval: util.Ptr(false),
 	}
+
+	// Set status sensitive value from form.
+	status.Flags.SetSensitive(form.Sensitive)
 
 	// Only store ContentWarningText if the parsed
 	// result is different from the given SpoilerText,
@@ -242,7 +240,7 @@ func (p *Processor) Create(
 		// If a content-warning is set, and
 		// the status contains media, always
 		// set the status sensitive flag.
-		status.Sensitive = util.Ptr(true)
+		status.Flags.SetSensitive(true)
 	}
 
 	if form.Poll != nil {
@@ -299,7 +297,7 @@ func (p *Processor) Create(
 	// replied-to status as no longer pending approval
 	// so it's serialized properly via the API.
 	if implicitlyAccepted {
-		status.InReplyTo.PendingApproval = util.Ptr(false)
+		status.InReplyTo.Flags.SetPendingApproval(false)
 	}
 
 	switch {
@@ -309,7 +307,7 @@ func (p *Processor) Create(
 		// statuses, just inserting them in the database
 		// is enough. We shouldn't federate, notify, etc.
 
-	case *status.PendingApproval:
+	case status.Flags.PendingApproval():
 		// Status is pending approval, which means it
 		// must be a reply to a status with an interaction
 		// policy that requires approval for replies.
@@ -442,7 +440,7 @@ func (p *Processor) processInReplyTo(
 		// prove it's been Accepted by the target.
 		pendingApproval = true
 
-		if *inReplyTo.Local {
+		if inReplyTo.Flags.Local() {
 			// If the target is local we don't need
 			// to wait for an Accept from remote,
 			// we can just preapprove it and have
@@ -456,7 +454,7 @@ func (p *Processor) processInReplyTo(
 		pendingApproval = false
 	}
 
-	status.PendingApproval = &pendingApproval
+	status.Flags.SetPendingApproval(pendingApproval)
 
 	// Set status fields from inReplyTo.
 	status.InReplyToID = inReplyTo.ID
@@ -502,7 +500,7 @@ func processVisibility(
 	// Set federated according to "local_only" field,
 	// assuming federated (ie., not local-only) by default.
 	localOnly := util.PtrOrValue(form.LocalOnly, false)
-	status.Federated = util.Ptr(!localOnly)
+	status.Flags.SetFederated(!localOnly)
 
 	return nil
 }

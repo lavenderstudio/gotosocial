@@ -24,7 +24,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/status"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -242,12 +241,11 @@ func (suite *webContextGetTestSuite) createStatus(account *gtsmodel.Account, vis
 	newStatus := &gtsmodel.Status{
 		ID:                  statusID,
 		URI:                 "https://status-id.test/" + statusID,
+		Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagLocal | gtsmodel.StatusFlagFederated),
 		AccountID:           account.ID,
 		AccountURI:          account.URI,
 		Visibility:          visibility,
-		Local:               util.Ptr(true),
 		ActivityStreamsType: ap.ObjectNote,
-		Federated:           util.Ptr(true),
 	}
 	if inReplyTo != nil {
 		newStatus.InReplyToID = inReplyTo.ID

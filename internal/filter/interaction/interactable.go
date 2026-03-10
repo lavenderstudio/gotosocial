@@ -96,7 +96,7 @@ func (f *Filter) StatusLikeable(
 	// If status is local and has no policy set,
 	// check against the default policy for this
 	// visibility, as we're canLike sub-policy aware.
-	case *status.Local:
+	case status.Flags.Local():
 		return f.checkPolicy(
 			ctx,
 			requester,
@@ -127,7 +127,7 @@ func (f *Filter) StatusReplyable(
 	requester *gtsmodel.Account,
 	status *gtsmodel.Status,
 ) (*gtsmodel.PolicyCheckResult, error) {
-	if util.PtrOrValue(status.PendingApproval, false) {
+	if status.Flags.PendingApproval() {
 		// Target status is pending approval,
 		// check who started this thread.
 		startedThread, err := f.startedThread(
@@ -246,7 +246,7 @@ func (f *Filter) StatusReplyable(
 	// If status is local and has no policy set,
 	// check against the default canReply for this
 	// visibility, as we're canReply sub-policy aware.
-	case *status.Local:
+	case status.Flags.Local():
 		return f.checkPolicy(
 			ctx,
 			requester,
@@ -307,7 +307,7 @@ func (f *Filter) StatusBoostable(
 	// If status has no policy set but it's local,
 	// check against the default policy for this
 	// visibility, as we're interaction-policy aware.
-	case *status.Local:
+	case status.Flags.Local():
 		policy := gtsmodel.DefaultInteractionPolicyFor(status.Visibility)
 		return f.checkPolicy(
 			ctx,

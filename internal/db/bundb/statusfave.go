@@ -184,26 +184,29 @@ func (s *statusFaveDB) IsStatusFavedBy(ctx context.Context, statusID string, acc
 }
 
 func (s *statusFaveDB) CountStatusFaves(ctx context.Context, statusID string) (int, error) {
-	faveIDs, err := s.getStatusFaveIDs(ctx, statusID)
-	return len(faveIDs), err
+	return s.state.Caches.DB.StatusFaveIDs.Count(statusID, func() ([]string, error) {
+		return getStatusFaveIDs(ctx, s.db, statusID)
+	})
 }
 
 func (s *statusFaveDB) getStatusFaveIDs(ctx context.Context, statusID string) ([]string, error) {
 	return s.state.Caches.DB.StatusFaveIDs.Load(statusID, func() ([]string, error) {
-		var faveIDs []string
-
-		// Status fave IDs not in cache, perform DB query!
-		if err := s.db.
-			NewSelect().
-			Table("status_faves").
-			Column("id").
-			Where("? = ?", bun.Ident("status_id"), statusID).
-			Scan(ctx, &faveIDs); err != nil {
-			return nil, err
-		}
-
-		return faveIDs, nil
+		return getStatusFaveIDs(ctx, s.db, statusID)
 	})
+}
+
+func getStatusFaveIDs(ctx context.Context, bundb *bun.DB, statusID string) ([]string, error) {
+	var faveIDs []string
+	err := bundb.
+		NewSelect().
+		Table("status_faves").
+		Column("id").
+		Where("? = ?", bun.Ident("status_id"), statusID).
+		Scan(ctx, &faveIDs)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return nil, err
+	}
+	return faveIDs, nil
 }
 
 func (s *statusFaveDB) PopulateStatusFave(ctx context.Context, statusFave *gtsmodel.StatusFave) error {

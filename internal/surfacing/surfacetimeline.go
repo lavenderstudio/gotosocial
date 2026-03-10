@@ -325,7 +325,7 @@ func (s *Surfacer) timelineStatusForPublic(
 	}
 
 	// Iterate our list of users.
-	isLocal := status.IsLocal()
+	isLocal := status.Flags.Local()
 	for _, user := range users {
 		// Try to prepare status for timelining for local user account.
 		apiStatus, timelineable, err := s.prepareStatusForTimeline(ctx,

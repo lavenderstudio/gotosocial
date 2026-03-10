@@ -126,6 +126,7 @@ func (c *Caches) Init() {
 	c.initStatusEdit()
 	c.initStatusFave()
 	c.initStatusFaveIDs()
+	c.initStatusPinnedIDs()
 	c.initTag()
 	c.initTagTimelines()
 	c.initThreadMute()

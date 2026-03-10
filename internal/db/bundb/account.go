@@ -1077,24 +1077,10 @@ func (a *accountDB) GetAccountStatuses(ctx context.Context, accountID string, li
 }
 
 func (a *accountDB) GetAccountPinnedStatuses(ctx context.Context, accountID string) ([]*gtsmodel.Status, error) {
-	statusIDs := []string{}
-
-	q := a.db.
-		NewSelect().
-		TableExpr("? AS ?", bun.Ident("statuses"), bun.Ident("status")).
-		Column("status.id").
-		Where("? = ?", bun.Ident("status.account_id"), accountID).
-		Where("? IS NOT NULL", bun.Ident("status.pinned_at")).
-		Order("status.pinned_at DESC")
-
-	if err := q.Scan(ctx, &statusIDs); err != nil {
+	statusIDs, err := a.state.DB.GetAccountStatusPins(ctx, accountID)
+	if err != nil {
 		return nil, err
 	}
-
-	if len(statusIDs) == 0 {
-		return nil, db.ErrNoEntries
-	}
-
 	return a.state.DB.GetStatusesByIDs(ctx, statusIDs)
 }
 
@@ -1131,7 +1117,7 @@ func (a *accountDB) accountWebStatusesCommonSelect(
 
 	// Local posts only, we don't show
 	// remote account's posts on the web view.
-	q = q.Where("? = ?", bun.Ident("status.local"), true)
+	q = q.Where(db.BitIsSet("status.flags", gtsmodel.StatusFlagLocal))
 
 	// Select statuses created by the target account.
 	q = q.Where("? = ?", bun.Ident("status.account_id"), accountID)
@@ -1159,7 +1145,7 @@ func (a *accountDB) accountWebStatusesCommonSelect(
 					q = q.Where("? = ?", bun.Ident("boost_of.visibility"), visibility)
 
 					// Boosted status must be federated.
-					q = q.Where("? = ?", bun.Ident("boost_of.federated"), true)
+					q = q.Where(db.BitIsSet("boost_of.flags", gtsmodel.StatusFlagFederated))
 
 					// Boosted account must not hide
 					// target visibility from unauthed web.
@@ -1177,7 +1163,7 @@ func (a *accountDB) accountWebStatusesCommonSelect(
 	}
 
 	// Don't show local only / unfederated.
-	q = q.Where("? = ?", bun.Ident("status.federated"), true)
+	q = q.Where(db.BitIsSet("status.flags", gtsmodel.StatusFlagFederated))
 
 	if mediaOnly {
 		// Respect mediaOnly pref.
@@ -1519,27 +1505,36 @@ func (a *accountDB) RegenerateAccountStats(ctx context.Context, account *gtsmode
 
 	// Count followers outside of transaction since
 	// it uses a cache + requires its own db calls.
-	followerIDs, err := a.state.DB.GetAccountFollowerIDs(ctx, account.ID, nil)
+	followerCount, err := a.state.DB.CountAccountFollowers(ctx, account.ID)
 	if err != nil {
 		return err
 	}
-	stats.FollowersCount = util.Ptr(len(followerIDs))
 
 	// Count following outside of transaction since
 	// it uses a cache + requires its own db calls.
-	followIDs, err := a.state.DB.GetAccountFollowIDs(ctx, account.ID, nil)
+	followCount, err := a.state.DB.CountAccountFollows(ctx, account.ID)
 	if err != nil {
 		return err
 	}
-	stats.FollowingCount = util.Ptr(len(followIDs))
 
 	// Count follow requests outside of transaction since
-	// it uses a cache + requires its own db calls.
-	followRequestIDs, err := a.state.DB.GetAccountFollowRequestIDs(ctx, account.ID, nil)
+	// it uses a cache + requires its own database calls.
+	followRequestCount, err := a.state.DB.CountAccountFollowRequests(ctx, account.ID)
 	if err != nil {
 		return err
 	}
-	stats.FollowRequestsCount = util.Ptr(len(followRequestIDs))
+
+	// Count pinned statuses outside of transaction since
+	// it uses a cache + requires its own database calls.
+	pinnedCount, err := a.state.DB.CountAccountStatusPins(ctx, account.ID)
+	if err != nil {
+		return err
+	}
+
+	stats.FollowRequestsCount = util.Ptr(followRequestCount)
+	stats.FollowingCount = util.Ptr(followCount)
+	stats.FollowersCount = util.Ptr(followerCount)
+	stats.StatusesPinnedCount = util.Ptr(pinnedCount)
 
 	// Populate remaining stats struct fields.
 	// This can be done inside a transaction.
@@ -1551,42 +1546,29 @@ func (a *accountDB) RegenerateAccountStats(ctx context.Context, account *gtsmode
 		statusesCount, err := tx.NewSelect().
 			TableExpr("? AS ?", bun.Ident("statuses"), bun.Ident("status")).
 			Where("? = ?", bun.Ident("status.account_id"), account.ID).
-			Where("NOT ? = ?", bun.Ident("status.pending_approval"), true).
+			Where(db.BitNotSet("status.flags", gtsmodel.StatusFlagPendingApproval)).
 			Count(ctx)
 		if err != nil {
 			return err
 		}
-		stats.StatusesCount = &statusesCount
-
-		// Scan database for pinned statuses, ignoring
-		// statuses that are currently pending approval.
-		statusesPinnedCount, err := tx.NewSelect().
-			TableExpr("? AS ?", bun.Ident("statuses"), bun.Ident("status")).
-			Where("? = ?", bun.Ident("status.account_id"), account.ID).
-			Where("? IS NOT NULL", bun.Ident("status.pinned_at")).
-			Where("NOT ? = ?", bun.Ident("status.pending_approval"), true).
-			Count(ctx)
-		if err != nil {
-			return err
-		}
-		stats.StatusesPinnedCount = &statusesPinnedCount
 
 		// Scan database for last status, ignoring
 		// statuses that are currently pending approval.
 		lastStatusAt := time.Time{}
-		err = tx.
-			NewSelect().
+		err = tx.NewSelect().
 			TableExpr("? AS ?", bun.Ident("statuses"), bun.Ident("status")).
 			Column("status.created_at").
 			Where("? = ?", bun.Ident("status.account_id"), account.ID).
-			Where("NOT ? = ?", bun.Ident("status.pending_approval"), true).
+			Where(db.BitNotSet("status.flags", gtsmodel.StatusFlagPendingApproval)).
 			Order("status.id DESC").
 			Limit(1).
 			Scan(ctx, &lastStatusAt)
 		if err != nil && !errors.Is(err, db.ErrNoEntries) {
 			return err
 		}
+
 		stats.LastStatusAt = lastStatusAt
+		stats.StatusesCount = &statusesCount
 
 		return nil
 	}); err != nil {

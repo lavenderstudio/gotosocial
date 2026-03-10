@@ -437,8 +437,8 @@ func (c *Converter) ASStatusToStatus(ctx context.Context, statusable ap.Statusab
 
 	// Status was sent to us or dereffed by
 	// us so it must be federated and not local.
-	status.Federated = util.Ptr(true)
-	status.Local = util.Ptr(false)
+	status.Flags.SetFederated(true)
+	status.Flags.SetLocal(false)
 
 	// Derive interaction policy for this status.
 	status.InteractionPolicy = ap.ExtractInteractionPolicy(
@@ -470,11 +470,11 @@ func (c *Converter) ASStatusToStatus(ctx context.Context, statusable ap.Statusab
 
 	// Assume not pending approval; this may
 	// change when permissivity is checked.
-	status.PendingApproval = util.Ptr(false)
+	status.Flags.SetPendingApproval(false)
 
 	// status.Sensitive
 	sensitive := ap.ExtractSensitive(statusable)
-	status.Sensitive = &sensitive
+	status.Flags.SetSensitive(sensitive)
 
 	// ActivityStreamsType
 	status.ActivityStreamsType = statusable.GetTypeName()
@@ -704,7 +704,7 @@ func (c *Converter) ASAnnounceToStatus(
 
 	// Assume not pending approval; this may
 	// change when permissivity is checked.
-	boost.PendingApproval = util.Ptr(false)
+	// boost.Flags.UnsetPendingApproval()
 
 	// Remaining fields on the boost will be
 	// taken from the target status; it's not

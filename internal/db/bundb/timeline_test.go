@@ -37,7 +37,7 @@ func (suite *TimelineTestSuite) publicCount() int {
 	for _, status := range suite.testStatuses {
 		if status.Visibility == gtsmodel.VisibilityPublic &&
 			status.BoostOfID == "" &&
-			!util.PtrOrZero(status.PendingApproval) {
+			!status.Flags.PendingApproval() {
 			publicCount++
 		}
 	}
@@ -49,8 +49,8 @@ func (suite *TimelineTestSuite) localCount() int {
 	for _, status := range suite.testStatuses {
 		if status.Visibility == gtsmodel.VisibilityPublic &&
 			status.BoostOfID == "" &&
-			!util.PtrOrZero(status.PendingApproval) &&
-			util.PtrOrValue(status.Local, true) {
+			!status.Flags.PendingApproval() &&
+			status.Flags.Local() {
 			localCount++
 		}
 	}

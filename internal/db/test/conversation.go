@@ -72,14 +72,13 @@ func (f *ConversationFactory) NewTestStatus(localAccount *gtsmodel.Account, thre
 	status := &gtsmodel.Status{
 		ID:                  statusID,
 		CreatedAt:           createdAt,
+		Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagLocal | gtsmodel.StatusFlagFederated),
 		URI:                 "http://localhost:8080/users/" + localAccount.Username + "/statuses/" + statusID,
 		AccountID:           localAccount.ID,
 		AccountURI:          localAccount.URI,
-		Local:               util.Ptr(true),
 		ThreadID:            threadID,
 		Visibility:          gtsmodel.VisibilityDirect,
 		ActivityStreamsType: ap.ObjectNote,
-		Federated:           util.Ptr(true),
 	}
 	if inReplyToStatus != nil {
 		status.InReplyToID = inReplyToStatus.ID

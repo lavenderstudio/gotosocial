@@ -17,7 +17,11 @@
 
 package db
 
-import "database/sql/driver"
+import (
+	"database/sql/driver"
+
+	"github.com/uptrace/bun"
+)
 
 // ToNamedValues converts older driver.Value types to driver.NamedValue types.
 func ToNamedValues(args []driver.Value) []driver.NamedValue {
@@ -32,4 +36,24 @@ func ToNamedValues(args []driver.Value) []driver.NamedValue {
 		}
 	}
 	return args2
+}
+
+// BitNotSet returns a set of arguments for a bun
+// expression indicating whether a bit flag IS set.
+func BitIsSet[Type ~int16](col string, value Type) (
+	string, // query string
+	bun.Ident, // column ident
+	Type, // bit flag
+) {
+	return "? & ? != 0", bun.Ident(col), value
+}
+
+// BitNotSet returns a set of arguments for a bun
+// expression indicating whether a bit flag IS NOT set.
+func BitNotSet[Type ~int16](col string, value Type) (
+	string, // query string
+	bun.Ident, // column ident
+	Type, // bit flag
+) {
+	return "? & ? = 0", bun.Ident(col), value
 }

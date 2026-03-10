@@ -81,7 +81,7 @@ func (f *DB) Like(ctx context.Context, likeable vocab.ActivityStreamsLike) error
 		return nil
 	}
 
-	if !*fave.Status.Local {
+	if !fave.Status.Flags.Local() {
 		// Only process likes of local statuses.
 		// TODO: process for remote statuses as well.
 		return nil

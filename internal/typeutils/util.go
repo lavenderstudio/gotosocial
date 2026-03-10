@@ -66,34 +66,40 @@ type statusInteractions struct {
 	Pinned     bool
 }
 
-func (c *Converter) interactionsWithStatusForAccount(ctx context.Context, s *gtsmodel.Status, requestingAccount *gtsmodel.Account) (si statusInteractions, err error) {
-	if requestingAccount != nil {
-		si.Favourited, err = c.state.DB.IsStatusFavedBy(ctx, s.ID, requestingAccount.ID)
-		if err != nil {
-			return si, gtserror.Newf("error checking if requesting account has faved status: %s", err)
-		}
+func (c *Converter) interactionsWithStatusForAccount(ctx context.Context, s *gtsmodel.Status, requester *gtsmodel.Account) (si statusInteractions, err error) {
+	if requester == nil {
+		return
+	}
 
-		si.Reblogged, err = c.state.DB.IsStatusBoostedBy(ctx, s.ID, requestingAccount.ID)
-		if err != nil {
-			return si, gtserror.Newf("error checking if requesting account has reblogged status: %s", err)
-		}
+	si.Favourited, err = c.state.DB.IsStatusFavedBy(ctx, s.ID, requester.ID)
+	if err != nil {
+		return si, gtserror.Newf("error checking if requesting account has faved status: %w", err)
+	}
 
-		si.Muted, err = c.state.DB.IsThreadMutedByAccount(ctx, s.ThreadID, requestingAccount.ID)
-		if err != nil {
-			return si, gtserror.Newf("error checking if requesting account has muted status: %s", err)
-		}
+	si.Reblogged, err = c.state.DB.IsStatusBoostedBy(ctx, s.ID, requester.ID)
+	if err != nil {
+		return si, gtserror.Newf("error checking if requesting account has reblogged status: %w", err)
+	}
 
-		si.Bookmarked, err = c.state.DB.IsStatusBookmarkedBy(ctx, requestingAccount.ID, s.ID)
-		if err != nil {
-			return si, gtserror.Newf("error checking if requesting account has bookmarked status: %s", err)
-		}
+	si.Muted, err = c.state.DB.IsThreadMutedByAccount(ctx, s.ThreadID, requester.ID)
+	if err != nil {
+		return si, gtserror.Newf("error checking if requesting account has muted status: %w", err)
+	}
 
-		// The only time 'pinned' should be true is if the
-		// requesting account is looking at its OWN status.
-		if s.AccountID == requestingAccount.ID {
-			si.Pinned = !s.PinnedAt.IsZero()
+	si.Bookmarked, err = c.state.DB.IsStatusBookmarkedBy(ctx, requester.ID, s.ID)
+	if err != nil {
+		return si, gtserror.Newf("error checking if requesting account has bookmarked status: %w", err)
+	}
+
+	// The only time 'pinned' should be true is if the
+	// requesting account is looking at its OWN status.
+	if s.AccountID == requester.ID {
+		si.Pinned, err = c.state.DB.IsStatusPinned(ctx, requester.ID, s.ID)
+		if err != nil {
+			return si, gtserror.Newf("error checking if requesting account has pinned status: %w", err)
 		}
 	}
+
 	return si, nil
 }
 

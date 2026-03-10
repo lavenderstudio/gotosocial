@@ -1353,9 +1353,12 @@ func (d *Dereferencer) dereferenceAccountFeatured(ctx context.Context, requestUs
 			}
 		}
 
-		// If the status was already pinned,
-		// we don't need to do anything.
-		if !status.PinnedAt.IsZero() {
+		// If the status is already pinned, we don't need to do anything here.
+		pinned, err := d.state.DB.IsStatusPinned(ctx, status.AccountID, status.ID)
+		if err != nil {
+			log.Errorf(ctx, "db error checking status %s pinned: %v", status.URI, err)
+			continue
+		} else if pinned {
 			continue
 		}
 
@@ -1375,8 +1378,10 @@ func (d *Dereferencer) dereferenceAccountFeatured(ctx context.Context, requestUs
 
 		// All conditions are met for this status to
 		// be pinned, so we can finally update it.
-		status.PinnedAt = time.Now()
-		if err := d.state.DB.UpdateStatus(ctx, status, "pinned_at"); err != nil {
+		if err := d.state.DB.PutStatusPin(ctx, &gtsmodel.StatusPin{
+			AccountID: status.AccountID,
+			StatusID:  status.ID,
+		}); err != nil {
 			log.Errorf(ctx, "error updating status in featured collection %s: %v", status.URI, err)
 			continue
 		}
@@ -1396,8 +1401,7 @@ outerLoop:
 
 		// Status was pinned before, but is not included
 		// in most recent pinned uris, so unpin it now.
-		status.PinnedAt = time.Time{}
-		if err := d.state.DB.UpdateStatus(ctx, status, "pinned_at"); err != nil {
+		if err := d.state.DB.DeleteStatusPin(ctx, status.ID); err != nil {
 			log.Errorf(ctx, "error unpinning status %s: %v", status.URI, err)
 			continue
 		}
