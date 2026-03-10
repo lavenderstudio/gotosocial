@@ -183,10 +183,12 @@ func init() {
 			}
 
 			// Insert new pinned models.
-			if _, err := tx.NewInsert().
-				Model(&statusPins).
-				Exec(ctx); err != nil {
-				return gtserror.Newf("error inserting status pins: %w", err)
+			if len(statusPins) != 0 {
+				if _, err := tx.NewInsert().
+					Model(&statusPins).
+					Exec(ctx); err != nil {
+					return gtserror.Newf("error inserting status pins: %w", err)
+				}
 			}
 
 			// Increment updated total by ID count.
