@@ -251,7 +251,7 @@ func (p *ProcessingEmoji) store(ctx context.Context) error {
 
 		// NOTE: unlike regular media, unsupported file type is an error for emoji.
 		err := gtserror.Newf("unsupported emoji filetype: %s (%s)", fileType, ext)
-		return withDetails(err, codecDetails)
+		return withDetails(err, codecUnsupportedDetails)
 	}
 
 	// Add file extension to path.

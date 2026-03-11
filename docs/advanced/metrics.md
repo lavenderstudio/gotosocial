@@ -26,7 +26,7 @@ OTEL_METRICS_EXPORTER=prometheus
 By default, this configuration will instantiate an additional HTTP server running alongside the standard GoToSocial HTTP server, which exposes a Prometheus metrics endpoint at `localhost:9464/metrics`.
 
 !!! tip
-    If you are running GoToSocial using the [example systemd service definition](../../example/gotosocial.service), you can easily set these environment variables by uncommenting the relevant two lines in that file, and reloading + restarting the service.
+    If you are running GoToSocial using the [example systemd service definition](https://codeberg.org/superseriousbusiness/gotosocial/raw/branch/main/example/gotosocial.service), you can easily set these environment variables by uncommenting the relevant two lines in that file, and reloading + restarting the service.
 
 If you wish, you can further customize this metrics HTTP server by using the following environment variables to change the host and port:
 
