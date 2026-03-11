@@ -26,7 +26,15 @@ import (
 	"codeberg.org/gruf/go-errors/v2"
 )
 
-const codecDetails = gtsmodel.MediaErrorDetails(gtsmodel.MediaErrorTypeCodec)
+var codecUnsupportedDetails = gtsmodel.NewMediaErrorDetails(
+	gtsmodel.MediaErrorTypeCodec,
+	gtsmodel.MediaErrorTypeCodec_Unsupported,
+)
+
+var codecDetails = gtsmodel.NewMediaErrorDetails(
+	gtsmodel.MediaErrorTypeCodec,
+	0,
+)
 
 // errWithDetails allows optionally wrapping an error,
 // but largely propagating MediaErrorDetails via error return.

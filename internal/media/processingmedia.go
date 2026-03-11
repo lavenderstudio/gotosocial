@@ -255,10 +255,7 @@ func (p *ProcessingMedia) store(ctx context.Context) error {
 
 		// On unsupported return a stub error that doesn't
 		// get returned to the caller, but indicates details.
-		return withDetails(nil, gtsmodel.NewMediaErrorDetails(
-			gtsmodel.MediaErrorTypeCodec,
-			gtsmodel.MediaErrorTypeCodec_Unsupported,
-		))
+		return withDetails(nil, codecUnsupportedDetails)
 	}
 
 	// Add file extension to path.
