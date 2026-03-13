@@ -235,16 +235,16 @@ func (m *mediaDB) GetAttachmentsByAccountID(ctx context.Context, accountID strin
 
 func (m *mediaDB) GetRemoteAttachments(ctx context.Context, page *paging.Page) ([]*gtsmodel.MediaAttachment, error) {
 	return m.getAttachmentsPagedByID(ctx, func(q *bun.SelectQuery) *bun.SelectQuery {
-		return q.Where("remote_url IS NOT NULL")
+		return q.Where("? IS NOT NULL", bun.Ident("remote_url"))
 	}, page)
 }
 
 func (m *mediaDB) GetCachedAttachments(ctx context.Context, page *paging.Page) ([]*gtsmodel.MediaAttachment, error) {
 	return m.getAttachmentsPagedByID(ctx, func(q *bun.SelectQuery) *bun.SelectQuery {
-		q = q.Where("remote_url IS NOT NULL")
-		q = q.Where("file_path != ?", "")
-		q = q.Where("thumbnail_path != ?", "")
-		return q
+		return q.
+			Where("? IS NOT NULL", bun.Ident("remote_url")).
+			Where("? != ?", bun.Ident("file_path"), "").
+			Where("? != ?", bun.Ident("thumbnail_path"), "")
 	}, page)
 }
 
