@@ -112,7 +112,8 @@ func (i *instanceDB) countLocalStatuses(ctx context.Context) (int, error) {
 		return *n, nil
 	}
 
-	// Select from local count view.
+	// Select from
+	// local count view.
 	var count int
 	if err := i.db.
 		NewSelect().

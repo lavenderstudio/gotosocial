@@ -195,7 +195,7 @@ func decrementAccountStats(ctx context.Context, tx bun.Tx, col bun.Ident, accoun
 
 	// Set either to zero or to [col]-1 using
 	// MAX (sqlite) or GREATEST (postgres) funcs.
-	switch d := tx.Dialect().Name(); d {
+	switch tx.Dialect().Name() {
 	case dialect.SQLite:
 		// https://sqlite.org/lang_corefunc.html#max_scalar
 		q = q.Set("? = MAX(0, ? - 1)", bun.Ident(col), bun.Ident(col))
@@ -203,12 +203,13 @@ func decrementAccountStats(ctx context.Context, tx bun.Tx, col bun.Ident, accoun
 		// https://www.postgresql.org/docs/current/functions-conditional.html#FUNCTIONS-GREATEST-LEAST
 		q = q.Set("? = GREATEST(0, ? - 1)", bun.Ident(col), bun.Ident(col))
 	default:
-		panic("dialect " + d.String() + " was neither pg nor sqlite")
+		panic("unreachable")
 	}
 
 	if _, err := q.Exec(ctx); err != nil {
 		return gtserror.Newf("error updating %s: %w", col, err)
 	}
+
 	return nil
 }
 
@@ -260,26 +261,6 @@ func parseWhere(w db.Where) (query string, args []interface{}) {
 	query = "? = ?"
 	args = []interface{}{bun.Ident(w.Key), w.Value}
 	return
-}
-
-// whereArrayIsNullOrEmpty extends a query with a where clause requiring an array to be null or empty.
-// (The empty check varies by dialect; only PG has direct support for SQL array types.)
-func whereArrayIsNullOrEmpty(query *bun.SelectQuery, subject interface{}) *bun.SelectQuery {
-	var arrayEmptySQL string
-	switch d := query.Dialect().Name(); d {
-	case dialect.SQLite:
-		arrayEmptySQL = "json_array_length(?) = 0"
-	case dialect.PG:
-		arrayEmptySQL = "CARDINALITY(?) = 0"
-	default:
-		log.Panicf(nil, "db conn %s was neither pg nor sqlite", d)
-	}
-
-	return query.WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
-		return q.
-			Where("? IS NULL", subject).
-			WhereOr(arrayEmptySQL, subject)
-	})
 }
 
 // accountIDValue is a convenience struct for using

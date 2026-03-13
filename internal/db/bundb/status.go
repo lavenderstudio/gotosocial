@@ -30,6 +30,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
+	"code.superseriousbusiness.org/gotosocial/internal/paging"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"github.com/uptrace/bun"
 )
@@ -651,69 +652,208 @@ func (s *statusDB) UpdateStatus(ctx context.Context, status *gtsmodel.Status, co
 	})
 }
 
-func (s *statusDB) DeleteStatusByID(ctx context.Context, id string) error {
-	// Gather necessary fields from
-	// deleted for cache invaliation.
-	var deleted gtsmodel.Status
-	deleted.ID = id
+func (s *statusDB) StubStatus(ctx context.Context, status *gtsmodel.Status) error {
+	// Take pointer to original
+	// status before changes, used
+	// for later cache invalidation.
+	original := status
 
-	// Delete status from database and any related links in a transaction.
 	if err := s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		// Stub out status model.
+		stub := status.Stub()
+		status = &stub
 
-		// delete the status itself
-		if _, err := tx.NewDelete().
-			Model(&deleted).
-			Where("? = ?", bun.Ident("id"), id).
-			Returning("?, ?, ?, ?, ?, ?",
-				bun.Ident("account_id"),
-				bun.Ident("boost_of_id"),
-				bun.Ident("in_reply_to_id"),
-				bun.Ident("attachments"),
-				bun.Ident("poll_id"),
-				bun.Ident("flags"),
-			).
-			Exec(ctx); err != nil {
+		// Update ALL status columns.
+		if res, err := tx.NewUpdate().
+			Model(status).
+			Where("? = ?", bun.Ident("id"), status.ID).
 
-			// the RETURNING here will cause an ErrNoRows
-			// to be returned on DELETE, which is caught
-			// outside this RunInTx() func, and ensures we
-			// return early here to *not* update statistics.
-			return err
-		}
-
-		// delete links between this
-		// status and any emojis it uses
-		if _, err := tx.NewDelete().
-			TableExpr("? AS ?", bun.Ident("status_to_emojis"), bun.Ident("status_to_emoji")).
-			Where("? = ?", bun.Ident("status_to_emoji.status_id"), id).
+			// Specifically check the "DELETED" flag in the database hasn't been
+			// set (i.e. we have an out-of-date model) otherwise our later handling
+			// of status delete side-effects will cause status to get out of sync.
+			Where(db.BitNotSet("flags", gtsmodel.StatusFlagDeleted)).
 			Exec(ctx); err != nil {
 			return err
+
+		} else if n, _ := res.RowsAffected(); n < 1 {
+			// Status already stubbed, return
+			// early to not perform spurious
+			// account status side-effects.
+			return nil
 		}
 
-		// delete links between this
-		// status and any tags it uses
-		if _, err := tx.NewDelete().
-			TableExpr("? AS ?", bun.Ident("status_to_tags"), bun.Ident("status_to_tag")).
-			Where("? = ?", bun.Ident("status_to_tag.status_id"), id).
-			Exec(ctx); err != nil {
-			return err
-		}
-
-		// decrement status author statistics.
-		return decrementAccountStats(ctx, tx,
-			"statuses_count",
-			deleted.AccountID,
-		)
-	}); err != nil && !errors.Is(err, db.ErrNoEntries) {
+		// Handle remaining delete side-effects.
+		return s.onStatusDelete(ctx, tx, status)
+	}); err != nil {
 		return err
 	}
 
 	// Invalidate cached status by its ID, manually
 	// call the invalidate hook in case not cached.
-	s.state.Caches.DB.Status.Invalidate("ID", id)
-	s.state.Caches.OnInvalidateStatus(&deleted)
+	s.state.Caches.DB.Status.Invalidate("ID", status.ID)
+	s.state.Caches.OnInvalidateStatus(original)
 
 	return nil
+}
+
+func (s *statusDB) DeleteStatus(ctx context.Context, status *gtsmodel.Status) error {
+	if err := s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+
+		// Actually delete the status.
+		if res, err := tx.NewDelete().
+			Model(status).
+			Where("? = ?", bun.Ident("id"), status.ID).
+			Exec(ctx); err != nil {
+			return err
+
+		} else if n, _ := res.RowsAffected(); n < 1 {
+			// Status already deleted, return
+			// early to not perform spurious
+			// account status side-effects.
+			return nil
+		}
+
+		// Handle remaining delete side-effects.
+		return s.onStatusDelete(ctx, tx, status)
+	}); err != nil {
+		return err
+	}
+
+	// Invalidate cached status by its ID, manually
+	// call the invalidate hook in case not cached.
+	s.state.Caches.DB.Status.Invalidate("ID", status.ID)
+	s.state.Caches.OnInvalidateStatus(status)
+
+	return nil
+}
+
+func (s *statusDB) onStatusDelete(ctx context.Context, tx bun.Tx, status *gtsmodel.Status) error {
+	// delete links between this
+	// status and any emojis it uses
+	if _, err := tx.NewDelete().
+		Table("status_to_emojis").
+		Where("? = ?", bun.Ident("status_id"), status.ID).
+		Exec(ctx); err != nil {
+		return err
+	}
+
+	// delete links between this
+	// status and any tags it uses
+	if _, err := tx.NewDelete().
+		Table("status_to_tags").
+		Where("? = ?", bun.Ident("status_id"), status.ID).
+		Exec(ctx); err != nil {
+		return err
+	}
+
+	// decrement status author statistics.
+	return decrementAccountStats(ctx, tx,
+		"statuses_count",
+		status.AccountID,
+	)
+}
+
+func (s *statusDB) DeleteStatusLeafStubs(ctx context.Context, page *paging.Page) ([]*gtsmodel.Status, error) {
+	if page == nil || page.Limit < 1 {
+		panic("paging is required")
+	}
+
+	// Extract page params.
+	minID := page.Min.Value
+	maxID := page.Max.Value
+	limit := page.Limit
+	order := page.Order()
+
+	// Pprepare status slice to store stubbed.
+	statuses := make([]*gtsmodel.Status, 0, limit)
+
+	// Start preparing the SELECT query selecting
+	// only stubbed statuses, and returning enough
+	// details performing any cache invalidation.
+	q := s.db.NewSelect().Model(&statuses).
+		Where(db.BitIsSet("flags", gtsmodel.StatusFlagDeleted)).
+		ColumnExpr("?, ?, ?, ?, ?",
+			bun.Ident("status.in_reply_to_id"),
+			bun.Ident("status.account_id"),
+			bun.Ident("status.thread_id"),
+			bun.Ident("status.flags"),
+			bun.Ident("status.id"),
+		)
+
+	// Append WHERE clause selecting
+	// only stubbed statuses that have
+	// zero replies replies to them.
+	q = q.Where("(?) = 0",
+		q.NewRaw("SELECT COUNT(1) FROM ? AS ? WHERE ? = ?",
+			bun.Ident("statuses"),
+			bun.Ident("sub"),
+			bun.Ident("status.id"),
+			bun.Ident("sub.in_reply_to_id"),
+		))
+
+	if maxID != "" {
+		// Set a maximum ID boundary if was given.
+		q = q.Where("? < ?", bun.Ident("id"), maxID)
+	}
+
+	if minID != "" {
+		// Set a minimum ID boundary if was given.
+		q = q.Where("? > ?", bun.Ident("id"), minID)
+	}
+
+	// Set query ordering.
+	if order.Ascending() {
+		q = q.OrderExpr("? ASC", bun.Ident("id"))
+	} else /* i.e. descending */ {
+		q = q.OrderExpr("? DESC", bun.Ident("id"))
+	}
+
+	// A limit should always
+	// be supplied for this.
+	q = q.Limit(limit)
+
+	// Perform the actual database query.
+	if err := q.Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	// Check for no values.
+	if len(statuses) == 0 {
+		return nil, nil
+	}
+
+	// Get status IDs for the actual delete query
+	// and to later minimize cache mutex unlocks.
+	statusIDs := make([]string, 0, len(statuses))
+	statusIDs = xslices.Gather(statusIDs, statuses,
+		func(s *gtsmodel.Status) string { return s.ID })
+
+	// Now actually DELETE the statuses by their IDs! This has
+	// to be a separate query as both PG and SQLite (in our form)
+	// DO NOT support ordered / limited DELETE queries, oddly.
+	if _, err := s.db.NewDelete().
+		Table("statuses").
+		Where("? IN (?)", bun.Ident("id"), bun.List(statusIDs)).
+		Exec(ctx); err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return nil, err
+	}
+
+	// Invalidate all status IDs from cache in one call.
+	s.state.Caches.DB.Status.InvalidateIDs("ID", statusIDs)
+
+	// Manually call invalidate hooks
+	// for statuses in case not cached.
+	for _, status := range statuses {
+		s.state.Caches.OnInvalidateStatus(status)
+	}
+
+	// We always want returned
+	// statuses to be DESC order.
+	if order.Ascending() {
+		slices.Reverse(statuses)
+	}
+
+	return statuses, nil
 }
 
 func (s *statusDB) GetStatusesUsingEmoji(ctx context.Context, emojiID string) ([]*gtsmodel.Status, error) {

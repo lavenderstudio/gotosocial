@@ -71,7 +71,16 @@ func (p *Processor) StatusesGet(
 		statuses, err = p.state.DB.GetAccountPinnedStatuses(ctx, targetAccountID)
 	} else {
 		// Get account statuses which *may* include pinned ones.
-		statuses, err = p.state.DB.GetAccountStatuses(ctx, targetAccountID, limit, excludeReplies, excludeReblogs, maxID, minID, mediaOnly, publicOnly)
+		statuses, err = p.state.DB.GetAccountStatuses(ctx,
+			targetAccountID,
+			limit,
+			excludeReplies,
+			excludeReblogs,
+			maxID,
+			minID,
+			mediaOnly,
+			publicOnly,
+		)
 	}
 
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {

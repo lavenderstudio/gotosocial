@@ -977,23 +977,34 @@ func selectOnlyWithMedia(q *bun.SelectQuery, includeBoosts bool) *bun.SelectQuer
 	}
 }
 
-func (a *accountDB) GetAccountStatuses(ctx context.Context, accountID string, limit int, excludeReplies bool, excludeReblogs bool, maxID string, minID string, mediaOnly bool, publicOnly bool) ([]*gtsmodel.Status, error) {
+func (a *accountDB) GetAccountStatuses(
+	ctx context.Context,
+	accountID string,
+	limit int,
+	excludeReplies bool,
+	excludeReblogs bool,
+	maxID string,
+	minID string,
+	mediaOnly bool,
+	publicOnly bool,
+) (
+	[]*gtsmodel.Status,
+	error,
+) {
 	// Ensure reasonable
 	if limit < 0 {
 		limit = 0
 	}
 
-	// Make educated guess for slice size
 	var (
+		// Make educated guess for slice size
 		statusIDs   = make([]string, 0, limit)
 		frontToBack = true
 	)
 
-	q := a.db.
-		NewSelect().
-		TableExpr("? AS ?", bun.Ident("statuses"), bun.Ident("status")).
-		// Select only IDs from table
+	q := a.db.NewSelect().
 		Column("status.id").
+		TableExpr("? AS ?", bun.Ident("statuses"), bun.Ident("status")).
 		Where("? = ?", bun.Ident("status.account_id"), accountID)
 
 	if excludeReplies {
@@ -1001,13 +1012,15 @@ func (a *accountDB) GetAccountStatuses(ctx context.Context, accountID string, li
 			// We're excluding replies so
 			// only include posts if they:
 			return q.
+
 				// Don't reply to anything OR
 				Where("? IS NULL", bun.Ident("status.in_reply_to_uri")).
+
 				// reply to self AND don't mention
 				// anyone (ie., self-reply threads).
 				WhereGroup(" OR ", func(q *bun.SelectQuery) *bun.SelectQuery {
 					q = q.Where("? = ?", bun.Ident("status.in_reply_to_account_id"), accountID)
-					q = whereArrayIsNullOrEmpty(q, bun.Ident("status.mentions"))
+					q = q.Where(db.WhereArrayIsNullOrEmpty(a.db, "status.mentions"))
 					return q
 				})
 		})
@@ -1028,6 +1041,9 @@ func (a *accountDB) GetAccountStatuses(ctx context.Context, accountID string, li
 	if publicOnly {
 		q = q.Where("? = ?", bun.Ident("status.visibility"), gtsmodel.VisibilityPublic)
 	}
+
+	// Only include statuses that aren't deleted (stubs).
+	q = q.Where(db.BitNotSet("status.flags", gtsmodel.StatusFlagDeleted))
 
 	// return only statuses LOWER (ie., older) than maxID
 	if maxID == "" {
@@ -1115,10 +1131,6 @@ func (a *accountDB) accountWebStatusesCommonSelect(
 		)
 	}
 
-	// Local posts only, we don't show
-	// remote account's posts on the web view.
-	q = q.Where(db.BitIsSet("status.flags", gtsmodel.StatusFlagLocal))
-
 	// Select statuses created by the target account.
 	q = q.Where("? = ?", bun.Ident("status.account_id"), accountID)
 
@@ -1161,6 +1173,13 @@ func (a *accountDB) accountWebStatusesCommonSelect(
 			return q
 		})
 	}
+
+	// Local posts only, we don't show
+	// remote account's posts on the web view.
+	q = q.Where(db.BitIsSet("status.flags", gtsmodel.StatusFlagLocal))
+
+	// Don't include deleted posts.
+	q = q.Where(db.BitNotSet("status.flags", gtsmodel.StatusFlagDeleted))
 
 	// Don't show local only / unfederated.
 	q = q.Where(db.BitIsSet("status.flags", gtsmodel.StatusFlagFederated))
@@ -1542,24 +1561,26 @@ func (a *accountDB) RegenerateAccountStats(ctx context.Context, account *gtsmode
 		var err error
 
 		// Scan database for account statuses, ignoring
-		// statuses that are currently pending approval.
+		// statuses that are pending approval / deleted.
 		statusesCount, err := tx.NewSelect().
 			TableExpr("? AS ?", bun.Ident("statuses"), bun.Ident("status")).
 			Where("? = ?", bun.Ident("status.account_id"), account.ID).
 			Where(db.BitNotSet("status.flags", gtsmodel.StatusFlagPendingApproval)).
+			Where(db.BitNotSet("status.flags", gtsmodel.StatusFlagDeleted)).
 			Count(ctx)
 		if err != nil {
 			return err
 		}
 
 		// Scan database for last status, ignoring
-		// statuses that are currently pending approval.
+		// statuses that are pending approval / deleted.
 		lastStatusAt := time.Time{}
 		err = tx.NewSelect().
 			TableExpr("? AS ?", bun.Ident("statuses"), bun.Ident("status")).
 			Column("status.created_at").
 			Where("? = ?", bun.Ident("status.account_id"), account.ID).
 			Where(db.BitNotSet("status.flags", gtsmodel.StatusFlagPendingApproval)).
+			Where(db.BitNotSet("status.flags", gtsmodel.StatusFlagDeleted)).
 			Order("status.id DESC").
 			Limit(1).
 			Scan(ctx, &lastStatusAt)

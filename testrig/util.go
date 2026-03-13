@@ -60,12 +60,12 @@ func StartNoopWorkers(state *state.State) {
 // workers processor. Useful when you *do* want to trigger side effects in a test.
 func StartWorkers(state *state.State, processor *workers.Processor) {
 	state.Workers.Client.Process = func(ctx context.Context, msg *messages.FromClientAPI) error {
-		log.Debugf(ctx, "Workers{}.Client{}.Process(%s)", dump(msg))
+		log.Debugf(ctx, "Workers{}.Client{}.Process(%s)", Dump(msg))
 		return processor.ProcessFromClientAPI(ctx, msg)
 	}
 
 	state.Workers.Federator.Process = func(ctx context.Context, msg *messages.FromFediAPI) error {
-		log.Debugf(ctx, "Workers{}.Federator{}.Process(%s)", dump(msg))
+		log.Debugf(ctx, "Workers{}.Federator{}.Process(%s)", Dump(msg))
 		return processor.ProcessFromFediAPI(ctx, msg)
 	}
 
@@ -280,8 +280,8 @@ func WaitFor(condition func() bool) bool {
 	}
 }
 
-// dump returns debug output of 'v'.
-func dump(v any) string {
+// Dump returns debug output of 'v'.
+func Dump(v any) string {
 	buf := format.Global.Append(nil, v, format.DefaultArgs())
 	return string(buf)
 }

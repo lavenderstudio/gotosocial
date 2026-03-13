@@ -226,8 +226,8 @@ func (p *Processor) BoostRemove(
 		return apiStatus, nil
 	}
 
-	// Delete boost wrapper status from the database.
-	err = p.state.DB.DeleteStatusByID(ctx, boost.ID)
+	// Delete boost wrapper from the database.
+	err = p.state.DB.DeleteStatus(ctx, boost)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		err := gtserror.Newf("db error deleting status: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)

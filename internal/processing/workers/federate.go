@@ -116,7 +116,7 @@ func (f *federate) DeleteAccount(ctx context.Context, account *gtsmodel.Account)
 	deleteCC.AppendIRI(ap.PublicIRI())
 	delete.SetActivityStreamsCc(deleteCC)
 
-	// Send the Delete via the Actor's outbox.
+	// Send Delete via the Actor's outbox.
 	if _, err := f.FederatingActor().Send(
 		ctx, outboxIRI, delete,
 	); err != nil {

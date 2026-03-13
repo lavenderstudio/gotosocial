@@ -23,6 +23,7 @@ import (
 	"errors"
 	"reflect"
 
+	dbpkg "code.superseriousbusiness.org/gotosocial/internal/db"
 	oldmodel "code.superseriousbusiness.org/gotosocial/internal/db/bundb/migrations/20241018151036_filter_unique_fix"
 	newmodel "code.superseriousbusiness.org/gotosocial/internal/db/bundb/migrations/20250617122055_filter_improvements"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
@@ -110,9 +111,8 @@ func init() {
 						return gtserror.Newf("error selecting %T ids: %w", data.Model, err)
 					}
 
-					// Convert related IDs to bun array
-					// type for serialization in query.
-					arrIDs := bunArrayType(tx, relatedIDs)
+					// Convert related IDs to bun array for query.
+					arrIDs := dbpkg.ArrayType(tx, relatedIDs)
 
 					// Now update the relevant filter
 					// row to contain these related IDs.

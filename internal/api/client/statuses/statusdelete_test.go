@@ -82,8 +82,8 @@ func (suite *StatusDeleteTestSuite) TestPostDelete() {
 	suite.Equal(apimodel.StatusContentTypePlain, statusReply.ContentType)
 
 	if !testrig.WaitFor(func() bool {
-		_, err := suite.db.GetStatusByID(ctx, targetStatus.ID)
-		return errors.Is(err, db.ErrNoEntries)
+		status, err := suite.db.GetStatusByID(ctx, targetStatus.ID)
+		return errors.Is(err, db.ErrNoEntries) || status.Flags.Deleted()
 	}) {
 		suite.FailNow("time out waiting for status to be deleted")
 	}

@@ -184,9 +184,7 @@ func (r *sqliteRows) Close() (err error) {
 // conforms to. Useful so you don't need
 // to repeatedly perform checks yourself.
 type connIface interface {
-	driver.Conn
-	driver.ConnBeginTx
-	driver.ConnPrepareContext
+	sqlite3driver.Conn
 	driver.ExecerContext
 }
 

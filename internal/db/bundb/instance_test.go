@@ -46,7 +46,7 @@ func (suite *InstanceTestSuite) TestCountInstanceUsersRemote() {
 func (suite *InstanceTestSuite) TestCountInstanceStatuses() {
 	count, err := suite.db.CountInstanceStatuses(suite.T().Context(), config.GetHost())
 	suite.NoError(err)
-	suite.Equal(23, count)
+	suite.Equal(24, count)
 }
 
 func (suite *InstanceTestSuite) TestCountInstanceStatusesRemote() {

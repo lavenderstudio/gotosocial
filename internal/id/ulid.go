@@ -29,9 +29,14 @@ import (
 )
 
 const (
-	Highest     = "ZZZZZZZZZZZZZZZZZZZZZZZZZZ" // Highest is the highest possible ULID
-	Lowest      = "00000000000000000000000000" // Lowest is the lowest possible ULID
-	randomRange = 631152381                    // ~20 years in seconds
+	// Highest is the highest possible ULID
+	Highest = "ZZZZZZZZZZZZZZZZZZZZZZZZZZ"
+
+	// Lowest is the lowest possible ULID
+	Lowest = "00000000000000000000000000"
+
+	// ~20 years in seconds
+	randomRange = 631152381
 )
 
 // bigRandomRange contains randomRange as big.Int.

@@ -37,7 +37,8 @@ type Status struct {
 	// When this status was last edited (if set).
 	EditedAt time.Time `bun:"type:timestamptz,nullzero"`
 
-	// When was item (remote) last fetched.
+	// When was item last fetched, also used (a little bit confusingly)
+	// to store time of deletion for stubbed status, as it would be unused.
 	FetchedAt time.Time `bun:"type:timestamptz,nullzero"`
 
 	// Activitypub URI of this status.
@@ -386,6 +387,64 @@ func (s *Status) UpdatedAt() time.Time {
 		return s.CreatedAt
 	}
 	return s.EditedAt
+}
+
+// Stub will return a status with unset fields,
+// maintaining only those necessary for it to be
+// dealt with as a placeholder status in a thread.
+func (s *Status) Stub() (stub Status) {
+
+	// Maintain base
+	// status ID-ables.
+	stub.ID = s.ID
+	stub.URL = s.URL
+	stub.URI = s.URI
+
+	// ActivityStreams type is not nullable field.
+	stub.ActivityStreamsType = s.ActivityStreamsType
+
+	// Maintain threading information
+	// including direct status parent.
+	stub.InReplyToID = s.InReplyToID
+	stub.InReplyToURI = s.InReplyToURI
+	stub.InReplyToAccountID = s.InReplyToAccountID
+	stub.ThreadID = s.ThreadID
+
+	// Maintain author for proper
+	// visibility calculations, though
+	// we won't expose author anymore.
+	stub.AccountID = s.AccountID
+	stub.AccountURI = s.AccountURI
+	stub.Account = s.Account
+
+	// Maintain mentions and visibility for
+	// proper visibility calculations, though
+	// we won't expect mentions anymore.
+	stub.MentionIDs = s.MentionIDs
+	stub.Visibility = s.Visibility
+	stub.Mentions = s.Mentions
+
+	// Maintain the approved by URI for proper
+	// handling of existing interaction approvals.
+	stub.ApprovedByURI = s.ApprovedByURI
+
+	// Maintain status creation
+	// update fetched-at to store
+	// date at which status deleted.
+	stub.CreatedAt = s.CreatedAt
+	stub.FetchedAt = time.Now()
+
+	// Finally, copy over
+	// flags and mark deleted.
+	stub.Flags = s.Flags
+	stub.Flags.SetDeleted(true)
+
+	// Unset flags that can no longer
+	// apply to a deleted staetus model.
+	stub.Flags.SetPendingApproval(false)
+	stub.Flags.SetSensitive(false)
+
+	return
 }
 
 // StatusToTag is an intermediate struct to facilitate the

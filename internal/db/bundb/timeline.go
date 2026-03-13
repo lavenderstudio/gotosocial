@@ -64,6 +64,9 @@ func (t *timelineDB) GetHomeTimeline(ctx context.Context, accountID string, page
 			// Only include statuses that aren't pending approval.
 			q = q.Where(db.BitNotSet("flags", gtsmodel.StatusFlagPendingApproval))
 
+			// Only include statuses that aren't deleted (stubbed-out).
+			q = q.Where(db.BitNotSet("flags", gtsmodel.StatusFlagDeleted))
+
 			return q, nil
 		},
 	)
@@ -86,6 +89,9 @@ func (t *timelineDB) GetPublicTimeline(ctx context.Context, page *paging.Page) (
 			// Only include statuses that aren't pending approval.
 			q = q.Where(db.BitNotSet("flags", gtsmodel.StatusFlagPendingApproval))
 
+			// Only include statuses that aren't deleted (stubbed-out).
+			q = q.Where(db.BitNotSet("flags", gtsmodel.StatusFlagDeleted))
+
 			return q, nil
 		},
 	)
@@ -107,6 +113,9 @@ func (t *timelineDB) GetLocalTimeline(ctx context.Context, page *paging.Page) ([
 
 			// Only include statuses that aren't pending approval.
 			q = q.Where(db.BitNotSet("status.flags", gtsmodel.StatusFlagPendingApproval))
+
+			// Only include statuses that aren't deleted (stubbed-out).
+			q = q.Where(db.BitNotSet("flags", gtsmodel.StatusFlagDeleted))
 
 			// Ignore boosts.
 			q = q.Where("? IS NULL", bun.Ident("status.boost_of_id"))
@@ -219,8 +228,12 @@ func (t *timelineDB) GetListTimeline(ctx context.Context, listID string, page *p
 			q = q.With("_data", t.db.NewValues(&values)).
 				Table("_data").
 				Where("? = ?", bun.Ident("status.account_id"), bun.Ident("_data.account_id")).
+
 				// Only include statuses that aren't pending approval.
-				Where(db.BitNotSet("flags", gtsmodel.StatusFlagPendingApproval))
+				Where(db.BitNotSet("flags", gtsmodel.StatusFlagPendingApproval)).
+
+				// Only include statuses that aren't deleted (stubbed-out).
+				Where(db.BitNotSet("flags", gtsmodel.StatusFlagDeleted))
 
 			return q, nil
 		},
@@ -237,13 +250,9 @@ func (t *timelineDB) GetTagTimeline(ctx context.Context, tagID string, page *pag
 		// The actual meat of the list-timeline query, outside of any
 		// paging params, selects by status tags with public visibility.
 		func(q *bun.SelectQuery) (*bun.SelectQuery, error) {
-
-			// ...
-			q = q.Join(
-				"INNER JOIN ? ON ? = ?",
+			q = q.Join("INNER JOIN ? ON ? = ?",
 				bun.Ident("status_to_tags"),
-				bun.Ident("status.id"), bun.Ident("status_to_tags.status_id"),
-			)
+				bun.Ident("status.id"), bun.Ident("status_to_tags.status_id"))
 
 			// This tag only.
 			q = q.Where("? = ?", bun.Ident("status_to_tags.tag_id"), tagID)
@@ -329,6 +338,10 @@ func loadStatusTimelinePage(
 	[]*gtsmodel.Status,
 	error,
 ) {
+	if page == nil || page.Limit < 1 {
+		panic("paging is required")
+	}
+
 	// Extract page params.
 	minID := page.Min.Value
 	maxID := page.Max.Value

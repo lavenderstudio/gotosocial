@@ -105,6 +105,7 @@ func (p *pollDB) GetOpenPolls(ctx context.Context) ([]*gtsmodel.Poll, error) {
 			bun.Ident("polls.id"), bun.Ident("statuses.poll_id"),
 		).
 		Where(db.BitIsSet("statuses.flags", gtsmodel.StatusFlagLocal)).
+		Where(db.BitNotSet("statuses.flags", gtsmodel.StatusFlagDeleted)).
 		Where("? IS NOT NULL", bun.Ident("polls.expires_at")).
 		Where("? IS NULL", bun.Ident("polls.closed_at")).
 		Scan(ctx, &pollIDs); err != nil {

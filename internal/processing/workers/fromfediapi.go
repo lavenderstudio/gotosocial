@@ -1486,20 +1486,25 @@ func (p *fediAPI) DeleteStatus(ctx context.Context, fMsg *messages.FromFediAPI) 
 	// Delete attachments from this status, since this request
 	// comes from the federating API, and there's no way the
 	// poster can do a delete + redraft for it on our instance.
-	const deleteAttachments = true
+	const attachments = true
 
 	// This is just a deletion, not a Reject,
 	// we don't need to take a copy of this status.
-	const copyToSinBin = false
+	const sinBin = false
 
-	// Perform the actual status deletion.
-	if err := p.utils.wipeStatus(
-		ctx,
+	// Don't wipe the status, just stub it out,
+	// in order to preserve threading (if any).
+	// Will otherwise get cleaned up later.
+	const wipe = false
+
+	// Perform actual status deletion.
+	if err := p.utils.deleteStatus(ctx,
 		status,
-		deleteAttachments,
-		copyToSinBin,
+		attachments,
+		sinBin,
+		wipe,
 	); err != nil {
-		log.Errorf(ctx, "error wiping status: %v", err)
+		log.Errorf(ctx, "error deleting status %s: %v", status.URI, err)
 	}
 
 	return nil
@@ -1577,7 +1582,7 @@ func (p *fediAPI) RejectReply(ctx context.Context, fMsg *messages.FromFediAPI) e
 	// At this point the InteractionRequest should already
 	// be in the database, we just need to do side effects.
 
-	// Get the rejected status.
+	// Get the rejected status model from db.
 	reply, err := p.state.DB.GetStatusByURI(
 		gtscontext.SetBarebones(ctx),
 		req.InteractionURI,
@@ -1589,20 +1594,24 @@ func (p *fediAPI) RejectReply(ctx context.Context, fMsg *messages.FromFediAPI) e
 	// Delete attachments from this status.
 	// It's rejected so there's no possibility
 	// for the poster to delete + redraft it.
-	const deleteAttachments = true
+	const attachments = true
 
 	// Keep a copy of the status in
 	// the sin bin for future review.
-	const copyToSinBin = true
+	const sinBin = true
 
-	// Perform the actual status deletion.
-	if err := p.utils.wipeStatus(
-		ctx,
+	// Unpermitted statuses should be
+	// wiped as opposed to stubbed.
+	const wipe = true
+
+	// Perform actual status deletion.
+	if err := p.utils.deleteStatus(ctx,
 		reply,
-		deleteAttachments,
-		copyToSinBin,
+		attachments,
+		sinBin,
+		wipe,
 	); err != nil {
-		log.Errorf(ctx, "error wiping reply: %v", err)
+		log.Errorf(ctx, "error deleting reply %s: %v", reply.URI, err)
 	}
 
 	return nil
@@ -1617,7 +1626,7 @@ func (p *fediAPI) RejectAnnounce(ctx context.Context, fMsg *messages.FromFediAPI
 	// At this point the InteractionRequest should already
 	// be in the database, we just need to do side effects.
 
-	// Get the rejected boost.
+	// Get the rejected boost model from db.
 	boost, err := p.state.DB.GetStatusByURI(
 		gtscontext.SetBarebones(ctx),
 		req.InteractionURI,
@@ -1626,22 +1635,10 @@ func (p *fediAPI) RejectAnnounce(ctx context.Context, fMsg *messages.FromFediAPI
 		return gtserror.Newf("db error getting rejected announce: %w", err)
 	}
 
-	// Boosts don't have attachments anyway
-	// so it doesn't matter what we set here.
-	const deleteAttachments = true
-
-	// This is just a boost, don't
-	// keep a copy in the sin bin.
-	const copyToSinBin = true
-
-	// Perform the actual status deletion.
-	if err := p.utils.wipeStatus(
-		ctx,
-		boost,
-		deleteAttachments,
-		copyToSinBin,
-	); err != nil {
-		log.Errorf(ctx, "error wiping announce: %v", err)
+	// Perform actual boost deletion.
+	if err := p.utils.deleteBoost(ctx,
+		boost); err != nil {
+		log.Errorf(ctx, "error deleting boost %s: %v", boost.URI, err)
 	}
 
 	return nil
@@ -1691,39 +1688,30 @@ func (p *fediAPI) UndoBlock(ctx context.Context, fMsg *messages.FromFediAPI) err
 	if !ok {
 		return gtserror.Newf("%T not parseable as *gtsmodel.Block", fMsg.GTSModel)
 	}
-
 	// TODO: any required changes
-
 	return nil
 }
 
-func (p *fediAPI) UndoAnnounce(
-	ctx context.Context,
-	fMsg *messages.FromFediAPI,
-) error {
+func (p *fediAPI) UndoAnnounce(ctx context.Context, fMsg *messages.FromFediAPI) error {
 	boost, ok := fMsg.GTSModel.(*gtsmodel.Status)
 	if !ok {
 		return gtserror.Newf("%T not parseable as *gtsmodel.Status", fMsg.GTSModel)
 	}
 
-	// Delete the boost wrapper itself.
-	if err := p.state.DB.DeleteStatusByID(ctx, boost.ID); err != nil {
-		return gtserror.Newf("db error deleting boost: %w", err)
+	// Perform actual boost deletion.
+	if err := p.utils.deleteBoost(ctx,
+		boost); err != nil {
+		log.Errorf(ctx, "error deleting boost %s: %v", boost.URI, err)
 	}
-
-	// Remove the boost wrapper from all timelines.
-	p.surfacer.DeleteStatusFromTimelines(ctx, boost.ID)
 
 	return nil
 }
 
 func (p *fediAPI) UndoFave(ctx context.Context, fMsg *messages.FromFediAPI) error {
-	statusFave, ok := fMsg.GTSModel.(*gtsmodel.StatusFave)
+	_, ok := fMsg.GTSModel.(*gtsmodel.StatusFave)
 	if !ok {
 		return gtserror.Newf("%T not parseable as *gtsmodel.StatusFave", fMsg.GTSModel)
 	}
-
-	_ = statusFave
-
+	// TODO: any required changes
 	return nil
 }

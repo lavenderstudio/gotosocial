@@ -25,6 +25,7 @@ import (
 
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gopkg/xslices"
+	dbpkg "code.superseriousbusiness.org/gotosocial/internal/db"
 	newmodel "code.superseriousbusiness.org/gotosocial/internal/db/bundb/migrations/20260221171254_add_flags_column/new"
 	oldmodel "code.superseriousbusiness.org/gotosocial/internal/db/bundb/migrations/20260221171254_add_flags_column/old"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
@@ -147,12 +148,12 @@ func init() {
 			// OR on "flags" to set the bit for matching WHERE clause.
 			for _, q := range []struct {
 				Bit   newmodel.StatusFlag
-				Where BunExpr
+				Where dbpkg.BunExpr
 			}{
-				{Bit: newmodel.StatusFlagSensitive, Where: BunExpr{"? = true", idents("sensitive")}},
-				{Bit: newmodel.StatusFlagLocal, Where: BunExpr{"? = true", idents("local")}},
-				{Bit: newmodel.StatusFlagFederated, Where: BunExpr{"? = true", idents("federated")}},
-				{Bit: newmodel.StatusFlagPendingApproval, Where: BunExpr{"? = true", idents("pending_approval")}},
+				{Bit: newmodel.StatusFlagSensitive, Where: dbpkg.BunExpr{"? = true", dbpkg.Idents("sensitive")}},
+				{Bit: newmodel.StatusFlagLocal, Where: dbpkg.BunExpr{"? = true", dbpkg.Idents("local")}},
+				{Bit: newmodel.StatusFlagFederated, Where: dbpkg.BunExpr{"? = true", dbpkg.Idents("federated")}},
+				{Bit: newmodel.StatusFlagPendingApproval, Where: dbpkg.BunExpr{"? = true", dbpkg.Idents("pending_approval")}},
 			} {
 				if _, err := tx.NewUpdate().
 					Table("statuses").
@@ -245,13 +246,13 @@ func init() {
 		// the appropriate newmodel.StatusFlag bits are set.
 		for _, index := range []struct {
 			Name  string
-			Cols  BunExpr
-			Where []BunExpr
+			Cols  dbpkg.BunExpr
+			Where []dbpkg.BunExpr
 		}{
 			{
 				Name: "statuses_local_idx",
-				Cols: BunExpr{"?, ? DESC", idents("visibility", "id")},
-				Where: []BunExpr{
+				Cols: dbpkg.BunExpr{"?, ? DESC", dbpkg.Idents("visibility", "id")},
+				Where: []dbpkg.BunExpr{
 
 					// i.e. "local" = true
 					{"? & ? != 0", []any{bun.Ident("flags"), newmodel.StatusFlagLocal}},
@@ -263,8 +264,8 @@ func init() {
 
 			{
 				Name: "statuses_account_id_pending_approval_idx",
-				Cols: BunExpr{"?", idents("account_id")},
-				Where: []BunExpr{
+				Cols: dbpkg.BunExpr{"?", dbpkg.Idents("account_id")},
+				Where: []dbpkg.BunExpr{
 
 					// i.e. "pending_approval" = true
 					{"? & ? != 0", []any{bun.Ident("flags"), newmodel.StatusFlagPendingApproval}},
@@ -273,8 +274,8 @@ func init() {
 
 			{
 				Name: "statuses_polls_scheduler_index",
-				Cols: BunExpr{"?", idents("poll_id")},
-				Where: []BunExpr{
+				Cols: dbpkg.BunExpr{"?", dbpkg.Idents("poll_id")},
+				Where: []dbpkg.BunExpr{
 
 					// i.e. "local" = true
 					{"? & ? != 0", []any{bun.Ident("flags"), newmodel.StatusFlagLocal}},
@@ -283,10 +284,10 @@ func init() {
 
 			{
 				Name: "statuses_profile_web_view_idx",
-				Cols: BunExpr{"?, ?, ? DESC", idents("account_id", "visibility", "id")},
-				Where: []BunExpr{
-					{"? IS NULL", idents("boost_of_id")},
-					{"? IS NULL", idents("in_reply_to_uri")},
+				Cols: dbpkg.BunExpr{"?, ?, ? DESC", dbpkg.Idents("account_id", "visibility", "id")},
+				Where: []dbpkg.BunExpr{
+					{"? IS NULL", dbpkg.Idents("boost_of_id")},
+					{"? IS NULL", dbpkg.Idents("in_reply_to_uri")},
 
 					// i.e. "local" = true
 					{"? & ? != 0", []any{bun.Ident("flags"), newmodel.StatusFlagLocal}},
@@ -298,9 +299,9 @@ func init() {
 
 			{
 				Name: "statuses_profile_web_view_including_boosts_idx",
-				Cols: BunExpr{"?, ?, ? DESC", idents("account_id", "visibility", "id")},
-				Where: []BunExpr{
-					{"? IS NULL", idents("in_reply_to_uri")},
+				Cols: dbpkg.BunExpr{"?, ?, ? DESC", dbpkg.Idents("account_id", "visibility", "id")},
+				Where: []dbpkg.BunExpr{
+					{"? IS NULL", dbpkg.Idents("in_reply_to_uri")},
 
 					// i.e. "local" = true
 					{"? & ? != 0", []any{bun.Ident("flags"), newmodel.StatusFlagLocal}},
@@ -312,10 +313,10 @@ func init() {
 
 			{
 				Name: "statuses_public_timeline_idx",
-				Cols: BunExpr{"? DESC", idents("id")},
-				Where: []BunExpr{
+				Cols: dbpkg.BunExpr{"? DESC", dbpkg.Idents("id")},
+				Where: []dbpkg.BunExpr{
 					{"? = ?", []any{bun.Ident("visibility"), newmodel.VisibilityPublic}},
-					{"? IS NULL", idents("boost_of_id")},
+					{"? IS NULL", dbpkg.Idents("boost_of_id")},
 
 					// i.e. "pending_approval" = false
 					{"? & ? = 0", []any{bun.Ident("flags"), newmodel.StatusFlagPendingApproval}},
@@ -333,7 +334,8 @@ func init() {
 			}
 		}
 
-		// Create new local statuses count view.
+		// Create new local statuses count view,
+		// not taking into account deleted statuses.
 		if _, err := db.NewRaw("CREATE VIEW ? AS "+
 			"SELECT COUNT(1) FROM ? "+
 			"WHERE (? & ? != 0) "+ // local

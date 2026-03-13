@@ -50,24 +50,24 @@ func statusFresh(
 	status *gtsmodel.Status,
 	window *FreshnessWindow,
 ) bool {
-	// Take default if no
-	// freshness window preferred.
-	if window == nil {
-		window = DefaultStatusFreshness
+	if status.Flags.Local() ||
+		status.Flags.Deleted() {
+		// Can't refresh deleted
+		// or local statuses!
+		return true
 	}
 
-	if status.Flags.Local() {
-		// Can't refresh
-		// local statuses.
-		return true
+	if window == nil {
+		// If no window given, fallback
+		// to default status freshness.
+		window = DefaultStatusFreshness
 	}
 
 	// Moment when the status is
 	// considered stale according to
 	// desired freshness window.
-	staleAt := status.FetchedAt.Add(
-		time.Duration(*window),
-	)
+	d := time.Duration(*window)
+	staleAt := status.FetchedAt.Add(d)
 
 	// It's still fresh if the time now
 	// is not past the point of staleness.
@@ -315,7 +315,7 @@ func (d *Dereferencer) enrichStatusSafely(
 	// Gone (410) definitely indicates deletion.
 	// Remove status if it was an existing one.
 	case code == http.StatusGone && !isNew:
-		if err := d.state.DB.DeleteStatusByID(ctx, status.ID); err != nil {
+		if err := d.state.DB.StubStatus(ctx, status); err != nil {
 			log.Error(ctx, "error deleting gone status %s: %v", uriStr, err)
 		}
 

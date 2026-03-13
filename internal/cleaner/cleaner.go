@@ -30,13 +30,9 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/storage"
 )
 
-const (
-	selectLimit = 50
-)
+const selectLimit = 50
 
-type Cleaner struct {
-	state *state.State
-}
+type Cleaner struct{ state *state.State }
 
 func New(state *state.State) *Cleaner {
 	c := new(Cleaner)
@@ -60,6 +56,15 @@ func (c *Cleaner) Media() *Media {
 		panic(gtserror.New("compile time unsafe pointer assertion"))
 	}
 	return (*Media)(unsafe.Pointer(c))
+}
+
+// Status returns the status set of cleaner utilities.
+func (c *Cleaner) Status() *Status {
+	if unsafe.Sizeof(Status{}) != unsafe.Sizeof(Cleaner{}) ||
+		unsafe.Offsetof(Status{}.Cleaner) != 0 {
+		panic(gtserror.New("compile time unsafe pointer assertion"))
+	}
+	return (*Status)(unsafe.Pointer(c))
 }
 
 // haveFiles returns whether all of the provided files exist within current storage.
@@ -138,6 +143,9 @@ func (c *Cleaner) ScheduleJobs() error {
 
 	// Parse cleanupFromStr as hh:mm.
 	// Resulting time will be on 1 Jan year zero.
+	//
+	// TODO: make ConfigCleanupFrom() a wrapped time.Time{}
+	// type to move parsing as a stage into the config package.
 	cleanupFrom, err := time.Parse(hourMinute, cleanupFromStr)
 	if err != nil {
 		return gtserror.Newf(
@@ -146,45 +154,63 @@ func (c *Cleaner) ScheduleJobs() error {
 		)
 	}
 
-	// Time travel from the
-	// year zero, groovy baby.
-	firstCleanupAt := time.Date(
-		now.Year(),
-		now.Month(),
-		now.Day(),
-		cleanupFrom.Hour(),
-		cleanupFrom.Minute(),
-		0,
-		0,
-		now.Location(),
-	)
-
-	// Ensure first cleanup is in the future.
-	for firstCleanupAt.Before(now) {
-		firstCleanupAt = firstCleanupAt.Add(cleanupEvery)
-	}
-
-	fn := func(ctx context.Context, start time.Time) {
-		log.Info(ctx, "starting media clean")
-		c.Media().All(ctx, config.GetMediaRemoteCacheDays())
-		c.Emoji().All(ctx, config.GetMediaRemoteCacheDays())
-		log.Infof(ctx, "finished media clean after %s", time.Since(start))
-	}
+	// Determine first cleanup date from now, that's in future.
+	firstCleanupAt := firstAt(now, cleanupFrom, cleanupEvery)
 
 	log.Infof(nil,
 		"scheduling media clean to run every %s, starting from %s; next clean will run at %s",
 		cleanupEvery, cleanupFromStr, firstCleanupAt,
 	)
 
-	// Schedule the cleaning to execute according to schedule.
+	// Schedule media cleaning at parsed schedule.
 	if !c.state.Workers.Scheduler.AddRecurring(
 		"@mediacleanup",
 		firstCleanupAt,
 		cleanupEvery,
-		fn,
+		c.cleanMedia,
 	) {
 		panic("failed to schedule @mediacleanup")
 	}
 
+	// Schedule status cleaning at fixed schedule.
+	if !c.state.Workers.Scheduler.AddRecurring(
+		"@statuscleanup",
+		firstAt(now, time.Time{}, 24*time.Hour),
+		24*time.Hour,
+		c.cleanStatuses,
+	) {
+		panic("failed to schedule @statuscleanup")
+	}
+
 	return nil
+}
+
+func (c *Cleaner) cleanMedia(ctx context.Context, start time.Time) {
+	log.Info(ctx, "starting")
+	c.Media().All(ctx, config.GetMediaRemoteCacheDays())
+	c.Emoji().All(ctx, config.GetMediaRemoteCacheDays())
+	log.Infof(ctx, "finished after %s", time.Since(start))
+}
+
+func (c *Cleaner) cleanStatuses(ctx context.Context, start time.Time) {
+	log.Info(ctx, "starting")
+	c.Status().All(ctx, 7)
+	log.Infof(ctx, "finished after %s", time.Since(start))
+}
+
+func firstAt(now, atHourMin time.Time, every time.Duration) time.Time {
+	firstAt := time.Date(
+		now.Year(),
+		now.Month(),
+		now.Day(),
+		atHourMin.Hour(),
+		atHourMin.Minute(),
+		0,
+		0,
+		now.Location(),
+	)
+	for firstAt.Before(now) {
+		firstAt = firstAt.Add(every)
+	}
+	return firstAt
 }

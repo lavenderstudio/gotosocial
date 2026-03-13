@@ -237,8 +237,8 @@ func (suite *ReportsGetTestSuite) TestReportsGetAll() {
         "header_description": "Flat gray background (default header).",
         "followers_count": 1,
         "following_count": 1,
-        "statuses_count": 9,
-        "last_status_at": "2024-11-01",
+        "statuses_count": 10,
+        "last_status_at": "2026-01-01",
         "emojis": [],
         "fields": [
           {
@@ -428,8 +428,8 @@ func (suite *ReportsGetTestSuite) TestReportsGetAll() {
         "header_description": "Flat gray background (default header).",
         "followers_count": 1,
         "following_count": 1,
-        "statuses_count": 9,
-        "last_status_at": "2024-11-01",
+        "statuses_count": 10,
+        "last_status_at": "2026-01-01",
         "emojis": [],
         "fields": [
           {
@@ -691,8 +691,8 @@ func (suite *ReportsGetTestSuite) TestReportsGetCreatedByAccount() {
         "header_description": "Flat gray background (default header).",
         "followers_count": 1,
         "following_count": 1,
-        "statuses_count": 9,
-        "last_status_at": "2024-11-01",
+        "statuses_count": 10,
+        "last_status_at": "2026-01-01",
         "emojis": [],
         "fields": [
           {
@@ -954,8 +954,8 @@ func (suite *ReportsGetTestSuite) TestReportsGetTargetAccount() {
         "header_description": "Flat gray background (default header).",
         "followers_count": 1,
         "following_count": 1,
-        "statuses_count": 9,
-        "last_status_at": "2024-11-01",
+        "statuses_count": 10,
+        "last_status_at": "2026-01-01",
         "emojis": [],
         "fields": [
           {
