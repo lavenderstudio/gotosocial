@@ -63,18 +63,140 @@ func (p *Processor) GetOwnStatus(
 	return target, nil
 }
 
-// GetTargetStatusBy fetches the target status with db load
-// function, given the authorized (or, nil) requester's
-// account. This returns an approprate gtserror.WithCode
-// accounting for not found and visibility to requester.
+// GetVisibleTargetStatus calls GetTargetStatusBy(),
+// but converts a non-visible result to not-found error.
 //
 // window can be used to force refresh of the target if it's
 // deemed to be stale. Falls back to default window if nil.
-func (p *Processor) GetTargetStatusBy(
+func (p *Processor) GetVisibleTargetStatusBy(
 	ctx context.Context,
 	requester *gtsmodel.Account,
 	getTargetFromDB func() (*gtsmodel.Status, error),
 	window *dereferencing.FreshnessWindow,
+) (
+	status *gtsmodel.Status,
+	errWithCode gtserror.WithCode,
+) {
+	return p.getVisibleTargetStatusBy(ctx,
+		requester,
+		getTargetFromDB,
+		window,
+		false,
+	)
+}
+
+// GetVisibleTargetStatus calls GetVisibleTargetStatusBy(),
+// passing in a database function that fetches by status ID.
+//
+// window can be used to force refresh of the target if it's
+// deemed to be stale. Falls back to default window if nil.
+func (p *Processor) GetVisibleTargetStatus(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	targetID string,
+	window *dereferencing.FreshnessWindow,
+) (
+	status *gtsmodel.Status,
+	errWithCode gtserror.WithCode,
+) {
+	return p.GetVisibleTargetStatusBy(ctx,
+		requester,
+		func() (*gtsmodel.Status, error) { return p.state.DB.GetStatusByID(ctx, targetID) },
+		window,
+	)
+}
+
+// GetVisibleTargetStatusInThread is functionally similar to
+// GetVisibleTargetStatus(), but permits returning deleted stubs.
+func (p *Processor) GetVisibleTargetStatusInThread(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	targetID string,
+	window *dereferencing.FreshnessWindow,
+) (
+	status *gtsmodel.Status,
+	errWithCode gtserror.WithCode,
+) {
+	return p.getVisibleTargetStatusBy(ctx,
+		requester,
+		func() (*gtsmodel.Status, error) { return p.state.DB.GetStatusByID(ctx, targetID) },
+		window,
+
+		// allow deleted
+		// status stubs.
+		true,
+	)
+}
+
+// UnwrapIfBoost "unwraps" the given status if
+// it's a boost wrapper, by returning the boosted
+// status it targets (pending visibility checks).
+//
+// Just returns the input status if it's not a boost.
+func (p *Processor) UnwrapIfBoost(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	status *gtsmodel.Status,
+) (*gtsmodel.Status, gtserror.WithCode) {
+	if status.BoostOfID == "" {
+		return status, nil
+	}
+	return p.GetVisibleTargetStatus(ctx,
+		requester,
+		status.BoostOfID,
+		nil,
+	)
+}
+
+func (p *Processor) getVisibleTargetStatusBy(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	getTargetFromDB func() (*gtsmodel.Status, error),
+	window *dereferencing.FreshnessWindow,
+	deleted bool,
+) (
+	status *gtsmodel.Status,
+	errWithCode gtserror.WithCode,
+) {
+	// Fetch the target status by ID from the database.
+	target, visible, errWithCode := p.getTargetStatusBy(ctx,
+		requester,
+		getTargetFromDB,
+		window,
+		deleted,
+	)
+	if errWithCode != nil {
+		return nil, errWithCode
+	}
+
+	if !visible {
+		// Target should not be seen by requester.
+		const text = "target status not found"
+		return nil, gtserror.NewErrorNotFound(
+			errors.New(text),
+			text,
+		)
+	}
+
+	return target, nil
+}
+
+// getTargetStatusBy fetches the target status with db load
+// function, given the authorized (or, nil) requester's
+// account. This returns an approprate gtserror.WithCode
+// accounting for not found and visibility to requester.
+//
+// 'window' can be used to force refresh of the target if it's
+// deemed to be stale. Falls back to default window if nil.
+//
+// 'deleted' indicates whether to permit returning deleted
+// stubs left remaining of statuses, useful for threading.
+func (p *Processor) getTargetStatusBy(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	getTargetFromDB func() (*gtsmodel.Status, error),
+	window *dereferencing.FreshnessWindow,
+	deleted bool,
 ) (
 	status *gtsmodel.Status,
 	visible bool,
@@ -87,8 +209,18 @@ func (p *Processor) GetTargetStatusBy(
 		return nil, false, gtserror.NewErrorInternalError(err)
 	}
 
+	// Check it exists.
 	if target == nil {
-		// DB loader could not find status in database.
+		const text = "target status not found"
+		return nil, false, gtserror.NewErrorNotFound(
+			errors.New(text),
+			text,
+		)
+	}
+
+	// If status deleted (left stubbed), unless specifically
+	// requested and authenticated, handle it as as non-existent.
+	if (requester == nil || !deleted) && target.Flags.Deleted() {
 		const text = "target status not found"
 		return nil, false, gtserror.NewErrorNotFound(
 			errors.New(text),
@@ -128,81 +260,6 @@ func (p *Processor) GetTargetStatusBy(
 	}
 
 	return target, visible, nil
-}
-
-// GetVisibleTargetStatus calls GetTargetStatusBy(),
-// but converts a non-visible result to not-found error.
-//
-// window can be used to force refresh of the target if it's
-// deemed to be stale. Falls back to default window if nil.
-func (p *Processor) GetVisibleTargetStatusBy(
-	ctx context.Context,
-	requester *gtsmodel.Account,
-	getTargetFromDB func() (*gtsmodel.Status, error),
-	window *dereferencing.FreshnessWindow,
-) (
-	status *gtsmodel.Status,
-	errWithCode gtserror.WithCode,
-) {
-	// Fetch the target status by ID from the database.
-	target, visible, errWithCode := p.GetTargetStatusBy(ctx,
-		requester,
-		getTargetFromDB,
-		window,
-	)
-	if errWithCode != nil {
-		return nil, errWithCode
-	}
-
-	if !visible {
-		// Target should not be seen by requester.
-		const text = "target status not found"
-		return nil, gtserror.NewErrorNotFound(
-			errors.New(text),
-			text,
-		)
-	}
-
-	return target, nil
-}
-
-// GetVisibleTargetStatus calls GetVisibleTargetStatusBy(),
-// passing in a database function that fetches by status ID.
-//
-// window can be used to force refresh of the target if it's
-// deemed to be stale. Falls back to default window if nil.
-func (p *Processor) GetVisibleTargetStatus(
-	ctx context.Context,
-	requester *gtsmodel.Account,
-	targetID string,
-	window *dereferencing.FreshnessWindow,
-) (
-	status *gtsmodel.Status,
-	errWithCode gtserror.WithCode,
-) {
-	return p.GetVisibleTargetStatusBy(ctx, requester, func() (*gtsmodel.Status, error) {
-		return p.state.DB.GetStatusByID(ctx, targetID)
-	}, window)
-}
-
-// UnwrapIfBoost "unwraps" the given status if
-// it's a boost wrapper, by returning the boosted
-// status it targets (pending visibility checks).
-//
-// Just returns the input status if it's not a boost.
-func (p *Processor) UnwrapIfBoost(
-	ctx context.Context,
-	requester *gtsmodel.Account,
-	status *gtsmodel.Status,
-) (*gtsmodel.Status, gtserror.WithCode) {
-	if status.BoostOfID == "" {
-		return status, nil
-	}
-	return p.GetVisibleTargetStatus(ctx,
-		requester,
-		status.BoostOfID,
-		nil,
-	)
 }
 
 // GetAPIStatus fetches the appropriate API status model for target.

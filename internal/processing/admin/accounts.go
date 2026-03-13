@@ -91,9 +91,8 @@ func (p *Processor) AccountsGet(
 		}
 	}
 
-	// Get accounts with the given params.
-	accounts, err := p.state.DB.GetAccounts(
-		ctx,
+	// Get accounts with the given request params.
+	accounts, err := p.state.DB.GetAccounts(ctx,
 		request.Origin,
 		request.Status,
 		func() bool { return request.Permissions == "staff" }(),
@@ -142,8 +141,7 @@ func (p *Processor) AccountsGet(
 		return packageAccountsV2(items, lo, hi, request, page)
 
 	default:
-		log.Panic(ctx, "api version was neither 1 nor 2")
-		return nil, nil
+		panic("unexpected api version")
 	}
 }
 

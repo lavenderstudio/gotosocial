@@ -332,12 +332,12 @@ func (p *Processor) deleteAccountStatuses(
 			gtscontext.SetBarebones(ctx),
 			account.ID,
 			deleteSelectLimit,
-			false,
-			false,
+			false, // include replies
+			false, // include reblogs
 			maxID,
-			"",
-			false,
-			false,
+			"",    // minID
+			false, // not just media only
+			false, // not just public
 		)
 		if err != nil && !errors.Is(err, db.ErrNoEntries) {
 			log.Errorf("error getting account statuses: %v", err)

@@ -170,8 +170,8 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendAliasedAndMoved()
     "header_description": "Flat gray background (default header).",
     "followers_count": 1,
     "following_count": 1,
-    "statuses_count": 9,
-    "last_status_at": "2024-11-01",
+    "statuses_count": 10,
+    "last_status_at": "2026-01-01",
     "emojis": [],
     "fields": [
       {
@@ -1757,7 +1757,7 @@ func (suite *InternalToFrontendTestSuite) TestInstanceV1ToFrontend() {
   },
   "stats": {
     "domain_count": 2,
-    "status_count": 23,
+    "status_count": 24,
     "user_count": 5
   },
   "thumbnail": "http://localhost:8080/assets/logo.webp",
@@ -2114,8 +2114,8 @@ func (suite *InternalToFrontendTestSuite) TestReportToFrontend2() {
     "header_description": "Flat gray background (default header).",
     "followers_count": 1,
     "following_count": 1,
-    "statuses_count": 9,
-    "last_status_at": "2024-11-01",
+    "statuses_count": 10,
+    "last_status_at": "2026-01-01",
     "emojis": [],
     "fields": [
       {
@@ -2243,8 +2243,8 @@ func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontend1() {
       "header_description": "Flat gray background (default header).",
       "followers_count": 1,
       "following_count": 1,
-      "statuses_count": 9,
-      "last_status_at": "2024-11-01",
+      "statuses_count": 10,
+      "last_status_at": "2026-01-01",
       "emojis": [],
       "fields": [
         {
@@ -2444,8 +2444,8 @@ func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontend2() {
       "header_description": "Flat gray background (default header).",
       "followers_count": 1,
       "following_count": 1,
-      "statuses_count": 9,
-      "last_status_at": "2024-11-01",
+      "statuses_count": 10,
+      "last_status_at": "2026-01-01",
       "emojis": [],
       "fields": [
         {
@@ -3088,8 +3088,8 @@ func (suite *InternalToFrontendTestSuite) TestIntReqToAPI() {
       "header_description": "Flat gray background (default header).",
       "followers_count": 1,
       "following_count": 1,
-      "statuses_count": 9,
-      "last_status_at": "2024-11-01",
+      "statuses_count": 10,
+      "last_status_at": "2026-01-01",
       "emojis": [],
       "fields": [
         {
@@ -3462,8 +3462,8 @@ func (suite *InternalToFrontendTestSuite) TestConversationToAPI() {
       "header_description": "Flat gray background (default header).",
       "followers_count": 1,
       "following_count": 1,
-      "statuses_count": 9,
-      "last_status_at": "2024-11-01",
+      "statuses_count": 10,
+      "last_status_at": "2026-01-01",
       "emojis": [],
       "fields": [
         {
@@ -3616,8 +3616,8 @@ func (suite *InternalToFrontendTestSuite) TestStatusToAPIEdits() {
             "header_description": "Flat gray background (default header).",
             "followers_count": 1,
             "following_count": 1,
-            "statuses_count": 9,
-            "last_status_at": "2024-11-01",
+            "statuses_count": 10,
+            "last_status_at": "2026-01-01",
             "emojis": [],
             "fields": [
                 {
@@ -3663,8 +3663,8 @@ func (suite *InternalToFrontendTestSuite) TestStatusToAPIEdits() {
             "header_description": "Flat gray background (default header).",
             "followers_count": 1,
             "following_count": 1,
-            "statuses_count": 9,
-            "last_status_at": "2024-11-01",
+            "statuses_count": 10,
+            "last_status_at": "2026-01-01",
             "emojis": [],
             "fields": [
                 {
@@ -3724,8 +3724,8 @@ func (suite *InternalToFrontendTestSuite) TestStatusToAPIEdits() {
             "header_description": "Flat gray background (default header).",
             "followers_count": 1,
             "following_count": 1,
-            "statuses_count": 9,
-            "last_status_at": "2024-11-01",
+            "statuses_count": 10,
+            "last_status_at": "2026-01-01",
             "emojis": [],
             "fields": [
                 {
@@ -3771,8 +3771,8 @@ func (suite *InternalToFrontendTestSuite) TestStatusToAPIEdits() {
             "header_description": "Flat gray background (default header).",
             "followers_count": 1,
             "following_count": 1,
-            "statuses_count": 9,
-            "last_status_at": "2024-11-01",
+            "statuses_count": 10,
+            "last_status_at": "2026-01-01",
             "emojis": [],
             "fields": [
                 {

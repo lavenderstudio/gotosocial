@@ -21,6 +21,7 @@ import (
 	"context"
 
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/paging"
 )
 
 // Status contains functions for getting statuses, creating statuses, and checking various other fields on statuses.
@@ -50,11 +51,17 @@ type Status interface {
 	// PutStatus stores one status in the database, this also handles status threading.
 	PutStatus(ctx context.Context, status *gtsmodel.Status) error
 
-	// UpdateStatus updates one status in the database.
+	// UpdateStatus updates one status in the database, limited to specific columns if provided.
 	UpdateStatus(ctx context.Context, status *gtsmodel.Status, columns ...string) error
 
-	// DeleteStatusByID deletes one status from the database.
-	DeleteStatusByID(ctx context.Context, id string) error
+	// StubStatus ...
+	StubStatus(ctx context.Context, status *gtsmodel.Status) error
+
+	// DeleteStatus ...
+	DeleteStatus(ctx context.Context, status *gtsmodel.Status) error
+
+	// DeleteLeafStubs ...
+	DeleteStatusLeafStubs(ctx context.Context, page *paging.Page) ([]*gtsmodel.Status, error)
 
 	// GetStatuses gets a slice of statuses corresponding to the given status IDs.
 	GetStatusesByIDs(ctx context.Context, ids []string) ([]*gtsmodel.Status, error)

@@ -2544,6 +2544,79 @@ func NewTestStatuses() map[string]*gtsmodel.Status {
 			CreatedWithApplicationID: "01F8MGYG9E893WRHW0TAEXR8GJ",
 			ActivityStreamsType:      ap.ObjectNote,
 		},
+
+		// A stubbed (i.e. deleted) reply
+		// to one of their own statuses.
+		"local_account_2_status_10": {
+			ID:                       "01FJEMKT2RM6Y4W0SBKB1NT54P",
+			URI:                      "http://localhost:8080/users/1happyturtle/statuses/01FJEMKT2RM6Y4W0SBKB1NT54P",
+			URL:                      "http://localhost:8080/@1happyturtle/statuses/01FJEMKT2RM6Y4W0SBKB1NT54P",
+			Flags:                    gtsmodel.StatusFlags(gtsmodel.StatusFlagLocal | gtsmodel.StatusFlagFederated | gtsmodel.StatusFlagDeleted),
+			CreatedAt:                TimeMustParse("2021-10-20T12:40:39+02:00"),
+			AccountURI:               "http://localhost:8080/users/1happyturtle",
+			AccountID:                "01F8MH5NBDF2MV7CTC4Q5128HF",
+			InReplyToID:              "01FCQSQ667XHJ9AV9T27SJJSX5",
+			InReplyToAccountID:       "01F8MH5NBDF2MV7CTC4Q5128HF",
+			InReplyToURI:             "http://localhost:8080/users/the_mighty_zork/statuses/01FCQSQ667XHJ9AV9T27SJJSX5",
+			ThreadID:                 "01HCWDKKBWECZJQ93E262N36VN",
+			Visibility:               gtsmodel.VisibilityPublic,
+			ActivityStreamsType:      ap.ObjectNote,
+			CreatedWithApplicationID: "01F8MGYG9E893WRHW0TAEXR8GJ",
+		},
+
+		// A stubbed (i.e. deleted) reply
+		// to someone else's status.
+		"local_account_2_status_11": {
+			ID:                       "01JPCRZQ382XF84Z4WWJ1DX3GZ",
+			URI:                      "http://localhost:8080/users/1happyturtle/statuses/01JPCRZQ382XF84Z4WWJ1DX3GZ",
+			URL:                      "http://localhost:8080/@1happyturtle/statuses/01JPCRZQ382XF84Z4WWJ1DX3GZ",
+			Flags:                    gtsmodel.StatusFlags(gtsmodel.StatusFlagLocal | gtsmodel.StatusFlagFederated | gtsmodel.StatusFlagDeleted),
+			CreatedAt:                TimeMustParse("2025-03-15T11:28:17Z"),
+			AccountURI:               "http://localhost:8080/users/1happyturtle",
+			AccountID:                "01F8MH5NBDF2MV7CTC4Q5128HF",
+			InReplyToID:              "01JPCNB4417JG3XHHP0WS60RM3",
+			InReplyToAccountID:       "01JPCMD83Y4WR901094YES3QC5",
+			InReplyToURI:             "http://localhost:8080/users/the_mighty_zork/statuses/01JPCNB4417JG3XHHP0WS60RM3",
+			ThreadID:                 "01JV7NXDB7Z6YAFX8ZDKP9C20Y",
+			Visibility:               gtsmodel.VisibilityUnlocked,
+			ActivityStreamsType:      ap.ObjectNote,
+			CreatedWithApplicationID: "01F8MGYG9E893WRHW0TAEXR8GJ",
+		},
+
+		// A stubbed (i.e. deleted)
+		// top-level status w/ replies.
+		"local_account_2_status_12": {
+			ID:                       "01KDW3W8Z84SJ4F6RFEAJG96ZF",
+			URI:                      "http://localhost:8080/users/1happyturtle/statuses/01KDW3W8Z84SJ4F6RFEAJG96ZF",
+			URL:                      "http://localhost:8080/@1happyturtle/statuses/01KDW3W8Z84SJ4F6RFEAJG96ZF",
+			Flags:                    gtsmodel.StatusFlags(gtsmodel.StatusFlagLocal | gtsmodel.StatusFlagFederated | gtsmodel.StatusFlagDeleted),
+			CreatedAt:                TimeMustParse("2026-01-01T06:28:17Z"),
+			AccountURI:               "http://localhost:8080/users/1happyturtle",
+			AccountID:                "01F8MH5NBDF2MV7CTC4Q5128HF",
+			ThreadID:                 "01KDW3W8Z8P2XKT92EFEM15VRM",
+			Visibility:               gtsmodel.VisibilityPublic,
+			ActivityStreamsType:      ap.ObjectNote,
+			CreatedWithApplicationID: "01F8MGYG9E893WRHW0TAEXR8GJ",
+		},
+		"local_account_2_status_13": {
+			ID:                       "01KDW3W8Z8YTFTPBAE0ADGV0HS",
+			URI:                      "http://localhost:8080/users/1happyturtle/statuses/01KDW3W8Z8YTFTPBAE0ADGV0HS",
+			URL:                      "http://localhost:8080/@1happyturtle/statuses/01KDW3W8Z8YTFTPBAE0ADGV0HS",
+			Flags:                    gtsmodel.StatusFlags(gtsmodel.StatusFlagLocal | gtsmodel.StatusFlagFederated),
+			CreatedAt:                TimeMustParse("2026-01-01T06:29:17Z"),
+			AccountURI:               "http://localhost:8080/users/1happyturtle",
+			AccountID:                "01F8MH5NBDF2MV7CTC4Q5128HF",
+			InReplyToID:              "01KDW3W8Z84SJ4F6RFEAJG96ZF",
+			InReplyToURI:             "http://localhost:8080/users/1happyturtle/statuses/01KDW3W8Z84SJ4F6RFEAJG96ZF",
+			InReplyToAccountID:       "01F8MH5NBDF2MV7CTC4Q5128HF",
+			ThreadID:                 "01KDW3W8Z8P2XKT92EFEM15VRM",
+			Content:                  "<p> here i'm replying to an original status i deleted </p",
+			Text:                     "here i'm replying to an original status i deleted",
+			Visibility:               gtsmodel.VisibilityPublic,
+			ActivityStreamsType:      ap.ObjectNote,
+			CreatedWithApplicationID: "01F8MGYG9E893WRHW0TAEXR8GJ",
+		},
+
 		"local_account_3_status_1": {
 			ID:    "01JPCNB4417JG3XHHP0WS60RM3",
 			URI:   "http://localhost:8080/users/media_mogul/statuses/01JPCNB4417JG3XHHP0WS60RM3",

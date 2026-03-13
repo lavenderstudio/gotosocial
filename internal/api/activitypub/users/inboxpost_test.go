@@ -426,12 +426,15 @@ func (suite *InboxPostTestSuite) TestPostDelete() {
 		suite.FailNow("timed out waiting for block to be removed")
 	}
 
+	var loopErr error
+	var dbStatuses []*gtsmodel.Status
+
 	if !testrig.WaitFor(func() bool {
 		// no statuses from foss satan should be left in the database
-		dbStatuses, err := suite.db.GetAccountStatuses(ctx, requestingAccount.ID, 0, false, false, "", "", false, false)
-		return len(dbStatuses) == 0 && errors.Is(err, db.ErrNoEntries)
+		dbStatuses, loopErr = suite.db.GetAccountStatuses(ctx, requestingAccount.ID, 0, false, false, "", "", false, false)
+		return len(dbStatuses) == 0 && errors.Is(loopErr, db.ErrNoEntries)
 	}) {
-		suite.FailNow("timed out waiting for statuses to be removed")
+		suite.FailNowf("timed out waiting for statuses to be removed: %s", testrig.Dump(dbStatuses))
 	}
 
 	// Account should be stubbified.

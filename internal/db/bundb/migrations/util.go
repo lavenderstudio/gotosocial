@@ -28,49 +28,16 @@ import (
 
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
+	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
 	"codeberg.org/gruf/go-byteutil"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect"
 	"github.com/uptrace/bun/dialect/feature"
-	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/dialect/sqltype"
 	"github.com/uptrace/bun/schema"
 )
-
-// BunExpr encompasses the arguments
-// that get passed to a bun._Expr() type
-// function, also usefully to Where()!
-type BunExpr struct {
-	Fmt string
-	Arg []any
-}
-
-// idents is syntactic sugar for
-// converting a variable slice of
-// string arguments to bun.Ident()
-// types for use as bun []any args.
-func idents(s ...string) []any {
-	a := make([]any, len(s))
-	for i, s := range s {
-		a[i] = bun.Ident(s)
-	}
-	return a
-}
-
-// bunArrayType wraps the given type in a pgdialect.Array
-// if needed, which postgres wants for serializing arrays.
-func bunArrayType(db bun.IDB, arr any) any {
-	switch db.Dialect().Name() {
-	case dialect.SQLite:
-		return arr // return as-is
-	case dialect.PG:
-		return pgdialect.Array(arr)
-	default:
-		panic("unreachable")
-	}
-}
 
 // doWALCheckpoint attempt to force a WAL file merge on SQLite3,
 // which can be useful given how much can build-up in the WAL.
@@ -309,7 +276,7 @@ func dropColumn(ctx context.Context, db bun.IDB, model any, fieldName string) er
 	return nil
 }
 
-func createIndex(ctx context.Context, db bun.IDB, indexName, tableName string, cols BunExpr, where ...BunExpr) error {
+func createIndex(ctx context.Context, db bun.IDB, indexName, tableName string, cols db.BunExpr, where ...db.BunExpr) error {
 	log.Infof(ctx, "creating index '%s' on '%s'", indexName, tableName)
 
 	// Attempt to create index.

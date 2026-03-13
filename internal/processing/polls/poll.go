@@ -50,9 +50,7 @@ func (p *Processor) getTargetPoll(ctx context.Context, requester *gtsmodel.Accou
 	// checking for visibility and ensuring it is up-to-date.
 	status, errWithCode := p.c.GetVisibleTargetStatusBy(ctx,
 		requester,
-		func() (*gtsmodel.Status, error) {
-			return p.state.DB.GetStatusByPollID(ctx, targetID)
-		},
+		func() (*gtsmodel.Status, error) { return p.state.DB.GetStatusByPollID(ctx, targetID) },
 		nil, // default freshness
 	)
 	if errWithCode != nil {

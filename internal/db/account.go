@@ -107,7 +107,20 @@ type Account interface {
 	// be very memory intensive so you probably shouldn't do this!
 	//
 	// In the case of no statuses, this function will return db.ErrNoEntries.
-	GetAccountStatuses(ctx context.Context, accountID string, limit int, excludeReplies bool, excludeReblogs bool, maxID string, minID string, mediaOnly bool, publicOnly bool) ([]*gtsmodel.Status, error)
+	GetAccountStatuses(
+		ctx context.Context,
+		accountID string,
+		limit int,
+		excludeReplies bool,
+		excludeReblogs bool,
+		maxID string,
+		minID string,
+		mediaOnly bool,
+		publicOnly bool,
+	) (
+		[]*gtsmodel.Status,
+		error,
+	)
 
 	// GetAccountPinnedStatuses returns ONLY statuses owned by the give accountID for which a corresponding StatusPin
 	// exists in the database. Statuses which are not pinned will not be returned by this function.

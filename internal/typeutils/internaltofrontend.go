@@ -916,8 +916,8 @@ func (c *Converter) statusToAPIStatus(
 	// argument but we only ever set true.
 	const placeholdAttachments = true
 
-	apiStatus, err := c.statusToFrontend(
-		ctx,
+	// Pass status to core conversion function.
+	apiStatus, err := c.statusToFrontend(ctx,
 		status,
 		requestingAccount, // Can be nil.
 	)
@@ -1232,9 +1232,26 @@ func (c *Converter) baseStatusToFrontend(
 		}
 	}
 
+	// Check whether status is deleted,
+	// if so return a placeholder model.
+	//
+	// It's up to callers outside the typeutils
+	// package to decide if they want to return
+	// deleted statuses, or instead return 404.
+	if status.Flags.Deleted() {
+
+		// Note that the account will get populated as
+		// normal for this status. We only show deleted
+		// statuses as part of threads, which would reveal
+		// the original author through mentions so there's
+		// no point in stubbing out the deleted's author.
+		return toDeletedStatusPlaceholder(status), nil
+	}
+
 	// Check if domain is limited, as this
 	// will affect how we have to serialize it.
-	limit, err := c.state.DB.MatchDomainLimit(ctx, status.Account.Domain)
+	limit, err := c.state.DB.MatchDomainLimit(ctx,
+		status.Account.Domain)
 	if err != nil {
 		return nil, gtserror.Newf("error matching domain limit: %w", err)
 	}
@@ -2786,8 +2803,7 @@ func (c *Converter) InteractionReqToAPIInteractionReq(
 		return nil, err
 	}
 
-	interactedStatus, err := c.StatusToAPIStatus(
-		ctx,
+	interactedStatus, err := c.StatusToAPIStatus(ctx,
 		req.TargetStatus,
 		requestingAcct,
 	)
@@ -3223,4 +3239,25 @@ func (c *Converter) tagsToAPI(
 	}
 
 	return apiModels
+}
+
+// toDeletedStatusPlaceholder returns a placeholder for a deleted status model.
+func toDeletedStatusPlaceholder(status *gtsmodel.Status) *apimodel.Status {
+	apiStatus := &apimodel.Status{
+		ID:                 status.ID,
+		URI:                status.URI,
+		URL:                status.URL,
+		CreatedAt:          util.FormatISO8601(status.CreatedAt),
+		InReplyToID:        util.PtrIf(status.InReplyToID),
+		InReplyToAccountID: util.PtrIf(status.InReplyToAccountID),
+		Visibility:         VisToAPIVis(status.Visibility),
+		LocalOnly:          status.LocalOnly(),
+		Content:            "<p><em>ℹ️ deleted status ℹ️</em></p>",
+	}
+	apiStatus.InReplyToID = util.PtrIf(status.InReplyToID)
+	apiStatus.InReplyToAccountID = util.PtrIf(status.InReplyToAccountID)
+	if apiStatus.URL == "" {
+		apiStatus.URL = apiStatus.URI
+	}
+	return apiStatus
 }

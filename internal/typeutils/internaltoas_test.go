@@ -1167,7 +1167,7 @@ func (suite *InternalToASTestSuite) TestStatusToASDeletePublicReplyOriginalDelet
 	ctx := suite.T().Context()
 
 	// Delete the status this replies to.
-	if err := suite.db.DeleteStatusByID(ctx, testStatus.ID); err != nil {
+	if err := suite.db.DeleteStatus(ctx, testStatus); err != nil {
 		suite.FailNow(err.Error())
 	}
 

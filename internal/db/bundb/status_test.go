@@ -25,6 +25,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
+	"code.superseriousbusiness.org/gotosocial/internal/paging"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -170,7 +171,7 @@ func (suite *StatusTestSuite) TestGetStatusChildren() {
 	targetStatus := suite.testStatuses["local_account_1_status_1"]
 	children, err := suite.db.GetStatusChildren(suite.T().Context(), targetStatus.ID)
 	suite.NoError(err)
-	suite.Len(children, 3)
+	suite.Len(children, 4)
 }
 
 func (suite *StatusTestSuite) TestDeleteStatus() {
@@ -178,7 +179,7 @@ func (suite *StatusTestSuite) TestDeleteStatus() {
 	targetStatus := &gtsmodel.Status{}
 	*targetStatus = *suite.testStatuses["admin_account_status_1"]
 
-	err := suite.db.DeleteStatusByID(suite.T().Context(), targetStatus.ID)
+	err := suite.db.DeleteStatus(suite.T().Context(), targetStatus)
 	suite.NoError(err)
 
 	_, err = suite.db.GetStatusByID(suite.T().Context(), targetStatus.ID)
@@ -197,7 +198,7 @@ func (suite *StatusTestSuite) TestPutPopulatedStatus() {
 	}
 
 	// Delete it from the database.
-	if err := suite.db.DeleteStatusByID(ctx, targetStatus.ID); err != nil {
+	if err := suite.db.DeleteStatus(ctx, targetStatus); err != nil {
 		suite.FailNow(err.Error())
 	}
 
@@ -516,6 +517,64 @@ func (suite *StatusTestSuite) TestPutStatusThreadingReconcile() {
 		// Ensure after reconcile uses expected thread.
 		suite.Equal(finalThreadID, status.ThreadID)
 	}
+}
+
+// update this as you add more
+// leaf stubs to the database.
+const totalLeafStubs = 2
+
+func (suite *StatusTestSuite) TestDeleteStatusLeafStubs() {
+	suite.testDeleteStatusLeafStubs(totalLeafStubs)
+}
+
+func (suite *StatusTestSuite) TestDeleteStatusLeafStubsNowNotALeaf() {
+	expect := totalLeafStubs
+
+	for _, status := range suite.testStatuses {
+		// This is a leaf status stub, add a
+		// new child into the database so that
+		// it shouldn't get picked up by our
+		// deletion query, and decrease expected.
+		if status.Flags.Deleted() &&
+			!hasReply(suite.testStatuses, status.ID) {
+			childStatusID := id.NewULID()
+			childAccountID := id.NewULID()
+			err := suite.state.DB.PutStatus(
+				suite.T().Context(),
+				&gtsmodel.Status{
+					ID:                  childStatusID,
+					URI:                 "https://example.com/" + childStatusID,
+					AccountID:           childAccountID,
+					AccountURI:          "https://example.com/" + childAccountID,
+					InReplyToID:         status.ID,
+					InReplyToURI:        status.URI,
+					Flags:               gtsmodel.StatusFlags(gtsmodel.StatusFlagFederated),
+					ActivityStreamsType: ap.ObjectNote,
+				},
+			)
+			suite.NoError(err)
+			expect--
+		}
+	}
+
+	suite.testDeleteStatusLeafStubs(expect)
+}
+
+func (suite *StatusTestSuite) testDeleteStatusLeafStubs(expect int) {
+	ctx := suite.T().Context()
+	deleted, err := suite.db.DeleteStatusLeafStubs(ctx, &paging.Page{Limit: 100})
+	suite.NoError(err)
+	suite.Len(deleted, expect)
+}
+
+// hasReply returns whether status ID has a reply (child) in given map of test statuses.
+func hasReply(testStatuses map[string]*gtsmodel.Status, statusID string) bool {
+	for _, status := range testStatuses {
+		if status.InReplyToID == statusID {
+			return true
+		}
+	}
+	return false
 }
 
 func TestStatusTestSuite(t *testing.T) {

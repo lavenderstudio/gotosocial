@@ -2182,7 +2182,7 @@ func (suite *FromClientAPITestSuite) TestProcessStatusDelete() {
 
 	// Delete the status from the db first, to mimic what
 	// would have already happened earlier up the flow
-	if err := testStructs.State.DB.DeleteStatusByID(ctx, deletedStatus.ID); err != nil {
+	if err := testStructs.State.DB.DeleteStatus(ctx, deletedStatus); err != nil {
 		suite.FailNow(err.Error())
 	}
 

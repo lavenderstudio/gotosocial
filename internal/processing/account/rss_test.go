@@ -332,7 +332,7 @@ func (suite *GetRSSTestSuite) TestGetAccountRSSZorkNoPosts() {
 
 	// Now delete them! Hahaha!
 	for _, status := range statuses {
-		if err := suite.db.DeleteStatusByID(ctx, status.ID); err != nil {
+		if err := suite.db.DeleteStatus(ctx, status); err != nil {
 			suite.FailNow(err.Error())
 		}
 	}

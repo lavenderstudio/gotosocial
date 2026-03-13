@@ -37,6 +37,7 @@ func (suite *TimelineTestSuite) publicCount() int {
 	for _, status := range suite.testStatuses {
 		if status.Visibility == gtsmodel.VisibilityPublic &&
 			status.BoostOfID == "" &&
+			!status.Flags.Deleted() &&
 			!status.Flags.PendingApproval() {
 			publicCount++
 		}
@@ -49,6 +50,7 @@ func (suite *TimelineTestSuite) localCount() int {
 	for _, status := range suite.testStatuses {
 		if status.Visibility == gtsmodel.VisibilityPublic &&
 			status.BoostOfID == "" &&
+			!status.Flags.Deleted() &&
 			!status.Flags.PendingApproval() &&
 			status.Flags.Local() {
 			localCount++
@@ -258,8 +260,8 @@ func (suite *TimelineTestSuite) TestGetHomeTimelineFromHighest() {
 	}
 
 	suite.checkStatuses(s, id.Highest, id.Lowest, page.Order(), 5)
-	suite.Equal("01JDPZEZ77X1NX0TY9M10BK1HM", s[0].ID)
-	suite.Equal("01HEN2RZ8BG29Y5Z9VJC73HZW7", s[len(s)-1].ID)
+	suite.Equal("01KDW3W8Z8YTFTPBAE0ADGV0HS", s[0].ID)
+	suite.Equal("01HH9KYNQPA416TNJ53NSATP40", s[len(s)-1].ID)
 }
 
 func (suite *TimelineTestSuite) TestGetListTimelineNoParams() {
@@ -275,7 +277,7 @@ func (suite *TimelineTestSuite) TestGetListTimelineNoParams() {
 		suite.FailNow(err.Error())
 	}
 
-	suite.checkStatuses(s, id.Highest, id.Lowest, page.Order(), 13)
+	suite.checkStatuses(s, id.Highest, id.Lowest, page.Order(), 14)
 }
 
 func (suite *TimelineTestSuite) TestGetListTimelineMaxID() {
@@ -292,8 +294,8 @@ func (suite *TimelineTestSuite) TestGetListTimelineMaxID() {
 	}
 
 	suite.checkStatuses(s, id.Highest, id.Lowest, page.Order(), 5)
-	suite.Equal("01JDPZEZ77X1NX0TY9M10BK1HM", s[0].ID)
-	suite.Equal("01FN3VJGFH10KR7S2PB0GFJZYG", s[len(s)-1].ID)
+	suite.Equal("01KDW3W8Z8YTFTPBAE0ADGV0HS", s[0].ID)
+	suite.Equal("01G20ZM733MGN8J344T4ZDDFY1", s[len(s)-1].ID)
 }
 
 func (suite *TimelineTestSuite) TestGetListTimelineMinID() {

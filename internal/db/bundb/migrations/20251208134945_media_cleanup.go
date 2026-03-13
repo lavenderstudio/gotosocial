@@ -20,6 +20,7 @@ package migrations
 import (
 	"context"
 
+	dbpkg "code.superseriousbusiness.org/gotosocial/internal/db"
 	newmodel "code.superseriousbusiness.org/gotosocial/internal/db/bundb/migrations/20251208134945_media_cleanup/newmodel"
 	oldmodel "code.superseriousbusiness.org/gotosocial/internal/db/bundb/migrations/20251208134945_media_cleanup/oldmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
@@ -49,7 +50,7 @@ func init() {
 			if err := createIndex(ctx, tx,
 				"media_attachments_cleanup_idx",
 				"media_attachments",
-				BunExpr{"?, ?", []any{bun.Ident("file_path"), bun.Ident("thumbnail_path")}},
+				dbpkg.BunExpr{"?, ?", []any{bun.Ident("file_path"), bun.Ident("thumbnail_path")}},
 			); err != nil {
 				return err
 			}

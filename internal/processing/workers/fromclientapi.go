@@ -955,27 +955,33 @@ func (p *clientAPI) DeleteStatus(ctx context.Context, cMsg *messages.FromClientA
 	// (stops processing of remote origin data targeting this status).
 	p.state.Workers.Federator.Queue.Delete("TargetURI", status.URI)
 
+	// Federate delete activity targeting status to remote servers.
+	if err := p.federate.DeleteStatus(ctx, status); err != nil {
+		log.Errorf(ctx, "error federating status %s delete: %v", status.URI, err)
+	}
+
 	// Don't delete attachments, just unattach them:
 	// this request comes from the client API and the
 	// poster may want to use attachments again later.
-	const deleteAttachments = false
+	const attachments = false
 
 	// This is just a deletion, not a Reject,
 	// we don't need to take a copy of this status.
-	const copyToSinBin = false
+	const sinBin = false
 
-	// Perform the actual status deletion.
-	if err := p.utils.wipeStatus(
-		ctx,
+	// Don't wipe the status, just stub it out,
+	// in order to preserve threading (if any).
+	// Will otherwise get cleaned up later.
+	const wipe = false
+
+	// Perform actual status deletion.
+	if err := p.utils.deleteStatus(ctx,
 		status,
-		deleteAttachments,
-		copyToSinBin,
+		attachments,
+		sinBin,
+		wipe,
 	); err != nil {
-		log.Errorf(ctx, "error wiping status: %v", err)
-	}
-
-	if err := p.federate.DeleteStatus(ctx, status); err != nil {
-		log.Errorf(ctx, "error federating status delete: %v", err)
+		log.Errorf(ctx, "error deleting status %s: %v", status.URI, err)
 	}
 
 	return nil
@@ -1030,19 +1036,19 @@ func (p *clientAPI) DeleteAccountOrUser(ctx context.Context, cMsg *messages.From
 		log.Errorf(ctx, "error getting lists for account %s: %v", account.ID, err)
 	}
 
-	// Remove list timelines of account.
+	// Remove account's list timelines.
 	for _, listID := range listIDs {
 		p.state.Caches.Timelines.List.Delete(listID)
 	}
 
-	// Federate out a delete activity targeting account to remote servers.
+	// Federate delete activity targeting account to remote servers.
 	if err := p.federate.DeleteAccount(ctx, cMsg.Target); err != nil {
-		log.Errorf(ctx, "error federating account delete: %v", err)
+		log.Errorf(ctx, "error federating account %s delete: %v", account.URI, err)
 	}
 
 	// And finally, perform the actual account deletion synchronously.
 	if err := p.account.Delete(ctx, account, originID); err != nil {
-		log.Errorf(ctx, "error deleting account: %v", err)
+		log.Errorf(ctx, "error deleting account %s: %v", account.URI, err)
 	}
 
 	return nil
@@ -1268,13 +1274,13 @@ func (p *clientAPI) RejectReply(ctx context.Context, cMsg *messages.FromClientAP
 	// At this point the InteractionRequest should already
 	// be in the database, we just need to do side effects.
 
-	// Send out the Reject.
+	// Federate our the Reject to those remote parties involved.
 	if err := p.federate.RejectInteraction(ctx, req); err != nil {
 		log.Errorf(ctx, "error federating rejection of reply: %v", err)
 	}
 
-	// Get the rejected status.
-	status, err := p.state.DB.GetStatusByURI(
+	// Get the rejected status model from db.
+	reply, err := p.state.DB.GetStatusByURI(
 		gtscontext.SetBarebones(ctx),
 		req.InteractionURI,
 	)
@@ -1285,20 +1291,24 @@ func (p *clientAPI) RejectReply(ctx context.Context, cMsg *messages.FromClientAP
 	// Delete attachments from this status.
 	// It's rejected so there's no possibility
 	// for the poster to delete + redraft it.
-	const deleteAttachments = true
+	const attachments = true
 
 	// Keep a copy of the status in
 	// the sin bin for future review.
-	const copyToSinBin = true
+	const sinBin = true
 
-	// Perform the actual status deletion.
-	if err := p.utils.wipeStatus(
-		ctx,
-		status,
-		deleteAttachments,
-		copyToSinBin,
+	// Unpermitted statuses should be
+	// wiped as opposed to stubbed.
+	const wipe = true
+
+	// Perform actual status deletion.
+	if err := p.utils.deleteStatus(ctx,
+		reply,
+		attachments,
+		sinBin,
+		wipe,
 	); err != nil {
-		log.Errorf(ctx, "error wiping reply: %v", err)
+		log.Errorf(ctx, "error deleting reply %s: %v", reply.URI, err)
 	}
 
 	return nil
@@ -1318,7 +1328,7 @@ func (p *clientAPI) RejectAnnounce(ctx context.Context, cMsg *messages.FromClien
 		log.Errorf(ctx, "error federating rejection of announce: %v", err)
 	}
 
-	// Get the rejected boost.
+	// Get the rejected boost model from db.
 	boost, err := p.state.DB.GetStatusByURI(
 		gtscontext.SetBarebones(ctx),
 		req.InteractionURI,
@@ -1327,22 +1337,10 @@ func (p *clientAPI) RejectAnnounce(ctx context.Context, cMsg *messages.FromClien
 		return gtserror.Newf("db error getting rejected announce: %w", err)
 	}
 
-	// Boosts don't have attachments anyway
-	// so it doesn't matter what we set here.
-	const deleteAttachments = true
-
-	// This is just a boost, don't
-	// keep a copy in the sin bin.
-	const copyToSinBin = true
-
-	// Perform the actual status deletion.
-	if err := p.utils.wipeStatus(
-		ctx,
-		boost,
-		deleteAttachments,
-		copyToSinBin,
-	); err != nil {
-		log.Errorf(ctx, "error wiping announce: %v", err)
+	// Perform actual boost deletion.
+	if err := p.utils.deleteBoost(ctx,
+		boost); err != nil {
+		log.Errorf(ctx, "error deleting boost %s: %v", boost.URI, err)
 	}
 
 	return nil
