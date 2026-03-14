@@ -26,6 +26,7 @@ type conn struct {
 	writeTimeFormat   string
 	beginMode         string
 	intToTime         bool
+	textToTime        bool
 	integerTimeFormat string
 }
 

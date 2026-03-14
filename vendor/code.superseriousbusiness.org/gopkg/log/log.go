@@ -28,6 +28,7 @@ import (
 	"code.superseriousbusiness.org/gopkg/log/level"
 	"code.superseriousbusiness.org/gopkg/xslices"
 	"codeberg.org/gruf/go-kv/v2"
+	kvformat "codeberg.org/gruf/go-kv/v2/format"
 )
 
 var state = struct {
@@ -351,6 +352,18 @@ func PrintKVs(kvs ...kv.Field) {
 	logf(nil, UNSET, kvs, "")
 }
 
+// args used when msg = "".
+var argArgs = kvformat.Args{
+	Flags: kvformat.TextMask,
+	Int:   kvformat.IntArgs{Base: 10},
+	Uint:  kvformat.IntArgs{Base: 10},
+	Float: kvformat.FloatArgs{Fmt: 'g', Prec: -1},
+	Complex: kvformat.ComplexArgs{
+		Real: kvformat.FloatArgs{Fmt: 'g', Prec: -1},
+		Imag: kvformat.FloatArgs{Fmt: 'g', Prec: -1},
+	},
+}
+
 // a note on design implementation here:
 //
 // logf contains the main "meat" of our logging package. everything
@@ -391,16 +404,22 @@ func logf(ctx context.Context, lvl LEVEL, fields []kv.Field, msg string, args ..
 		}
 	}
 
-	// If no args, use placeholders.
-	if msg == "" && len(args) > 0 {
-		const argstr = `%v%v%v%v%v%v%v%v%v%v` +
-			`%v%v%v%v%v%v%v%v%v%v` +
-			`%v%v%v%v%v%v%v%v%v%v` +
-			`%v%v%v%v%v%v%v%v%v%v`
-		msg = argstr[:2*len(args)]
-	}
+	if msg == "" {
+		if len(args) > 0 {
+			// Format each arg to buf.
+			for _, arg := range args {
+				buf.B = kvformat.Global.Append(buf.B, arg, argArgs)
+				buf.B = append(buf.B, ' ')
+			}
 
-	if msg != "" {
+			// Drop last added space.
+			buf.B = buf.B[:len(buf.B)-1]
+
+			// Get buf as string.
+			msg = string(buf.B)
+			buf.B = buf.B[:0]
+		}
+	} else if msg != "" {
 		// Format the message string.
 		msg = fmt.Sprintf(msg, args...)
 	}
