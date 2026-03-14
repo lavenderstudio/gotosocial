@@ -142,9 +142,6 @@ func (p *Processor) getStatusTimeline(
 				return nil, nil
 			}
 
-			// Ensure status media is cached locally.
-			p.c.LoadStatusMedia(ctx, requester, status)
-
 			// Finally, pass status to get converted to API model.
 			apiStatus, err := p.converter.StatusToAPIStatus(ctx,
 				status,

@@ -193,6 +193,86 @@ func (d *Dereferencer) RefreshMedia(
 	)
 }
 
+// WaitOnStatusMedia is a utility function to block until all status media have finished loading.
+// TODO: remove this temporary function with ingester{} work is underway, to instead stream status updates.
+func (d *Dereferencer) WaitOnStatusMedia(ctx context.Context, status *gtsmodel.Status) {
+	type uncachedMedia struct {
+		// Ptr to currently processing
+		// media to block on, if any.
+		Ptr *media.ProcessingMedia
+
+		// Database ID.
+		ID string
+
+		// Remote URL key.
+		URL string
+
+		// Index in status
+		// attachment slice.
+		Idx int
+	}
+
+	// Check if anything to be done.
+	if len(status.Attachments) == 0 {
+		return
+	}
+
+	// Append media in status attachments that isn't yet cached.
+	uncached := make([]uncachedMedia, 0, len(status.Attachments))
+	for i, media := range status.Attachments {
+		if !media.Cached() {
+			uncached = append(uncached, uncachedMedia{
+				ID:  media.ID,
+				URL: media.RemoteURL,
+				Idx: i,
+			})
+		}
+	}
+
+	// Check if any uncached.
+	if len(uncached) == 0 {
+		return
+	}
+
+	// To minimize mutex locks / unlocks,
+	// acquire all processing media at once.
+	d.derefMediaMu.Lock()
+
+	for i, entry := range uncached {
+		// Check for processing media by remote URL.
+		processing := d.derefMedia.get(entry.URL)
+		uncached[i].Ptr = processing
+	}
+
+	// Done with mutex lock.
+	d.derefMediaMu.Unlock()
+
+	for _, entry := range uncached {
+		if entry.Ptr != nil {
+			// If media was processing, block
+			// until finished loading. We don't
+			// care about error return as async
+			// thread will handle logging it,
+			// and media is always non-nil.
+			media, _ := entry.Ptr.Load(ctx)
+
+			// Set latest attachment on the status.
+			status.Attachments[entry.Idx] = media
+		} else {
+
+			// Media had finished processing, get latest from database.
+			media, err := d.state.DB.GetAttachmentByID(ctx, entry.ID)
+			if err != nil {
+				log.Errorf(ctx, "error getting latest attachment %s: %v", entry.URL, err)
+				continue
+			}
+
+			// Set latest attachment on the status.
+			status.Attachments[entry.Idx] = media
+		}
+	}
+}
+
 // processingMediaSafely provides concurrency-safe processing of
 // a media with given remote URL string. if a copy of the media is
 // not already being processed, the given 'process' callback will
