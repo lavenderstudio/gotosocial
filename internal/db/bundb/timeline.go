@@ -53,19 +53,26 @@ func (t *timelineDB) GetHomeTimeline(ctx context.Context, accountID string, page
 				return nil, gtserror.Newf("error getting home account ids: %w", err)
 			}
 
-			// Select only statuses authored by
-			// accounts with IDs in the slice.
-			q = q.Where(
-				"? IN (?)",
-				bun.Ident("status.account_id"),
-				bun.List(accountIDs),
-			)
+			// Provide IDs as common table expression values.
+			values := make([]accountIDValue, len(accountIDs))
+			if len(values) != len(accountIDs) {
+				panic(gtserror.New("bound check elimination"))
+			}
+			for i, id := range accountIDs {
+				values[i] = accountIDValue{id}
+			}
 
-			// Only include statuses that aren't pending approval.
-			q = q.Where(db.BitNotSet("flags", gtsmodel.StatusFlagPendingApproval))
+			// "Join" on the CTE values to select only
+			// statuses belonging to those account IDs.
+			q = q.With("_data", t.db.NewValues(&values)).
+				Table("_data").
+				Where("? = ?", bun.Ident("status.account_id"), bun.Ident("_data.account_id")).
 
-			// Only include statuses that aren't deleted (stubbed-out).
-			q = q.Where(db.BitNotSet("flags", gtsmodel.StatusFlagDeleted))
+				// Only include statuses that aren't pending approval.
+				Where(db.BitNotSet("flags", gtsmodel.StatusFlagPendingApproval)).
+
+				// Only include statuses that aren't deleted (stubbed-out).
+				Where(db.BitNotSet("flags", gtsmodel.StatusFlagDeleted))
 
 			return q, nil
 		},

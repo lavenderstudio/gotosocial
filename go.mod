@@ -3,7 +3,7 @@ module code.superseriousbusiness.org/gotosocial
 go 1.24.6
 
 // Replace modernc/sqlite with our version that fixes the concurrency INTERRUPT issue
-replace modernc.org/sqlite => gitlab.com/NyaaaWhatsUpDoc/sqlite v1.45.0-concurrency-workaround
+replace modernc.org/sqlite => gitlab.com/NyaaaWhatsUpDoc/sqlite v1.46.1-concurrency-workaround
 
 // Replace gin with our own fork of v1.11.0 with yet-to-be-released array binding fix
 replace github.com/gin-gonic/gin => codeberg.org/superseriousbusiness/gin v1.11.0-array-binding-fix-2
@@ -11,7 +11,7 @@ replace github.com/gin-gonic/gin => codeberg.org/superseriousbusiness/gin v1.11.
 require (
 	code.superseriousbusiness.org/activity v1.19.0
 	code.superseriousbusiness.org/exif-terminator v0.11.1
-	code.superseriousbusiness.org/gopkg v0.0.0-20260117214252-d095ed821f5a
+	code.superseriousbusiness.org/gopkg v0.0.0-20260314203815-181df26aa86e
 	code.superseriousbusiness.org/httpsig v1.5.0
 	code.superseriousbusiness.org/oauth2/v4 v4.5.4-0.20250812115401-3961e46a7384
 	codeberg.org/gruf/go-bytesize v1.0.4
@@ -55,7 +55,7 @@ require (
 	github.com/miekg/dns v1.1.72
 	github.com/minio/minio-go/v7 v7.0.98
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/ncruces/go-sqlite3 v0.30.5
+	github.com/ncruces/go-sqlite3 v0.32.0
 	github.com/oklog/ulid v1.3.1
 	github.com/pquerna/otp v1.5.0
 	github.com/prometheus/client_golang v1.23.2
@@ -70,10 +70,10 @@ require (
 	github.com/tetratelabs/wazero v1.11.0
 	github.com/tomnomnom/linkheader v0.0.0-20250811210735-e5fe3b51442e
 	github.com/ulule/limiter/v3 v3.11.2
-	github.com/uptrace/bun v1.2.17
-	github.com/uptrace/bun/dialect/pgdialect v1.2.17
-	github.com/uptrace/bun/dialect/sqlitedialect v1.2.17
-	github.com/uptrace/bun/extra/bunotel v1.2.17
+	github.com/uptrace/bun v1.2.18
+	github.com/uptrace/bun/dialect/pgdialect v1.2.18
+	github.com/uptrace/bun/dialect/sqlitedialect v1.2.18
+	github.com/uptrace/bun/extra/bunotel v1.2.18
 	github.com/wagslane/go-password-validator v0.3.0
 	github.com/yuin/goldmark v1.7.16
 	go.opentelemetry.io/contrib/exporters/autoexport v0.65.0
@@ -93,7 +93,7 @@ require (
 	golang.org/x/text v0.34.0
 	gopkg.in/mcuadros/go-syslog.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.1
-	modernc.org/sqlite v1.45.0
+	modernc.org/sqlite v1.46.1
 	mvdan.cc/xurls/v2 v2.6.0
 )
 
