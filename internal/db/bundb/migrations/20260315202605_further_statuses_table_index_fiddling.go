@@ -21,8 +21,8 @@ import (
 	"context"
 
 	dbpkg "code.superseriousbusiness.org/gotosocial/internal/db"
-	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect"
 
 	// we haven't changed anything on the status model in regards to the
 	// database since the last migration, but we still need a snapshot so
@@ -32,53 +32,84 @@ import (
 
 func init() {
 	up := func(ctx context.Context, db *bun.DB) error {
-		// Drop existing indices that
-		// don't account for deleted flag.
+		// Drop existing indices we're
+		// going to be recreating below.
 		for _, index := range []string{
-			"statuses_local_idx",
-			"statuses_polls_scheduler_index",
+			"statuses_public_timeline_idx",
 			"statuses_profile_web_view_idx",
 			"statuses_profile_web_view_including_boosts_idx",
-			"statuses_public_timeline_idx",
-
-			// we don't recreate this one
-			// as i can't even get it currently
-			// to use this index, none create it
-			// in any manner that doesn't juse
-			// use statuses_account_id_id_idx.
-			"statuses_account_view_idx",
 		} {
 			if err := dropIndex(ctx, db, index); err != nil {
 				return err
 			}
 		}
 
-		// Drop the existing status
-		// view counting local-only statuses.
-		if _, err := db.NewRaw("DROP VIEW ?",
-			bun.Ident("statuses_local_count_view")).
-			Exec(ctx); err != nil {
-			return gtserror.Newf("error dropping statuses_local_count_view: %w", err)
-		}
-
-		// Recreate each of the indices using bitwise AND
-		// operations on the new "flags" column to check if
-		// the appropriate gtsmodel.StatusFlag bits are set,
-		// now accounting for deleted status flags.
+		// Recreate some more of the indices,
+		// further narrowing down some existing
+		// ones, and some new additional indices.
 		for _, index := range []struct {
-			Name  string
-			Cols  dbpkg.BunExpr
-			Where []dbpkg.BunExpr
+			Name     string
+			Cols     dbpkg.BunExpr
+			Where    []dbpkg.BunExpr
+			Sqlite   bool
+			Postgres bool
 		}{
 			{
 				/*
 					Confirmed working here:
-					sqlite> CREATE INDEX "statuses_local_idx" ON "statuses" ("visibility", "id" DESC) WHERE "flags" & 8 != 0 AND "flags" & 32 = 0 AND "flags" & 2 = 0;
-					sqlite> EXPLAIN QUERY PLAN SELECT id FROM statuses WHERE boost_of_id IS NULL AND id < 'ZZZZZZZZZZZZZZZZZZZZZZZZZZ' AND id > '00000000000000000000000000' AND visibility = 2 AND flags & 8 != 0 AND flags & 32 = 0 AND flags & 2 = 0 ORDER BY id DESC;
+					sqlite> CREATE INDEX "statuses_home_timeline_idx" ON "statuses" ("account_id", "id" DESC) WHERE "flags" & 32 = 0 AND "flags" & 2 = 0;
+					sqlite> ANALYZE;
+					sqlite> EXPLAIN QUERY PLAN WITH "_data" ("account_id") AS (VALUES (...) AND ("status"."id" > '01KKV73XVGWZQJHMT0CWGPYNTM') ORDER BY "status"."id" DESC LIMIT 25
 					QUERY PLAN
-					`--SEARCH statuses USING INDEX statuses_local_idx (visibility=? AND id>? AND id<?)
+					|--CO-ROUTINE _data
+					|  `--SCAN 626 CONSTANT ROWS
+					|--SCAN _data
+					|--SEARCH status USING INDEX statuses_home_timeline_idx (account_id=? AND id>? AND id<?)
+					`--USE TEMP B-TREE FOR ORDER BY
+
+					credit to cdn0x12 for this!
 				*/
-				Name: "statuses_local_idx",
+				Name: "statuses_home_timeline_idx",
+				Cols: dbpkg.BunExpr{
+					"?, ? DESC",
+					dbpkg.Idents(
+						"account_id",
+						"id",
+					),
+				},
+				Where: []dbpkg.BunExpr{
+
+					// i.e. "pending_approval" = false
+					{"? & ? = 0", []any{bun.Ident("flags"), gtsmodel.StatusFlagPendingApproval}},
+
+					// i.e. "deleted" = false
+					{"? & ? = 0", []any{bun.Ident("flags"), gtsmodel.StatusFlagDeleted}},
+				},
+
+				// This index works for both SQLite
+				// and Postgres, though depending
+				// on query size sometimes SQLite
+				// prefers statuses_account_id_id_idx.
+				Postgres: true,
+				Sqlite:   true,
+			},
+
+			{
+				/*
+					Confirmed working here:
+					sqlite> CREATE INDEX "statuses_local_timeline_idx" ON "statuses" ("visibility", "id" DESC) WHERE "boost_of_id" IS NULL AND "visibility" = 2 AND "flags" & 8 != 0 AND "flags" & 32 = 0 AND "flags" & 2 = 0;
+					sqlite> ANALYZE;
+					sqlite> EXPLAIN QUERY PLAN SELECT "status"."id" FROM "statuses" AS "status" WHERE ("status"."flags" & 8 != 0) AND ("status"."visibility" = 2) AND ("status"."flags" & 32 = 0) AND ("flags" & 2 = 0) AND ("status"."boost_of_id" IS NULL) AND ("status"."id" < '01GB7PBGAK38VAX6DFRBZBH305') ORDER BY "status"."id" DESC LIMIT 100;
+					QUERY PLAN
+					`--SEARCH status USING INDEX statuses_local_timeline_idx (visibility=? AND id<?)
+
+					credit to cdn0x12 for this!
+				*/
+
+				// we don't *need* visibility here as
+				// an indexable variable here, but it's
+				// the only way to get SQLite to use it.
+				Name: "statuses_local_timeline_idx",
 				Cols: dbpkg.BunExpr{
 					"?, ? DESC",
 					dbpkg.Idents(
@@ -87,6 +118,8 @@ func init() {
 					),
 				},
 				Where: []dbpkg.BunExpr{
+					{"? IS NULL", dbpkg.Idents("boost_of_id")},
+					{"? = ?", []any{bun.Ident("visibility"), gtsmodel.VisibilityPublic}},
 
 					// i.e. "local" = true
 					{"? & ? != 0", []any{bun.Ident("flags"), gtsmodel.StatusFlagLocal}},
@@ -97,33 +130,18 @@ func init() {
 					// i.e. "deleted" = false
 					{"? & ? = 0", []any{bun.Ident("flags"), gtsmodel.StatusFlagDeleted}},
 				},
+
+				// Used fine by
+				// both indices.
+				Postgres: true,
+				Sqlite:   true,
 			},
 
 			{
 				/*
 					Confirmed working here:
-					sqlite> CREATE INDEX "statuses_polls_scheduler_index" ON "statuses" ("poll_id") WHERE "flags" & 8 != 0 AND "flags" & 2 = 0;
-					sqlite> EXPLAIN QUERY PLAN SELECT "polls"."id" FROM "polls" JOIN "statuses" ON "polls"."id" = "statuses"."poll_id" WHERE ("statuses"."flags" & 8 != 0) AND ("statuses"."flags" & 2 = 0) AND ("polls"."expires_at" IS NOT NULL) AND ("polls"."closed_at" IS NULL);
-					QUERY PLAN
-					|--SCAN polls
-					`--SEARCH statuses USING INDEX statuses_polls_scheduler_index (poll_id=?)
-				*/
-				Name: "statuses_polls_scheduler_index",
-				Cols: dbpkg.BunExpr{"?", dbpkg.Idents("poll_id")},
-				Where: []dbpkg.BunExpr{
-
-					// i.e. "local" = true
-					{"? & ? != 0", []any{bun.Ident("flags"), gtsmodel.StatusFlagLocal}},
-
-					// i.e. "deleted" = false
-					{"? & ? = 0", []any{bun.Ident("flags"), gtsmodel.StatusFlagDeleted}},
-				},
-			},
-
-			{
-				/*
-					Confirmed working here:
-					sqlite> CREATE INDEX "statuses_profile_web_view_idx" ON "statuses" ("account_id", "visibility", "id" DESC) WHERE "in_reply_to_uri" IS NULL AND "boost_of_id" IS NULL AND "flags" & 8 != 0 AND "flags" & 2 = 0 AND "flags" & 16 != 0;
+					sqlite> CREATE INDEX "statuses_profile_web_view_idx" ON "statuses" ("account_id", "visibility", "id" DESC) WHERE "in_reply_to_uri" IS NULL AND ("visibility" = 2 OR "visibility" = 3) AND "boost_of_id" IS NULL AND "flags" & 8 != 0 AND "flags" & 2 = 0 AND "flags" & 16 != 0;
+					sqlite> analyze;
 					sqlite> EXPLAIN QUERY PLAN SELECT "status"."id" FROM "statuses" AS "status" WHERE ("status"."account_id" = '01F8MH17FWEB39HZJ76B6VXSKF') AND ("status"."visibility" = 2) AND ("status"."in_reply_to_uri" IS NULL) AND ("status"."boost_of_id" IS NULL) AND ("status"."flags" & 8 != 0) AND ("status"."flags" & 2 = 0) AND ("status"."flags" & 16 != 0) ORDER BY "status"."id" DESC LIMIT 20;
 					QUERY PLAN
 					`--SEARCH status USING INDEX statuses_profile_web_view_idx (account_id=? AND visibility=?)
@@ -140,6 +158,15 @@ func init() {
 					{"? IS NULL", dbpkg.Idents("in_reply_to_uri")},
 					{"? IS NULL", dbpkg.Idents("boost_of_id")},
 
+					// We only accept one of two
+					// possible visiblities for the
+					// profile view, so we can limit
+					// the possible index size here.
+					{"? = ? OR ? = ?", []any{
+						bun.Ident("visibility"), gtsmodel.VisibilityPublic,
+						bun.Ident("visibility"), gtsmodel.VisibilityUnlocked,
+					}},
+
 					// i.e. "local" = true
 					{"? & ? != 0", []any{bun.Ident("flags"), gtsmodel.StatusFlagLocal}},
 
@@ -149,12 +176,18 @@ func init() {
 					// i.e. "deleted" = false
 					{"? & ? = 0", []any{bun.Ident("flags"), gtsmodel.StatusFlagDeleted}},
 				},
+
+				// Used fine by
+				// both indices.
+				Postgres: true,
+				Sqlite:   true,
 			},
 
 			{
 				/*
 					Confirmed working here:
-					sqlite> CREATE INDEX "statuses_profile_web_view_including_boosts_idx" ON "statuses" ("account_id", "visibility", "id" DESC) WHERE "in_reply_to_uri" IS NULL AND "flags" & 8 != 0 AND "flags" & 2 = 0 AND "flags" & 16 != 0;
+					sqlite> CREATE INDEX "statuses_profile_web_view_including_boosts_idx" ON "statuses" ("account_id", "visibility", "id" DESC) WHERE "in_reply_to_uri" IS NULL AND ("visibility" = 2 OR "visibility" = 3) AND "flags" & 8 != 0 AND "flags" & 2 = 0 AND "flags" & 16 != 0;
+					sqlite> analyze;
 					sqlite> EXPLAIN QUERY PLAN SELECT "status"."id" FROM "statuses" AS "status" LEFT JOIN "accounts" AS "boost_of_account" ON "status"."boost_of_account_id" = "boost_of_account"."id" LEFT JOIN "statuses" AS "boost_of" ON "status"."boost_of_id" = "boost_of"."id" WHERE ("status"."account_id" = '01F8MH17FWEB39HZJ76B6VXSKF') AND ("status"."visibility" = 2) AND ("status"."in_reply_to_uri" IS NULL) AND (("status"."boost_of_id" IS NULL) OR (("boost_of"."visibility" = 2) AND ("boost_of"."flags" & 16 != 0) AND ("boost_of_account"."hides_to_public_from_unauthed_web" = FALSE))) AND ("status"."flags" & 8 != 0) AND ("status"."flags" & 2 = 0) AND ("status"."flags" & 16 != 0) ORDER BY "status"."id" DESC LIMIT 20;
 					QUERY PLAN
 					|--SEARCH status USING INDEX statuses_profile_web_view_including_boosts_idx (account_id=? AND visibility=?)
@@ -177,6 +210,15 @@ func init() {
 				Where: []dbpkg.BunExpr{
 					{"? IS NULL", dbpkg.Idents("in_reply_to_uri")},
 
+					// We only accept one of two
+					// possible visiblities for the
+					// profile view, so we can limit
+					// the possible index size here.
+					{"? = ? OR ? = ?", []any{
+						bun.Ident("visibility"), gtsmodel.VisibilityPublic,
+						bun.Ident("visibility"), gtsmodel.VisibilityUnlocked,
+					}},
+
 					// i.e. "local" = true
 					{"? & ? != 0", []any{bun.Ident("flags"), gtsmodel.StatusFlagLocal}},
 
@@ -186,24 +228,26 @@ func init() {
 					// i.e. "deleted" = false
 					{"? & ? = 0", []any{bun.Ident("flags"), gtsmodel.StatusFlagDeleted}},
 				},
+
+				// Used fine by
+				// both indices.
+				Postgres: true,
+				Sqlite:   true,
 			},
 
 			{
 				/*
 					Confirmed working here:
-					sqlite> CREATE INDEX "statuses_public_timeline_idx" ON "statuses" ("visibility", "id" DESC) WHERE "visibility" = 2 AND "boost_of_id" IS NULL AND "flags" & 32 = 0 AND "flags" & 2 = 0;
+					sqlite> CREATE INDEX "statuses_public_timeline_idx" ON "statuses" ("id" DESC) WHERE "visibility" = 2 AND "boost_of_id" IS NULL AND "flags" & 32 = 0 AND "flags" & 2 = 0;
+					sqlite> analyze;
 					sqlite> EXPLAIN QUERY PLAN SELECT id FROM statuses WHERE id < 'ZZZZZZZZZZZZZZZZZZZZZZZZZZ' AND id > '00000000000000000000000000' AND visibility = 2 AND boost_of_id IS NULL AND flags & 32 = 0 AND flags & 2 = 0 ORDER BY id DESC;
 					QUERY PLAN
-					`--SEARCH statuses USING INDEX statuses_public_timeline_idx (visibility=? AND id>? AND id<?)
+					`--SEARCH statuses USING INDEX statuses_public_timeline_idx (id>? AND id<?)
+
+					TODO: test on postgres
 				*/
 				Name: "statuses_public_timeline_idx",
-				Cols: dbpkg.BunExpr{
-					"?, ? DESC",
-					dbpkg.Idents(
-						"visibility",
-						"id",
-					),
-				},
+				Cols: dbpkg.BunExpr{"? DESC", dbpkg.Idents("id")},
 				Where: []dbpkg.BunExpr{
 					{"? = ?", []any{bun.Ident("visibility"), gtsmodel.VisibilityPublic}},
 					{"? IS NULL", dbpkg.Idents("boost_of_id")},
@@ -214,62 +258,36 @@ func init() {
 					// i.e. "deleted" = false
 					{"? & ? = 0", []any{bun.Ident("flags"), gtsmodel.StatusFlagDeleted}},
 				},
-			},
 
-			{
-				/*
-					Confirmed working here:
-					sqlite> CREATE INDEX "statuses_deleted_idx" ON "statuses" ("id" DESC) WHERE "flags" & 2 != 0;
-					sqlite> EXPLAIN QUERY PLAN SELECT id FROM statuses WHERE id < 'ZZZZZZZZZZZZZZZZZZZZZZZZZZ' AND id > '00000000000000000000000000' AND (SELECT COUNT(1) FROM "statuses" AS "sub" WHERE "statuses"."id" = "sub"."in_reply_to_id") = 0 AND flags & 2 != 0 ORDER BY id DESC;
-					QUERY PLAN
-					|--SEARCH statuses USING INDEX statuses_deleted_idx (id>? AND id<?)
-					`--CORRELATED SCALAR SUBQUERY 1
-					   `--SEARCH sub USING COVERING INDEX statuses_in_reply_to_id_idx (in_reply_to_id=?)
-				*/
-				Name: "statuses_deleted_idx",
-				Cols: dbpkg.BunExpr{"? DESC", dbpkg.Idents("id")},
-				Where: []dbpkg.BunExpr{
-
-					// i.e. "deleted" = true
-					{"? & ? != 0", []any{bun.Ident("flags"), gtsmodel.StatusFlagDeleted}},
-				},
+				// Used fine by
+				// both indices.
+				Postgres: true,
+				Sqlite:   true,
 			},
 		} {
-			// Create the prepared index.
-			if err := createIndex(ctx, db,
-				index.Name,
-				"statuses",
-				index.Cols,
-				index.Where...,
-			); err != nil {
-				return err
+			switch d := db.Dialect().Name(); {
+			case !index.Sqlite && d == dialect.SQLite:
+				// index not required for sqlite
+
+			case !index.Postgres && d == dialect.PG:
+				// index not required for postgres
+
+			default:
+				// Create the prepared index.
+				if err := createIndex(ctx, db,
+					index.Name,
+					"statuses",
+					index.Cols,
+					index.Where...,
+				); err != nil {
+					return err
+				}
 			}
 		}
 
-		// Create new local statuses count view,
-		// not taking into account deleted statuses.
-		if _, err := db.NewRaw("CREATE VIEW ? AS "+
-			"SELECT COUNT(1) FROM ? "+
-			"WHERE (? & ? != 0) "+ // local
-			"AND (? & ? = 0) "+ // NOT pending approval
-			"AND (? & ? = 0) "+ // NOT deleted
-			"AND (? IN (?))",
-			bun.Ident("statuses_local_count_view"),
-			bun.Ident("statuses"),
-			bun.Ident("flags"), gtsmodel.StatusFlagLocal,
-			bun.Ident("flags"), gtsmodel.StatusFlagPendingApproval,
-			bun.Ident("flags"), gtsmodel.StatusFlagDeleted,
-			bun.Ident("visibility"), bun.List([]gtsmodel.Visibility{
-				gtsmodel.VisibilityPublic,
-				gtsmodel.VisibilityUnlocked,
-				gtsmodel.VisibilityFollowersOnly,
-				gtsmodel.VisibilityMutualsOnly,
-			}),
-		).Exec(ctx); err != nil {
-			return err
-		}
-
-		return nil
+		// SHRINK 👏 THAT 👏 WAL 👏 !!
+		err := doWALCheckpoint(ctx, db)
+		return err
 	}
 
 	down := func(ctx context.Context, db *bun.DB) error {
