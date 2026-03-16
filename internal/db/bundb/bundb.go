@@ -329,8 +329,14 @@ func NewBunDBService(ctx context.Context, state *state.State) (db.DB, error) {
 func bunDB(sqldb *sql.DB, dialect func() schema.Dialect) *bun.DB {
 	db := bun.NewDB(sqldb, dialect())
 
-	// Add our SQL connection hooks.
-	db.AddQueryHook(queryHook{})
+	// Add SQL logging hooks depending on current configuration.
+	if config.GetLogDbQueries() || log.Level() <= log.TRACE {
+		db.AddQueryHook(queryLogger{})
+	} else {
+		db.AddQueryHook(slowQueryLogger{})
+	}
+
+	// Add any SQL observability hooks if enabled.
 	metricsEnabled := config.GetMetricsEnabled()
 	tracingEnabled := config.GetTracingEnabled()
 	if metricsEnabled || tracingEnabled {

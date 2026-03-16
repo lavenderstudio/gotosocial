@@ -64,6 +64,9 @@ func Logger(logClientIP bool) gin.HandlerFunc {
 
 			// Initialize the logging fields
 			fields := make(kv.Fields, 5, 8)
+			if len(fields) < 5 {
+				panic(gtserror.New("bound check elimination"))
+			}
 
 			// Set request logging fields
 			fields[0] = kv.Field{"latency", time.Since(before)}
