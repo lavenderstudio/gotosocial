@@ -14,7 +14,7 @@ The top-level configuration for GoToSocial, including basic things like host, po
 # Default: "info"
 log-level: "info"
 
-# Bool. Log database queries when log-level is set to debug or trace.
+# Bool. Log database queries at TRACE regardless of current log-level.
 # This setting produces verbose logs, so it's better to only enable it
 # when you're trying to track an issue down.
 # Options: [true, false]

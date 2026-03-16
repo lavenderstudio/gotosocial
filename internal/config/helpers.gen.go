@@ -239,7 +239,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.String("log-level", cfg.LogLevel, "Log level to run at: [trace, debug, info, warn, fatal]")
 	flags.String("log-format", cfg.LogFormat, "Log output format: [logfmt, json]")
 	flags.String("log-timestamp-format", cfg.LogTimestampFormat, "Format to use for the log timestamp, as supported by Go's time.Layout")
-	flags.Bool("log-db-queries", cfg.LogDbQueries, "Log database queries verbosely when log-level is trace or debug")
+	flags.Bool("log-db-queries", cfg.LogDbQueries, "Log all database queries at TRACE level (regardless of current log-level)")
 	flags.Bool("log-client-ip", cfg.LogClientIP, "Include the client IP in logs")
 	flags.String("request-id-header", cfg.RequestIDHeader, "Header to extract the Request ID from. Eg.,'X-Request-Id'.")
 	flags.String("config-path", cfg.ConfigPath, "Path to a file containing gotosocial configuration. Values set in this file will be overwritten by values set as env vars or arguments")

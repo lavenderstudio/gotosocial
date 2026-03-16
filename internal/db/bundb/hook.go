@@ -26,33 +26,45 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// queryHook implements bun.QueryHook
-type queryHook struct{}
+type queryLogger struct{}
 
-func (queryHook) BeforeQuery(ctx context.Context, _ *bun.QueryEvent) context.Context {
+func (queryLogger) BeforeQuery(ctx context.Context, _ *bun.QueryEvent) context.Context {
+	return ctx // noop
+}
+
+func (h queryLogger) AfterQuery(ctx context.Context, event *bun.QueryEvent) {
+	if dur := time.Since(event.StartTime); dur > time.Second {
+		// Log at WARN level with slow query msg.
+		log.WarnKVs(ctx, kv.Fields{
+			{"duration", dur},
+			{"query", event.Query},
+			{"msg", "SLOW DATABASE QUERY"},
+		}...)
+	} else {
+		// Log query at a 'faux'
+		// trace level without
+		// context, for speed 😎.
+		log.PrintKVs(kv.Fields{
+			{"level", "TRACE"},
+			{"duration", dur},
+			{"query", event.Query},
+		}...)
+	}
+}
+
+type slowQueryLogger struct{}
+
+func (slowQueryLogger) BeforeQuery(ctx context.Context, _ *bun.QueryEvent) context.Context {
 	return ctx // do nothing
 }
 
-// AfterQuery logs the time taken to query, the operation (select, update, etc), and the query itself as translated by bun.
-func (queryHook) AfterQuery(ctx context.Context, event *bun.QueryEvent) {
-	// Get the database query duration.
-	dur := time.Since(event.StartTime)
-
-	switch {
-	// Warn on slow queries.
-	case dur > time.Second:
-		log.WithContext(ctx).
-			WithFields(kv.Fields{
-				{"duration", dur},
-				{"query", event.Query},
-			}...).
-			Warn("SLOW DATABASE QUERY")
-
-	// On trace log query info.
-	case log.Level() <= log.TRACE:
-		log.TraceKVs(ctx, kv.Fields{
-			{K: "duration", V: dur},
-			{K: "query", V: event.Query},
+func (slowQueryLogger) AfterQuery(ctx context.Context, event *bun.QueryEvent) {
+	if dur := time.Since(event.StartTime); dur > time.Minute {
+		// Only WARN log slow queries.
+		log.WarnKVs(ctx, kv.Fields{
+			{"duration", dur},
+			{"query", event.Query},
+			{"msg", "SLOW DATABASE QUERY"},
 		}...)
 	}
 }
