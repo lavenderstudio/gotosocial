@@ -173,6 +173,10 @@ func (f *Formatter) fromPlain(
 		),
 	)
 
+	// Pre-escape any backslashes in input to
+	// avoid interpreting them as escape characters.
+	input = strings.ReplaceAll(input, "\\", "\\\\")
+
 	// Convert input string to bytes
 	// without performing any allocs.
 	bInput := byteutil.S2B(input)

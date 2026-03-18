@@ -45,6 +45,15 @@ const (
 boobs are groovy
   boobs are groovy`
 	withWhitespaceExpected = "<p>boobs<br>\u00a0test<br>\u00a0\u00a0\u00a0aa \u00a0a a<br>boobs are groovy<br>\u00a0\u00a0boobs are groovy</p>"
+	emmedUp = `/
+\/
+\\/
+*test*
+\*test\*
+te\nst
+\test
+te\*st`
+	emmedUpExpected = `<p>/<br>\/<br>\\/<br>*test*<br>\*test\*<br>te\nst<br>\test<br>te\*st</p>`
 )
 
 type PlainTestSuite struct {
@@ -159,6 +168,11 @@ func (suite *PlainTestSuite) TestFunkyTags() {
 func (suite *PlainTestSuite) TestWhitespace() {
 	formatted := suite.FromPlain(withWhitespace)
 	suite.Equal(withWhitespaceExpected, formatted.HTML)
+}
+
+func (suite *PlainTestSuite) TestEmmedUp() {
+	formatted := suite.FromPlain(emmedUp)
+	suite.Equal(emmedUpExpected, formatted.HTML)
 }
 
 func (suite *PlainTestSuite) TestDeriveMultiple() {
