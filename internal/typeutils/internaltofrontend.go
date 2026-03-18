@@ -3253,6 +3253,10 @@ func toDeletedStatusPlaceholder(status *gtsmodel.Status) *apimodel.Status {
 		Visibility:         VisToAPIVis(status.Visibility),
 		LocalOnly:          status.LocalOnly(),
 		Content:            "<p><em>ℹ️ deleted status ℹ️</em></p>",
+		Mentions:           []apimodel.Mention{},
+		Tags:               []apimodel.Tag{},
+		MediaAttachments:   []*apimodel.Attachment{},
+		Emojis:             []apimodel.Emoji{},
 	}
 	apiStatus.InReplyToID = util.PtrIf(status.InReplyToID)
 	apiStatus.InReplyToAccountID = util.PtrIf(status.InReplyToAccountID)
