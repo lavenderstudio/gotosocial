@@ -12,6 +12,7 @@ things noted down by the maintainers that could do with being done!
 - replace "upsert" queries with more performant alternatives (these do a lot of runtime logic which could be determined ahead of time)
 
 ## miscellaneous chores
+- update to Go 1.25 (we're now being held back from dependency updates)
 - finish code commenting where missing (search for '// (\w+\b)?...')
 
 ## performance

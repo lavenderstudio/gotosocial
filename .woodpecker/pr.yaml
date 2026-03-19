@@ -22,7 +22,7 @@ steps:
 
     # We use golangci-lint for linting.
     # See: https://golangci-lint.run/
-    image: golangci/golangci-lint:v2.9.0
+    image: golangci/golangci-lint:v2.9
     pull: true
 
     # https://woodpecker-ci.org/docs/administration/configuration/backends/docker#run-user
@@ -61,7 +61,7 @@ steps:
           any(fromJSON(CI_PIPELINE_FILES), { # startsWith "internal/" || # startsWith "cmd/" || # startsWith "testrig/" || # startsWith "vendor/" }) ||
           len(fromJSON(CI_PIPELINE_FILES)) == 0
 
-    image: golang:1.24-alpine
+    image: golang:1.25-alpine
     pull: true
 
     # https://woodpecker-ci.org/docs/administration/configuration/backends/docker#run-user
@@ -80,7 +80,7 @@ steps:
     environment:
       CGO_ENABLED: "0"
       GTS_WAZERO_COMPILATION_CACHE: "/.cache/wazero"
-    
+
     # https://woodpecker-ci.org/docs/usage/workflow-syntax#commands
     commands:
       - >-
@@ -123,13 +123,13 @@ steps:
       - /woodpecker/gotosocial/node_modules:/woodpecker/src/codeberg.org/superseriousbusiness/gotosocial/web/source/node_modules
       - /woodpecker/gotosocial/yarn-cache:/.cache/yarn
       - /woodpecker/gotosocial/web-dist-test:/woodpecker/src/codeberg.org/superseriousbusiness/gotosocial/web/assets/dist
-    
+
     # https://woodpecker-ci.org/docs/usage/workflow-syntax#commands
     commands:
       # Install web dependencies.
       - yarn --cwd ./web/source install --frozen-lockfile --cache-folder /.cache/yarn
       - yarn --cwd ./web/source ts-patch install # https://typia.io/docs/setup/#manual-setup
-      
+
       # Lint web source.
       - yarn --cwd ./web/source lint
 
