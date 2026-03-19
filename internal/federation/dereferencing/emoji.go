@@ -379,7 +379,7 @@ func (d *Dereferencer) processEmojiSafely(
 			}
 
 			// Perform emoji load operation.
-			emoji, err = processing.Load(ctx)
+			_, err = processing.Load(ctx)
 			if err != nil {
 				log.Errorf(ctx, "error loading emoji %s: %v", shortcodeDomain, err)
 			}

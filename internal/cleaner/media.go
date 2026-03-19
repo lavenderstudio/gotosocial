@@ -136,8 +136,10 @@ func (m *Media) PruneOrphaned(ctx context.Context) (int, error) {
 		return 0, gtserror.Newf("error walking storage: %w", err)
 	}
 
-	// Delete all orphaned files from storage.
-	return m.removeFiles(ctx, files...)
+	// Delete all orphaned
+	// files from storage.
+	m.removeFiles(ctx, files...)
+	return len(files), nil
 }
 
 // PruneUnused will delete all unused media attachments from the database and storage driver.
@@ -354,13 +356,11 @@ func (m *Media) stubAccountAttachments(ctx context.Context, accountID string) (i
 // stubAttachment removes stored media and stubs all available fields for given attachment.
 func (m *Media) stubAttachment(ctx context.Context, a *gtsmodel.MediaAttachment) error {
 
-	// Remove any attachment files.
-	if _, err := m.removeFiles(ctx,
+	// Remove any
+	// attachment files.
+	m.removeFiles(ctx,
 		a.Thumbnail.Path,
-		a.File.Path,
-	); err != nil {
-		log.Error(ctx, err)
-	}
+		a.File.Path)
 
 	// Unset
 	// fields.
@@ -600,10 +600,7 @@ func (m *Media) fixCacheState(ctx context.Context, media *gtsmodel.MediaAttachme
 	case !cached && exist:
 		// Remove files if we don't expect them to exist.
 		l.Debug("cached=false exists=true => deleting")
-		_, err := m.removeFiles(ctx,
-			media.Thumbnail.Path,
-			media.File.Path,
-		)
+		m.removeFiles(ctx, media.Thumbnail.Path, media.File.Path)
 		return true, err
 
 	default:
@@ -751,14 +748,9 @@ func (m *Media) uncache(ctx context.Context, media *gtsmodel.MediaAttachment) er
 		return nil
 	}
 
-	// Remove media and thumbnail.
-	_, err := m.removeFiles(ctx,
-		media.File.Path,
-		media.Thumbnail.Path,
-	)
-	if err != nil {
-		return gtserror.Newf("error removing media files: %w", err)
-	}
+	// Get path vars before modification.
+	thumbPath := media.Thumbnail.Path
+	filePath := media.File.Path
 
 	// Update attachment to reflect that we no longer have it cached.
 	log.Debugf(ctx, "marking media attachment as uncached: %s", media.ID)
@@ -770,6 +762,9 @@ func (m *Media) uncache(ctx context.Context, media *gtsmodel.MediaAttachment) er
 		return gtserror.Newf("error updating media: %w", err)
 	}
 
+	// Remove media and thumbnail from storage.
+	m.removeFiles(ctx, thumbPath, filePath)
+
 	return nil
 }
 
@@ -779,20 +774,17 @@ func (m *Media) delete(ctx context.Context, media *gtsmodel.MediaAttachment) err
 		return nil
 	}
 
-	// Remove media and thumbnail.
-	_, err := m.removeFiles(ctx,
-		media.File.Path,
-		media.Thumbnail.Path,
-	)
-	if err != nil {
-		return gtserror.Newf("error removing media files: %w", err)
-	}
-
 	// Delete media attachment entirely from the database.
 	log.Debugf(ctx, "deleting media attachment: %s", media.ID)
 	if err := m.state.DB.DeleteAttachment(ctx, media.ID); err != nil {
 		return gtserror.Newf("error deleting media: %w", err)
 	}
+
+	// Remove media
+	// and thumbnail.
+	m.removeFiles(ctx,
+		media.File.Path,
+		media.Thumbnail.Path)
 
 	return nil
 }
