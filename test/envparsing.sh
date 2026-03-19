@@ -191,6 +191,7 @@ EXPECT=$(cat << "EOF"
     "skip-db-teardown": false,
     "smtp-disclose-recipients": true,
     "smtp-from": "queen.rip.in.piss@terfisland.org",
+    "smtp-from-display-name": "yes queen",
     "smtp-host": "example.com",
     "smtp-password": "hunter2",
     "smtp-port": 4269,
@@ -327,6 +328,7 @@ GTS_SMTP_PORT=4269 \
 GTS_SMTP_USERNAME='sex-haver' \
 GTS_SMTP_PASSWORD='hunter2' \
 GTS_SMTP_FROM='queen.rip.in.piss@terfisland.org' \
+GTS_SMTP_FROM_DISPLAY_NAME='yes queen' \
 GTS_SMTP_DISCLOSE_RECIPIENTS=true \
 GTS_SYSLOG_ENABLED=true \
 GTS_SYSLOG_PROTOCOL='udp' \

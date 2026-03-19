@@ -40,12 +40,23 @@ func (s *sender) sendTemplate(template string, subject string, data any, toAddre
 		return err
 	}
 
-	msg, err := assembleMessage(subject, buf.String(), s.from, s.msgIDHost, toAddresses...)
+	// Assume just from address as mailFromHeader,
+	// eg., 'admin@example.org'. However if from
+	// display name is also set, then include this
+	// too, eg., 'Someone <admin@example.org>'.
+	mailFromHeader := s.fromAddress
+	if s.fromDisplayName != "" {
+		mailFromHeader = s.fromDisplayName + " <" + mailFromHeader + ">"
+	}
+
+	// Use the mailFromHeader when assembling the message itself.
+	msg, err := assembleMessage(subject, buf.String(), mailFromHeader, s.msgIDHost, toAddresses...)
 	if err != nil {
 		return err
 	}
 
-	if err := smtp.SendMail(s.hostAddress, s.auth, s.from, toAddresses, msg); err != nil {
+	// Use just the email address part when actually sending the message.
+	if err := smtp.SendMail(s.hostAddress, s.auth, s.fromAddress, toAddresses, msg); err != nil {
 		return gtserror.SetSMTP(err)
 	}
 
