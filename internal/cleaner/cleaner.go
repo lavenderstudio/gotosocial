@@ -90,16 +90,12 @@ func (c *Cleaner) haveFiles(ctx context.Context, files ...string) (bool, error) 
 }
 
 // removeFiles removes the provided files, returning the number of them returned.
-func (c *Cleaner) removeFiles(ctx context.Context, files ...string) (int, error) {
+func (c *Cleaner) removeFiles(ctx context.Context, files ...string) {
 	if gtscontext.DryRun(ctx) {
-		// Dry run, do nothing.
-		return len(files), nil
+		// Dry run,
+		// do nothing.
+		return
 	}
-
-	var (
-		errs  gtserror.MultiError
-		count int
-	)
 
 	for _, path := range files {
 		if path == "" {
@@ -111,20 +107,10 @@ func (c *Cleaner) removeFiles(ctx context.Context, files ...string) (int, error)
 		log.Debugf(ctx, "removing file: %s", path)
 		err := c.state.Storage.Delete(ctx, path)
 		if err != nil && !storage.IsNotFound(err) {
-			errs.Appendf("error removing %s: %w", path, err)
+			log.Errorf(ctx, "error removing %s: %v", path, err)
 			continue
 		}
-
-		// Incr.
-		count++
 	}
-
-	// Wrap the combined error slice.
-	if err := errs.Combine(); err != nil {
-		return count, gtserror.Newf("error(s) removing files: %w", err)
-	}
-
-	return count, nil
 }
 
 // ScheduleJobs schedules cleaning

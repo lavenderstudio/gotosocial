@@ -333,7 +333,7 @@ func (d *Dereferencer) processMediaSafely(
 			}
 
 			// Perform media load operation.
-			attach, err = processing.Load(ctx)
+			_, err = processing.Load(ctx)
 			if err != nil {
 				log.Errorf(ctx, "error loading media %s: %v", remoteURL, err)
 			}

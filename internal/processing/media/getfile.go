@@ -212,6 +212,7 @@ func (p *Processor) getAttachmentContent(
 	// Attachment file
 	// stream from storage.
 	var rc io.ReadCloser
+	var force bool
 
 	// Check media is meant
 	// to be cached locally.
@@ -223,6 +224,11 @@ func (p *Processor) getAttachmentContent(
 			err := gtserror.Newf("storage error getting cached media %s: %w", attach.URL, err)
 			return nil, gtserror.NewErrorInternalError(err)
 		}
+
+		// In the case that database
+		// model and storage are out
+		// of sync, force a recache.
+		force = true
 	}
 
 	if rc == nil {
@@ -238,7 +244,7 @@ func (p *Processor) getAttachmentContent(
 			requestUser,
 			attach,
 			media.AdditionalMediaInfo{},
-			false,
+			force, // force
 			false, // async
 		)
 		if err != nil {

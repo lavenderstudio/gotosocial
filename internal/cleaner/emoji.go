@@ -203,14 +203,11 @@ func (e *Emoji) PurgeRemote(ctx context.Context, domain string) (int, error) {
 		}
 
 		for _, emoji := range emojis {
-			// Remove emoji and static files.
-			_, err := e.removeFiles(ctx,
+			// Remove emoji
+			// and static files.
+			e.removeFiles(ctx,
 				emoji.ImageStaticPath,
-				emoji.ImagePath,
-			)
-			if err != nil {
-				log.Errorf(ctx, "error removing emoji files: %v", err)
-			}
+				emoji.ImagePath)
 
 			// Unset fields.
 			emoji.Stub()
@@ -429,10 +426,7 @@ func (e *Emoji) fixCacheState(ctx context.Context, emoji *gtsmodel.Emoji) (bool,
 	case !cached && exist:
 		// Remove files if we don't expect them to exist.
 		l.Debug("cached=false exists=true => removing files")
-		_, err := e.removeFiles(ctx,
-			emoji.ImageStaticPath,
-			emoji.ImagePath,
-		)
+		e.removeFiles(ctx, emoji.ImageStaticPath, emoji.ImagePath)
 		return true, err
 
 	default:
@@ -564,14 +558,9 @@ func (e *Emoji) uncache(ctx context.Context, emoji *gtsmodel.Emoji) error {
 		return nil
 	}
 
-	// Remove emoji and static.
-	_, err := e.removeFiles(ctx,
-		emoji.ImagePath,
-		emoji.ImageStaticPath,
-	)
-	if err != nil {
-		return gtserror.Newf("error removing emoji files: %w", err)
-	}
+	// Get path vars before modification.
+	staticPath := emoji.ImageStaticPath
+	filePath := emoji.ImagePath
 
 	// Update emoji to reflect that we no longer have it cached.
 	log.Debugf(ctx, "marking emoji as uncached: %s", emoji.ID)
@@ -583,6 +572,9 @@ func (e *Emoji) uncache(ctx context.Context, emoji *gtsmodel.Emoji) error {
 		return gtserror.Newf("error updating emoji: %w", err)
 	}
 
+	// Remove emoji and static from storage.
+	e.removeFiles(ctx, staticPath, filePath)
+
 	return nil
 }
 
@@ -592,19 +584,17 @@ func (e *Emoji) delete(ctx context.Context, emoji *gtsmodel.Emoji) error {
 		return nil
 	}
 
-	// Remove emoji and static files.
-	_, err := e.removeFiles(ctx,
-		emoji.ImageStaticPath,
-		emoji.ImagePath,
-	)
-	if err != nil {
-		return gtserror.Newf("error removing emoji files: %w", err)
-	}
-
 	// Delete emoji entirely from the database by its ID.
+	log.Debugf(ctx, "deleting emoji: %s", emoji.ID)
 	if err := e.state.DB.DeleteEmojiByID(ctx, emoji.ID); err != nil {
 		return gtserror.Newf("error deleting emoji: %w", err)
 	}
+
+	// Remove emoji
+	// and static files.
+	e.removeFiles(ctx,
+		emoji.ImageStaticPath,
+		emoji.ImagePath)
 
 	return nil
 }
