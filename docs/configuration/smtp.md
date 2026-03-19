@@ -2,7 +2,7 @@
 
 GoToSocial supports sending emails to users via the [Simple Mail Transfer Protocol](https://wikipedia.org/wiki/Simple_Mail_Transfer_Protocol) or **smtp**.
 
-Configuring GoToSocial to send emails is **not required** in order to have a properly running instance. Still, it's very useful for doing things like sending confirmation emails and notifications, and handling password reset requests.
+Configuring GoToSocial to send emails is not required in order to have a running instance. However, it is useful for doing things like sending confirmation emails and notifications, and it is necessary for handling new signups via the sign up page.
 
 In order to make GoToSocial email sending work, you need an smtp-compatible mail service running somewhere, either as a server on the same machine that GoToSocial is running on, or via an external service like [Mailgun](https://mailgun.com). It may also be possible to use a free personal email address for sending emails, if your email provider supports smtp (check with them--most do), but you might run into trouble sending lots of emails.
 
@@ -63,6 +63,11 @@ smtp-password: ""
 # Examples: ["mail@example.org"]
 # Default: ""
 smtp-from: ""
+
+# String. Optional 'From' display name for sent emails.
+# Examples: ["admin"]
+# Default: ""
+smtp-from-display-name: ""
 
 # Bool. If true, when an email is sent that has multiple recipients, each recipient
 # will be included in the To field, so that each recipient can see who else got the

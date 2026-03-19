@@ -1120,6 +1120,11 @@ smtp-password: ""
 # Default: ""
 smtp-from: ""
 
+# String. Optional 'From' display name for sent emails.
+# Examples: ["admin"]
+# Default: ""
+smtp-from-display-name: ""
+
 # Bool. If true, when an email is sent that has multiple recipients, each recipient
 # will be included in the To field, so that each recipient can see who else got the
 # email, and they can 'reply all' to the other recipients if they want to.

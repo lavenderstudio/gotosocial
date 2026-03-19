@@ -126,6 +126,7 @@ const (
 	SMTPUsernameFlag                              = "smtp-username"
 	SMTPPasswordFlag                              = "smtp-password"
 	SMTPFromFlag                                  = "smtp-from"
+	SMTPFromDisplayNameFlag                       = "smtp-from-display-name"
 	SMTPDiscloseRecipientsFlag                    = "smtp-disclose-recipients"
 	SyslogEnabledFlag                             = "syslog-enabled"
 	SyslogProtocolFlag                            = "syslog-protocol"
@@ -333,6 +334,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.String("smtp-username", cfg.SMTPUsername, "Username to authenticate with the smtp server as. Eg., 'postmaster@mail.example.org'")
 	flags.String("smtp-password", cfg.SMTPPassword, "Password to pass to the smtp server.")
 	flags.String("smtp-from", cfg.SMTPFrom, "Address to use as the 'from' field of the email. Eg., 'gotosocial@example.org'")
+	flags.String("smtp-from-display-name", cfg.SMTPFromDisplayName, "Optional display name to use in addition to 'from' address. Eg., 'Admin'")
 	flags.Bool("smtp-disclose-recipients", cfg.SMTPDiscloseRecipients, "If true, email notifications sent to multiple recipients will be To'd to every recipient at once. If false, recipients will not be disclosed")
 	flags.Bool("syslog-enabled", cfg.SyslogEnabled, "Enable the syslog logging hook. Logs will be mirrored to the configured destination.")
 	flags.String("syslog-protocol", cfg.SyslogProtocol, "Protocol to use when directing logs to syslog. Leave empty to connect to local syslog.")
@@ -434,7 +436,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 }
 
 func (cfg *Configuration) MarshalMap() map[string]any {
-	cfgmap := make(map[string]any, 204)
+	cfgmap := make(map[string]any, 205)
 	cfgmap["log-level"] = cfg.LogLevel
 	cfgmap["log-format"] = cfg.LogFormat
 	cfgmap["log-timestamp-format"] = cfg.LogTimestampFormat
@@ -532,6 +534,7 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["smtp-username"] = cfg.SMTPUsername
 	cfgmap["smtp-password"] = cfg.SMTPPassword
 	cfgmap["smtp-from"] = cfg.SMTPFrom
+	cfgmap["smtp-from-display-name"] = cfg.SMTPFromDisplayName
 	cfgmap["smtp-disclose-recipients"] = cfg.SMTPDiscloseRecipients
 	cfgmap["syslog-enabled"] = cfg.SyslogEnabled
 	cfgmap["syslog-protocol"] = cfg.SyslogProtocol
@@ -1432,6 +1435,14 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		cfg.SMTPFrom, err = cast.ToStringE(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> string for 'smtp-from': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["smtp-from-display-name"]; ok {
+		var err error
+		cfg.SMTPFromDisplayName, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'smtp-from-display-name': %w", ival, err)
 		}
 	}
 
@@ -4459,6 +4470,28 @@ func GetSMTPFrom() string { return global.GetSMTPFrom() }
 
 // SetSMTPFrom safely sets the value for global configuration 'SMTPFrom' field
 func SetSMTPFrom(v string) { global.SetSMTPFrom(v) }
+
+// GetSMTPFromDisplayName safely fetches the Configuration value for state's 'SMTPFromDisplayName' field
+func (st *ConfigState) GetSMTPFromDisplayName() (v string) {
+	st.mutex.RLock()
+	v = st.config.SMTPFromDisplayName
+	st.mutex.RUnlock()
+	return
+}
+
+// SetSMTPFromDisplayName safely sets the Configuration value for state's 'SMTPFromDisplayName' field
+func (st *ConfigState) SetSMTPFromDisplayName(v string) {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+	st.config.SMTPFromDisplayName = v
+	st.reloadToViper()
+}
+
+// GetSMTPFromDisplayName safely fetches the value for global configuration 'SMTPFromDisplayName' field
+func GetSMTPFromDisplayName() string { return global.GetSMTPFromDisplayName() }
+
+// SetSMTPFromDisplayName safely sets the value for global configuration 'SMTPFromDisplayName' field
+func SetSMTPFromDisplayName(v string) { global.SetSMTPFromDisplayName(v) }
 
 // GetSMTPDiscloseRecipients safely fetches the Configuration value for state's 'SMTPDiscloseRecipients' field
 func (st *ConfigState) GetSMTPDiscloseRecipients() (v bool) {
