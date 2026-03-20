@@ -102,7 +102,7 @@ func (p *Processor) DomainPermissionDraftsGet(
 		query.Set(apiutil.DomainPermissionSubscriptionIDKey, subscriptionID)
 	}
 	if domain != "" {
-		query.Set(apiutil.DomainPermissionDomainKey, domain)
+		query.Set(apiutil.DomainKey, domain)
 	}
 	if permType != gtsmodel.DomainPermissionUnknown {
 		query.Set(apiutil.DomainPermissionPermTypeKey, permType.String())

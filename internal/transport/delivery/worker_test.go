@@ -45,7 +45,7 @@ func TestDeliveryWorkerPool(t *testing.T) {
 func testDeliveryWorkerPool(t *testing.T, sz int, input []*testrequest) {
 	wp := new(delivery.WorkerPool)
 	allowLocal := []netip.Prefix{netip.MustParsePrefix("127.0.0.0/8")}
-	wp.Init(httpclient.New(httpclient.Config{AllowRanges: allowLocal}))
+	wp.Init(httpclient.New(httpclient.Config{AllowRanges: allowLocal}), nil)
 	wp.Start(sz)
 	defer wp.Stop()
 	test(t, &wp.Queue, input)

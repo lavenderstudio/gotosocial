@@ -42,7 +42,7 @@ func StartNoopWorkers(state *state.State) {
 
 	state.Workers.Client.Init(messages.ClientMsgIndices())
 	state.Workers.Federator.Init(messages.FederatorMsgIndices())
-	state.Workers.Delivery.Init(nil)
+	state.Workers.Delivery.Init(nil, state.DB)
 
 	// Specifically do NOT start the workers
 	// as caller may require queue contents.
@@ -71,7 +71,7 @@ func StartWorkers(state *state.State, processor *workers.Processor) {
 
 	state.Workers.Client.Init(messages.ClientMsgIndices())
 	state.Workers.Federator.Init(messages.FederatorMsgIndices())
-	state.Workers.Delivery.Init(nil)
+	state.Workers.Delivery.Init(nil, state.DB)
 
 	_ = state.Workers.Scheduler.Start()
 	state.Workers.Client.Start(1)

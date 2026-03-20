@@ -122,7 +122,7 @@ function GeneralAccountDetails({ adminAcct } : { adminAcct: AdminAccount }) {
 							rel="noreferrer"
 						>
 							<i className="fa fa-fw fa-external-link" aria-hidden="true"></i> {adminAcct.account.url} (opens in a new tab)
-						</a> 
+						</a>
 					</dd>
 				</div>
 				<div className="info-list-entry">

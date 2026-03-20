@@ -20,44 +20,11 @@ package admin
 import (
 	"context"
 	"errors"
-	"time"
 
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 )
-
-// stubbifyInstance renders the given instance as a stub,
-// removing most information from it and marking it as
-// suspended.
-//
-// For caller's convenience, this function returns the db
-// names of all columns that are updated by it.
-func stubbifyInstance(instance *gtsmodel.Instance, domainBlockID string) []string {
-	instance.Title = ""
-	instance.SuspendedAt = time.Now()
-	instance.DomainBlockID = domainBlockID
-	instance.ShortDescription = ""
-	instance.Description = ""
-	instance.Terms = ""
-	instance.ContactEmail = ""
-	instance.ContactAccountUsername = ""
-	instance.ContactAccountID = ""
-	instance.Version = ""
-
-	return []string{
-		"title",
-		"suspended_at",
-		"domain_block_id",
-		"short_description",
-		"description",
-		"terms",
-		"contact_email",
-		"contact_account_username",
-		"contact_account_id",
-		"version",
-	}
-}
 
 // rangeDomainAccounts iterates through all accounts
 // originating from the given domain, and calls the

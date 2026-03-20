@@ -24,8 +24,6 @@ import (
 	"strings"
 	"testing"
 
-	"code.superseriousbusiness.org/gotosocial/internal/config"
-	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
@@ -1665,12 +1663,12 @@ func (suite *InternalToFrontendTestSuite) TestVideoAttachmentToFrontend() {
 func (suite *InternalToFrontendTestSuite) TestInstanceV1ToFrontend() {
 	ctx := suite.T().Context()
 
-	i := &gtsmodel.Instance{}
-	if err := suite.db.GetWhere(ctx, []db.Where{{Key: "domain", Value: config.GetHost()}}, i); err != nil {
+	i, err := suite.state.DB.GetInstanceSettings(ctx)
+	if err != nil {
 		suite.FailNow(err.Error())
 	}
 
-	instance, err := suite.typeconverter.InstanceToAPIV1Instance(ctx, i)
+	instance, err := suite.typeconverter.InstanceSettingsToAPIV1Instance(ctx, i)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -1756,7 +1754,7 @@ func (suite *InternalToFrontendTestSuite) TestInstanceV1ToFrontend() {
     "streaming_api": "wss://localhost:8080"
   },
   "stats": {
-    "domain_count": 2,
+    "domain_count": 4,
     "status_count": 24,
     "user_count": 5
   },
@@ -1796,7 +1794,16 @@ func (suite *InternalToFrontendTestSuite) TestInstanceV1ToFrontend() {
     "group": false
   },
   "max_toot_chars": 5000,
-  "rules": [],
+  "rules": [
+    {
+      "id": "01GP3AWY4CRDVRNZKW0TEAMB51",
+      "text": "Be gay"
+    },
+    {
+      "id": "01GP3DFY9XQ1TJMZT5BGAZPXX3",
+      "text": "Do crime"
+    }
+  ],
   "terms": "\u003cp\u003eThis is where a list of terms and conditions might go.\u003c/p\u003e\u003cp\u003eFor example:\u003c/p\u003e\u003cp\u003eIf you want to sign up on this instance, you oughta know that we:\u003c/p\u003e\u003col\u003e\u003cli\u003eWill sell your data to whoever offers.\u003c/li\u003e\u003cli\u003eSecure the server with password \u003ccode\u003epassword\u003c/code\u003e wherever possible.\u003c/li\u003e\u003c/ol\u003e",
   "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`"+`password`+"`"+` wherever possible."
 }`, string(b))
@@ -1805,12 +1812,12 @@ func (suite *InternalToFrontendTestSuite) TestInstanceV1ToFrontend() {
 func (suite *InternalToFrontendTestSuite) TestInstanceV2ToFrontend() {
 	ctx := suite.T().Context()
 
-	i := &gtsmodel.Instance{}
-	if err := suite.db.GetWhere(ctx, []db.Where{{Key: "domain", Value: config.GetHost()}}, i); err != nil {
+	i, err := suite.state.DB.GetInstanceSettings(ctx)
+	if err != nil {
 		suite.FailNow(err.Error())
 	}
 
-	instance, err := suite.typeconverter.InstanceToAPIV2Instance(ctx, i)
+	instance, err := suite.typeconverter.InstanceSettingsToAPIV2Instance(ctx, i)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -1958,7 +1965,16 @@ func (suite *InternalToFrontendTestSuite) TestInstanceV2ToFrontend() {
       "group": false
     }
   },
-  "rules": [],
+  "rules": [
+    {
+      "id": "01GP3AWY4CRDVRNZKW0TEAMB51",
+      "text": "Be gay"
+    },
+    {
+      "id": "01GP3DFY9XQ1TJMZT5BGAZPXX3",
+      "text": "Do crime"
+    }
+  ],
   "terms": "\u003cp\u003eThis is where a list of terms and conditions might go.\u003c/p\u003e\u003cp\u003eFor example:\u003c/p\u003e\u003cp\u003eIf you want to sign up on this instance, you oughta know that we:\u003c/p\u003e\u003col\u003e\u003cli\u003eWill sell your data to whoever offers.\u003c/li\u003e\u003cli\u003eSecure the server with password \u003ccode\u003epassword\u003c/code\u003e wherever possible.\u003c/li\u003e\u003c/ol\u003e",
   "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`"+`password`+"`"+` wherever possible."
 }`, s)

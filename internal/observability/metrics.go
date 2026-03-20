@@ -76,13 +76,11 @@ func InitializeMetrics(ctx context.Context, state *state.State) error {
 
 	meter := meterProvider.Meter(serviceName)
 
-	thisInstance := config.GetHost()
-
 	_, err = meter.Int64ObservableGauge(
 		"gotosocial.instance.total_users",
 		metric.WithDescription("Total number of users on this instance"),
 		metric.WithInt64Callback(func(ctx context.Context, o metric.Int64Observer) error {
-			userCount, err := state.DB.CountInstanceUsers(ctx, thisInstance)
+			userCount, err := state.DB.CountInstanceAccounts(ctx)
 			if err != nil {
 				return err
 			}
@@ -98,7 +96,7 @@ func InitializeMetrics(ctx context.Context, state *state.State) error {
 		"gotosocial.instance.total_statuses",
 		metric.WithDescription("Total number of statuses on this instance"),
 		metric.WithInt64Callback(func(ctx context.Context, o metric.Int64Observer) error {
-			statusCount, err := state.DB.CountInstanceStatuses(ctx, thisInstance)
+			statusCount, err := state.DB.CountInstanceStatuses(ctx)
 			if err != nil {
 				return err
 			}
@@ -114,7 +112,7 @@ func InitializeMetrics(ctx context.Context, state *state.State) error {
 		"gotosocial.instance.total_federating_instances",
 		metric.WithDescription("Total number of other instances this instance is federating with"),
 		metric.WithInt64Callback(func(ctx context.Context, o metric.Int64Observer) error {
-			federatingCount, err := state.DB.CountInstanceDomains(ctx, thisInstance)
+			federatingCount, err := state.DB.CountInstancePeers(ctx)
 			if err != nil {
 				return err
 			}

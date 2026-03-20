@@ -210,6 +210,7 @@ var Defaults = Configuration{
 		DomainPermissionSubscriptionMemRatio: 0.5,
 		EmojiMemRatio:                        3,
 		EmojiCategoryMemRatio:                0.1,
+		FederationErrorMemRatio:              0.2,
 		FilterMemRatio:                       0.5,
 		FilterIDsMemRatio:                    2,
 		FilterKeywordMemRatio:                0.5,

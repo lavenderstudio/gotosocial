@@ -21,7 +21,8 @@ import React from "react";
 import { Link } from "wouter";
 
 export default function BackButton({ to }) {
+	const backLocation: string = history.state?.backLocation ?? to;
 	return (
-		<Link className="button" to={to}>&lt; back</Link>
+		<Link className="button" to={backLocation}>&lt; back</Link>
 	);
 }

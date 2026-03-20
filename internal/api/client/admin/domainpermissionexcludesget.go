@@ -157,7 +157,7 @@ func (m *Module) DomainPermissionExcludesGETHandler(c *gin.Context) {
 
 	resp, errWithCode := m.processor.Admin().DomainPermissionExcludesGet(
 		c.Request.Context(),
-		c.Query(apiutil.DomainPermissionDomainKey),
+		c.Query(apiutil.DomainKey),
 		page,
 	)
 	if errWithCode != nil {

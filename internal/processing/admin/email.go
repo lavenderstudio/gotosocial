@@ -19,7 +19,6 @@ package admin
 
 import (
 	"context"
-	"fmt"
 
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/email"
@@ -40,19 +39,20 @@ func (p *Processor) EmailTest(
 	toAddress string,
 	message string,
 ) gtserror.WithCode {
-	// Pull our instance entry from the database,
+	// Pull our instance settings from the database,
 	// so we can greet the email recipient nicely.
-	instance, err := p.state.DB.GetInstance(ctx, config.GetHost())
+	settings, err := p.state.DB.GetInstanceSettings(ctx)
 	if err != nil {
-		err = fmt.Errorf("SendConfirmEmail: error getting instance: %s", err)
+		err := gtserror.Newf("db error getting instance settings: %w", err)
 		return gtserror.NewErrorInternalError(err)
 	}
 
+	instanceURL := config.GetProtocol() + "://" + config.GetHost()
 	testData := email.TestData{
 		SendingUsername: account.Username,
 		Message:         message,
-		InstanceURL:     instance.URI,
-		InstanceName:    instance.Title,
+		InstanceURL:     instanceURL,
+		InstanceName:    settings.Title,
 	}
 
 	if err := p.email.SendTestEmail(toAddress, testData); err != nil {

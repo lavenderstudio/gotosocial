@@ -55,6 +55,7 @@ type BunDBStandardTestSuite struct {
 	testPollVotes           map[string]*gtsmodel.PollVote
 	testInteractionRequests map[string]*gtsmodel.InteractionRequest
 	testStatusEdits         map[string]*gtsmodel.StatusEdit
+	testInstances           map[string]*gtsmodel.Instance
 }
 
 func (suite *BunDBStandardTestSuite) SetupSuite() {
@@ -81,6 +82,7 @@ func (suite *BunDBStandardTestSuite) SetupSuite() {
 	suite.testPollVotes = testrig.NewTestPollVotes()
 	suite.testInteractionRequests = testrig.NewTestInteractionRequests()
 	suite.testStatusEdits = testrig.NewTestStatusEdits()
+	suite.testInstances = testrig.NewTestInstances()
 }
 
 func (suite *BunDBStandardTestSuite) SetupTest() {

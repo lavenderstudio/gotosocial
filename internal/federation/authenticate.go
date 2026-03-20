@@ -523,14 +523,19 @@ func (f *Federator) fetchAccountInstance(
 	requestedUser string,
 	accountURI *url.URL,
 ) error {
-	// Look for an existing entry for instance in database.
-	instance, err := f.db.GetInstance(ctx, accountURI.Host)
+	// Look for an existing entry
+	// for instance in database.
+	instance, err := f.db.GetInstance(
+		gtscontext.SetBarebones(ctx),
+		accountURI.Host,
+	)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		return gtserror.Newf("error getting instance from database: %w", err)
 	}
 
 	if instance != nil {
-		// already fetched.
+		// Already
+		// in the db.
 		return nil
 	}
 

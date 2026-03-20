@@ -39,6 +39,7 @@ import (
 	"code.superseriousbusiness.org/activity/streams/vocab"
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/id"
 	"code.superseriousbusiness.org/gotosocial/internal/transport"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
@@ -1884,37 +1885,67 @@ func NewTestStatusToEmojis() map[string]*gtsmodel.StatusToEmoji {
 
 func NewTestInstances() map[string]*gtsmodel.Instance {
 	return map[string]*gtsmodel.Instance{
-		"localhost:8080": {
-			ID:                     "01G774F5TSHJ2ZSF7XRC5EMT6K",
-			CreatedAt:              TimeMustParse("2020-01-20T13:12:00+02:00"),
-			UpdatedAt:              TimeMustParse("2020-01-20T13:12:00+02:00"),
-			Domain:                 "localhost:8080",
-			URI:                    "http://localhost:8080",
-			Title:                  "GoToSocial Testrig Instance",
-			ShortDescription:       "<p>This is the GoToSocial testrig. It doesn't federate or anything.</p><p>When the testrig is shut down, all data on it will be deleted.</p><p>Don't use this in production!</p>",
-			ShortDescriptionText:   "This is the GoToSocial testrig. It doesn't federate or anything.\n\nWhen the testrig is shut down, all data on it will be deleted.\n\nDon't use this in production!",
-			Description:            "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
-			DescriptionText:        "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `internal/testmodels.go`.",
-			Terms:                  "<p>This is where a list of terms and conditions might go.</p><p>For example:</p><p>If you want to sign up on this instance, you oughta know that we:</p><ol><li>Will sell your data to whoever offers.</li><li>Secure the server with password <code>password</code> wherever possible.</li></ol>",
-			TermsText:              "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `password` wherever possible.",
-			ContactEmail:           "admin@example.org",
-			ContactAccountUsername: "admin",
-			ContactAccountID:       "01F8MH17FWEB39HZJ76B6VXSKF",
-		},
 		"fossbros-anonymous.io": {
-			ID:        "01G5H6YMJQKR86QZKXXQ2S95FZ",
-			CreatedAt: TimeMustParse("2021-09-20T12:40:37+02:00"),
-			UpdatedAt: TimeMustParse("2021-09-20T12:40:37+02:00"),
-			Domain:    "fossbros-anonymous.io",
-			URI:       "http://fossbros-anonymous.io",
+			ID:                       "01FGGVRD9R2HH5ETYXYXYV8TNG",
+			Domain:                   "fossbros-anonymous.io",
+			Software:                 "pleroma",
+			LatestSuccessfulDelivery: TimeMustParse("2024-02-19T11:44:00Z"),
 		},
 		"example.org": {
-			ID:        "01G5H71G52DJKVBYKXPNPNDN1G",
-			CreatedAt: TimeMustParse("2020-05-13T15:29:12+02:00"),
-			UpdatedAt: TimeMustParse("2020-05-13T15:29:12+02:00"),
-			Domain:    "example.org",
-			URI:       "http://example.org",
+			ID:                       "01EFC4MKCRP7ET05KTAHZ3MQ0K",
+			Domain:                   "example.org",
+			Software:                 "mastodon",
+			LatestSuccessfulDelivery: TimeMustParse("2023-07-18T09:01:00Z"),
 		},
+		"thequeenisstillalive.technology": {
+			ID:       "01EFC4MHE8K7MVS500P32JZRYE",
+			Domain:   "thequeenisstillalive.technology",
+			Software: "gotosocial",
+		},
+		"xn--xample-ova.org": {
+			ID:                       "01G4QA52E8Q9CZKHMBXD2J1PH1",
+			Domain:                   "xn--xample-ova.org",
+			Software:                 "misskey",
+			LatestSuccessfulDelivery: TimeMustParse("2022-06-10T15:22:08Z"),
+		},
+		"replyguys.com": {
+			ID:       "01E85P26Y8DHXPY0R6JB28DNJV",
+			Domain:   "replyguys.com",
+			Software: "akkoma",
+		},
+	}
+}
+
+func NewTestFederationErrors() map[string]*gtsmodel.FederationError {
+	return map[string]*gtsmodel.FederationError{
+		"thequeenisstillalive.technology_1": {
+			ID:         id.NewULIDFromTime(TimeMustParse("2023-07-19T10:15:12Z")),
+			InstanceID: "01EFC4MHE8K7MVS500P32JZRYE",
+			Type:       gtsmodel.FederationErrorTypeDelivery,
+			Error:      "Post \"https://thequeenisstillalive.technology/inbox\": remote error: tls: unrecognized name",
+		},
+		"thequeenisstillalive.technology_2": {
+			ID:         id.NewULIDFromTime(TimeMustParse("2023-07-18T09:01:00Z")),
+			InstanceID: "01EFC4MHE8K7MVS500P32JZRYE",
+			Type:       gtsmodel.FederationErrorTypeDelivery,
+			Error:      "too stinky",
+		},
+	}
+}
+
+func NewTestInstanceSettings() *gtsmodel.InstanceSettings {
+	return &gtsmodel.InstanceSettings{
+		ID:                     "01E8HC4KNRDNP52APRD1976KNB",
+		Title:                  "GoToSocial Testrig Instance",
+		ShortDescription:       "<p>This is the GoToSocial testrig. It doesn't federate or anything.</p><p>When the testrig is shut down, all data on it will be deleted.</p><p>Don't use this in production!</p>",
+		ShortDescriptionText:   "This is the GoToSocial testrig. It doesn't federate or anything.\n\nWhen the testrig is shut down, all data on it will be deleted.\n\nDon't use this in production!",
+		Description:            "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
+		DescriptionText:        "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `internal/testmodels.go`.",
+		Terms:                  "<p>This is where a list of terms and conditions might go.</p><p>For example:</p><p>If you want to sign up on this instance, you oughta know that we:</p><ol><li>Will sell your data to whoever offers.</li><li>Secure the server with password <code>password</code> wherever possible.</li></ol>",
+		TermsText:              "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `password` wherever possible.",
+		ContactEmail:           "admin@example.org",
+		ContactAccountUsername: "admin",
+		ContactAccountID:       "01F8MH17FWEB39HZJ76B6VXSKF",
 	}
 }
 

@@ -107,7 +107,7 @@ func (p *Processor) DirectoryGet(
 		Next:  page.Next(lo, hi),
 		Prev:  page.Prev(lo, hi),
 		Query: url.Values{
-			apiutil.DirectoryOrderKey: []string{orderBy.String()},
+			apiutil.OrderKey: []string{orderBy.String()},
 		},
 	}), nil
 }
@@ -163,7 +163,7 @@ func (p *Processor) WebDirectoryGet(
 		Next:  page.Next(lo, hi),
 		Prev:  page.Prev(lo, hi),
 		Query: url.Values{
-			apiutil.DirectoryOrderKey: []string{orderBy.String()},
+			apiutil.OrderKey: []string{orderBy.String()},
 		},
 	}), nil
 }

@@ -39,6 +39,7 @@ const (
 	scopeFavourites    = "favourites"
 	scopeFilters       = "filters"
 	scopeFollows       = "follows"
+	scopeInstances     = "instances"
 	scopeLists         = "lists"
 	scopeMedia         = "media"
 	scopeMutes         = "mutes"
@@ -97,6 +98,7 @@ const (
 	ScopeAdminWriteDomainBlocks Scope = ScopeAdminWrite + ":" + scopeDomainBlocks
 	ScopeAdminReadDomainLimits  Scope = ScopeAdminRead + ":" + scopeDomainLimits
 	ScopeAdminWriteDomainLimits Scope = ScopeAdminWrite + ":" + scopeDomainLimits
+	ScopeAdminReadInstances     Scope = ScopeAdminRead + ":" + scopeInstances
 	ScopeAdminReadReports       Scope = ScopeAdminRead + ":" + scopeReports
 	ScopeAdminWriteReports      Scope = ScopeAdminWrite + ":" + scopeReports
 )

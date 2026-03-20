@@ -17,6 +17,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+import { Links } from "parse-link-header";
 import { Account } from "./account";
 
 export interface InstanceV1 {
@@ -141,4 +142,33 @@ export interface InstanceV2Translation {
 
 export interface InstanceV2URLs {
     streaming: string;
+}
+
+export interface AdminInstance {
+    id: string;
+    domain: string;
+    software?: string;
+    first_seen: string;
+    latest_successful_delivery?: string;
+    delivery_errors?: AdminInstanceDeliveryError[];
+}
+
+export interface AdminInstanceDeliveryError {
+    error: string;
+    time: string;
+}
+
+export interface SearchInstancesParams {
+    domain?: string;
+    order?: "alphabetical" | "latest",
+    undeliverable?: boolean;
+    max_id?: string,
+    since_id?: string,
+    min_id?: string,
+    limit?: number,
+}
+
+export interface SearchInstancesResp {
+    instances: AdminInstance[];
+    links: Links | null;
 }

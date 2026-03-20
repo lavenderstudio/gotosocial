@@ -218,8 +218,8 @@ func Start(ctx context.Context) error {
 	if err := dbService.CreateInstanceAccount(ctx); err != nil {
 		return fmt.Errorf("error creating instance account: %s", err)
 	}
-	if err := dbService.CreateInstanceInstance(ctx); err != nil {
-		return fmt.Errorf("error creating instance instance: %s", err)
+	if err := dbService.CreateInstanceSettings(ctx); err != nil {
+		return fmt.Errorf("error creating instance settings: %s", err)
 	}
 	if err := dbService.CreateInstanceApplication(ctx); err != nil {
 		return fmt.Errorf("error creating instance application: %s", err)
@@ -375,7 +375,7 @@ func Start(ctx context.Context) error {
 	// Initialize the specialized workers pools.
 	state.Workers.Client.Init(messages.ClientMsgIndices())
 	state.Workers.Federator.Init(messages.FederatorMsgIndices())
-	state.Workers.Delivery.Init(client)
+	state.Workers.Delivery.Init(client, state.DB)
 	state.Workers.Client.Process = process.Workers().ProcessFromClientAPI
 	state.Workers.Federator.Process = process.Workers().ProcessFromFediAPI
 

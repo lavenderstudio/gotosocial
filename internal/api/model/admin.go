@@ -288,3 +288,46 @@ type AdminAccountRejectRequest struct {
 	// them that their sign-up has been rejected.
 	SendEmail bool `form:"send_email" json:"send_email"`
 }
+
+// AdminInstance models the admin view of an instance.
+//
+// swagger:model adminInstance
+type AdminInstance struct {
+	// ID of this instance.
+	// example: 01KJQGK06SMJ8KDW6DCRRXTG8D
+	ID string `json:"id"`
+	// Domain of this instance.
+	// example: example.org
+	Domain string `json:"domain"`
+	// Software this instance purports to be running.
+	// May be omitted when the running software cannot be determined.
+	// example: gotosocial
+	Software string `json:"software,omitempty"`
+	// Time when the instance was first seen by this instance.
+	// example: 2022-10-05T09:21:26.419Z
+	FirstSeen string `json:"first_seen"`
+	// Time of the latest successful delivery of a message to someone on this instance.
+	// May be omitted if no messages have ever been delivered to this instance.
+	// example: 2022-10-05T09:21:26.419Z
+	LatestSuccessfulDelivery string `json:"latest_successful_delivery,omitempty"`
+	// Last 20 errors from delivery attempts to this instance.
+	// Cleared after a successful delivery.
+	// Not set if delivery to this instance never attempted or delivery to this instance not errored since latest_successful_delivery time.
+	DeliveryErrors []AdminInstanceDeliveryError `json:"delivery_errors,omitempty"`
+
+	// TODO: add statuses count, accounts
+	// count, follow relationships etc.
+}
+
+// AdminInstanceDeliveryError models an error encountered
+// while trying to deliver a message to an inbox on an instance.
+//
+// swagger:model adminInstanceDeliveryError
+type AdminInstanceDeliveryError struct {
+	// Time of this delivery error.
+	// example: 2022-10-05T09:21:26.419Z
+	Time string `json:"time"`
+	// Message for this delivery error.
+	// example: boobs
+	Error string `json:"error"`
+}

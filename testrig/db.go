@@ -37,6 +37,7 @@ var testModels = []interface{}{
 	&gtsmodel.Block{},
 	&gtsmodel.DomainBlock{},
 	&gtsmodel.EmailDomainBlock{},
+	&gtsmodel.FederationError{},
 	&gtsmodel.Filter{},
 	&gtsmodel.FilterKeyword{},
 	&gtsmodel.FilterStatus{},
@@ -66,6 +67,7 @@ var testModels = []interface{}{
 	&gtsmodel.WebPushSubscription{},
 	&gtsmodel.Emoji{},
 	&gtsmodel.Instance{},
+	&gtsmodel.InstanceSettings{},
 	&gtsmodel.Notification{},
 	&gtsmodel.RouterSession{},
 	&gtsmodel.Token{},
@@ -233,6 +235,12 @@ func StandardDBSetup(db db.DB, accounts map[string]*gtsmodel.Account) {
 		}
 	}
 
+	for _, v := range NewTestFederationErrors() {
+		if err := db.Put(ctx, v); err != nil {
+			log.Panic(ctx, err)
+		}
+	}
+
 	for _, v := range NewTestStatusToEmojis() {
 		if err := db.Put(ctx, v); err != nil {
 			log.Panic(ctx, err)
@@ -377,11 +385,7 @@ func StandardDBSetup(db db.DB, accounts map[string]*gtsmodel.Account) {
 		}
 	}
 
-	if err := db.CreateInstanceAccount(ctx); err != nil {
-		log.Panic(ctx, err)
-	}
-
-	if err := db.CreateInstanceInstance(ctx); err != nil {
+	if err := db.Put(ctx, NewTestInstanceSettings()); err != nil {
 		log.Panic(ctx, err)
 	}
 

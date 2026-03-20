@@ -239,6 +239,7 @@ type CacheConfiguration struct {
 	DomainPermissionSubscriptionMemRatio float64       `name:"domain-permission-subscription-mem-ratio"`
 	EmojiMemRatio                        float64       `name:"emoji-mem-ratio"`
 	EmojiCategoryMemRatio                float64       `name:"emoji-category-mem-ratio"`
+	FederationErrorMemRatio              float64       `name:"federation-error-mem-ratio"`
 	FilterMemRatio                       float64       `name:"filter-mem-ratio"`
 	FilterIDsMemRatio                    float64       `name:"filter-ids-mem-ratio"`
 	FilterKeywordMemRatio                float64       `name:"filter-keyword-mem-ratio"`

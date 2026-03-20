@@ -69,6 +69,8 @@ const (
 	EmailTestPath                            = EmailPath + "/test"
 	InstanceRulesPath                        = BasePath + "/instance/rules"
 	InstanceRulesPathWithID                  = InstanceRulesPath + "/:" + apiutil.IDKey
+	InstancesPath                            = BasePath + "/instances"
+	InstancesPathWithID                      = InstancesPath + "/:" + apiutil.IDKey
 
 	FilterQueryKey        = "filter"
 	MaxShortcodeDomainKey = "max_shortcode_domain"
@@ -179,4 +181,8 @@ func (m *Module) Route(attachHandler func(method string, path string, f ...gin.H
 	attachHandler(http.MethodPost, InstanceRulesPath, m.RulePOSTHandler)
 	attachHandler(http.MethodPatch, InstanceRulesPathWithID, m.RulePATCHHandler)
 	attachHandler(http.MethodDelete, InstanceRulesPathWithID, m.RuleDELETEHandler)
+
+	// instances stuff
+	attachHandler(http.MethodGet, InstancesPath, m.InstancesGETHandler)
+	attachHandler(http.MethodGet, InstancesPathWithID, m.InstanceGETHandler)
 }

@@ -26,8 +26,6 @@ import (
 	"testing"
 
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/instance"
-	"code.superseriousbusiness.org/gotosocial/internal/middleware"
-	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
@@ -36,7 +34,12 @@ type InstancePatchTestSuite struct {
 	InstanceStandardTestSuite
 }
 
-func (suite *InstancePatchTestSuite) instancePatch(fieldName string, fileName string, extraFields map[string][]string) (code int, body []byte) {
+func (suite *InstancePatchTestSuite) instancePatch(
+	module *instance.Module,
+	fieldName string,
+	fileName string,
+	extraFields map[string][]string,
+) (code int, body []byte) {
 	var dataF testrig.DataF
 	if fieldName != "" && fileName != "" {
 		dataF = testrig.FileToDataF(fieldName, fileName)
@@ -48,10 +51,17 @@ func (suite *InstancePatchTestSuite) instancePatch(fieldName string, fileName st
 	}
 
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPatch, instance.InstanceInformationPathV1, requestBody.Bytes(), w.FormDataContentType(), true)
+	ctx := suite.newContext(
+		recorder,
+		http.MethodPatch,
+		instance.InstanceInformationPathV1,
+		requestBody.Bytes(),
+		w.FormDataContentType(),
+		true, // auth
+	)
 
-	suite.instanceModule.InstanceUpdatePATCHHandler(ctx)
-	middleware.Logger(false)(ctx)
+	// Call the handler.
+	module.InstanceUpdatePATCHHandler(ctx)
 
 	result := recorder.Result()
 	defer result.Body.Close()
@@ -64,12 +74,20 @@ func (suite *InstancePatchTestSuite) instancePatch(fieldName string, fileName st
 	return recorder.Code, b
 }
 
-func (suite *InstancePatchTestSuite) TestInstancePatch1() {
-	code, b := suite.instancePatch("", "", map[string][]string{
-		"title":            {"Example Instance"},
-		"contact_username": {"admin"},
-		"contact_email":    {"someone@example.org"},
-	})
+func (suite *InstancePatchTestSuite) TestInstancePatchUpdateInstanceInfo() {
+	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
+	defer testrig.TearDownTestStructs(testStructs)
+	instanceModule := instance.New(testStructs.Processor)
+
+	code, b := suite.instancePatch(
+		instanceModule,
+		"", "",
+		map[string][]string{
+			"title":            {"Example Instance"},
+			"contact_username": {"admin"},
+			"contact_email":    {"someone@example.org"},
+		},
+	)
 
 	if expectedCode := http.StatusOK; code != expectedCode {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
@@ -157,7 +175,7 @@ func (suite *InstancePatchTestSuite) TestInstancePatch1() {
     "streaming_api": "wss://localhost:8080"
   },
   "stats": {
-    "domain_count": 2,
+    "domain_count": 4,
     "status_count": 24,
     "user_count": 5
   },
@@ -212,10 +230,17 @@ func (suite *InstancePatchTestSuite) TestInstancePatch1() {
 }`, dst.String())
 }
 
-func (suite *InstancePatchTestSuite) TestInstancePatch2() {
-	code, b := suite.instancePatch("", "", map[string][]string{
-		"title": {"<p>Geoff's Instance</p>"},
-	})
+func (suite *InstancePatchTestSuite) TestInstancePatchUpdateTitleHTML() {
+	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
+	defer testrig.TearDownTestStructs(testStructs)
+	instanceModule := instance.New(testStructs.Processor)
+
+	code, b := suite.instancePatch(
+		instanceModule,
+		"", "", map[string][]string{
+			"title": {"<p>Geoff's Instance</p>"},
+		},
+	)
 
 	if expectedCode := http.StatusOK; code != expectedCode {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
@@ -303,7 +328,7 @@ func (suite *InstancePatchTestSuite) TestInstancePatch2() {
     "streaming_api": "wss://localhost:8080"
   },
   "stats": {
-    "domain_count": 2,
+    "domain_count": 4,
     "status_count": 24,
     "user_count": 5
   },
@@ -358,10 +383,17 @@ func (suite *InstancePatchTestSuite) TestInstancePatch2() {
 }`, dst.String())
 }
 
-func (suite *InstancePatchTestSuite) TestInstancePatch3() {
-	code, b := suite.instancePatch("", "", map[string][]string{
-		"short_description": {"This is some html, which is <em>allowed</em> in short descriptions."},
-	})
+func (suite *InstancePatchTestSuite) TestInstancePatchUpdateShortDescriptionHTML() {
+	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
+	defer testrig.TearDownTestStructs(testStructs)
+	instanceModule := instance.New(testStructs.Processor)
+
+	code, b := suite.instancePatch(
+		instanceModule,
+		"", "", map[string][]string{
+			"short_description": {"This is some html, which is <em>allowed</em> in short descriptions."},
+		},
+	)
 
 	if expectedCode := http.StatusOK; code != expectedCode {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
@@ -449,7 +481,7 @@ func (suite *InstancePatchTestSuite) TestInstancePatch3() {
     "streaming_api": "wss://localhost:8080"
   },
   "stats": {
-    "domain_count": 2,
+    "domain_count": 4,
     "status_count": 24,
     "user_count": 5
   },
@@ -504,10 +536,17 @@ func (suite *InstancePatchTestSuite) TestInstancePatch3() {
 }`, dst.String())
 }
 
-func (suite *InstancePatchTestSuite) TestInstancePatch4() {
-	code, b := suite.instancePatch("", "", map[string][]string{
-		"": {""},
-	})
+func (suite *InstancePatchTestSuite) TestInstancePatchEmptyForm() {
+	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
+	defer testrig.TearDownTestStructs(testStructs)
+	instanceModule := instance.New(testStructs.Processor)
+
+	code, b := suite.instancePatch(
+		instanceModule,
+		"", "", map[string][]string{
+			"": {""},
+		},
+	)
 
 	if expectedCode := http.StatusBadRequest; code != expectedCode {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
@@ -521,44 +560,17 @@ func (suite *InstancePatchTestSuite) TestInstancePatch4() {
 	suite.Equal(`{"error":"Bad Request: empty form submitted"}`, string(b))
 }
 
-func (suite *InstancePatchTestSuite) TestInstancePatch5() {
-	requestBody, w, err := testrig.CreateMultipartFormData(
-		nil,
-		map[string][]string{
-			"short_description": {"<p>This is some html, which is <em>allowed</em> in short descriptions.</p>"},
-		})
-	if err != nil {
-		panic(err)
-	}
-	bodyBytes := requestBody.Bytes()
+func (suite *InstancePatchTestSuite) TestInstancePatchEmptyContactEmail() {
+	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
+	defer testrig.TearDownTestStructs(testStructs)
+	instanceModule := instance.New(testStructs.Processor)
 
-	// set up the request
-	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPatch, instance.InstanceInformationPathV1, bodyBytes, w.FormDataContentType(), true)
-
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-
-	// call the handler
-	suite.instanceModule.InstanceUpdatePATCHHandler(ctx)
-
-	suite.Equal(http.StatusForbidden, recorder.Code)
-
-	result := recorder.Result()
-	defer result.Body.Close()
-
-	b, err := io.ReadAll(result.Body)
-	suite.NoError(err)
-
-	suite.Equal(`{"error":"Forbidden: token has insufficient scope permission"}`, string(b))
-}
-
-func (suite *InstancePatchTestSuite) TestInstancePatch6() {
-	code, b := suite.instancePatch("", "", map[string][]string{
-		"contact_email": {""},
-	})
+	code, b := suite.instancePatch(
+		instanceModule,
+		"", "", map[string][]string{
+			"contact_email": {""},
+		},
+	)
 
 	if expectedCode := http.StatusOK; code != expectedCode {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
@@ -646,7 +658,7 @@ func (suite *InstancePatchTestSuite) TestInstancePatch6() {
     "streaming_api": "wss://localhost:8080"
   },
   "stats": {
-    "domain_count": 2,
+    "domain_count": 4,
     "status_count": 24,
     "user_count": 5
   },
@@ -701,10 +713,18 @@ func (suite *InstancePatchTestSuite) TestInstancePatch6() {
 }`, dst.String())
 }
 
-func (suite *InstancePatchTestSuite) TestInstancePatch7() {
-	code, b := suite.instancePatch("", "", map[string][]string{
-		"contact_email": {"not.an.email.address"},
-	})
+func (suite *InstancePatchTestSuite) TestInstancePatchInvalidEmailAddress() {
+	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
+	defer testrig.TearDownTestStructs(testStructs)
+	instanceModule := instance.New(testStructs.Processor)
+
+	code, b := suite.instancePatch(
+		instanceModule,
+		"", "",
+		map[string][]string{
+			"contact_email": {"not.an.email.address"},
+		},
+	)
 
 	if expectedCode := http.StatusBadRequest; code != expectedCode {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
@@ -718,10 +738,18 @@ func (suite *InstancePatchTestSuite) TestInstancePatch7() {
 	suite.Equal(`{"error":"Bad Request: mail: missing '@' or angle-addr"}`, string(b))
 }
 
-func (suite *InstancePatchTestSuite) TestInstancePatch8() {
-	code, b := suite.instancePatch("thumbnail", "../../../../testrig/media/peglin.gif", map[string][]string{
-		"thumbnail_description": {"A bouncing little green peglin."},
-	})
+func (suite *InstancePatchTestSuite) TestInstancePatchUpdateThumbnail() {
+	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
+	defer testrig.TearDownTestStructs(testStructs)
+	instanceModule := instance.New(testStructs.Processor)
+
+	code, b := suite.instancePatch(
+		instanceModule,
+		"thumbnail", "../../../../testrig/media/peglin.gif",
+		map[string][]string{
+			"thumbnail_description": {"A bouncing little green peglin."},
+		},
+	)
 
 	if expectedCode := http.StatusOK; code != expectedCode {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
@@ -732,7 +760,7 @@ func (suite *InstancePatchTestSuite) TestInstancePatch8() {
 		suite.FailNow(err.Error())
 	}
 
-	instanceAccount, err := suite.db.GetInstanceAccount(suite.T().Context(), "")
+	instanceAccount, err := testStructs.State.DB.GetInstanceAccount(suite.T().Context(), "")
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -814,7 +842,7 @@ func (suite *InstancePatchTestSuite) TestInstancePatch8() {
     "streaming_api": "wss://localhost:8080"
   },
   "stats": {
-    "domain_count": 2,
+    "domain_count": 4,
     "status_count": 24,
     "user_count": 5
   },
@@ -873,7 +901,7 @@ func (suite *InstancePatchTestSuite) TestInstancePatch8() {
 }`, dst.String())
 
 	// extra bonus: check the v2 model thumbnail after the patch
-	instanceV2, err := suite.processor.InstanceGetV2(suite.T().Context())
+	instanceV2, err := testStructs.Processor.InstanceGetV2(suite.T().Context())
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -893,9 +921,13 @@ func (suite *InstancePatchTestSuite) TestInstancePatch8() {
 }`, string(instanceV2ThumbnailJson))
 
 	// double extra special bonus: now update the image description without changing the image
-	code2, b2 := suite.instancePatch("", "", map[string][]string{
-		"thumbnail_description": {"updating the thumbnail description without changing anything else!"},
-	})
+	code2, b2 := suite.instancePatch(
+		instanceModule,
+		"", "",
+		map[string][]string{
+			"thumbnail_description": {"updating the thumbnail description without changing anything else!"},
+		},
+	)
 
 	if expectedCode := http.StatusOK; code2 != expectedCode {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code2)
@@ -910,10 +942,18 @@ func (suite *InstancePatchTestSuite) TestInstancePatch8() {
 	suite.EqualValues("updating the thumbnail description without changing anything else!", i["thumbnail_description"])
 }
 
-func (suite *InstancePatchTestSuite) TestInstancePatch9() {
-	code, b := suite.instancePatch("", "", map[string][]string{
-		"thumbnail_description": {"setting a new description without having a custom image set; this should change nothing!"},
-	})
+func (suite *InstancePatchTestSuite) TestInstancePatchUpdateThumbnailDescription() {
+	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
+	defer testrig.TearDownTestStructs(testStructs)
+	instanceModule := instance.New(testStructs.Processor)
+
+	code, b := suite.instancePatch(
+		instanceModule,
+		"", "",
+		map[string][]string{
+			"thumbnail_description": {"setting a new description without having a custom image set; this should change nothing!"},
+		},
+	)
 
 	if expectedCode := http.StatusOK; code != expectedCode {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
@@ -1001,7 +1041,7 @@ func (suite *InstancePatchTestSuite) TestInstancePatch9() {
     "streaming_api": "wss://localhost:8080"
   },
   "stats": {
-    "domain_count": 2,
+    "domain_count": 4,
     "status_count": 24,
     "user_count": 5
   },

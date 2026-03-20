@@ -46,11 +46,6 @@ type Admin interface {
 	// This is needed for things like serving files that belong to the instance and not an individual user/account.
 	CreateInstanceAccount(ctx context.Context) error
 
-	// CreateInstanceInstance creates an instance in the database with the same domain as the instance host value.
-	// Ie., if the instance is hosted at 'example.org' the instance will have a domain of 'example.org'.
-	// This is needed for things like serving instance information through /api/v1/instance
-	CreateInstanceInstance(ctx context.Context) error
-
 	// CreateInstanceApplication creates an application in the database
 	// for use in processing signups etc through the sign-up form.
 	CreateInstanceApplication(ctx context.Context) error
@@ -58,6 +53,16 @@ type Admin interface {
 	// GetInstanceApplication gets the instance application
 	// (ie., the application owned by the instance account).
 	GetInstanceApplication(ctx context.Context) (*gtsmodel.Application, error)
+
+	// CreateInstanceSettings ensures that a
+	// settings entry exists for this instance.
+	CreateInstanceSettings(ctx context.Context) error
+
+	// GetInstanceSettings gets the instance settings entry for this instance.
+	GetInstanceSettings(ctx context.Context) (*gtsmodel.InstanceSettings, error)
+
+	// UpdateInstance settings updates the given instance settings entry for this instance.
+	UpdateInstanceSettings(ctx context.Context, settings *gtsmodel.InstanceSettings, columns ...string) error
 
 	// CountApprovedSignupsSince counts the number of new account
 	// sign-ups approved on this instance since the given time.

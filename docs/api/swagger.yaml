@@ -947,6 +947,68 @@ definitions:
         type: object
         x-go-name: AdminEmoji
         x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/model
+    adminInstance:
+        properties:
+            delivery_errors:
+                description: |-
+                    Last 20 errors from delivery attempts to this instance.
+                    Cleared after a successful delivery.
+                    Not set if delivery to this instance never attempted or delivery to this instance not errored since latest_successful_delivery time.
+                items:
+                    $ref: '#/definitions/adminInstanceDeliveryError'
+                type: array
+                x-go-name: DeliveryErrors
+            domain:
+                description: Domain of this instance.
+                example: example.org
+                type: string
+                x-go-name: Domain
+            first_seen:
+                description: Time when the instance was first seen by this instance.
+                example: "2022-10-05T09:21:26.419Z"
+                type: string
+                x-go-name: FirstSeen
+            id:
+                description: ID of this instance.
+                example: 01KJQGK06SMJ8KDW6DCRRXTG8D
+                type: string
+                x-go-name: ID
+            latest_successful_delivery:
+                description: |-
+                    Time of the latest successful delivery of a message to someone on this instance.
+                    May be omitted if no messages have ever been delivered to this instance.
+                example: "2022-10-05T09:21:26.419Z"
+                type: string
+                x-go-name: LatestSuccessfulDelivery
+            software:
+                description: |-
+                    Software this instance purports to be running.
+                    May be omitted when the running software cannot be determined.
+                example: gotosocial
+                type: string
+                x-go-name: Software
+        title: AdminInstance models the admin view of an instance.
+        type: object
+        x-go-name: AdminInstance
+        x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/model
+    adminInstanceDeliveryError:
+        description: |-
+            AdminInstanceDeliveryError models an error encountered
+            while trying to deliver a message to an inbox on an instance.
+        properties:
+            error:
+                description: Message for this delivery error.
+                example: boobs
+                type: string
+                x-go-name: Error
+            time:
+                description: Time of this delivery error.
+                example: "2022-10-05T09:21:26.419Z"
+                type: string
+                x-go-name: Time
+        type: object
+        x-go-name: AdminInstanceDeliveryError
+        x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/model
     adminReport:
         properties:
             account:
@@ -4091,6 +4153,7 @@ info:
         admin:read:domain_allows: grants admin read access to domain allows
         admin:read:domain_blocks: grants admin read access to domain blocks
         admin:read:domain_limits: grants admin read access to domain limits
+        admin:read:instances: grants admin read access to instances
         admin:read:reports: grants admin read access to reports
         admin:write: grants admin write access to everything
         admin:write:accounts: grants write read access to accounts
@@ -8943,6 +9006,134 @@ paths:
                 - OAuth2 Bearer:
                     - admin:write
             summary: Update an existing instance rule.
+            tags:
+                - admin
+    /api/v1/admin/instances:
+        get:
+            description: |-
+                The instances will be returned in descending chronological order (newest first), with sequential IDs (bigger = newer).
+
+                The next and previous queries can be parsed from the returned Link header.
+
+                Example:
+
+                ```
+                <https://example.org/api/v1/admin/instances?limit=40&max_id=01FC0SKA48HNSVR6YKZCQGS2V8>; rel="next", <https://example.org/api/v1/admin/instances?limit=40&min_id=01FC0SKW5JK2Q4EVAV2B462YY0>; rel="prev"
+                ````
+            operationId: adminInstances
+            parameters:
+                - description: Filter by the given domain.
+                  in: query
+                  name: domain
+                  type: string
+                - default: latest
+                  description: Order by default "first_seen" (newest -> oldest) or "alphabetical" (a -> z).
+                  in: query
+                  name: order
+                  type: string
+                - default: false
+                  description: Only include instances that have one or more delivery errors since the last successful delivery.
+                  in: query
+                  name: with_errors_only
+                  type: boolean
+                - description: Return only items *OLDER* than the given max ID (for paging downwards). The item with the specified ID will not be included in the response.
+                  in: query
+                  name: max_id
+                  type: string
+                - description: Return only items *NEWER* than the given since ID. The item with the specified ID will not be included in the response.
+                  in: query
+                  name: since_id
+                  type: string
+                - description: Return only items immediately *NEWER* than the given min ID (for paging upwards). The item with the specified ID will not be included in the response.
+                  in: query
+                  name: min_id
+                  type: string
+                - default: 40
+                  description: Number of items to return.
+                  in: query
+                  maximum: 100
+                  minimum: 1
+                  name: limit
+                  type: integer
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Array of admin model instances.
+                    headers:
+                        Link:
+                            description: Links to the next and previous queries.
+                            type: string
+                    schema:
+                        items:
+                            $ref: '#/definitions/adminInstance'
+                        type: array
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:read:instances
+            summary: Show admin view of instances.
+            tags:
+                - admin
+    /api/v1/admin/instances/{id}:
+        get:
+            operationId: adminInstanceGet
+            parameters:
+                - description: The id of the instance.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Admin model instance.
+                    schema:
+                        $ref: '#/definitions/adminInstance'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:read:instances
+            summary: Show admin view of one instance.
             tags:
                 - admin
     /api/v1/admin/media_cleanup:
@@ -16927,6 +17118,7 @@ securityDefinitions:
             admin:read:domain_allows: grants admin read access to domain allows
             admin:read:domain_blocks: grants admin read access to domain blocks
             admin:read:domain_limits: grants admin read access to domain limits
+            admin:read:instances: grants admin read access to instances
             admin:read:reports: grants admin read access to reports
             admin:write: grants admin write access to everything
             admin:write:accounts: grants write read access to accounts
