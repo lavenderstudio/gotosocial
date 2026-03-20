@@ -208,28 +208,10 @@ func (a *Actions) domainBlockSideEffects(
 	ctx context.Context,
 	block *gtsmodel.DomainBlock,
 ) gtserror.MultiError {
-	var errs gtserror.MultiError
-
-	// If we have an instance entry for this domain,
-	// update it with the new block ID and clear all fields
-	instance, err := a.db.GetInstance(ctx, block.Domain)
-	if err != nil && !errors.Is(err, db.ErrNoEntries) {
-		errs.Appendf("db error getting instance %s: %w", block.Domain, err)
-		return errs
-	}
-
-	if instance != nil {
-		// We had an entry for this domain.
-		columns := stubbifyInstance(instance, block.ID)
-		if err := a.db.UpdateInstance(ctx, instance, columns...); err != nil {
-			errs.Appendf("db error updating instance: %w", err)
-			return errs
-		}
-	}
-
 	// For each account that belongs to this domain,
 	// process an account delete message to remove
 	// that account's posts, media, etc.
+	var errs gtserror.MultiError
 	if err := a.rangeDomainAccounts(ctx, block.Domain, func(account *gtsmodel.Account) {
 		if err := a.workers.Client.Process(ctx, &messages.FromClientAPI{
 			APObjectType:   ap.ActorPerson,
@@ -282,28 +264,6 @@ func (a *Actions) domainUnblockSideEffects(
 	block *gtsmodel.DomainBlock,
 ) gtserror.MultiError {
 	var errs gtserror.MultiError
-
-	// Update instance entry for this domain, if we have it.
-	instance, err := a.db.GetInstance(ctx, block.Domain)
-	if err != nil && !errors.Is(err, db.ErrNoEntries) {
-		errs.Appendf("db error getting instance %s: %w", block.Domain, err)
-	}
-
-	if instance != nil {
-		// We had an entry, update it to signal
-		// that it's no longer suspended.
-		instance.SuspendedAt = time.Time{}
-		instance.DomainBlockID = ""
-		if err := a.db.UpdateInstance(
-			ctx,
-			instance,
-			"suspended_at",
-			"domain_block_id",
-		); err != nil {
-			errs.Appendf("db error updating instance: %w", err)
-			return errs
-		}
-	}
 
 	// Unsuspend all accounts whose suspension origin was this domain block.
 	if err := a.rangeDomainAccounts(ctx, block.Domain, func(account *gtsmodel.Account) {

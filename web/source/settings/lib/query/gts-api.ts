@@ -180,6 +180,7 @@ export const gtsApi = createApi({
 		"DomainPermissionSubscription",
 		"TokenInfo",
 		"User",
+		"AdminInstance",
 	],
 	endpoints: (build) => ({
 		instanceV1: build.query<InstanceV1, void>({

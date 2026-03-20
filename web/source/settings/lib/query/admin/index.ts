@@ -23,6 +23,7 @@ import { listToKeyedObject } from "../transforms";
 import { ActionAccountParams, AdminAccount, HandleSignupParams, SearchAccountParams, SearchAccountResp } from "../../types/account";
 import { InstanceRule, MappedRules } from "../../types/rules";
 import parse from "parse-link-header";
+import { AdminInstance, SearchInstancesParams, SearchInstancesResp } from "../../types/instance";
 
 const extended = gtsApi.injectEndpoints({
 	endpoints: (build) => ({
@@ -106,6 +107,45 @@ const extended = gtsApi.injectEndpoints({
 					patchResult.undo();
 				}
 			}
+		}),
+
+		searchInstances: build.query<SearchInstancesResp, SearchInstancesParams>({
+			query: (form) => {
+				const params = new(URLSearchParams);
+				Object.entries(form).forEach(([k, v]) => {
+					if (v !== undefined) {
+						params.append(k, v);
+					}
+				});
+
+				let query = "";
+				if (params.size !== 0) {
+					query = `?${params.toString()}`;
+				}
+
+				return {
+					url: `/api/v1/admin/instances${query}`
+				};
+			},
+			// Headers required for paging.
+			transformResponse: (apiResp: AdminInstance[], meta) => {
+				const instances = apiResp;
+				const linksStr = meta?.response?.headers.get("Link");
+				const links = parse(linksStr);
+				return { instances, links };
+			},
+			// Only provide LIST tag id since this model is not the
+			// same as getInstance model (due to transformResponse).
+			providesTags: [{ type: "AdminInstance", id: "TRANSFORMED" }]
+		}),
+
+		getInstance: build.query<AdminInstance, string>({
+			query: (id) => ({
+				url: `/api/v1/admin/instances/${id}`
+			}),
+			providesTags: (_result, _error, id) => [
+				{ type: 'AdminInstance', id }
+			],
 		}),
 
 		handleSignup: build.mutation<AdminAccount, HandleSignupParams>({
@@ -204,4 +244,6 @@ export const {
 	useAddInstanceRuleMutation,
 	useUpdateInstanceRuleMutation,
 	useDeleteInstanceRuleMutation,
+	useLazySearchInstancesQuery,
+	useGetInstanceQuery,
 } = extended;

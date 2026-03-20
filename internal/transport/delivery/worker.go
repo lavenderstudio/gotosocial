@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"code.superseriousbusiness.org/gopkg/log"
+	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/httpclient"
 	"code.superseriousbusiness.org/gotosocial/internal/queue"
@@ -46,13 +47,19 @@ type WorkerPool struct {
 
 	// internal fields.
 	workers []*Worker
+
+	// Db connection so that workers from
+	// the pool can read + write delivery
+	// errors under instance entries.
+	db db.DB
 }
 
-// Init will initialize the Worker{} pool
-// with given http client, request queue to pull
+// Init will initialize the Worker{} pool with
+// given http client and db, request queue to pull
 // from and number of delivery workers to spawn.
-func (p *WorkerPool) Init(client *httpclient.Client) {
+func (p *WorkerPool) Init(client *httpclient.Client, db db.DB) {
 	p.Client = client
+	p.db = db
 	p.Queue.Init(structr.QueueConfig[*Delivery]{
 		Indices: []structr.IndexConfig{
 			{Fields: "ActorID", Multiple: true},
@@ -79,6 +86,11 @@ func (p *WorkerPool) Start(n int) {
 		p.workers[i] = new(Worker)
 		p.workers[i].Client = p.Client
 		p.workers[i].Queue = &p.Queue
+
+		// Pass db connection to the
+		// worker so it can update
+		// instance delivery attempts.
+		p.workers[i].db = p.db
 
 		// Attempt to start worker.
 		// Return bool not useful
@@ -132,6 +144,11 @@ type Worker struct {
 	// internal fields.
 	backlog []*Delivery
 	service runners.Service
+
+	// Db connection so that this worker
+	// can read + write delivery
+	// errors under instance entries.
+	db db.DB
 }
 
 // Start will attempt to start the Worker{}.
@@ -216,6 +233,14 @@ loop:
 		case err == nil:
 			// Ensure body closed.
 			_ = rsp.Body.Close()
+
+			// Set successful delivery time.
+			if err := w.db.SetInstanceSuccessfulDelivery(ctx,
+				dlv.Request.Host,
+			); err != nil {
+				log.Errorf(ctx, "db error setting successful delivery: %v", err)
+			}
+
 			continue loop
 
 		case errors.Is(err, context.Canceled) &&
@@ -233,9 +258,16 @@ loop:
 			continue loop
 
 		case !retry:
-			// Drop deliveries when no
-			// retry requested, or they
-			// reached max (either).
+			// Drop deliveries when no retry requested,
+			// or they reached max (either), but first try
+			// to store an error for this delivery attempt.
+			if err := w.db.AddInstanceDeliveryError(ctx,
+				dlv.Request.Host,
+				err.Error(),
+			); err != nil {
+				log.Errorf(ctx, "db error adding instance delivery error: %v", err)
+			}
+
 			continue loop
 		}
 

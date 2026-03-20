@@ -85,6 +85,9 @@ type DBCaches struct {
 	// EmojiCategory provides access to the gtsmodel EmojiCategory database cache.
 	EmojiCategory StructCache[*gtsmodel.EmojiCategory]
 
+	// FederationError provides access to the gtsmodel FederationError database cache.
+	FederationError StructCache[*gtsmodel.FederationError]
+
 	// Filter provides access to the gtsmodel Filter database cache.
 	Filter StructCache[*gtsmodel.Filter]
 
@@ -161,10 +164,11 @@ type DBCaches struct {
 	// LocalInstance provides caching for
 	// simple + common local instance queries.
 	LocalInstance struct {
-		Domains  atomic.Pointer[int]
+		Peers    atomic.Pointer[int]
 		Statuses atomic.Pointer[int]
-		Users    atomic.Pointer[int]
+		Accounts atomic.Pointer[int]
 		UserIDs  atomic.Pointer[[]string]
+		Settings atomic.Pointer[gtsmodel.InstanceSettings]
 	}
 
 	// InteractionRequest provides access to the gtsmodel InteractionRequest database cache.
@@ -721,6 +725,31 @@ func (c *Caches) initEmojiCategory() {
 	})
 }
 
+func (c *Caches) initFederationError() {
+	// Calculate maximum cache size.
+	cap := calculateResultCacheMax(
+		sizeofFederationError(), // model in-mem size.
+		config.GetCacheFederationErrorMemRatio(),
+	)
+
+	log.Infof(nil, "cache size = %d", cap)
+
+	copyF := func(f1 *gtsmodel.FederationError) *gtsmodel.FederationError {
+		f2 := new(gtsmodel.FederationError)
+		*f2 = *f1
+		return f2
+	}
+
+	c.DB.FederationError.Init(structr.CacheConfig[*gtsmodel.FederationError]{
+		Indices: []structr.IndexConfig{
+			{Fields: "ID"},
+		},
+		MaxSize:   cap,
+		IgnoreErr: ignoreErrors,
+		Copy:      copyF,
+	})
+}
+
 func (c *Caches) initFilter() {
 	// Calculate maximum cache size.
 	cap := calculateResultCacheMax(
@@ -970,8 +999,7 @@ func (c *Caches) initInstance() {
 		// Don't include ptr fields that
 		// will be populated separately.
 		// See internal/db/bundb/instance.go.
-		i2.DomainBlock = nil
-		i2.ContactAccount = nil
+		i2.DeliveryErrors = nil
 
 		return i2
 	}

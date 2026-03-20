@@ -34,6 +34,8 @@ import HeaderPermDetail from "./http-header-permissions/detail";
 import Email from "./actions/email";
 import ApURL from "./debug/apurl";
 import Caches from "./debug/caches";
+import InstancesSearch from "./instances.go";
+import InstanceDetail from "./instances.go/detail";
 
 /*
 	EXPORTED COMPONENTS
@@ -47,6 +49,7 @@ import Caches from "./debug/caches";
  * - /settings/admin/emojis/local
  * - /settings/admin/emojis/local/:emojiId
  * - /settings/admin/emojis/remote
+ * - /settings/admin/instances
  * - /settings/admin/actions
  * - /settings/admin/actions/media
  * - /settings/admin/actions/keys
@@ -67,6 +70,7 @@ export default function AdminRouter() {
 			<Router base={thisBase}>
 				<AdminInstanceRouter />
 				<AdminEmojisRouter />
+				<AdminInstancesRouter />
 				<AdminActionsRouter />
 				<AdminHTTPHeaderPermissionsRouter />
 				<AdminDebugRouter />
@@ -105,6 +109,35 @@ function AdminEmojisRouter() {
 						<Route path="/local/:emojiId" component={EmojiDetail} />
 						<Route path="/remote" component={RemoteEmoji} />
 						<Route><Redirect to="/local" /></Route>
+					</Switch>
+				</ErrorBoundary>
+			</Router>
+		</BaseUrlContext.Provider>
+	);
+}
+
+/**
+ * - /settings/admin/instances
+ */
+function AdminInstancesRouter() {
+	const parentUrl = useBaseUrl();
+	const thisBase = "/instances";
+	const absBase = parentUrl + thisBase;
+
+	const permissions = ["admin"];
+	const admin = useHasPermission(permissions);
+	if (!admin) {
+		return null;
+	}
+
+	return (
+		<BaseUrlContext.Provider value={absBase}>
+			<Router base={thisBase}>
+				<ErrorBoundary>
+					<Switch>
+						<Route path="/search" component={InstancesSearch} />
+						<Route path="/:instanceID" component={InstanceDetail} />
+						<Route><Redirect to="/search" /></Route>
 					</Switch>
 				</ErrorBoundary>
 			</Router>

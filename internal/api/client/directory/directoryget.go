@@ -158,7 +158,7 @@ func (m *Module) DirectoryGETHandler(c *gin.Context) {
 
 	// Parse order (default "active").
 	orderBy, errWithCode := apiutil.ParseDirectoryOrder(
-		c.Query(apiutil.DirectoryOrderKey),
+		c.Query(apiutil.OrderKey),
 		gtsmodel.DirectoryOrderByActive,
 	)
 	if errWithCode != nil {

@@ -41,7 +41,7 @@ func (suite *InstanceTestSuite) TestDerefInstance() {
 			// Fossbros anonymous doesn't shield their nodeinfo or
 			// well-known or anything so we should be able to fetch.
 			instanceIRI:      testrig.URLMustParse("https://fossbros-anonymous.io"),
-			expectedSoftware: "Hellsoft 6.6.6",
+			expectedSoftware: "Hellsoft",
 		},
 		{
 			// Furtive nerds forbids /nodeinfo using
@@ -84,7 +84,7 @@ func (suite *InstanceTestSuite) TestDerefInstance() {
 			suite.FailNow(err.Error())
 		}
 
-		suite.Equal(tc.expectedSoftware, instance.Version)
+		suite.Equal(tc.expectedSoftware, instance.Software)
 	}
 }
 

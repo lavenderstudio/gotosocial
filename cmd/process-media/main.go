@@ -83,8 +83,8 @@ func main() {
 		log.Panicf(ctx, "error creating instance account: %s", err)
 	}
 
-	if err := state.DB.CreateInstanceInstance(ctx); err != nil {
-		log.Panicf(ctx, "error creating instance instance: %s", err)
+	if err := state.DB.CreateInstanceSettings(ctx); err != nil {
+		log.Panicf(ctx, "error creating instance settings: %s", err)
 	}
 
 	if err := state.DB.CreateInstanceApplication(ctx); err != nil {

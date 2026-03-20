@@ -27,7 +27,6 @@ import (
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gopkg/xslices"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
-	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
@@ -38,31 +37,35 @@ import (
 )
 
 func (p *Processor) InstanceGetV1(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-	i, err := p.getThisInstance(ctx)
+	settings, err := p.state.DB.GetInstanceSettings(ctx)
 	if err != nil {
-		return nil, gtserror.NewErrorInternalError(fmt.Errorf("db error fetching instance: %s", err))
+		err := gtserror.Newf("db error fetching instance settings: %s", err)
+		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	ai, err := p.converter.InstanceToAPIV1Instance(ctx, i)
+	v1, err := p.converter.InstanceSettingsToAPIV1Instance(ctx, settings)
 	if err != nil {
-		return nil, gtserror.NewErrorInternalError(fmt.Errorf("error converting instance to api representation: %s", err))
+		err := gtserror.Newf("error converting instance settings to api representation: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	return ai, nil
+	return v1, nil
 }
 
 func (p *Processor) InstanceGetV2(ctx context.Context) (*apimodel.InstanceV2, gtserror.WithCode) {
-	i, err := p.getThisInstance(ctx)
+	settings, err := p.state.DB.GetInstanceSettings(ctx)
 	if err != nil {
-		return nil, gtserror.NewErrorInternalError(fmt.Errorf("db error fetching instance: %s", err))
+		err := gtserror.Newf("db error fetching instance settings: %s", err)
+		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	ai, err := p.converter.InstanceToAPIV2Instance(ctx, i)
+	v2, err := p.converter.InstanceSettingsToAPIV2Instance(ctx, settings)
 	if err != nil {
-		return nil, gtserror.NewErrorInternalError(fmt.Errorf("error converting instance to api representation: %s", err))
+		err := gtserror.Newf("error converting instance settings to api representation: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	return ai, nil
+	return v2, nil
 }
 
 func (p *Processor) InstancePeersGet(
@@ -188,19 +191,20 @@ func (p *Processor) InstancePeersGet(
 }
 
 func (p *Processor) InstanceGetRules(ctx context.Context) ([]apimodel.InstanceRule, gtserror.WithCode) {
-	i, err := p.getThisInstance(ctx)
+	rules, err := p.state.DB.GetActiveRules(ctx)
 	if err != nil {
-		return nil, gtserror.NewErrorInternalError(fmt.Errorf("db error fetching instance: %s", err))
+		err := gtserror.Newf("db error getting rules: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	return typeutils.InstanceRulesToAPIRules(i.Rules), nil
+	return typeutils.InstanceRulesToAPIRules(rules), nil
 }
 
 func (p *Processor) InstancePatch(ctx context.Context, form *apimodel.InstanceSettingsUpdateRequest) (*apimodel.InstanceV1, gtserror.WithCode) {
-	// Fetch this instance from the db for processing.
-	instance, err := p.getThisInstance(ctx)
+	// Fetch instance settings from the db for processing.
+	settings, err := p.state.DB.GetInstanceSettings(ctx)
 	if err != nil {
-		err = fmt.Errorf("db error fetching instance: %w", err)
+		err := gtserror.Newf("db error fetching instance settings: %s", err)
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
@@ -224,7 +228,7 @@ func (p *Processor) InstancePatch(ctx context.Context, form *apimodel.InstanceSe
 		}
 
 		// Don't allow html in site title.
-		instance.Title = text.StripHTMLFromText(title)
+		settings.Title = text.StripHTMLFromText(title)
 		columns = append(columns, "title")
 	}
 
@@ -239,7 +243,7 @@ func (p *Processor) InstancePatch(ctx context.Context, form *apimodel.InstanceSe
 		}
 
 		columns = append(columns, "contact_account_id")
-		instance.ContactAccountID = contactAccountID
+		settings.ContactAccountID = contactAccountID
 	}
 
 	// Validate & update contact
@@ -255,7 +259,7 @@ func (p *Processor) InstancePatch(ctx context.Context, form *apimodel.InstanceSe
 		}
 
 		columns = append(columns, "contact_email")
-		instance.ContactEmail = contactEmail
+		settings.ContactEmail = contactEmail
 	}
 
 	// Validate & update site short
@@ -268,8 +272,8 @@ func (p *Processor) InstancePatch(ctx context.Context, form *apimodel.InstanceSe
 
 		// Parse description as Markdown, keep
 		// the raw version for later editing.
-		instance.ShortDescriptionText = shortDescription
-		instance.ShortDescription = p.formatter.FromMarkdown(ctx, p.parseMentionFunc, instanceAcc.ID, "", shortDescription).HTML
+		settings.ShortDescriptionText = shortDescription
+		settings.ShortDescription = p.formatter.FromMarkdown(ctx, p.parseMentionFunc, instanceAcc.ID, "", shortDescription).HTML
 		columns = append(columns, []string{"short_description", "short_description_text"}...)
 	}
 
@@ -282,8 +286,8 @@ func (p *Processor) InstancePatch(ctx context.Context, form *apimodel.InstanceSe
 
 		// Parse description as Markdown, keep
 		// the raw version for later editing.
-		instance.DescriptionText = description
-		instance.Description = p.formatter.FromMarkdown(ctx, p.parseMentionFunc, instanceAcc.ID, "", description).HTML
+		settings.DescriptionText = description
+		settings.Description = p.formatter.FromMarkdown(ctx, p.parseMentionFunc, instanceAcc.ID, "", description).HTML
 		columns = append(columns, []string{"description", "description_text"}...)
 	}
 
@@ -294,7 +298,7 @@ func (p *Processor) InstancePatch(ctx context.Context, form *apimodel.InstanceSe
 			return nil, gtserror.NewErrorBadRequest(err, err.Error())
 		}
 
-		instance.CustomCSS = text.StripHTMLFromText(customCSS)
+		settings.CustomCSS = text.StripHTMLFromText(customCSS)
 		columns = append(columns, []string{"custom_css"}...)
 	}
 
@@ -308,8 +312,8 @@ func (p *Processor) InstancePatch(ctx context.Context, form *apimodel.InstanceSe
 
 		// Parse terms as Markdown, keep
 		// the raw version for later editing.
-		instance.TermsText = terms
-		instance.Terms = p.formatter.FromMarkdown(ctx, p.parseMentionFunc, "", "", terms).HTML
+		settings.TermsText = terms
+		settings.Terms = p.formatter.FromMarkdown(ctx, p.parseMentionFunc, "", "", terms).HTML
 		columns = append(columns, []string{"terms", "terms_text"}...)
 	}
 
@@ -362,22 +366,13 @@ func (p *Processor) InstancePatch(ctx context.Context, form *apimodel.InstanceSe
 	}
 
 	if len(columns) != 0 {
-		if err := p.state.DB.UpdateInstance(ctx, instance, columns...); err != nil {
-			err = fmt.Errorf("db error updating instance: %w", err)
+		if err := p.state.DB.UpdateInstanceSettings(ctx, settings, columns...); err != nil {
+			err = fmt.Errorf("db error updating instance settings: %w", err)
 			return nil, gtserror.NewErrorInternalError(err, err.Error())
 		}
 	}
 
 	return p.InstanceGetV1(ctx)
-}
-
-func (p *Processor) getThisInstance(ctx context.Context) (*gtsmodel.Instance, error) {
-	instance, err := p.state.DB.GetInstance(ctx, config.GetHost())
-	if err != nil {
-		return nil, err
-	}
-
-	return instance, nil
 }
 
 func (p *Processor) contactAccountIDForUsername(ctx context.Context, username string) (string, error) {

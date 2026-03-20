@@ -47,6 +47,8 @@ const (
 	TargetAccountIDKey = "target_account_id"
 	ResolvedKey        = "resolved"
 	OffsetKey          = "offset"
+	DomainKey          = "domain"
+	OrderKey           = "order"
 
 	/* AP endpoint keys */
 
@@ -71,27 +73,27 @@ const (
 	DomainPermissionImportKey         = "import"
 	DomainPermissionSubscriptionIDKey = "subscription_id"
 	DomainPermissionPermTypeKey       = "permission_type"
-	DomainPermissionDomainKey         = "domain"
 
 	/* Admin query keys */
 
-	AdminRemoteKey      = "remote"
-	AdminActiveKey      = "active"
-	AdminPendingKey     = "pending"
-	AdminDisabledKey    = "disabled"
-	AdminSilencedKey    = "silenced"
-	AdminSuspendedKey   = "suspended"
-	AdminSensitizedKey  = "sensitized"
-	AdminDisplayNameKey = "display_name"
-	AdminByDomainKey    = "by_domain"
-	AdminEmailKey       = "email"
-	AdminIPKey          = "ip"
-	AdminStaffKey       = "staff"
-	AdminOriginKey      = "origin"
-	AdminStatusKey      = "status"
-	AdminPermissionsKey = "permissions"
-	AdminRoleIDsKey     = "role_ids[]"
-	AdminInvitedByKey   = "invited_by"
+	AdminRemoteKey         = "remote"
+	AdminActiveKey         = "active"
+	AdminPendingKey        = "pending"
+	AdminDisabledKey       = "disabled"
+	AdminSilencedKey       = "silenced"
+	AdminSuspendedKey      = "suspended"
+	AdminSensitizedKey     = "sensitized"
+	AdminDisplayNameKey    = "display_name"
+	AdminByDomainKey       = "by_domain"
+	AdminEmailKey          = "email"
+	AdminIPKey             = "ip"
+	AdminStaffKey          = "staff"
+	AdminOriginKey         = "origin"
+	AdminStatusKey         = "status"
+	AdminPermissionsKey    = "permissions"
+	AdminRoleIDsKey        = "role_ids[]"
+	AdminInvitedByKey      = "invited_by"
+	AdminWithErrorsOnlyKey = "with_errors_only"
 
 	/* Interaction policy + request keys */
 
@@ -103,10 +105,6 @@ const (
 	/* Web view keys */
 
 	WebIncludeBoostsKey = "include_boosts"
-
-	/* Directory keys */
-
-	DirectoryOrderKey = "order"
 )
 
 /*
@@ -210,6 +208,10 @@ func ParseAdminStaff(value string, defaultValue bool) (bool, gtserror.WithCode) 
 	return parseBool(value, defaultValue, AdminStaffKey)
 }
 
+func ParseAdminWithErrorsOnly(value string, defaultValue bool) (bool, gtserror.WithCode) {
+	return parseBool(value, defaultValue, AdminWithErrorsOnlyKey)
+}
+
 func ParseInteractionFavourites(value string, defaultValue bool) (bool, gtserror.WithCode) {
 	return parseBool(value, defaultValue, InteractionFavouritesKey)
 }
@@ -237,6 +239,20 @@ func ParseDirectoryOrder(value string, defaultValue gtsmodel.DirectoryOrderBy) (
 	default:
 		const errText = "invalid value for order, valid values are '', 'active', or 'new'"
 		return gtsmodel.DirectoryOrderByUnknown, gtserror.NewErrorBadRequest(errors.New(errText), errText)
+	}
+}
+
+func ParseInstancesOrder(value string, defaultValue gtsmodel.InstanceOrderBy) (gtsmodel.InstanceOrderBy, gtserror.WithCode) {
+	switch strings.ToLower(value) {
+	case "":
+		return defaultValue, nil
+	case "alphabetical":
+		return gtsmodel.InstanceOrderByAlphabetical, nil
+	case "first_seen":
+		return gtsmodel.InstanceOrderByFirstSeen, nil
+	default:
+		const errText = "invalid value for order, valid values are '', 'alphabetical', or 'first_seen'"
+		return gtsmodel.InstanceOrderByUnknown, gtserror.NewErrorBadRequest(errors.New(errText), errText)
 	}
 }
 

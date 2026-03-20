@@ -25,6 +25,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/email"
+	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/uris"
@@ -51,7 +52,8 @@ func (s *Surfacer) EmailUserReportClosed(ctx context.Context, report *gtsmodel.R
 		return nil
 	}
 
-	instance, err := s.state.DB.GetInstance(ctx, config.GetHost())
+	// Get instance settings barebones as we only need the title.
+	instanceSettings, err := s.state.DB.GetInstanceSettings(gtscontext.SetBarebones(ctx))
 	if err != nil {
 		return gtserror.Newf("db error getting instance: %w", err)
 	}
@@ -60,10 +62,11 @@ func (s *Surfacer) EmailUserReportClosed(ctx context.Context, report *gtsmodel.R
 		return gtserror.Newf("error populating report: %w", err)
 	}
 
+	instanceURL := config.GetProtocol() + "://" + config.GetHost()
 	reportClosedData := email.ReportClosedData{
 		Username:             report.Account.Username,
-		InstanceURL:          instance.URI,
-		InstanceName:         instance.Title,
+		InstanceURL:          instanceURL,
+		InstanceName:         instanceSettings.Title,
 		ReportTargetUsername: report.TargetAccount.Username,
 		ReportTargetDomain:   report.TargetAccount.Domain,
 		ActionTakenComment:   report.ActionTaken,
@@ -85,7 +88,8 @@ func (s *Surfacer) EmailUserPleaseConfirm(ctx context.Context, user *gtsmodel.Us
 		return nil
 	}
 
-	instance, err := s.state.DB.GetInstance(ctx, config.GetHost())
+	// Get instance settings barebones as we only need the title.
+	instanceSettings, err := s.state.DB.GetInstanceSettings(gtscontext.SetBarebones(ctx))
 	if err != nil {
 		return gtserror.Newf("db error getting instance: %w", err)
 	}
@@ -100,12 +104,13 @@ func (s *Surfacer) EmailUserPleaseConfirm(ctx context.Context, user *gtsmodel.Us
 	)
 
 	// Assemble email contents and send the email.
+	instanceURL := config.GetProtocol() + "://" + config.GetHost()
 	if err := s.emailSender.SendConfirmEmail(
 		user.UnconfirmedEmail,
 		email.ConfirmData{
 			Username:     user.Account.Username,
-			InstanceURL:  instance.URI,
-			InstanceName: instance.Title,
+			InstanceURL:  instanceURL,
+			InstanceName: instanceSettings.Title,
 			ConfirmLink:  confirmLink,
 			NewSignup:    newSignup,
 		},
@@ -144,18 +149,20 @@ func (s *Surfacer) EmailUserSignupApproved(ctx context.Context, user *gtsmodel.U
 		emailAddr = user.UnconfirmedEmail
 	}
 
-	instance, err := s.state.DB.GetInstance(ctx, config.GetHost())
+	// Get instance settings barebones as we only need the title.
+	instanceSettings, err := s.state.DB.GetInstanceSettings(gtscontext.SetBarebones(ctx))
 	if err != nil {
 		return gtserror.Newf("db error getting instance: %w", err)
 	}
 
 	// Assemble email contents and send the email.
+	instanceURL := config.GetProtocol() + "://" + config.GetHost()
 	if err := s.emailSender.SendSignupApprovedEmail(
 		emailAddr,
 		email.SignupApprovedData{
 			Username:     user.Account.Username,
-			InstanceURL:  instance.URI,
-			InstanceName: instance.Title,
+			InstanceURL:  instanceURL,
+			InstanceName: instanceSettings.Title,
 		},
 	); err != nil {
 		return err
@@ -180,18 +187,20 @@ func (s *Surfacer) EmailUserSignupApproved(ctx context.Context, user *gtsmodel.U
 // emailUserSignupApproved emails the given user
 // to inform them their sign-up has been approved.
 func (s *Surfacer) EmailUserSignupRejected(ctx context.Context, deniedUser *gtsmodel.DeniedUser) error {
-	instance, err := s.state.DB.GetInstance(ctx, config.GetHost())
+	// Get instance settings barebones as we only need the title.
+	instanceSettings, err := s.state.DB.GetInstanceSettings(gtscontext.SetBarebones(ctx))
 	if err != nil {
 		return gtserror.Newf("db error getting instance: %w", err)
 	}
 
 	// Assemble email contents and send the email.
+	instanceURL := config.GetProtocol() + "://" + config.GetHost()
 	return s.emailSender.SendSignupRejectedEmail(
 		deniedUser.Email,
 		email.SignupRejectedData{
 			Message:      deniedUser.Message,
-			InstanceURL:  instance.URI,
-			InstanceName: instance.Title,
+			InstanceURL:  instanceURL,
+			InstanceName: instanceSettings.Title,
 		},
 	)
 }
@@ -199,9 +208,10 @@ func (s *Surfacer) EmailUserSignupRejected(ctx context.Context, deniedUser *gtsm
 // EmailAdminReportOpened emails all active moderators/admins
 // of this instance that a new report has been created.
 func (s *Surfacer) EmailAdminReportOpened(ctx context.Context, report *gtsmodel.Report) error {
-	instance, err := s.state.DB.GetInstance(ctx, config.GetHost())
+	// Get instance settings barebones as we only need the title.
+	instanceSettings, err := s.state.DB.GetInstanceSettings(gtscontext.SetBarebones(ctx))
 	if err != nil {
-		return gtserror.Newf("error getting instance: %w", err)
+		return gtserror.Newf("db error getting instance: %w", err)
 	}
 
 	toAddresses, err := s.state.DB.GetInstanceModeratorAddresses(ctx)
@@ -217,10 +227,11 @@ func (s *Surfacer) EmailAdminReportOpened(ctx context.Context, report *gtsmodel.
 		return gtserror.Newf("error populating report: %w", err)
 	}
 
+	instanceURL := config.GetProtocol() + "://" + config.GetHost()
 	reportData := email.NewReportData{
-		InstanceURL:        instance.URI,
-		InstanceName:       instance.Title,
-		ReportURL:          instance.URI + "/settings/moderation/reports/" + report.ID,
+		InstanceURL:        instanceURL,
+		InstanceName:       instanceSettings.Title,
+		ReportURL:          instanceURL + "/settings/moderation/reports/" + report.ID,
 		ReportDomain:       report.Account.Domain,
 		ReportTargetDomain: report.TargetAccount.Domain,
 	}
@@ -235,9 +246,10 @@ func (s *Surfacer) EmailAdminReportOpened(ctx context.Context, report *gtsmodel.
 // EmailAdminNewSignup emails all active moderators/admins of this
 // instance that a new account sign-up has been submitted to the instance.
 func (s *Surfacer) EmailAdminNewSignup(ctx context.Context, newUser *gtsmodel.User) error {
-	instance, err := s.state.DB.GetInstance(ctx, config.GetHost())
+	// Get instance settings barebones as we only need the title.
+	instanceSettings, err := s.state.DB.GetInstanceSettings(gtscontext.SetBarebones(ctx))
 	if err != nil {
-		return gtserror.Newf("error getting instance: %w", err)
+		return gtserror.Newf("db error getting instance: %w", err)
 	}
 
 	toAddresses, err := s.state.DB.GetInstanceModeratorAddresses(ctx)
@@ -254,13 +266,14 @@ func (s *Surfacer) EmailAdminNewSignup(ctx context.Context, newUser *gtsmodel.Us
 		return gtserror.Newf("error populating user: %w", err)
 	}
 
+	instanceURL := config.GetProtocol() + "://" + config.GetHost()
 	newSignupData := email.NewSignupData{
-		InstanceURL:    instance.URI,
-		InstanceName:   instance.Title,
+		InstanceURL:    instanceURL,
+		InstanceName:   instanceSettings.Title,
 		SignupEmail:    newUser.UnconfirmedEmail,
 		SignupUsername: newUser.Account.Username,
 		SignupReason:   newUser.Reason,
-		SignupURL:      instance.URI + "/settings/moderation/accounts/" + newUser.AccountID,
+		SignupURL:      instanceURL + "/settings/moderation/accounts/" + newUser.AccountID,
 	}
 
 	if err := s.emailSender.SendNewSignupEmail(toAddresses, newSignupData); err != nil {

@@ -182,7 +182,7 @@ func (m *Module) DomainPermissionDraftsGETHandler(c *gin.Context) {
 	resp, errWithCode := m.processor.Admin().DomainPermissionDraftsGet(
 		c.Request.Context(),
 		c.Query(apiutil.DomainPermissionSubscriptionIDKey),
-		c.Query(apiutil.DomainPermissionDomainKey),
+		c.Query(apiutil.DomainKey),
 		permType,
 		page,
 	)

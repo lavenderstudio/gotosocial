@@ -33,8 +33,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"code.superseriousbusiness.org/gotosocial/internal/validate"
 	"github.com/temoto/robotstxt"
 )
 
@@ -42,9 +40,9 @@ func (t *transport) DereferenceInstance(ctx context.Context, iri *url.URL) (*gts
 	// Try to fetch robots.txt to check
 	// if we're allowed to try endpoints:
 	//
-	//   - /api/v1/instance
 	//   - /.well-known/nodeinfo
 	//   - /nodeinfo/2.0|2.1 endpoints
+	//   - /api/v1/instance
 	robotsTxt, err := t.DereferenceRobots(ctx, iri.Scheme, iri.Host)
 	if err != nil {
 		log.Debugf(ctx, "couldn't fetch robots.txt from %s: %v", iri.Host, err)
@@ -52,20 +50,9 @@ func (t *transport) DereferenceInstance(ctx context.Context, iri *url.URL) (*gts
 
 	var i *gtsmodel.Instance
 
-	// First try to dereference using /api/v1/instance.
-	// This will provide the most complete picture of an instance, and avoid unnecessary api calls.
+	// First try to dereference using nodeinfo.
 	//
-	// This will only work with Mastodon-api compatible instances: Mastodon, some Pleroma instances, GoToSocial.
-	log.Debugf(ctx, "trying to dereference instance %s by /api/v1/instance", iri.Host)
-	i, err = t.dereferenceByAPIV1Instance(ctx, iri, robotsTxt)
-	if err == nil {
-		log.Debugf(ctx, "successfully dereferenced instance using /api/v1/instance")
-		return i, nil
-	}
-	log.Debugf(ctx, "couldn't dereference instance using /api/v1/instance: %s", err)
-
-	// If that doesn't work, try to dereference using /.well-known/nodeinfo.
-	// This will involve two API calls and return less info overall, but should be more widely compatible.
+	// This should be quite widely compatible.
 	log.Debugf(ctx, "trying to dereference instance %s by /.well-known/nodeinfo", iri.Host)
 	i, err = t.dereferenceByNodeInfo(ctx, iri, robotsTxt)
 	if err == nil {
@@ -74,12 +61,24 @@ func (t *transport) DereferenceInstance(ctx context.Context, iri *url.URL) (*gts
 	}
 	log.Debugf(ctx, "couldn't dereference instance using /.well-known/nodeinfo: %s", err)
 
-	// we couldn't dereference the instance using any of the known methods, so just return a minimal representation
+	// Try to dereference using /api/v1/instance.
+	//
+	// This will only work with Mastodon-api compatible
+	// instances: Mastodon, some Pleroma instances, GoToSocial.
+	log.Debugf(ctx, "trying to dereference instance %s by /api/v1/instance", iri.Host)
+	i, err = t.dereferenceByAPIV1Instance(ctx, iri, robotsTxt)
+	if err == nil {
+		log.Debugf(ctx, "successfully dereferenced instance using /api/v1/instance")
+		return i, nil
+	}
+	log.Debugf(ctx, "couldn't dereference instance using /api/v1/instance: %s", err)
+
+	// If we couldn't dereference the instance using any of the
+	// known methods, just return a minimal representation
 	log.Debugf(ctx, "returning minimal representation of instance %s", iri.Host)
 	return &gtsmodel.Instance{
-		ID:     id.NewRandomULID(),
+		ID:     id.NewULID(),
 		Domain: iri.Host,
-		URI:    iri.String(),
 	}, nil
 }
 
@@ -155,21 +154,9 @@ func (t *transport) dereferenceByAPIV1Instance(
 		return nil, err
 	}
 
-	var contactUsername string
-	if apiResp.ContactAccount != nil {
-		contactUsername = apiResp.ContactAccount.Username
-	}
-
 	i := &gtsmodel.Instance{
-		ID:                     id.NewRandomULID(),
-		Domain:                 iri.Host,
-		Title:                  apiResp.Title,
-		URI:                    iri.Scheme + "://" + iri.Host,
-		ShortDescription:       apiResp.ShortDescription,
-		Description:            apiResp.Description,
-		ContactEmail:           apiResp.Email,
-		ContactAccountUsername: contactUsername,
-		Version:                apiResp.Version,
+		ID:     id.NewULID(),
+		Domain: iri.Host,
 	}
 
 	return i, nil
@@ -193,72 +180,11 @@ func (t *transport) dereferenceByNodeInfo(
 	}
 
 	// We got a response of some kind!
-	//
-	// Start building out the bare minimum
-	// instance model, we'll add to it if we can.
 	i := &gtsmodel.Instance{
-		ID:     id.NewRandomULID(),
-		Domain: iri.Host,
-		URI:    iri.String(),
+		ID:       id.NewULID(),
+		Domain:   iri.Host,
+		Software: ni.Software.Name,
 	}
-
-	var title string
-	if i, present := ni.Metadata["nodeName"]; present {
-		// it's present, check it's a string
-		if v, ok := i.(string); ok {
-			// it is a string!
-			title = v
-		}
-	}
-	i.Title = title
-
-	var shortDescription string
-	if i, present := ni.Metadata["nodeDescription"]; present {
-		// it's present, check it's a string
-		if v, ok := i.(string); ok {
-			// it is a string!
-			shortDescription = v
-		}
-	}
-	i.ShortDescription = shortDescription
-
-	var contactEmail string
-	var contactAccountUsername string
-	if i, present := ni.Metadata["maintainer"]; present {
-		// it's present, check it's a map
-		if v, ok := i.(map[string]string); ok {
-			// see if there's an email in the map
-			if email, present := v["email"]; present {
-				if err := validate.Email(email); err == nil {
-					// valid email address
-					contactEmail = email
-				}
-			}
-			// see if there's a 'name' in the map
-			if name, present := v["name"]; present {
-				// name could be just a username, or could be a mention string eg @whatever@aaaa.com
-				username, _, err := util.ExtractNamestringParts(name)
-				if err == nil {
-					// it was a mention string
-					contactAccountUsername = username
-				} else {
-					// not a mention string
-					contactAccountUsername = name
-				}
-			}
-		}
-	}
-	i.ContactEmail = contactEmail
-	i.ContactAccountUsername = contactAccountUsername
-
-	var software string
-	if ni.Software.Name != "" {
-		software = ni.Software.Name
-	}
-	if ni.Software.Version != "" {
-		software = software + " " + ni.Software.Version
-	}
-	i.Version = software
 
 	return i, nil
 }

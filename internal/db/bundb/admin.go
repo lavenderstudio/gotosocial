@@ -30,6 +30,7 @@ import (
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
+	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
@@ -309,46 +310,6 @@ func (a *adminDB) CreateInstanceAccount(ctx context.Context) error {
 	return nil
 }
 
-func (a *adminDB) CreateInstanceInstance(ctx context.Context) error {
-	protocol := config.GetProtocol()
-	host := config.GetHost()
-
-	// check if instance entry already exists
-	q := a.db.
-		NewSelect().
-		Column("instance.id").
-		TableExpr("? AS ?", bun.Ident("instances"), bun.Ident("instance")).
-		Where("? = ?", bun.Ident("instance.domain"), host)
-
-	exists, err := exists(ctx, q)
-	if err != nil {
-		return err
-	}
-	if exists {
-		log.Infof(ctx, "instance entry already exists")
-		return nil
-	}
-
-	i := &gtsmodel.Instance{
-		ID:     id.NewRandomULID(),
-		Domain: host,
-		Title:  host,
-		URI:    fmt.Sprintf("%s://%s", protocol, host),
-	}
-
-	insertQ := a.db.
-		NewInsert().
-		Model(i)
-
-	_, err = insertQ.Exec(ctx)
-	if err != nil {
-		return err
-	}
-
-	log.Infof(ctx, "created instance instance %s with id %s", host, i.ID)
-	return nil
-}
-
 func (a *adminDB) CreateInstanceApplication(ctx context.Context) error {
 	// Check if instance application already exists.
 	// Instance application client_id always = the
@@ -509,4 +470,122 @@ func (a *adminDB) DeleteAdminAction(ctx context.Context, id string) error {
 		Exec(ctx)
 
 	return err
+}
+
+func (a *adminDB) GetInstanceSettings(ctx context.Context) (*gtsmodel.InstanceSettings, error) {
+	// Check if settings stored in the cache. Load it if not.
+	s := a.state.Caches.DB.LocalInstance.Settings.Load()
+	if s == nil {
+		// Not hydrated.
+		//
+		// Load from db and store in cache.
+		s = new(gtsmodel.InstanceSettings)
+		if err := a.db.
+			NewSelect().
+			Table("instance_settings").
+			Limit(1).
+			Scan(ctx, s); err != nil {
+			return nil, err
+		}
+		a.state.Caches.DB.LocalInstance.Settings.Store(s)
+	}
+
+	// Ensure no errant
+	// pointer fields set.
+	s.Rules = nil
+	s.ContactAccount = nil
+
+	// Copy cached settings.
+	settings := new(gtsmodel.InstanceSettings)
+	*settings = *s
+
+	// If barebones, just return.
+	if gtscontext.Barebones(ctx) {
+		return settings, nil
+	}
+
+	// Populate settings before returning.
+	if err := a.populateSettings(ctx, settings); err != nil {
+		return nil, gtserror.Newf("db error populating settings: %w", err)
+	}
+
+	return settings, nil
+}
+
+func (a *adminDB) CreateInstanceSettings(ctx context.Context) error {
+	// Check if settings already in the DB.
+	settings, err := a.GetInstanceSettings(gtscontext.SetBarebones(ctx))
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return err
+	}
+
+	if settings != nil {
+		// Settings already exist,
+		// no need to do anything.
+		return nil
+	}
+
+	// Create minimum settings with just title.
+	settings = &gtsmodel.InstanceSettings{
+		ID:    id.NewULID(),
+		Title: config.GetHost(),
+	}
+
+	// Put settings in the db.
+	if _, err := a.db.
+		NewInsert().
+		Model(settings).
+		Exec(ctx, settings); err != nil {
+		return err
+	}
+
+	// Store in cache before returning.
+	a.state.Caches.DB.LocalInstance.Settings.Store(settings)
+	return nil
+}
+
+func (a *adminDB) UpdateInstanceSettings(ctx context.Context, settings *gtsmodel.InstanceSettings, columns ...string) error {
+	// Update settings in the db.
+	if _, err := a.db.
+		NewUpdate().
+		Model(settings).
+		Column(columns...).
+		WherePK().
+		Exec(ctx); err != nil {
+		return err
+	}
+
+	// Copy + depopulate settings
+	// before storing in cache.
+	s := new(gtsmodel.InstanceSettings)
+	*s = *settings
+	s.Rules = nil
+	s.ContactAccount = nil
+	a.state.Caches.DB.LocalInstance.Settings.Store(s)
+	return nil
+}
+
+func (a *adminDB) populateSettings(ctx context.Context, settings *gtsmodel.InstanceSettings) error {
+	// Populate rules if necessary.
+	if settings.Rules == nil {
+		var err error
+		settings.Rules, err = a.state.DB.GetActiveRules(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Populate contact account if necessary.
+	if settings.ContactAccountID != "" && settings.ContactAccount == nil {
+		var err error
+		settings.ContactAccount, err = a.state.DB.GetAccountByID(
+			gtscontext.SetBarebones(ctx),
+			settings.ContactAccountID,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

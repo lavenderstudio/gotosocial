@@ -18,9 +18,10 @@
 package bundb_test
 
 import (
+	"strconv"
 	"testing"
+	"time"
 
-	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
@@ -32,39 +33,21 @@ type InstanceTestSuite struct {
 }
 
 func (suite *InstanceTestSuite) TestCountInstanceUsers() {
-	count, err := suite.db.CountInstanceUsers(suite.T().Context(), config.GetHost())
+	count, err := suite.db.CountInstanceAccounts(suite.T().Context())
 	suite.NoError(err)
 	suite.Equal(5, count)
 }
 
-func (suite *InstanceTestSuite) TestCountInstanceUsersRemote() {
-	count, err := suite.db.CountInstanceUsers(suite.T().Context(), "fossbros-anonymous.io")
-	suite.NoError(err)
-	suite.Equal(1, count)
-}
-
 func (suite *InstanceTestSuite) TestCountInstanceStatuses() {
-	count, err := suite.db.CountInstanceStatuses(suite.T().Context(), config.GetHost())
+	count, err := suite.db.CountInstanceStatuses(suite.T().Context())
 	suite.NoError(err)
 	suite.Equal(24, count)
 }
 
-func (suite *InstanceTestSuite) TestCountInstanceStatusesRemote() {
-	count, err := suite.db.CountInstanceStatuses(suite.T().Context(), "fossbros-anonymous.io")
+func (suite *InstanceTestSuite) TestCountInstancePeers() {
+	count, err := suite.db.CountInstancePeers(suite.T().Context())
 	suite.NoError(err)
 	suite.Equal(4, count)
-}
-
-func (suite *InstanceTestSuite) TestCountInstanceDomains() {
-	count, err := suite.db.CountInstanceDomains(suite.T().Context(), config.GetHost())
-	suite.NoError(err)
-	suite.Equal(2, count)
-}
-
-func (suite *InstanceTestSuite) TestGetInstanceOK() {
-	instance, err := suite.db.GetInstance(suite.T().Context(), "localhost:8080")
-	suite.NoError(err)
-	suite.NotNil(instance)
 }
 
 func (suite *InstanceTestSuite) TestGetInstanceNonexistent() {
@@ -76,13 +59,13 @@ func (suite *InstanceTestSuite) TestGetInstanceNonexistent() {
 func (suite *InstanceTestSuite) TestGetInstancePeers() {
 	peers, err := suite.db.GetInstancePeers(suite.T().Context(), false)
 	suite.NoError(err)
-	suite.Len(peers, 2)
+	suite.Len(peers, 4)
 }
 
 func (suite *InstanceTestSuite) TestGetInstancePeersIncludeSuspended() {
 	peers, err := suite.db.GetInstancePeers(suite.T().Context(), true)
 	suite.NoError(err)
-	suite.Len(peers, 2)
+	suite.Len(peers, 5)
 }
 
 func (suite *InstanceTestSuite) TestGetInstanceAccounts() {
@@ -125,6 +108,42 @@ func (suite *InstanceTestSuite) TestGetInstanceModeratorAddressesNoAdmin() {
 	addresses, err := suite.db.GetInstanceModeratorAddresses(suite.T().Context())
 	suite.ErrorIs(err, db.ErrNoEntries)
 	suite.Empty(addresses)
+}
+
+func (suite *InstanceTestSuite) TestInstanceDeliveryTracking() {
+	ctx := suite.T().Context()
+	testInstance := suite.testInstances["thequeenisstillalive.technology"]
+
+	for i := 0; i <= 25; i++ {
+		if err := suite.state.DB.AddInstanceDeliveryError(ctx,
+			testInstance.Domain,
+			"error "+strconv.Itoa(i),
+		); err != nil {
+			suite.FailNow(err.Error())
+		}
+
+		instance, err := suite.state.DB.GetInstanceByID(ctx, testInstance.ID)
+		if err != nil {
+			suite.FailNow(err.Error())
+		}
+
+		if l := len(instance.DeliveryErrors); l > 20 {
+			suite.FailNow("", "instance delivery errors length was %d, wanted < 20", l)
+		}
+	}
+
+	// Clear all the errors we just added by setting successful delivery to now.
+	if err := suite.state.DB.SetInstanceSuccessfulDelivery(ctx, testInstance.Domain); err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	instance, err := suite.state.DB.GetInstanceByID(ctx, testInstance.ID)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	suite.Empty(instance.DeliveryErrors)
+	suite.WithinDuration(time.Now(), instance.LatestSuccessfulDelivery, 1*time.Minute)
 }
 
 func TestInstanceTestSuite(t *testing.T) {

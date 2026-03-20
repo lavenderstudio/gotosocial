@@ -30,6 +30,7 @@
 //   - admin:read:domain_allows: grants admin read access to domain allows
 //   - admin:read:domain_blocks: grants admin read access to domain blocks
 //   - admin:read:domain_limits: grants admin read access to domain limits
+//   - admin:read:instances: grants admin read access to instances
 //   - admin:read:reports: grants admin read access to reports
 //   - admin:write: grants admin write access to everything
 //   - admin:write:accounts: grants write read access to accounts
@@ -93,6 +94,7 @@
 //	      admin:read:domain_allows: grants admin read access to domain allows
 //	      admin:read:domain_blocks: grants admin read access to domain blocks
 //	      admin:read:domain_limits: grants admin read access to domain limits
+//	      admin:read:instances: grants admin read access to instances
 //	      admin:read:reports: grants admin read access to reports
 //	      admin:write: grants admin write access to everything
 //	      admin:write:accounts: grants write read access to accounts

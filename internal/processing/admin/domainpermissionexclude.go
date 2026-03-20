@@ -121,7 +121,7 @@ func (p *Processor) DomainPermissionExcludesGet(
 	// Assemble next/prev page queries.
 	query := make(url.Values, 1)
 	if domain != "" {
-		query.Set(apiutil.DomainPermissionDomainKey, domain)
+		query.Set(apiutil.DomainKey, domain)
 	}
 
 	return paging.PackageResponse(paging.ResponseParams{

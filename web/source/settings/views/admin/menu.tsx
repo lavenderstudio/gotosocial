@@ -33,6 +33,7 @@ import { useHasPermission } from "../../lib/navigation/util";
  * - /settings/admin/emojis/local
  * - /settings/admin/emojis/local/:emojiId
  * - /settings/admin/emojis/remote
+ * - /settings/admin/instances/search
  * - /settings/admin/actions
  * - /settings/admin/actions/email
  * - /settings/admin/actions/media
@@ -58,6 +59,7 @@ export default function AdminMenu() {
 		>
 			<AdminInstanceMenu />
 			<AdminEmojisMenu />
+			<AdminInstancesMenu />
 			<AdminActionsMenu />
 			<AdminHTTPHeaderPermissionsMenu />
 			<AdminDebugMenu />
@@ -137,6 +139,16 @@ function AdminEmojisMenu() {
 				icon="fa-cloud"
 			/>
 		</MenuItem>
+	);
+}
+
+function AdminInstancesMenu() {
+	return (
+		<MenuItem
+			name="Remote Instances"
+			itemUrl="instances"
+			icon="fa-server"
+		/>
 	);
 }
 

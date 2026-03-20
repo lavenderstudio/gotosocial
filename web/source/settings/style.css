@@ -1875,6 +1875,41 @@ button.tab-button {
 	}
 }
 
+.instances-view {
+	.instance-info {		
+		.info-list {
+			border: none;
+			width: 100%;
+	
+			.info-list-entry {
+				background: none;
+				padding: 0;
+
+				&.delivery-errors {
+					color: $error-fg;
+					background: $error-bg;
+					border-radius: $br-inner;
+				}
+			}
+		}
+	}
+}
+
+.instance-detail {
+	.info-list {
+		margin-top: 1rem;
+	}
+
+	.delivery-errors-list {
+		margin-top: 0;
+	}
+
+	.domain-blocks-link {
+		color: $link-fg;
+		text-decoration: underline;
+	}
+}
+
 @media screen and (orientation: portrait) {
 	.reports .report .byline {
 		grid-template-columns: 1fr;

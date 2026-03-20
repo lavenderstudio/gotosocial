@@ -96,26 +96,24 @@ func (p *Processor) NodeInfoGet(ctx context.Context, schemaVersion string) (*api
 	default:
 		// Mode is either "serve" or "default".
 		// Count actual stats.
-		host := config.GetHost()
-
-		userCount, err = p.state.DB.CountInstanceUsers(ctx, host)
+		userCount, err = p.state.DB.CountInstanceAccounts(ctx)
 		if err != nil {
 			return nil, gtserror.NewErrorInternalError(err)
 		}
 
-		postCount, err = p.state.DB.CountInstanceStatuses(ctx, host)
+		postCount, err = p.state.DB.CountInstanceStatuses(ctx)
 		if err != nil {
 			return nil, gtserror.NewErrorInternalError(err)
 		}
 	}
 
-	// Fill `metadata` field with instance info
-	instance, err := p.state.DB.GetInstance(ctx, config.GetHost())
+	// Fill `metadata` field with instance settings.
+	settings, err := p.state.DB.GetInstanceSettings(ctx)
 	if err != nil {
-		err := fmt.Errorf("db error getting instance: %w", err)
+		err := fmt.Errorf("db error getting instance settings: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
 	}
-	metadata := getNodeInfoMetadata(instance)
+	metadata := getNodeInfoMetadata(settings)
 
 	nodeInfo := &apimodel.Nodeinfo{
 		Version: schemaVersion,
@@ -149,25 +147,25 @@ func (p *Processor) NodeInfoGet(ctx context.Context, schemaVersion string) (*api
 
 // getNodeInfoMetadata populates + returns a
 // `metadata` map based on Misskey's nodeinfo metadata.
-func getNodeInfoMetadata(instance *gtsmodel.Instance) map[string]any {
+func getNodeInfoMetadata(settings *gtsmodel.InstanceSettings) map[string]any {
 	nodeInfoMetadata := make(map[string]any)
 
 	// nodeName: Name of this instance.
 	// Using title as name should be OK.
-	nodeInfoMetadata["nodeName"] = instance.Title
+	nodeInfoMetadata["nodeName"] = settings.Title
 
 	// nodeDescription: description of the site.
 	// Misskey seems to use HTML here, so it should be fine.
-	nodeInfoMetadata["nodeDescription"] = instance.Description
+	nodeInfoMetadata["nodeDescription"] = settings.Description
 
 	// Contact related info.
 	contactField := make(map[string]string, 2)
-	if instance.ContactAccount != nil {
-		contactField["name"] = "@" + instance.ContactAccount.Username + "@" + config.GetAccountDomain()
+	if settings.ContactAccount != nil {
+		contactField["name"] = "@" + settings.ContactAccount.Username + "@" + config.GetAccountDomain()
 	}
-	if instance.ContactEmail != "" {
-		contactField["email"] = instance.ContactEmail
-		nodeInfoMetadata["inquiryUrl"] = "mailto:" + instance.ContactEmail
+	if settings.ContactEmail != "" {
+		contactField["email"] = settings.ContactEmail
+		nodeInfoMetadata["inquiryUrl"] = "mailto:" + settings.ContactEmail
 	}
 	if len(contactField) != 0 {
 		nodeInfoMetadata["nodeAdmins"] = []any{contactField}
