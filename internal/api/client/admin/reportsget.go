@@ -53,9 +53,16 @@ import (
 //		name: resolved
 //		type: boolean
 //		description: >-
-//			If set to true, only resolved reports will be returned.
-//			If false, only unresolved reports will be returned.
-//			If unset, reports will not be filtered on their resolved status.
+//			If present, resolved reports will be returned.
+//			If not present, unresolved reports will be returned.
+//		in: query
+//	-
+//		name: unresolved
+//		type: boolean
+//		description: >-
+//			If present, unresolved reports will always be returned.
+//			If not present, unresolved reports will be returned only if the resolved parameter is not present.
+//			Can be used with `resolved` to return both resolved and unresolved reports in the same query.
 //		in: query
 //	-
 //		name: account_id
@@ -154,7 +161,13 @@ func (m *Module) ReportsGETHandler(c *gin.Context) {
 		return
 	}
 
-	resolved, errWithCode := apiutil.ParseResolved(c.Query(apiutil.ResolvedKey), nil)
+	resolved, errWithCode := apiutil.ParseAdminResolved(c.Query(apiutil.ResolvedKey))
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		return
+	}
+
+	unresolved, errWithCode := apiutil.ParseAdminUnresolved(c.Query(apiutil.UnresolvedKey))
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
 		return
@@ -174,6 +187,7 @@ func (m *Module) ReportsGETHandler(c *gin.Context) {
 		c.Request.Context(),
 		authed.Account,
 		resolved,
+		unresolved,
 		c.Query(apiutil.AccountIDKey),
 		c.Query(apiutil.TargetAccountIDKey),
 		page,

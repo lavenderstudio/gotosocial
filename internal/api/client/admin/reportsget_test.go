@@ -48,6 +48,7 @@ func (suite *ReportsGetTestSuite) getReports(
 	expectedHTTPStatus int,
 	expectedBody string,
 	resolved *bool,
+	unresolved *bool,
 	accountID string,
 	targetAccountID string,
 	maxID string,
@@ -67,6 +68,9 @@ func (suite *ReportsGetTestSuite) getReports(
 	requestPath := admin.ReportsPath + "?" + apiutil.LimitKey + "=" + strconv.Itoa(limit)
 	if resolved != nil {
 		requestPath = requestPath + "&" + apiutil.ResolvedKey + "=" + strconv.FormatBool(*resolved)
+	}
+	if unresolved != nil {
+		requestPath = requestPath + "&" + apiutil.UnresolvedKey + "=" + strconv.FormatBool(*unresolved)
 	}
 	if accountID != "" {
 		requestPath = requestPath + "&" + apiutil.AccountIDKey + "=" + accountID
@@ -128,8 +132,10 @@ func (suite *ReportsGetTestSuite) TestReportsGetAll() {
 	testAccount := suite.testAccounts["admin_account"]
 	testToken := suite.testTokens["admin_account"]
 	testUser := suite.testUsers["admin_account"]
+	resolved := util.Ptr(true)
+	unresolved := util.Ptr(true)
 
-	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", nil, "", "", "", "", "", 20)
+	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", resolved, unresolved, "", "", "", "", "", 20)
 	suite.NoError(err)
 	suite.NotEmpty(reports)
 
@@ -623,7 +629,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetAll() {
   }
 ]`, string(b))
 
-	suite.Equal(`<http://localhost:8080/api/v1/admin/reports?limit=20&max_id=01GP3AWY4CRDVRNZKW0TEAMB5R>; rel="next", <http://localhost:8080/api/v1/admin/reports?limit=20&min_id=01GP3DFY9XQ1TJMZT5BGAZPXX7>; rel="prev"`, link)
+	suite.Equal(`<http://localhost:8080/api/v1/admin/reports?limit=20&max_id=01GP3AWY4CRDVRNZKW0TEAMB5R&resolved=true&unresolved=true>; rel="next", <http://localhost:8080/api/v1/admin/reports?limit=20&min_id=01GP3DFY9XQ1TJMZT5BGAZPXX7&resolved=true&unresolved=true>; rel="prev"`, link)
 }
 
 func (suite *ReportsGetTestSuite) TestReportsGetCreatedByAccount() {
@@ -632,7 +638,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetCreatedByAccount() {
 	testUser := suite.testUsers["admin_account"]
 	account := suite.testAccounts["local_account_2"]
 
-	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", nil, account.ID, "", "", "", "", 20)
+	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", nil, nil, account.ID, "", "", "", "", 20)
 	suite.NoError(err)
 	suite.NotEmpty(reports)
 
@@ -895,7 +901,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetTargetAccount() {
 	testUser := suite.testUsers["admin_account"]
 	targetAccount := suite.testAccounts["remote_account_1"]
 
-	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", nil, "", targetAccount.ID, "", "", "", 20)
+	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", nil, nil, "", targetAccount.ID, "", "", "", 20)
 	suite.NoError(err)
 	suite.NotEmpty(reports)
 
@@ -1156,10 +1162,267 @@ func (suite *ReportsGetTestSuite) TestReportsGetResolvedTargetAccount() {
 	testAccount := suite.testAccounts["admin_account"]
 	testToken := suite.testTokens["admin_account"]
 	testUser := suite.testUsers["admin_account"]
-	resolved := util.Ptr(false)
+	targetAccount := suite.testAccounts["local_account_2"]
+	resolved := util.Ptr(true)
+
+	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", resolved, nil, "", targetAccount.ID, "", "", "", 20)
+	suite.NoError(err)
+	suite.Len(reports, 1)
+
+	b, err := json.MarshalIndent(&reports, "", "  ")
+	suite.NoError(err)
+
+	suite.Equal(`[
+  {
+    "id": "01GP3DFY9XQ1TJMZT5BGAZPXX7",
+    "action_taken": true,
+    "action_taken_at": "2022-05-15T15:01:56.000Z",
+    "category": "other",
+    "comment": "this is a turtle, not a person, therefore should not be a poster",
+    "forwarded": true,
+    "created_at": "2022-05-15T14:20:12.000Z",
+    "updated_at": "2022-05-15T14:20:12.000Z",
+    "account": {
+      "id": "01F8MH5ZK5VRH73AKHQM6Y9VNX",
+      "username": "foss_satan",
+      "domain": "fossbros-anonymous.io",
+      "created_at": "2021-09-26T10:52:36.000Z",
+      "email": "",
+      "ip": null,
+      "ips": [],
+      "locale": "",
+      "invite_request": null,
+      "role": {
+        "id": "user",
+        "name": "user",
+        "color": "",
+        "permissions": "0",
+        "highlighted": false
+      },
+      "confirmed": false,
+      "approved": false,
+      "disabled": false,
+      "silenced": false,
+      "suspended": false,
+      "account": {
+        "id": "01F8MH5ZK5VRH73AKHQM6Y9VNX",
+        "username": "foss_satan",
+        "acct": "foss_satan@fossbros-anonymous.io",
+        "display_name": "big gerald",
+        "locked": false,
+        "discoverable": true,
+        "indexable": true,
+        "noindex": false,
+        "bot": false,
+        "created_at": "2021-09-26T10:52:36.000Z",
+        "note": "i post about like, i dunno, stuff, or whatever!!!!",
+        "url": "http://fossbros-anonymous.io/@foss_satan",
+        "avatar": "",
+        "avatar_static": "",
+        "header": "http://localhost:8080/assets/default_header.webp",
+        "header_static": "http://localhost:8080/assets/default_header.webp",
+        "header_description": "Flat gray background (default header).",
+        "followers_count": 0,
+        "following_count": 0,
+        "statuses_count": 4,
+        "last_status_at": "2024-11-01",
+        "emojis": [],
+        "fields": [],
+        "group": false
+      }
+    },
+    "target_account": {
+      "id": "01F8MH5NBDF2MV7CTC4Q5128HF",
+      "username": "1happyturtle",
+      "domain": null,
+      "created_at": "2022-06-04T13:12:00.000Z",
+      "email": "tortle.dude@example.org",
+      "ip": null,
+      "ips": [],
+      "locale": "en",
+      "invite_request": null,
+      "role": {
+        "id": "user",
+        "name": "user",
+        "color": "",
+        "permissions": "0",
+        "highlighted": false
+      },
+      "confirmed": true,
+      "approved": true,
+      "disabled": false,
+      "silenced": false,
+      "suspended": false,
+      "account": {
+        "id": "01F8MH5NBDF2MV7CTC4Q5128HF",
+        "username": "1happyturtle",
+        "acct": "1happyturtle",
+        "display_name": "happy little turtle :3",
+        "locked": true,
+        "discoverable": false,
+        "indexable": false,
+        "noindex": true,
+        "bot": false,
+        "created_at": "2022-06-04T13:12:00.000Z",
+        "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+        "url": "http://localhost:8080/@1happyturtle",
+        "avatar": "",
+        "avatar_static": "",
+        "header": "http://localhost:8080/assets/default_header.webp",
+        "header_static": "http://localhost:8080/assets/default_header.webp",
+        "header_description": "Flat gray background (default header).",
+        "followers_count": 1,
+        "following_count": 1,
+        "statuses_count": 10,
+        "last_status_at": "2026-01-01",
+        "emojis": [],
+        "fields": [
+          {
+            "name": "should you follow me?",
+            "value": "maybe!",
+            "verified_at": null
+          },
+          {
+            "name": "age",
+            "value": "120",
+            "verified_at": null
+          }
+        ],
+        "hide_collections": true,
+        "group": false
+      },
+      "created_by_application_id": "01F8MGY43H3N2C8EWPR2FPYEXG"
+    },
+    "assigned_account": {
+      "id": "01F8MH17FWEB39HZJ76B6VXSKF",
+      "username": "admin",
+      "domain": null,
+      "created_at": "2022-05-17T13:10:59.000Z",
+      "email": "admin@example.org",
+      "ip": null,
+      "ips": [],
+      "locale": "en",
+      "invite_request": null,
+      "role": {
+        "id": "admin",
+        "name": "admin",
+        "color": "",
+        "permissions": "546033",
+        "highlighted": true
+      },
+      "confirmed": true,
+      "approved": true,
+      "disabled": false,
+      "silenced": false,
+      "suspended": false,
+      "account": {
+        "id": "01F8MH17FWEB39HZJ76B6VXSKF",
+        "username": "admin",
+        "acct": "admin",
+        "display_name": "",
+        "locked": false,
+        "discoverable": true,
+        "indexable": true,
+        "noindex": false,
+        "bot": false,
+        "created_at": "2022-05-17T13:10:59.000Z",
+        "note": "",
+        "url": "http://localhost:8080/@admin",
+        "avatar": "",
+        "avatar_static": "",
+        "header": "http://localhost:8080/assets/default_header.webp",
+        "header_static": "http://localhost:8080/assets/default_header.webp",
+        "header_description": "Flat gray background (default header).",
+        "followers_count": 1,
+        "following_count": 1,
+        "statuses_count": 4,
+        "last_status_at": "2021-10-20",
+        "emojis": [],
+        "fields": [],
+        "enable_rss": true,
+        "roles": [
+          {
+            "id": "admin",
+            "name": "admin",
+            "color": ""
+          }
+        ],
+        "group": false
+      },
+      "created_by_application_id": "01F8MGXQRHYF5QPMTMXP78QC2F"
+    },
+    "action_taken_by_account": {
+      "id": "01F8MH17FWEB39HZJ76B6VXSKF",
+      "username": "admin",
+      "domain": null,
+      "created_at": "2022-05-17T13:10:59.000Z",
+      "email": "admin@example.org",
+      "ip": null,
+      "ips": [],
+      "locale": "en",
+      "invite_request": null,
+      "role": {
+        "id": "admin",
+        "name": "admin",
+        "color": "",
+        "permissions": "546033",
+        "highlighted": true
+      },
+      "confirmed": true,
+      "approved": true,
+      "disabled": false,
+      "silenced": false,
+      "suspended": false,
+      "account": {
+        "id": "01F8MH17FWEB39HZJ76B6VXSKF",
+        "username": "admin",
+        "acct": "admin",
+        "display_name": "",
+        "locked": false,
+        "discoverable": true,
+        "indexable": true,
+        "noindex": false,
+        "bot": false,
+        "created_at": "2022-05-17T13:10:59.000Z",
+        "note": "",
+        "url": "http://localhost:8080/@admin",
+        "avatar": "",
+        "avatar_static": "",
+        "header": "http://localhost:8080/assets/default_header.webp",
+        "header_static": "http://localhost:8080/assets/default_header.webp",
+        "header_description": "Flat gray background (default header).",
+        "followers_count": 1,
+        "following_count": 1,
+        "statuses_count": 4,
+        "last_status_at": "2021-10-20",
+        "emojis": [],
+        "fields": [],
+        "enable_rss": true,
+        "roles": [
+          {
+            "id": "admin",
+            "name": "admin",
+            "color": ""
+          }
+        ],
+        "group": false
+      },
+      "created_by_application_id": "01F8MGXQRHYF5QPMTMXP78QC2F"
+    },
+    "statuses": [],
+    "rules": [],
+    "action_taken_comment": "user was warned not to be a turtle anymore"
+  }
+]`, string(b))
+	suite.Equal(`<http://localhost:8080/api/v1/admin/reports?limit=20&max_id=01GP3DFY9XQ1TJMZT5BGAZPXX7&resolved=true&target_account_id=01F8MH5NBDF2MV7CTC4Q5128HF>; rel="next", <http://localhost:8080/api/v1/admin/reports?limit=20&min_id=01GP3DFY9XQ1TJMZT5BGAZPXX7&resolved=true&target_account_id=01F8MH5NBDF2MV7CTC4Q5128HF>; rel="prev"`, link)
+}
+func (suite *ReportsGetTestSuite) TestReportsGetUnresolvedTargetAccount() {
+	testAccount := suite.testAccounts["admin_account"]
+	testToken := suite.testTokens["admin_account"]
+	testUser := suite.testUsers["admin_account"]
 	targetAccount := suite.testAccounts["local_account_2"]
 
-	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", resolved, "", targetAccount.ID, "", "", "", 20)
+	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", nil, nil, "", targetAccount.ID, "", "", "", 20)
 	suite.NoError(err)
 	suite.Empty(reports)
 
@@ -1175,7 +1438,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetNotAdmin() {
 	testToken := suite.testTokens["local_account_1"]
 	testUser := suite.testUsers["local_account_1"]
 
-	reports, _, err := suite.getReports(testAccount, testToken, testUser, http.StatusForbidden, `{"error":"Forbidden: token has insufficient scope permission"}`, nil, "", "", "", "", "", 20)
+	reports, _, err := suite.getReports(testAccount, testToken, testUser, http.StatusForbidden, `{"error":"Forbidden: token has insufficient scope permission"}`, nil, nil, "", "", "", "", "", 20)
 	suite.NoError(err)
 	suite.Empty(reports)
 }
@@ -1184,26 +1447,30 @@ func (suite *ReportsGetTestSuite) TestReportsGetZeroLimit() {
 	testAccount := suite.testAccounts["admin_account"]
 	testToken := suite.testTokens["admin_account"]
 	testUser := suite.testUsers["admin_account"]
+	resolved := util.Ptr(true)
+	unresolved := util.Ptr(true)
 
-	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", nil, "", "", "", "", "", 0)
+	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", resolved, unresolved, "", "", "", "", "", 0)
 	suite.NoError(err)
 	suite.Len(reports, 2)
 
 	// Limit in Link header should be set to default (20)
-	suite.Equal(`<http://localhost:8080/api/v1/admin/reports?limit=20&max_id=01GP3AWY4CRDVRNZKW0TEAMB5R>; rel="next", <http://localhost:8080/api/v1/admin/reports?limit=20&min_id=01GP3DFY9XQ1TJMZT5BGAZPXX7>; rel="prev"`, link)
+	suite.Equal(`<http://localhost:8080/api/v1/admin/reports?limit=20&max_id=01GP3AWY4CRDVRNZKW0TEAMB5R&resolved=true&unresolved=true>; rel="next", <http://localhost:8080/api/v1/admin/reports?limit=20&min_id=01GP3DFY9XQ1TJMZT5BGAZPXX7&resolved=true&unresolved=true>; rel="prev"`, link)
 }
 
 func (suite *ReportsGetTestSuite) TestReportsGetHighLimit() {
 	testAccount := suite.testAccounts["admin_account"]
 	testToken := suite.testTokens["admin_account"]
 	testUser := suite.testUsers["admin_account"]
+	resolved := util.Ptr(true)
+	unresolved := util.Ptr(true)
 
-	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", nil, "", "", "", "", "", 2000)
+	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", resolved, unresolved, "", "", "", "", "", 2000)
 	suite.NoError(err)
 	suite.Len(reports, 2)
 
 	// Limit in Link header should be set to 100
-	suite.Equal(`<http://localhost:8080/api/v1/admin/reports?limit=100&max_id=01GP3AWY4CRDVRNZKW0TEAMB5R>; rel="next", <http://localhost:8080/api/v1/admin/reports?limit=100&min_id=01GP3DFY9XQ1TJMZT5BGAZPXX7>; rel="prev"`, link)
+	suite.Equal(`<http://localhost:8080/api/v1/admin/reports?limit=100&max_id=01GP3AWY4CRDVRNZKW0TEAMB5R&resolved=true&unresolved=true>; rel="next", <http://localhost:8080/api/v1/admin/reports?limit=100&min_id=01GP3DFY9XQ1TJMZT5BGAZPXX7&resolved=true&unresolved=true>; rel="prev"`, link)
 }
 
 func TestReportsGetTestSuite(t *testing.T) {

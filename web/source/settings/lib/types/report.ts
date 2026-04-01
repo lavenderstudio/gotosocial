@@ -110,9 +110,14 @@ export interface AdminReportResolveParams {
  */
 export interface AdminSearchReportParams {
 	/**
-	 * If set, show only resolved (true) or only unresolved (false) reports.
+	 * If set, show resolved reports. If unset, show unresolved reports.
+	 * Use both `resolved` and `unresolved` to show both resolved and unresolved reports in the same query.
 	 */
 	resolved?: boolean;
+	/**
+	 * If set, unresolved reports will always be shown.
+	 */
+	unresolved?: boolean;
 	/**
 	 * If set, show only reports created by the given account ID.
 	 */
