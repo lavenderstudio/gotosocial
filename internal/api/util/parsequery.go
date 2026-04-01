@@ -46,6 +46,7 @@ const (
 	AccountIDKey       = "account_id"
 	TargetAccountIDKey = "target_account_id"
 	ResolvedKey        = "resolved"
+	UnresolvedKey      = "unresolved"
 	OffsetKey          = "offset"
 	DomainKey          = "domain"
 	OrderKey           = "order"
@@ -210,6 +211,14 @@ func ParseAdminStaff(value string, defaultValue bool) (bool, gtserror.WithCode) 
 
 func ParseAdminWithErrorsOnly(value string, defaultValue bool) (bool, gtserror.WithCode) {
 	return parseBool(value, defaultValue, AdminWithErrorsOnlyKey)
+}
+
+func ParseAdminResolved(value string) (bool, gtserror.WithCode) {
+	return parsePresent(value)
+}
+
+func ParseAdminUnresolved(value string) (bool, gtserror.WithCode) {
+	return parsePresent(value)
 }
 
 func ParseInteractionFavourites(value string, defaultValue bool) (bool, gtserror.WithCode) {
@@ -385,6 +394,14 @@ func parseInt(value string, defaultValue int, max int, min int, key string) (int
 	}
 
 	return i, nil
+}
+
+func parsePresent(value string) (bool, gtserror.WithCode) {
+	if value == "" {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // parseError returns gtserror.WithCode set to 400 Bad Request, to indicate

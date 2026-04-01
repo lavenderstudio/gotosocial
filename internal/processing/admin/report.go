@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strconv"
 	"time"
 
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
@@ -33,6 +32,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/messages"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
+	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
 // ReportsGet returns reports stored on this
@@ -40,11 +40,25 @@ import (
 func (p *Processor) ReportsGet(
 	ctx context.Context,
 	account *gtsmodel.Account,
-	resolved *bool,
+	resolvedParam bool,
+	unresolvedParam bool,
 	accountID string,
 	targetAccountID string,
 	page *paging.Page,
 ) (*apimodel.PageableResponse, gtserror.WithCode) {
+	// Mastodon API doesn't allow returning both resolved and unresolved reports in one query.
+	// Introduced an `unresolved` param to allow requesting both.
+	var resolved *bool
+	switch {
+	case resolvedParam && unresolvedParam:
+		resolved = nil
+	case resolvedParam:
+		resolved = util.Ptr(true)
+	case unresolvedParam:
+	case !resolvedParam && !unresolvedParam:
+		resolved = util.Ptr(false)
+	}
+
 	reports, err := p.state.DB.GetReports(
 		ctx,
 		resolved,
@@ -78,9 +92,12 @@ func (p *Processor) ReportsGet(
 	}
 
 	// Assemble next/prev page queries.
-	query := make(url.Values, 3)
-	if resolved != nil {
-		query.Set(apiutil.ResolvedKey, strconv.FormatBool(*resolved))
+	query := make(url.Values, 4)
+	if resolvedParam {
+		query.Set(apiutil.ResolvedKey, "true")
+	}
+	if unresolvedParam {
+		query.Set(apiutil.UnresolvedKey, "true")
 	}
 	if accountID != "" {
 		query.Set(apiutil.AccountIDKey, accountID)

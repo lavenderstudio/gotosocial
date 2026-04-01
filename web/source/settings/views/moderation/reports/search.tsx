@@ -76,7 +76,17 @@ function ReportSearchForm() {
 	// search (just show unresolved reports).
 	useEffect(() => {
 		if (hasParams) {
-			searchReports(Object.fromEntries(urlQueryParams));
+			const params = Object.fromEntries(urlQueryParams);
+			const resolved = form.resolved.value;
+			if (resolved === "true") {
+				params.resolved = "true";
+			} else if (resolved === "false") {
+				delete params.resolved;
+			} else {
+				params.resolved = "true";
+				params.unresolved = "true";
+			}
+			searchReports(params);
 		} else {
 			setResolved("false");
 			setLocation(location + "?resolved=false");
