@@ -21,6 +21,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/emoji"
 	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/publickey"
 	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/users"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
@@ -40,14 +41,24 @@ func (a *ActivityPub) Route(r *router.Router, m ...gin.HandlerFunc) {
 	emojiGroup := r.AttachGroup("emoji")
 	usersGroup := r.AttachGroup("users")
 
-	// attach shared, non-global middlewares to both of these groups
+	// Use provided middlewares.
+	emojiGroup.Use(m...)
+	usersGroup.Use(m...)
+
+	// Attach cache control middleware.
 	ccMiddleware := middleware.CacheControl(middleware.CacheControlConfig{
 		Directives: []string{"no-store"},
 	})
-	emojiGroup.Use(m...)
-	usersGroup.Use(m...)
-	emojiGroup.Use(a.signatureCheckMiddleware, ccMiddleware)
-	usersGroup.Use(a.signatureCheckMiddleware, ccMiddleware)
+	emojiGroup.Use(ccMiddleware)
+	usersGroup.Use(ccMiddleware)
+
+	// Route the instance actor endpoint first
+	// so it doesn't require signature auth.
+	usersGroup.GET(config.GetHost(), a.users.InstanceActorGETHandler)
+
+	// *Now* add signature checking.
+	emojiGroup.Use(a.signatureCheckMiddleware)
+	usersGroup.Use(a.signatureCheckMiddleware)
 
 	a.emoji.Route(emojiGroup.Handle)
 	a.users.Route(usersGroup.Handle)

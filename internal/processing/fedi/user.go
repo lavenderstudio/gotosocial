@@ -105,3 +105,28 @@ func (p *Processor) UserGetMinimal(
 
 	return data, nil
 }
+
+// InstanceActorGet returns the activitypub service
+// actor for this instance *without* doing authentication.
+func (p *Processor) InstanceActorGet(ctx context.Context) (any, gtserror.WithCode) {
+	instanceAcct, err := p.state.DB.GetInstanceAccount(ctx, "")
+	if err != nil {
+		err := gtserror.Newf("db error getting instance account: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	// Generate the proper AP representation.
+	accountable, err := p.converter.AccountToAS(ctx, instanceAcct)
+	if err != nil {
+		err := gtserror.Newf("error converting to accountable: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	data, err := ap.Serialize(accountable)
+	if err != nil {
+		err := gtserror.Newf("error serializing accountable: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	return data, nil
+}

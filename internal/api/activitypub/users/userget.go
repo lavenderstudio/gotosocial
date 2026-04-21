@@ -21,6 +21,7 @@ import (
 	"net/http"
 
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"github.com/gin-gonic/gin"
 )
 
@@ -50,6 +51,24 @@ func (m *Module) UsersGETHandler(c *gin.Context) {
 		c.Request.Context(),
 		username,
 	)
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		return
+	}
+
+	apiutil.JSONType(c, http.StatusOK, contentType, resp)
+}
+
+// InstanceActorGETHandler should be served at https://[hostname]/users/[hostname].
+// It returns the AP model of the instance account, *without* requiring a signed GET.
+func (m *Module) InstanceActorGETHandler(c *gin.Context) {
+	contentType, err := apiutil.NegotiateAccept(c, apiutil.ActivityPubHeaders...)
+	if err != nil {
+		apiutil.ErrorHandler(c, gtserror.NewErrorNotAcceptable(err, err.Error()), m.processor.InstanceGetV1)
+		return
+	}
+
+	resp, errWithCode := m.processor.Fedi().InstanceActorGet(c.Request.Context())
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
 		return
