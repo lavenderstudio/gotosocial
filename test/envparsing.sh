@@ -70,6 +70,10 @@ EXPECT=$(cat << "EOF"
     "cache-poll-mem-ratio": 1,
     "cache-poll-vote-ids-mem-ratio": 2,
     "cache-poll-vote-mem-ratio": 2,
+    "cache-relay-matcher-mem-ratio": 0.1,
+    "cache-relay-push-ids-mem-ratio": 0.1,
+    "cache-relay-push-mem-ratio": 0.1,
+    "cache-relay-subscription-mem-ratio": 0.1,
     "cache-report-mem-ratio": 1,
     "cache-s3-object-info": 0,
     "cache-scheduled-status-mem-ratio": 4,
@@ -211,6 +215,7 @@ EXPECT=$(cat << "EOF"
     "storage-s3-key-prefix": "",
     "storage-s3-proxy": true,
     "storage-s3-redirect-url": "",
+    "storage-s3-region": "us-east-2",
     "storage-s3-secret-key": "miniostorage",
     "storage-s3-use-ssl": false,
     "syslog-address": "127.0.0.1:6969",
@@ -305,6 +310,7 @@ GTS_STORAGE_S3_BUCKET_LOOKUP='auto' \
 GTS_STORAGE_S3_PROXY='true' \
 GTS_STORAGE_S3_REDIRECT_URL='' \
 GTS_STORAGE_S3_BUCKET='gts' \
+GTS_STORAGE_S3_REGION='us-east-2' \
 GTS_STATUSES_MAX_CHARS=69 \
 GTS_STATUSES_CW_MAX_CHARS=420 \
 GTS_STATUSES_POLL_MAX_OPTIONS=1 \

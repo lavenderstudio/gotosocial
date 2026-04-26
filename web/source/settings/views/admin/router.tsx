@@ -36,6 +36,9 @@ import ApURL from "./debug/apurl";
 import Caches from "./debug/caches";
 import InstancesSearch from "./instances.go";
 import InstanceDetail from "./instances.go/detail";
+import RelaySubscriptionsOverview from "./relay-subscriptions";
+import RelaySubscriptionNew from "./relay-subscriptions/new";
+import RelaySubscriptionDetail from "./relay-subscriptions/detail";
 
 /*
 	EXPORTED COMPONENTS
@@ -45,6 +48,9 @@ import InstanceDetail from "./instances.go/detail";
  * - /settings/admin/instance/settings
  * - /settings/admin/instance/rules
  * - /settings/admin/instance/rules/:ruleId
+ * - /settings/admin/relay-subscriptions/overview
+ * - /settings/admin/relay-subscriptions/new
+ * - /settings/admin/relay-subscriptions/:relaySubscriptionId
  * - /settings/admin/emojis
  * - /settings/admin/emojis/local
  * - /settings/admin/emojis/local/:emojiId
@@ -70,6 +76,7 @@ export default function AdminRouter() {
 			<Router base={thisBase}>
 				<AdminInstanceRouter />
 				<AdminEmojisRouter />
+				<AdminRelaySubscriptionsRouter />
 				<AdminInstancesRouter />
 				<AdminActionsRouter />
 				<AdminHTTPHeaderPermissionsRouter />
@@ -109,6 +116,38 @@ function AdminEmojisRouter() {
 						<Route path="/local/:emojiId" component={EmojiDetail} />
 						<Route path="/remote" component={RemoteEmoji} />
 						<Route><Redirect to="/local" /></Route>
+					</Switch>
+				</ErrorBoundary>
+			</Router>
+		</BaseUrlContext.Provider>
+	);
+}
+
+/**
+ * - /settings/admin/relay-subscriptions/overview
+ * - /settings/admin/relay-subscriptions/new
+ * - /settings/admin/relay-subscriptions/:relaySubscriptionId
+ */
+function AdminRelaySubscriptionsRouter() {
+	const parentUrl = useBaseUrl();
+	const thisBase = "/relay-subscriptions";
+	const absBase = parentUrl + thisBase;
+
+	const permissions = ["admin"];
+	const admin = useHasPermission(permissions);
+	if (!admin) {
+		return null;
+	}
+
+	return (
+		<BaseUrlContext.Provider value={absBase}>
+			<Router base={thisBase}>
+				<ErrorBoundary>
+					<Switch>
+						<Route path="/overview" component={RelaySubscriptionsOverview} />
+						<Route path="/new" component={RelaySubscriptionNew} />
+						<Route path="/:relaySubscriptionId" component={RelaySubscriptionDetail} />
+						<Route><Redirect to="/overview" /></Route>
 					</Switch>
 				</ErrorBoundary>
 			</Router>

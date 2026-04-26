@@ -49,6 +49,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/polls"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/preferences"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/push"
+	"code.superseriousbusiness.org/gotosocial/internal/api/client/relaypushes"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/reports"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/scheduledstatuses"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/search"
@@ -101,6 +102,7 @@ type Client struct {
 	polls               *polls.Module               // api/v1/polls
 	preferences         *preferences.Module         // api/v1/preferences
 	push                *push.Module                // api/v1/push
+	relayPushes         *relaypushes.Module         // api/v1/relay_pushes
 	reports             *reports.Module             // api/v1/reports
 	scheduledStatuses   *scheduledstatuses.Module   // api/v1/scheduled_statuses
 	search              *search.Module              // api/v1/search, api/v2/search
@@ -160,6 +162,7 @@ func (c *Client) Route(r *router.Router, m ...gin.HandlerFunc) {
 	c.polls.Route(h)
 	c.preferences.Route(h)
 	c.push.Route(h)
+	c.relayPushes.Route(h)
 	c.reports.Route(h)
 	c.scheduledStatuses.Route(h)
 	c.search.Route(h)
@@ -207,6 +210,7 @@ func NewClient(state *state.State, p *processing.Processor) *Client {
 		polls:               polls.New(p),
 		preferences:         preferences.New(p),
 		push:                push.New(p),
+		relayPushes:         relaypushes.New(p),
 		reports:             reports.New(p),
 		scheduledStatuses:   scheduledstatuses.New(p),
 		search:              search.New(p),

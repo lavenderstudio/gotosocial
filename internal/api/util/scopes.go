@@ -44,6 +44,7 @@ const (
 	scopeMedia         = "media"
 	scopeMutes         = "mutes"
 	scopeNotifications = "notifications"
+	scopeRelays        = "relays"
 	scopeReports       = "reports"
 	scopeSearch        = "search"
 	scopeStatuses      = "statuses"
@@ -85,6 +86,8 @@ const (
 	ScopeReadNotifications      Scope = ScopeRead + ":" + scopeNotifications
 	ScopeWriteNotifications     Scope = ScopeWrite + ":" + scopeNotifications
 	ScopeWriteReports           Scope = ScopeWrite + ":" + scopeReports
+	ScopeReadRelays             Scope = ScopeRead + ":" + scopeRelays
+	ScopeWriteRelays            Scope = ScopeWrite + ":" + scopeRelays
 	ScopeReadSearch             Scope = ScopeRead + ":" + scopeSearch
 	ScopeReadStatuses           Scope = ScopeRead + ":" + scopeStatuses
 	ScopeWriteStatuses          Scope = ScopeWrite + ":" + scopeStatuses
@@ -99,6 +102,8 @@ const (
 	ScopeAdminReadDomainLimits  Scope = ScopeAdminRead + ":" + scopeDomainLimits
 	ScopeAdminWriteDomainLimits Scope = ScopeAdminWrite + ":" + scopeDomainLimits
 	ScopeAdminReadInstances     Scope = ScopeAdminRead + ":" + scopeInstances
+	ScopeAdminReadRelays        Scope = ScopeAdminRead + ":" + scopeRelays
+	ScopeAdminWriteRelays       Scope = ScopeAdminWrite + ":" + scopeRelays
 	ScopeAdminReadReports       Scope = ScopeAdminRead + ":" + scopeReports
 	ScopeAdminWriteReports      Scope = ScopeAdminWrite + ":" + scopeReports
 )

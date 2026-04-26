@@ -443,3 +443,7 @@ On the details page for an application, you can view the application's client ID
 If you included the settings panel callback URL in your redirect URIs list, you can also use this page to request an access token for your account. This will redirect you to the sign in page for your instance, where you must provide your credentials in order to authorize your application. You will then be redirected again to the settings panel callback URL, where you can receive your access token. 
 
 You can also use this page to delete your application. When a managed application is deleted, all tokens that were created via that application will also be deleted, so ensure you only do this when your application is not being used.
+
+## Relay Pushes
+
+Using this section, you can view, create, and remove relay push connections that send your posts to relays. For more information on relay push connections, please see the dedicated [relay pushes](./relay-pushes.md) document.

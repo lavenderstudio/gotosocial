@@ -44,6 +44,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/processing/media"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/polls"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/push"
+	"code.superseriousbusiness.org/gotosocial/internal/processing/relaypush"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/report"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/search"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/status"
@@ -97,6 +98,7 @@ type Processor struct {
 	media               media.Processor
 	polls               polls.Processor
 	push                push.Processor
+	relayPush           relaypush.Processor
 	report              report.Processor
 	search              search.Processor
 	status              status.Processor
@@ -165,6 +167,10 @@ func (p *Processor) Push() *push.Processor {
 
 func (p *Processor) Report() *report.Processor {
 	return &p.report
+}
+
+func (p *Processor) RelayPush() *relaypush.Processor {
+	return &p.relayPush
 }
 
 func (p *Processor) Search() *search.Processor {
@@ -243,6 +249,7 @@ func NewProcessor(
 	processor.markers = markers.New(state, converter)
 	processor.polls = polls.New(&common, state, converter)
 	processor.push = push.New(state, converter)
+	processor.relayPush = relaypush.New(&common, state, converter)
 	processor.report = report.New(state, converter)
 	processor.tags = tags.New(state, converter)
 	processor.timeline = timeline.New(state, &common, converter, visFilter, muteFilter, statusFilter)

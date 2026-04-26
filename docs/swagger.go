@@ -31,6 +31,7 @@
 //   - admin:read:domain_blocks: grants admin read access to domain blocks
 //   - admin:read:domain_limits: grants admin read access to domain limits
 //   - admin:read:instances: grants admin read access to instances
+//   - admin:read:relays: grants admin read access to relays
 //   - admin:read:reports: grants admin read access to reports
 //   - admin:write: grants admin write access to everything
 //   - admin:write:accounts: grants write read access to accounts
@@ -38,6 +39,7 @@
 //   - admin:write:domain_allows: grants admin write access to domain allows
 //   - admin:write:domain_blocks: grants admin write access to domain blocks
 //   - admin:write:domain_limits: grants admin write access to domain limits
+//   - admin:write:relays: grants admin write access to relays
 //   - admin:write:reports: grants admin write access to reports
 //   - profile: grants read access to verify_credentials
 //   - push: grants read/write access to push
@@ -53,6 +55,7 @@
 //   - read:lists: grants read access to lists
 //   - read:mutes: grants read access to mutes
 //   - read:notifications: grants read access to notifications
+//   - read:relays: grants read access to relays
 //   - read:search: grants read access to search
 //   - read:statuses: grants read access to statuses
 //   - write: grants write access to everything
@@ -68,6 +71,7 @@
 //   - write:media: grants write access to media
 //   - write:mutes: grants write access to mutes
 //   - write:notifications: grants write access to notifications
+//   - write:relays: grants write access to relays
 //   - write:reports: grants write access to reports
 //   - write:statuses: grants write access to statuses
 //
@@ -95,6 +99,7 @@
 //	      admin:read:domain_blocks: grants admin read access to domain blocks
 //	      admin:read:domain_limits: grants admin read access to domain limits
 //	      admin:read:instances: grants admin read access to instances
+//	      admin:read:relays: grants admin read access to relays
 //	      admin:read:reports: grants admin read access to reports
 //	      admin:write: grants admin write access to everything
 //	      admin:write:accounts: grants write read access to accounts
@@ -102,6 +107,7 @@
 //	      admin:write:domain_allows: grants admin write access to domain allows
 //	      admin:write:domain_blocks: grants admin write access to domain blocks
 //	      admin:write:domain_limits: grants admin write access to domain limits
+//	      admin:write:relays: grants admin write access to relays
 //	      admin:write:reports: grants admin write access to reports
 //	      profile: grants read access to verify_credentials
 //	      push: grants read/write access to push
@@ -117,6 +123,7 @@
 //	      read:lists: grants read access to lists
 //	      read:mutes: grants read access to mutes
 //	      read:notifications: grants read access to notifications
+//	      read:relays: grants read access to relays
 //	      read:search: grants read access to search
 //	      read:statuses: grants read access to statuses
 //	      write: grants write access to everything
@@ -132,6 +139,7 @@
 //	      write:media: grants write access to media
 //	      write:mutes: grants write access to mutes
 //	      write:notifications: grants write access to notifications
+//	      write:relays: grants write access to relays
 //	      write:reports: grants write access to reports
 //	      write:statuses: grants write access to statuses
 //	  OAuth2 Application:

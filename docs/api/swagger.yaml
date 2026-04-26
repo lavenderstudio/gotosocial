@@ -3167,6 +3167,94 @@ definitions:
         type: object
         x-go-name: PollOption
         x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/model
+    relayConnection:
+        properties:
+            account_id:
+                description: |-
+                    ID of the account that created this relay connection.
+                    Will only be set for relay subscriptions, not relay pushes.
+                example: 01KMQFRR8PDEVBH0PWKR23E2YB
+                type: string
+                x-go-name: AccountID
+            approved:
+                description: True if this relay connection has been approved by the relay actor.
+                type: boolean
+                x-go-name: Approved
+            created_at:
+                description: The date when this relay connection was created (ISO 8601 Datetime).
+                example: "2021-07-30T09:20:25+00:00"
+                type: string
+                x-go-name: CreatedAt
+            id:
+                description: ID of this item.
+                example: 01KMQFY8C9P2049NN09R9CCMSR
+                type: string
+                x-go-name: ID
+            ignore_media:
+                description: Ignore posts with media attachments when relaying via this connection.
+                type: boolean
+                x-go-name: IgnoreMedia
+            ignore_replies:
+                description: Ignore replies to other accounts when relaying via this connection.
+                type: boolean
+                x-go-name: IgnoreReplies
+            ignore_sensitive:
+                description: Ignore sensitive posts when relaying via this connection.
+                type: boolean
+                x-go-name: IgnoreSensitive
+            match_by_default:
+                description: |-
+                    Controls whether a relay connection should match included, non-ignored statuses by default.
+                    If set true, and no "exclude"-type matchers are set on the relay connection, then all included, non-ignored statuses will be relayed.
+                type: boolean
+                x-go-name: MatchByDefault
+            matchers:
+                description: Matchers that apply to this relay connection.
+                items:
+                    $ref: '#/definitions/relayMatcher'
+                type: array
+                x-go-name: Matchers
+            public:
+                description: Include public posts when relaying via this connection.
+                type: boolean
+                x-go-name: Public
+            relay_actor_uri:
+                description: ActivityPub URI of the relay service actor.
+                example: https://relay.activitypub.ca/actor
+                type: string
+                x-go-name: RelayActorURI
+            unlisted:
+                description: Include unlisted/unlocked posts when relaying via this connection.
+                type: boolean
+                x-go-name: Unlisted
+        title: RelayConnection models a relay push or relay subscription targeting a relay actor.
+        type: object
+        x-go-name: RelayConnection
+        x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/model
+    relayMatcher:
+        properties:
+            exclude:
+                description: If true, this relay matcher will cause matches to be EXCLUDED from relaying rather than INCLUDED in relaying.
+                type: boolean
+                x-go-name: Exclude
+            id:
+                description: ID of this item.
+                example: 01KMQFYQHEZ6WCNCMN4629NBV8
+                type: string
+                x-go-name: ID
+            keyword:
+                description: The text to be matched.
+                example: whatever
+                type: string
+                x-go-name: Keyword
+            whole_word:
+                description: Consider word boundaries when matching.
+                type: boolean
+                x-go-name: WholeWord
+        title: RelayMatcher models a relay matcher used to filter what is + isn't pushed / subscribed to by a relay connection.
+        type: object
+        x-go-name: RelayMatcher
+        x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/model
     report:
         properties:
             action_taken:
@@ -4154,6 +4242,7 @@ info:
         admin:read:domain_blocks: grants admin read access to domain blocks
         admin:read:domain_limits: grants admin read access to domain limits
         admin:read:instances: grants admin read access to instances
+        admin:read:relays: grants admin read access to relays
         admin:read:reports: grants admin read access to reports
         admin:write: grants admin write access to everything
         admin:write:accounts: grants write read access to accounts
@@ -4161,6 +4250,7 @@ info:
         admin:write:domain_allows: grants admin write access to domain allows
         admin:write:domain_blocks: grants admin write access to domain blocks
         admin:write:domain_limits: grants admin write access to domain limits
+        admin:write:relays: grants admin write access to relays
         admin:write:reports: grants admin write access to reports
         profile: grants read access to verify_credentials
         push: grants read/write access to push
@@ -4176,6 +4266,7 @@ info:
         read:lists: grants read access to lists
         read:mutes: grants read access to mutes
         read:notifications: grants read access to notifications
+        read:relays: grants read access to relays
         read:search: grants read access to search
         read:statuses: grants read access to statuses
         write: grants write access to everything
@@ -4191,6 +4282,7 @@ info:
         write:media: grants write access to media
         write:mutes: grants write access to mutes
         write:notifications: grants write access to notifications
+        write:relays: grants write access to relays
         write:reports: grants write access to reports
         write:statuses: grants write access to statuses
     license:
@@ -9282,6 +9374,484 @@ paths:
             summary: Refetch media specified in the database but missing from storage.
             tags:
                 - admin
+    /api/v1/admin/relay_subscriptions:
+        get:
+            description: The subscriptions will be returned in descending chronological order (newest first), with sequential IDs (bigger = newer).
+            operationId: adminRelaySubscriptions
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Array of relay subscriptions.
+                    schema:
+                        items:
+                            $ref: '#/definitions/relayConnection'
+                        type: array
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:read:relays
+            summary: View relay subscriptions.
+            tags:
+                - admin
+        post:
+            consumes:
+                - application/json
+                - application/xml
+                - application/x-www-form-urlencoded
+            description: |-
+                The parameters can also be given in the body of the request, as JSON, if the content-type is set to 'application/json'.
+                The parameters can also be given in the body of the request, as XML, if the content-type is set to 'application/xml'.
+            operationId: relaySubscriptionCreate
+            parameters:
+                - description: The ActivityPub URI of the remote relay actor.
+                  in: formData
+                  name: relay_actor_uri
+                  required: true
+                  type: string
+                - default: true
+                  description: Ingest public posts. If false, never ingest public posts via this subscription.
+                  in: formData
+                  name: public
+                  type: boolean
+                - description: Ingest unlisted posts. If false, never ingest unlisted posts via this subscription.
+                  in: formData
+                  name: unlisted
+                  type: boolean
+                - description: Controls whether the relay subscription should ingest all non-ignored posts by default. If set true, and no "exclude"-type matchers are set on the subscription, then all included, non-ignored posts will be ingested.
+                  in: formData
+                  name: match_by_default
+                  type: boolean
+                - description: Never ingest sensitive posts via this subscription.
+                  in: formData
+                  name: ignore_sensitive
+                  type: boolean
+                - description: Never ingest posts with media attachments via this subscription.
+                  in: formData
+                  name: ignore_media
+                  type: boolean
+                - description: Never ingest non-self-replies (ie., comments) via this subscription.
+                  in: formData
+                  name: ignore_replies
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The newly-created relay subscription.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "403":
+                    description: forbidden
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "422":
+                    description: unprocessable -- remote actor URI could not be dereferenced, or remote actor host is blocked
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Create a new relay subscription targeting a remote relay actor URI.
+            tags:
+                - admin
+    /api/v1/admin/relay_subscriptions/{id}:
+        delete:
+            operationId: adminRelaySubscriptionDelete
+            parameters:
+                - description: The id of the relay subscription.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The deleted relay subscription.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Delete relay subscription with the given ID.
+            tags:
+                - admin
+        get:
+            operationId: adminRelaySubscriptionGet
+            parameters:
+                - description: The id of the relay subscription.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The requested relay subscription.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:read:relays
+            summary: View relay subscription with the given ID.
+            tags:
+                - admin
+        put:
+            consumes:
+                - application/json
+                - application/xml
+                - application/x-www-form-urlencoded
+            description: |-
+                The parameters can also be given in the body of the request, as JSON, if the content-type is set to 'application/json'.
+                The parameters can also be given in the body of the request, as XML, if the content-type is set to 'application/xml'.
+            operationId: relaySubscriptionUpdate
+            parameters:
+                - description: The id of the relay subscription.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: Ingest public posts. If false, never ingest public posts via this subscription.
+                  in: formData
+                  name: public
+                  type: boolean
+                - description: Ingest unlisted posts. If false, never ingest unlisted posts via this subscription.
+                  in: formData
+                  name: unlisted
+                  type: boolean
+                - description: Controls whether the relay subscription should ingest all non-ignored posts by default. If set true, and no "exclude"-type matchers are set on the subscription, then all included, non-ignored posts will be ingested.
+                  in: formData
+                  name: match_by_default
+                  type: boolean
+                - description: Never ingest sensitive posts via this subscription.
+                  in: formData
+                  name: ignore_sensitive
+                  type: boolean
+                - description: Never ingest posts with media attachments via this subscription.
+                  in: formData
+                  name: ignore_media
+                  type: boolean
+                - description: Never ingest non-self-replies (ie., comments) via this subscription.
+                  in: formData
+                  name: ignore_replies
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The newly-created relay subscription.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "403":
+                    description: forbidden
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "422":
+                    description: unprocessable -- remote actor URI could not be dereferenced, or remote actor host is blocked
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Update a relay subscription.
+            tags:
+                - admin
+    /api/v1/admin/relay_subscriptions/{id}/matchers:
+        post:
+            consumes:
+                - application/json
+                - application/xml
+                - application/x-www-form-urlencoded
+            description: Returns the relay subscription with the given matcher added to it.
+            operationId: relaySubscriptionMatcherPost
+            parameters:
+                - description: ID of the relay subscription.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: The text to be matched.
+                  in: formData
+                  name: keyword
+                  required: true
+                  type: string
+                - default: false
+                  description: Matcher should consider word boundaries.
+                  in: formData
+                  name: whole_word
+                  type: boolean
+                - default: false
+                  description: Matcher should cause matched posts to be excluded from relaying rather than included.
+                  in: formData
+                  name: exclude
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Relay subscription the newly-created matcher belongs to.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "403":
+                    description: forbidden to moved accounts
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "422":
+                    description: unprocessable content
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Add a relay matcher to a relay subscription.
+            tags:
+                - admin
+    /api/v1/admin/relay_subscriptions/{id}/matchers/{matcher_id}:
+        delete:
+            description: Returns the relay subscription with the given matcher removed from it.
+            operationId: relaySubscriptionMatcherDelete
+            parameters:
+                - description: ID of the relay subscription.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: ID of the relay matcher.
+                  in: path
+                  name: matcher_id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Relay subscription the now-deleted matcher belonged to.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Remove a relay matcher from a relay subscription.
+            tags:
+                - admin
+        put:
+            consumes:
+                - application/json
+                - application/xml
+                - application/x-www-form-urlencoded
+            operationId: relaySubscriptionMatcherPut
+            parameters:
+                - description: ID of the relay subscription.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: ID of the relay matcher.
+                  in: path
+                  name: matcher_id
+                  required: true
+                  type: string
+                - description: The text to be matched.
+                  in: formData
+                  name: keyword
+                  required: true
+                  type: string
+                - default: false
+                  description: Matcher should consider word boundaries.
+                  in: formData
+                  name: whole_word
+                  type: boolean
+                - default: false
+                  description: Matcher should cause matched posts to be excluded from relaying rather than included.
+                  in: formData
+                  name: exclude
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Relay subscription the now-updated matcher belongs to.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "403":
+                    description: forbidden to moved accounts
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "409":
+                    description: conflict (duplicate keyword)
+                    schema:
+                        $ref: '#/definitions/error'
+                "422":
+                    description: unprocessable content
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Update a relay matcher on a relay subscription.
+            tags:
+                - admin
     /api/v1/admin/reports:
         get:
             description: |-
@@ -13256,6 +13826,484 @@ paths:
             summary: Update the Web Push subscription for the current access token.
             tags:
                 - push
+    /api/v1/relay_pushes:
+        get:
+            description: The pushes will be returned in descending chronological order (newest first), with sequential IDs (bigger = newer).
+            operationId: relayPushes
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Array of relay pushes.
+                    schema:
+                        items:
+                            $ref: '#/definitions/relayConnection'
+                        type: array
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - read:relays
+            summary: View relay pushes.
+            tags:
+                - relay_pushes
+        post:
+            consumes:
+                - application/json
+                - application/xml
+                - application/x-www-form-urlencoded
+            description: |-
+                The parameters can also be given in the body of the request, as JSON, if the content-type is set to 'application/json'.
+                The parameters can also be given in the body of the request, as XML, if the content-type is set to 'application/xml'.
+            operationId: relayPushCreate
+            parameters:
+                - description: The ActivityPub URI of the remote relay actor.
+                  in: formData
+                  name: relay_actor_uri
+                  required: true
+                  type: string
+                - default: true
+                  description: Push public posts. If false, never send public posts to this relay.
+                  in: formData
+                  name: public
+                  type: boolean
+                - description: Push unlisted posts. If false, never send unlisted posts to this relay.
+                  in: formData
+                  name: unlisted
+                  type: boolean
+                - description: Controls whether the relay push should send all non-ignored posts by default. If set true, and no "exclude"-type matchers are set on the push, then all included, non-ignored posts will be sent.
+                  in: formData
+                  name: match_by_default
+                  type: boolean
+                - description: Never send sensitive posts to this relay.
+                  in: formData
+                  name: ignore_sensitive
+                  type: boolean
+                - description: Never send posts with media attachments to this relay.
+                  in: formData
+                  name: ignore_media
+                  type: boolean
+                - description: Never send non-self-replies (ie., comments) to this relay.
+                  in: formData
+                  name: ignore_replies
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The newly-created relay push.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "403":
+                    description: forbidden
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "422":
+                    description: unprocessable -- remote actor URI could not be dereferenced, or remote actor host is blocked
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - write:relays
+            summary: Create a new relay push targeting a remote relay actor URI.
+            tags:
+                - relay_pushes
+    /api/v1/relay_pushes/{id}:
+        delete:
+            operationId: relayPushDelete
+            parameters:
+                - description: The id of the relay push.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The deleted relay push.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - write:relays
+            summary: Delete relay push with the given ID.
+            tags:
+                - relay_pushes
+        get:
+            operationId: relayPushGet
+            parameters:
+                - description: The id of the relay push.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The requested relay push.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - read:relays
+            summary: View relay push with the given ID.
+            tags:
+                - relay_pushes
+        put:
+            consumes:
+                - application/json
+                - application/xml
+                - application/x-www-form-urlencoded
+            description: |-
+                The parameters can also be given in the body of the request, as JSON, if the content-type is set to 'application/json'.
+                The parameters can also be given in the body of the request, as XML, if the content-type is set to 'application/xml'.
+            operationId: relayPushUpdate
+            parameters:
+                - description: The id of the relay push.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: Push public posts. If false, never send public posts to this relay.
+                  in: formData
+                  name: public
+                  type: boolean
+                - description: Push unlisted posts. If false, never send unlisted posts to this relay.
+                  in: formData
+                  name: unlisted
+                  type: boolean
+                - description: Controls whether the relay push should send all non-ignored posts by default. If set true, and no "exclude"-type matchers are set on the push, then all included, non-ignored posts will be sent.
+                  in: formData
+                  name: match_by_default
+                  type: boolean
+                - description: Never send sensitive posts to this relay.
+                  in: formData
+                  name: ignore_sensitive
+                  type: boolean
+                - description: Never send posts with media attachments to this relay.
+                  in: formData
+                  name: ignore_media
+                  type: boolean
+                - description: Never send non-self-replies (ie., comments) to this relay.
+                  in: formData
+                  name: ignore_replies
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The newly-created relay push.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "403":
+                    description: forbidden
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "422":
+                    description: unprocessable -- remote actor URI could not be dereferenced, or remote actor host is blocked
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - write:relays
+            summary: Update a relay push.
+            tags:
+                - relay_pushes
+    /api/v1/relay_pushes/{id}/matchers:
+        post:
+            consumes:
+                - application/json
+                - application/xml
+                - application/x-www-form-urlencoded
+            description: Returns the relay push with the given matcher added to it.
+            operationId: relayPushMatcherPost
+            parameters:
+                - description: ID of the relay push.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: The text to be matched.
+                  in: formData
+                  name: keyword
+                  required: true
+                  type: string
+                - default: false
+                  description: Matcher should consider word boundaries.
+                  in: formData
+                  name: whole_word
+                  type: boolean
+                - default: false
+                  description: Matcher should cause matched posts to be excluded from relaying rather than included.
+                  in: formData
+                  name: exclude
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Relay push the newly-created matcher belongs to.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "403":
+                    description: forbidden to moved accounts
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "422":
+                    description: unprocessable content
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - write:relays
+            summary: Add a relay matcher to a relay push.
+            tags:
+                - relay_pushes
+    /api/v1/relay_pushes/{id}/matchers/{matcher_id}:
+        delete:
+            description: Returns the relay push with the given matcher removed from it.
+            operationId: relayPushMatcherDelete
+            parameters:
+                - description: ID of the relay push.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: ID of the relay matcher.
+                  in: path
+                  name: matcher_id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Relay push the now-deleted matcher belonged to.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - write:relays
+            summary: Remove a relay matcher from a relay push.
+            tags:
+                - relay_pushes
+        put:
+            consumes:
+                - application/json
+                - application/xml
+                - application/x-www-form-urlencoded
+            operationId: relayPushMatcherPut
+            parameters:
+                - description: ID of the relay push.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: ID of the relay matcher.
+                  in: path
+                  name: matcher_id
+                  required: true
+                  type: string
+                - description: The text to be matched.
+                  in: formData
+                  name: keyword
+                  required: true
+                  type: string
+                - default: false
+                  description: Matcher should consider word boundaries.
+                  in: formData
+                  name: whole_word
+                  type: boolean
+                - default: false
+                  description: Matcher should cause matched posts to be excluded from relaying rather than included.
+                  in: formData
+                  name: exclude
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Relay push the now-updated matcher belongs to.
+                    schema:
+                        $ref: '#/definitions/relayConnection'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "403":
+                    description: forbidden to moved accounts
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "409":
+                    description: conflict (duplicate keyword)
+                    schema:
+                        $ref: '#/definitions/error'
+                "422":
+                    description: unprocessable content
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - write:relays
+            summary: Update a relay matcher on a relay push.
+            tags:
+                - relay_pushes
     /api/v1/reports:
         get:
             description: |-
@@ -17123,6 +18171,7 @@ securityDefinitions:
             admin:read:domain_blocks: grants admin read access to domain blocks
             admin:read:domain_limits: grants admin read access to domain limits
             admin:read:instances: grants admin read access to instances
+            admin:read:relays: grants admin read access to relays
             admin:read:reports: grants admin read access to reports
             admin:write: grants admin write access to everything
             admin:write:accounts: grants write read access to accounts
@@ -17130,6 +18179,7 @@ securityDefinitions:
             admin:write:domain_allows: grants admin write access to domain allows
             admin:write:domain_blocks: grants admin write access to domain blocks
             admin:write:domain_limits: grants admin write access to domain limits
+            admin:write:relays: grants admin write access to relays
             admin:write:reports: grants admin write access to reports
             profile: grants read access to verify_credentials
             push: grants read/write access to push
@@ -17145,6 +18195,7 @@ securityDefinitions:
             read:lists: grants read access to lists
             read:mutes: grants read access to mutes
             read:notifications: grants read access to notifications
+            read:relays: grants read access to relays
             read:search: grants read access to search
             read:statuses: grants read access to statuses
             write: grants write access to everything
@@ -17160,6 +18211,7 @@ securityDefinitions:
             write:media: grants write access to media
             write:mutes: grants write access to mutes
             write:notifications: grants write access to notifications
+            write:relays: grants write access to relays
             write:reports: grants write access to reports
             write:statuses: grants write access to statuses
         tokenUrl: https://example.org/oauth/token

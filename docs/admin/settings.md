@@ -157,46 +157,6 @@ If your instance is able to fetch and parse permissions at the subscription URI,
 
 Instance administration settings.
 
-### Actions
-
-Run one-off administrative actions.
-
-#### Email
-
-You can use this section to send a test email to the given email address, with an optional test message.
-
-#### Media
-
-You can use this section run a media action to clean up the remote media cache using the specified number of days. Media older than the given number of days will be removed from storage (s3 or local). This action is functionally identical to the media cleanup that runs automatically.
-
-You can also use this section to **purge** all media belonging to a specific domain from your media storage. This is useful in combination with [domain limits](./domain_limits.md) to prevent your instance from storing potentially problematic media from a domain you don't fully trust.
-
-Media removed via a cleanup or purge operation will be fetched again from remote domains later if needed, unless a domain limit with a media policy of "reject" is in place to prevent this for certain domains.
-
-#### Keys
-
-You can use this section to expire/invalidate public keys from the selected remote instance. The next time your instance receives a signed request using an expired key, it will attempt to fetch and store the public key again.
-
-### Custom Emoji
-
-Custom Emoji will be automatically fetched when included in remote toots, but to use them in your own posts they have to be enabled on your instance.
-
-#### Local
-
-![Local custom emoji section, showing an overview of custom emoji sorted by category. There are a lot of garfields.](../public/admin-settings-emoji-local.png)
-
-This section shows an overview of all the custom emoji enabled on your instance, sorted by their category. Clicking an emoji shows it's details, and provides options to change the category or image, or delete it completely. The shortcode cannot be updated here, you would have to upload it with the new shortcode yourself (and optionally delete the old one).
-
-Below the overview you can upload your own custom emoji, after previewing how they look in a toot. PNG and (animated) GIF's are supported.
-
-#### Remote
-
-![Remote custom emoji section, showing a list of 3 emoji parsed from the entered toot, garfield, blobfoxbox and blobhajmlem. They can be selected, their shortcode can be tweaked, and they can be assigned to a category, before submitting as a copy or delete operation](../public/admin-settings-emoji-remote.png)
-
-Through the 'remote' section, you can look up a link to any remote toots (provided the instance isn't suspended). If they use any custom emoji they will be listed, providing an easy way to copy them to the local emoji (for use in your own toots), or disable them ( hiding them from toots).
-
-**Note:** as the testrig server does not federate, this feature can't be used in development (500: Internal Server Error).
-
 ### Instance Settings
 
 ![Screenshot of the GoToSocial admin panel, showing the fields to change an instance's settings](../public/admin-settings-instance.png)
@@ -255,7 +215,7 @@ You can also mention accounts using the standard `@user[@domain]` format.
 
 Have a look at the [markdown cheat sheet](https://markdownguide.offshoot.io/cheat-sheet/) to see what else you can do.
 
-### Instance Contact Info
+#### Instance Contact Info
 
 In this section, you can provide visitors to your instance with a convenient way of reaching your instance admin.
 
@@ -265,10 +225,58 @@ The selected **contact user** must be an active (not suspended) admin and/or mod
 
 If you're on a single-user instance and you give admin privileges to your main account, you can just fill in your own username here; you don't need to make a separate admin account just for this.
 
-### Instance Custom CSS
+#### Instance Custom CSS
 
-custom CSS allows you to further customize the way your instance looks when visited through a browser.
+Custom CSS allows you to further customize the way your instance looks when visited through a browser.
 
 This custom CSS will be applied to all pages of your instance. Users themes and CSS still take precedence over this customization.
 
 See the [Custom CSS](../user_guide/custom_css.md) page for some tips on writing custom CSS for your instance.
+
+### Custom Emoji
+
+Custom Emoji will be automatically fetched when included in remote toots, but to use them in your own posts they have to be enabled on your instance.
+
+#### Local
+
+![Local custom emoji section, showing an overview of custom emoji sorted by category. There are a lot of garfields.](../public/admin-settings-emoji-local.png)
+
+This section shows an overview of all the custom emoji enabled on your instance, sorted by their category. Clicking an emoji shows it's details, and provides options to change the category or image, or delete it completely. The shortcode cannot be updated here, you would have to upload it with the new shortcode yourself (and optionally delete the old one).
+
+Below the overview you can upload your own custom emoji, after previewing how they look in a toot. PNG and (animated) GIF's are supported.
+
+#### Remote
+
+![Remote custom emoji section, showing a list of 3 emoji parsed from the entered toot, garfield, blobfoxbox and blobhajmlem. They can be selected, their shortcode can be tweaked, and they can be assigned to a category, before submitting as a copy or delete operation](../public/admin-settings-emoji-remote.png)
+
+Through the 'remote' section, you can look up a link to any remote toots (provided the instance isn't suspended). If they use any custom emoji they will be listed, providing an easy way to copy them to the local emoji (for use in your own toots), or disable them ( hiding them from toots).
+
+**Note:** as the testrig server does not federate, this feature can't be used in development (500: Internal Server Error).
+
+### Relay Subscriptions
+
+![Admin relay subscription details, showing a relay subscription and matchers.](../public/admin-settings-relay-subscription.png)
+
+In this section you can view, create, update, and delete relay subscriptions on your instance.
+
+For more details about what relay subscriptions are, and what they do, please see the separate [relay subscriptions](./relay_subscriptions.md) document.
+
+### Actions
+
+Run one-off administrative actions.
+
+#### Email
+
+You can use this section to send a test email to the given email address, with an optional test message.
+
+#### Media
+
+You can use this section run a media action to clean up the remote media cache using the specified number of days. Media older than the given number of days will be removed from storage (s3 or local). This action is functionally identical to the media cleanup that runs automatically.
+
+You can also use this section to **purge** all media belonging to a specific domain from your media storage. This is useful in combination with [domain limits](./domain_limits.md) to prevent your instance from storing potentially problematic media from a domain you don't fully trust.
+
+Media removed via a cleanup or purge operation will be fetched again from remote domains later if needed, unless a domain limit with a media policy of "reject" is in place to prevent this for certain domains.
+
+#### Keys
+
+You can use this section to expire/invalidate public keys from the selected remote instance. The next time your instance receives a signed request using an expired key, it will attempt to fetch and store the public key again.

@@ -3321,3 +3321,82 @@ func toDeletedStatusPlaceholder(status *gtsmodel.Status) *apimodel.Status {
 	}
 	return apiStatus
 }
+
+func (c *Converter) RelayConnectionToAPIRelayConnection(
+	ctx context.Context,
+	rc gtsmodel.RelayConnection,
+) (*apimodel.RelayConnection, error) {
+
+	// Populate matchers on the connection,
+	// and get account ID (if necessary).
+	var accountID string
+	switch t := rc.(type) {
+
+	case *gtsmodel.RelaySubscription:
+		if err := c.state.DB.PopulateRelaySubscription(ctx, t); err != nil {
+			return nil, gtserror.Newf("error populating relay subscription: %w", err)
+		}
+		// Set account ID only if this is a relay
+		// subscription, otherwise it doesn't matter.
+		accountID = t.AccountID
+
+	case *gtsmodel.RelayPush:
+		if err := c.state.DB.PopulateRelayPush(ctx, t); err != nil {
+			return nil, gtserror.Newf("error populating relay push: %w", err)
+		}
+	}
+
+	// Parse created at time from id.
+	rcID := rc.GetID()
+	createdAt, err := id.TimeFromULID(rcID)
+	if err != nil {
+		return nil, gtserror.Newf("error converting id to time: %w", err)
+	}
+
+	// Convert matchers (if set).
+	matchers := rc.GetMatchers()
+	apiMatchers := make([]apimodel.RelayMatcher, 0, len(matchers))
+	for _, matcher := range matchers {
+		apiMatchers = append(apiMatchers, apimodel.RelayMatcher{
+			ID:        matcher.ID,
+			Keyword:   matcher.Keyword,
+			WholeWord: matcher.Flags.WholeWord(),
+			Exclude:   matcher.Flags.Exclude(),
+		})
+	}
+
+	// Get our own instance account.
+	iAcct, err := c.state.DB.GetInstanceAccount(ctx, "")
+	if err != nil {
+		return nil, gtserror.Newf("db error getting instance account: %w", err)
+	}
+
+	// Get the relay actor account.
+	relayActorURI := rc.GetRelayActorURI()
+	relayActorAcct, err := c.state.DB.GetAccountByURI(ctx, relayActorURI)
+	if err != nil {
+		return nil, gtserror.Newf("db error getting relay actor account: %w", err)
+	}
+
+	// Relay connection is approved if our account follows their account.
+	approved, err := c.state.DB.IsFollowing(ctx, iAcct.ID, relayActorAcct.ID)
+	if err != nil {
+		return nil, gtserror.Newf("db error checking follow: %w", err)
+	}
+
+	flags := rc.GetFlags()
+	return &apimodel.RelayConnection{
+		ID:              rcID,
+		CreatedAt:       util.FormatISO8601(createdAt),
+		AccountID:       accountID,
+		RelayActorURI:   relayActorURI,
+		Matchers:        apiMatchers,
+		Approved:        approved,
+		Public:          flags.Public(),
+		Unlisted:        flags.Unlisted(),
+		MatchByDefault:  flags.MatchByDefault(),
+		IgnoreSensitive: flags.IgnoreSensitive(),
+		IgnoreMedia:     flags.IgnoreMedia(),
+		IgnoreReplies:   flags.IgnoreReplies(),
+	}, nil
+}

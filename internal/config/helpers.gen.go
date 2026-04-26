@@ -97,6 +97,7 @@ const (
 	StorageS3RedirectURLFlag                      = "storage-s3-redirect-url"
 	StorageS3BucketLookupFlag                     = "storage-s3-bucket-lookup"
 	StorageS3KeyPrefixFlag                        = "storage-s3-key-prefix"
+	StorageS3RegionFlag                           = "storage-s3-region"
 	StatusesMaxCharsFlag                          = "statuses-max-chars"
 	StatusesPollMaxOptionsFlag                    = "statuses-poll-max-options"
 	StatusesPollOptionMaxCharsFlag                = "statuses-poll-option-max-chars"
@@ -204,6 +205,10 @@ const (
 	CachePollVoteMemRatioFlag                     = "cache-poll-vote-mem-ratio"
 	CachePollVoteIDsMemRatioFlag                  = "cache-poll-vote-ids-mem-ratio"
 	CacheReportMemRatioFlag                       = "cache-report-mem-ratio"
+	CacheRelayMatcherMemRatioFlag                 = "cache-relay-matcher-mem-ratio"
+	CacheRelayPushMemRatioFlag                    = "cache-relay-push-mem-ratio"
+	CacheRelayPushIDsMemRatioFlag                 = "cache-relay-push-ids-mem-ratio"
+	CacheRelaySubscriptionMemRatioFlag            = "cache-relay-subscription-mem-ratio"
 	CacheScheduledStatusMemRatioFlag              = "cache-scheduled-status-mem-ratio"
 	CacheSinBinStatusMemRatioFlag                 = "cache-sin-bin-status-mem-ratio"
 	CacheStatusMemRatioFlag                       = "cache-status-mem-ratio"
@@ -306,6 +311,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.String("storage-s3-redirect-url", cfg.StorageS3RedirectURL, "Custom URL to use for redirecting S3 media links. If set, this will be used instead of the S3 bucket URL.")
 	flags.String("storage-s3-bucket-lookup", cfg.StorageS3BucketLookup, "S3 bucket lookup type to use. Can be 'auto', 'dns' or 'path'. Defaults to 'auto'.")
 	flags.String("storage-s3-key-prefix", cfg.StorageS3KeyPrefix, "Prefix to use for S3 keys. This is useful for separating multiple instances sharing the same S3 bucket.")
+	flags.String("storage-s3-region", cfg.StorageS3Region, "Region to use for S3.")
 	flags.Int("statuses-max-chars", cfg.StatusesMaxChars, "Max permitted characters for posted statuses, including content warning")
 	flags.Int("statuses-poll-max-options", cfg.StatusesPollMaxOptions, "Max amount of options permitted on a poll")
 	flags.Int("statuses-poll-option-max-chars", cfg.StatusesPollOptionMaxChars, "Max amount of characters for a poll option")
@@ -413,6 +419,10 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Float64("cache-poll-vote-mem-ratio", cfg.Cache.PollVoteMemRatio, "")
 	flags.Float64("cache-poll-vote-ids-mem-ratio", cfg.Cache.PollVoteIDsMemRatio, "")
 	flags.Float64("cache-report-mem-ratio", cfg.Cache.ReportMemRatio, "")
+	flags.Float64("cache-relay-matcher-mem-ratio", cfg.Cache.RelayMatcherMemRatio, "")
+	flags.Float64("cache-relay-push-mem-ratio", cfg.Cache.RelayPushMemRatio, "")
+	flags.Float64("cache-relay-push-ids-mem-ratio", cfg.Cache.RelayPushIDsMemRatio, "")
+	flags.Float64("cache-relay-subscription-mem-ratio", cfg.Cache.RelaySubscriptionMemRatio, "")
 	flags.Float64("cache-scheduled-status-mem-ratio", cfg.Cache.ScheduledStatusMemRatio, "")
 	flags.Float64("cache-sin-bin-status-mem-ratio", cfg.Cache.SinBinStatusMemRatio, "")
 	flags.Float64("cache-status-mem-ratio", cfg.Cache.StatusMemRatio, "")
@@ -438,7 +448,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 }
 
 func (cfg *Configuration) MarshalMap() map[string]any {
-	cfgmap := make(map[string]any, 205)
+	cfgmap := make(map[string]any, 210)
 	cfgmap["log-level"] = cfg.LogLevel
 	cfgmap["log-format"] = cfg.LogFormat
 	cfgmap["log-timestamp-format"] = cfg.LogTimestampFormat
@@ -507,6 +517,7 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["storage-s3-redirect-url"] = cfg.StorageS3RedirectURL
 	cfgmap["storage-s3-bucket-lookup"] = cfg.StorageS3BucketLookup
 	cfgmap["storage-s3-key-prefix"] = cfg.StorageS3KeyPrefix
+	cfgmap["storage-s3-region"] = cfg.StorageS3Region
 	cfgmap["statuses-max-chars"] = cfg.StatusesMaxChars
 	cfgmap["statuses-poll-max-options"] = cfg.StatusesPollMaxOptions
 	cfgmap["statuses-poll-option-max-chars"] = cfg.StatusesPollOptionMaxChars
@@ -614,6 +625,10 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["cache-poll-vote-mem-ratio"] = cfg.Cache.PollVoteMemRatio
 	cfgmap["cache-poll-vote-ids-mem-ratio"] = cfg.Cache.PollVoteIDsMemRatio
 	cfgmap["cache-report-mem-ratio"] = cfg.Cache.ReportMemRatio
+	cfgmap["cache-relay-matcher-mem-ratio"] = cfg.Cache.RelayMatcherMemRatio
+	cfgmap["cache-relay-push-mem-ratio"] = cfg.Cache.RelayPushMemRatio
+	cfgmap["cache-relay-push-ids-mem-ratio"] = cfg.Cache.RelayPushIDsMemRatio
+	cfgmap["cache-relay-subscription-mem-ratio"] = cfg.Cache.RelaySubscriptionMemRatio
 	cfgmap["cache-scheduled-status-mem-ratio"] = cfg.Cache.ScheduledStatusMemRatio
 	cfgmap["cache-sin-bin-status-mem-ratio"] = cfg.Cache.SinBinStatusMemRatio
 	cfgmap["cache-status-mem-ratio"] = cfg.Cache.StatusMemRatio
@@ -1206,6 +1221,14 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		cfg.StorageS3KeyPrefix, err = cast.ToStringE(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> string for 'storage-s3-key-prefix': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["storage-s3-region"]; ok {
+		var err error
+		cfg.StorageS3Region, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'storage-s3-region': %w", ival, err)
 		}
 	}
 
@@ -2088,6 +2111,38 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		cfg.Cache.ReportMemRatio, err = cast.ToFloat64E(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> float64 for 'cache-report-mem-ratio': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["cache-relay-matcher-mem-ratio"]; ok {
+		var err error
+		cfg.Cache.RelayMatcherMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> float64 for 'cache-relay-matcher-mem-ratio': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["cache-relay-push-mem-ratio"]; ok {
+		var err error
+		cfg.Cache.RelayPushMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> float64 for 'cache-relay-push-mem-ratio': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["cache-relay-push-ids-mem-ratio"]; ok {
+		var err error
+		cfg.Cache.RelayPushIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> float64 for 'cache-relay-push-ids-mem-ratio': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["cache-relay-subscription-mem-ratio"]; ok {
+		var err error
+		cfg.Cache.RelaySubscriptionMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> float64 for 'cache-relay-subscription-mem-ratio': %w", ival, err)
 		}
 	}
 
@@ -3843,6 +3898,28 @@ func GetStorageS3KeyPrefix() string { return global.GetStorageS3KeyPrefix() }
 
 // SetStorageS3KeyPrefix safely sets the value for global configuration 'StorageS3KeyPrefix' field
 func SetStorageS3KeyPrefix(v string) { global.SetStorageS3KeyPrefix(v) }
+
+// GetStorageS3Region safely fetches the Configuration value for state's 'StorageS3Region' field
+func (st *ConfigState) GetStorageS3Region() (v string) {
+	st.mutex.RLock()
+	v = st.config.StorageS3Region
+	st.mutex.RUnlock()
+	return
+}
+
+// SetStorageS3Region safely sets the Configuration value for state's 'StorageS3Region' field
+func (st *ConfigState) SetStorageS3Region(v string) {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+	st.config.StorageS3Region = v
+	st.reloadToViper()
+}
+
+// GetStorageS3Region safely fetches the value for global configuration 'StorageS3Region' field
+func GetStorageS3Region() string { return global.GetStorageS3Region() }
+
+// SetStorageS3Region safely sets the value for global configuration 'StorageS3Region' field
+func SetStorageS3Region(v string) { global.SetStorageS3Region(v) }
 
 // GetStatusesMaxChars safely fetches the Configuration value for state's 'StatusesMaxChars' field
 func (st *ConfigState) GetStatusesMaxChars() (v int) {
@@ -6210,6 +6287,94 @@ func GetCacheReportMemRatio() float64 { return global.GetCacheReportMemRatio() }
 // SetCacheReportMemRatio safely sets the value for global configuration 'Cache.ReportMemRatio' field
 func SetCacheReportMemRatio(v float64) { global.SetCacheReportMemRatio(v) }
 
+// GetCacheRelayMatcherMemRatio safely fetches the Configuration value for state's 'Cache.RelayMatcherMemRatio' field
+func (st *ConfigState) GetCacheRelayMatcherMemRatio() (v float64) {
+	st.mutex.RLock()
+	v = st.config.Cache.RelayMatcherMemRatio
+	st.mutex.RUnlock()
+	return
+}
+
+// SetCacheRelayMatcherMemRatio safely sets the Configuration value for state's 'Cache.RelayMatcherMemRatio' field
+func (st *ConfigState) SetCacheRelayMatcherMemRatio(v float64) {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+	st.config.Cache.RelayMatcherMemRatio = v
+	st.reloadToViper()
+}
+
+// GetCacheRelayMatcherMemRatio safely fetches the value for global configuration 'Cache.RelayMatcherMemRatio' field
+func GetCacheRelayMatcherMemRatio() float64 { return global.GetCacheRelayMatcherMemRatio() }
+
+// SetCacheRelayMatcherMemRatio safely sets the value for global configuration 'Cache.RelayMatcherMemRatio' field
+func SetCacheRelayMatcherMemRatio(v float64) { global.SetCacheRelayMatcherMemRatio(v) }
+
+// GetCacheRelayPushMemRatio safely fetches the Configuration value for state's 'Cache.RelayPushMemRatio' field
+func (st *ConfigState) GetCacheRelayPushMemRatio() (v float64) {
+	st.mutex.RLock()
+	v = st.config.Cache.RelayPushMemRatio
+	st.mutex.RUnlock()
+	return
+}
+
+// SetCacheRelayPushMemRatio safely sets the Configuration value for state's 'Cache.RelayPushMemRatio' field
+func (st *ConfigState) SetCacheRelayPushMemRatio(v float64) {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+	st.config.Cache.RelayPushMemRatio = v
+	st.reloadToViper()
+}
+
+// GetCacheRelayPushMemRatio safely fetches the value for global configuration 'Cache.RelayPushMemRatio' field
+func GetCacheRelayPushMemRatio() float64 { return global.GetCacheRelayPushMemRatio() }
+
+// SetCacheRelayPushMemRatio safely sets the value for global configuration 'Cache.RelayPushMemRatio' field
+func SetCacheRelayPushMemRatio(v float64) { global.SetCacheRelayPushMemRatio(v) }
+
+// GetCacheRelayPushIDsMemRatio safely fetches the Configuration value for state's 'Cache.RelayPushIDsMemRatio' field
+func (st *ConfigState) GetCacheRelayPushIDsMemRatio() (v float64) {
+	st.mutex.RLock()
+	v = st.config.Cache.RelayPushIDsMemRatio
+	st.mutex.RUnlock()
+	return
+}
+
+// SetCacheRelayPushIDsMemRatio safely sets the Configuration value for state's 'Cache.RelayPushIDsMemRatio' field
+func (st *ConfigState) SetCacheRelayPushIDsMemRatio(v float64) {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+	st.config.Cache.RelayPushIDsMemRatio = v
+	st.reloadToViper()
+}
+
+// GetCacheRelayPushIDsMemRatio safely fetches the value for global configuration 'Cache.RelayPushIDsMemRatio' field
+func GetCacheRelayPushIDsMemRatio() float64 { return global.GetCacheRelayPushIDsMemRatio() }
+
+// SetCacheRelayPushIDsMemRatio safely sets the value for global configuration 'Cache.RelayPushIDsMemRatio' field
+func SetCacheRelayPushIDsMemRatio(v float64) { global.SetCacheRelayPushIDsMemRatio(v) }
+
+// GetCacheRelaySubscriptionMemRatio safely fetches the Configuration value for state's 'Cache.RelaySubscriptionMemRatio' field
+func (st *ConfigState) GetCacheRelaySubscriptionMemRatio() (v float64) {
+	st.mutex.RLock()
+	v = st.config.Cache.RelaySubscriptionMemRatio
+	st.mutex.RUnlock()
+	return
+}
+
+// SetCacheRelaySubscriptionMemRatio safely sets the Configuration value for state's 'Cache.RelaySubscriptionMemRatio' field
+func (st *ConfigState) SetCacheRelaySubscriptionMemRatio(v float64) {
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
+	st.config.Cache.RelaySubscriptionMemRatio = v
+	st.reloadToViper()
+}
+
+// GetCacheRelaySubscriptionMemRatio safely fetches the value for global configuration 'Cache.RelaySubscriptionMemRatio' field
+func GetCacheRelaySubscriptionMemRatio() float64 { return global.GetCacheRelaySubscriptionMemRatio() }
+
+// SetCacheRelaySubscriptionMemRatio safely sets the value for global configuration 'Cache.RelaySubscriptionMemRatio' field
+func SetCacheRelaySubscriptionMemRatio(v float64) { global.SetCacheRelaySubscriptionMemRatio(v) }
+
 // GetCacheScheduledStatusMemRatio safely fetches the Configuration value for state's 'Cache.ScheduledStatusMemRatio' field
 func (st *ConfigState) GetCacheScheduledStatusMemRatio() (v float64) {
 	st.mutex.RLock()
@@ -6943,6 +7108,10 @@ func (st *ConfigState) GetTotalOfMemRatios() (total float64) {
 	total += st.config.Cache.PollVoteMemRatio
 	total += st.config.Cache.PollVoteIDsMemRatio
 	total += st.config.Cache.ReportMemRatio
+	total += st.config.Cache.RelayMatcherMemRatio
+	total += st.config.Cache.RelayPushMemRatio
+	total += st.config.Cache.RelayPushIDsMemRatio
+	total += st.config.Cache.RelaySubscriptionMemRatio
 	total += st.config.Cache.ScheduledStatusMemRatio
 	total += st.config.Cache.SinBinStatusMemRatio
 	total += st.config.Cache.StatusMemRatio
@@ -7776,6 +7945,50 @@ func flattenConfigMap(cfgmap map[string]any) {
 		ival, ok := mapGet(cfgmap, key...)
 		if ok {
 			cfgmap["cache-report-mem-ratio"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"cache", "relay-matcher-mem-ratio"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["cache-relay-matcher-mem-ratio"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"cache", "relay-push-mem-ratio"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["cache-relay-push-mem-ratio"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"cache", "relay-push-ids-mem-ratio"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["cache-relay-push-ids-mem-ratio"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"cache", "relay-subscription-mem-ratio"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["cache-relay-subscription-mem-ratio"] = ival
 			nestedKeys[key[0]] = struct{}{}
 			break
 		}

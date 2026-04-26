@@ -1821,7 +1821,6 @@ button.tab-button {
 	}
 }
 
-
 .interaction-requests-view {
 	.interaction-request {
 		display: flex;
@@ -1907,6 +1906,134 @@ button.tab-button {
 	.domain-blocks-link {
 		color: $link-fg;
 		text-decoration: underline;
+	}
+}
+
+.relay-connections {
+	.relay-connection {
+		.info-list {
+			border: none;
+			width: 100%;
+	
+			.info-list-entry {
+				background: none;
+				padding: 0;
+			}
+		}
+	}
+}
+
+/* Style flags icons */
+.relay-flags-icons {
+	display: flex;
+	gap: 0.25rem;
+	
+	.fa-stack {
+		vertical-align: initial;
+		height: 1em;
+		line-height: 1.5em;
+		/*
+			This is what FA uses for
+			"fa-fw" ie., fixed-width.
+		*/
+		width: 1.28571429em;
+		
+		/*
+			Used to put a "cancel / ban" logo
+			over sensitive, media, and replies
+			icons in the flags list.
+		*/
+		.crossed-out {
+			font-size: 1.5em;
+			color: $error-fg;
+		}
+	}
+}
+
+.relay-connection-detail {
+	& > .info-list {
+		margin-top: 1rem;
+	}
+	
+	form {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	/*
+		Style the "matchers" list.
+	*/
+	.matchers {
+		margin-top: 0;
+		
+		/*
+			Remove ordered
+			list padding.
+		*/
+		padding-left: 0;
+	
+		.entry {
+			/*
+				Line up matcher entry so the icons
+				take a small section on the left,
+				and the keyword + delete button
+				take up the rest of the space.
+			*/
+			display: grid;
+			grid-template-columns: 3rem auto auto;
+			gap: 0.5rem;
+			align-items: start;
+
+			/*
+				Override color changes on hover
+				as these entries aren't clickable.
+			*/
+			&:hover {
+				border-color: transparent;
+				background: $list-entry-bg;
+				&:nth-child(2n) {
+					background: $list-entry-alternate-bg;
+				}
+			}
+
+			/*
+				Allow long keywords to break and wrap
+				otherwise it stretches the screen.
+			*/
+			& > .relay-matcher-keyword {
+				word-break: break-word;
+			}
+
+			/*
+				Put the delete button all the way on
+				the right side and change padding +
+				font size so it fits within the entry.
+			*/
+			.mutation-button {
+				justify-self: end;
+				button {
+					padding-top: 0;
+					padding-bottom: 0;
+					font-size: 1rem;
+				}
+			}
+		}
+	}
+}
+
+/*
+	Style "approved" / "not approved" value
+	on relay connections so that if it's
+	approved the text shows up in green,
+	and not approved shows up in orange.
+*/
+.relay-connections, .relay-connection-detail {
+	dd.relay-connection-approved {
+		color: $green1;
+	}
+	dd.relay-connection-not-approved {
+		color: $orange2;
 	}
 }
 

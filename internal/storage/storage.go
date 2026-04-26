@@ -227,6 +227,7 @@ func NewS3Storage() (*Driver, error) {
 	secure := config.GetStorageS3UseSSL()
 	bucket := config.GetStorageS3BucketName()
 	redirectURL := config.GetStorageS3RedirectURL()
+	region := config.GetStorageS3Region()
 
 	var bucketLookup minio.BucketLookupType
 	switch s := config.GetStorageS3BucketLookup(); s {
@@ -255,6 +256,7 @@ func NewS3Storage() (*Driver, error) {
 			Creds:        credentials.NewStaticV4(access, secret, ""),
 			Secure:       secure,
 			BucketLookup: bucketLookup,
+			Region:       region,
 		},
 		PutChunkSize: 5 * 1024 * 1024, // 5MiB
 		ListSize:     200,

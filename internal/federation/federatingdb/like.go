@@ -52,6 +52,12 @@ func (f *DB) Like(ctx context.Context, likeable vocab.ActivityStreamsLike) error
 		return nil
 	}
 
+	if receiving.IsInstance() {
+		// Don't process this activity via our instance actor's inbox.
+		log.Debug(ctx, "dropping Like received in our instance service actor's inbox")
+		return nil
+	}
+
 	// Convert received AS like type to internal fave model.
 	fave, err := f.converter.ASLikeToFave(ctx, likeable)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {

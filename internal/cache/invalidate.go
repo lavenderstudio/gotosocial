@@ -318,6 +318,19 @@ func (c *Caches) OnInvalidatePollVote(vote *gtsmodel.PollVote) {
 	c.DB.PollVoteIDs.Invalidate(vote.PollID)
 }
 
+func (c *Caches) OnInvalidateRelayPush(relayPush *gtsmodel.RelayPush) {
+	// Invalidate list of relay pushes for account.
+	c.DB.RelayPushIDs.Invalidate(relayPush.AccountID)
+
+	// Invalidate all associated matchers.
+	c.DB.RelayMatcher.InvalidateIDs("ID", relayPush.MatcherIDs)
+}
+
+func (c *Caches) OnInvalidateRelaySubscription(relaySubscription *gtsmodel.RelaySubscription) {
+	// Invalidate all associated matchers.
+	c.DB.RelayMatcher.InvalidateIDs("ID", relaySubscription.MatcherIDs)
+}
+
 func (c *Caches) OnInvalidateScheduledStatus(status *gtsmodel.ScheduledStatus) {
 	// Invalidate cache of related media attachments.
 	c.DB.Media.InvalidateIDs("ID", status.MediaIDs)

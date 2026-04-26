@@ -569,6 +569,32 @@ func sizeofReport() uintptr {
 	}))
 }
 
+func sizeofRelayMatcher() uintptr {
+	return uintptr(size.Of(&gtsmodel.RelayMatcher{
+		ID:      exampleID,
+		RelayID: exampleID,
+		Keyword: "#Hashtag",
+	}))
+}
+
+func sizeofRelayPush() uintptr {
+	return uintptr(size.Of(&gtsmodel.RelayPush{
+		ID:            exampleID,
+		AccountID:     exampleID,
+		RelayActorURI: exampleURI,
+		MatcherIDs:    []string{exampleID, exampleID, exampleID},
+	}))
+}
+
+func sizeofRelaySubscription() uintptr {
+	return uintptr(size.Of(&gtsmodel.RelaySubscription{
+		ID:            exampleID,
+		AccountID:     exampleID,
+		RelayActorURI: exampleURI,
+		MatcherIDs:    []string{exampleID, exampleID, exampleID},
+	}))
+}
+
 func sizeofScheduledStatus() uintptr {
 	return uintptr(size.Of(&gtsmodel.ScheduledStatus{
 		ID:          exampleID,

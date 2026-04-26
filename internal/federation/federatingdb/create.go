@@ -67,6 +67,13 @@ func (f *DB) Create(ctx context.Context, asType vocab.Type) error {
 		return nil
 	}
 
+	if receiving.IsInstance() {
+		// Don't process this activity via our instance actor's inbox YET.
+		// TODO: Rework this check in subsequent relay subscription/push PR.
+		log.Debug(ctx, "dropping activity received in our instance service actor's inbox")
+		return nil
+	}
+
 	// Cast to the expected types we handle in this func.
 	creatable, ok := asType.(vocab.ActivityStreamsCreate)
 	if !ok {

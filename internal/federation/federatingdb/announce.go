@@ -46,6 +46,13 @@ func (f *DB) Announce(ctx context.Context, announce vocab.ActivityStreamsAnnounc
 		return nil
 	}
 
+	if receivingAcct.IsInstance() {
+		// Don't process this activity via our instance actor's inbox YET.
+		// TODO: Rework this check in subsequent relay subscription/push PR.
+		log.Debug(ctx, "dropping activity received in our instance service actor's inbox")
+		return nil
+	}
+
 	// Ensure requestingAccount is among
 	// the Actors doing the Announce.
 	//

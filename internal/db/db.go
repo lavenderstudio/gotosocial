@@ -45,6 +45,7 @@ type DB interface {
 	Notification
 	Poll
 	Relationship
+	Relay
 	Report
 	Rule
 	ScheduledStatus

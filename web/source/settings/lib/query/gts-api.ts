@@ -181,6 +181,8 @@ export const gtsApi = createApi({
 		"TokenInfo",
 		"User",
 		"AdminInstance",
+		"RelaySubscription",
+		"RelayPush",
 	],
 	endpoints: (build) => ({
 		instanceV1: build.query<InstanceV1, void>({

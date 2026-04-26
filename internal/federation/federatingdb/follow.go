@@ -44,6 +44,18 @@ func (f *DB) Follow(ctx context.Context, followable vocab.ActivityStreamsFollow)
 	requesting := activityContext.requestingAcct
 	receiving := activityContext.receivingAcct
 
+	if requesting.IsMoving() {
+		// A Moving account
+		// can't do this.
+		return nil
+	}
+
+	if receiving.IsInstance() {
+		// Don't process this activity via our instance actor's inbox.
+		log.Debug(ctx, "dropping Follow received in our instance service actor's inbox")
+		return nil
+	}
+
 	// Convert received AS block type to internal follow request model.
 	followreq, err := f.converter.ASFollowToFollowRequest(ctx, followable)
 	if err != nil {

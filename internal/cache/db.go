@@ -233,6 +233,19 @@ type DBCaches struct {
 	// Report provides access to the gtsmodel Report database cache.
 	Report StructCache[*gtsmodel.Report]
 
+	// RelayMatcher provides access to the gtsmodel RelayMatcher database cache.
+	RelayMatcher StructCache[*gtsmodel.RelayMatcher]
+
+	// RelayPush provides access to the gtsmodel RelayPush database cache.
+	RelayPush StructCache[*gtsmodel.RelayPush]
+
+	// RelayPushIDs provides access to the relay push IDs database cache.
+	// This cache is keyed as: {accountID} -> []{relayPushIDs}.
+	RelayPushIDs SliceCache[string]
+
+	// RelaySubscription provides access to the gtsmodel RelaySubscription database cache.
+	RelaySubscription StructCache[*gtsmodel.RelaySubscription]
+
 	// ScheduledStatus provides access to the gtsmodel ScheduledStatus database cache.
 	ScheduledStatus StructCache[*gtsmodel.ScheduledStatus]
 
@@ -1377,6 +1390,106 @@ func (c *Caches) initReport() {
 		MaxSize:   cap,
 		IgnoreErr: ignoreErrors,
 		Copy:      copyF,
+	})
+}
+
+func (c *Caches) initRelayMatcher() {
+	// Calculate maximum cache size.
+	cap := calculateResultCacheMax(
+		sizeofRelayMatcher(), // model in-mem size.
+		config.GetCacheRelayMatcherMemRatio(),
+	)
+
+	log.Infof(nil, "cache size = %d", cap)
+
+	copyF := func(r1 *gtsmodel.RelayMatcher) *gtsmodel.RelayMatcher {
+		r2 := new(gtsmodel.RelayMatcher)
+		*r2 = *r1
+		return r2
+	}
+
+	c.DB.RelayMatcher.Init(structr.CacheConfig[*gtsmodel.RelayMatcher]{
+		Indices: []structr.IndexConfig{
+			{Fields: "ID"},
+			{Fields: "RelayID", Multiple: true},
+		},
+		MaxSize:   cap,
+		IgnoreErr: ignoreErrors,
+		Copy:      copyF,
+	})
+}
+
+func (c *Caches) initRelayPush() {
+	// Calculate maximum cache size.
+	cap := calculateResultCacheMax(
+		sizeofRelayPush(), // model in-mem size.
+		config.GetCacheRelayPushMemRatio(),
+	)
+
+	log.Infof(nil, "cache size = %d", cap)
+
+	copyF := func(r1 *gtsmodel.RelayPush) *gtsmodel.RelayPush {
+		r2 := new(gtsmodel.RelayPush)
+		*r2 = *r1
+
+		// Don't store matchers in the cache.
+		r2.Matchers = nil
+
+		return r2
+	}
+
+	c.DB.RelayPush.Init(structr.CacheConfig[*gtsmodel.RelayPush]{
+		Indices: []structr.IndexConfig{
+			{Fields: "ID"},
+			{Fields: "AccountID", Multiple: true},
+			{Fields: "RelayActorURI", Multiple: true},
+		},
+		MaxSize:    cap,
+		IgnoreErr:  ignoreErrors,
+		Copy:       copyF,
+		Invalidate: c.OnInvalidateRelayPush,
+	})
+}
+
+func (c *Caches) initRelayPushIDs() {
+	cap := calculateSliceCacheMax(
+		config.GetCacheRelayPushIDsMemRatio(),
+	)
+
+	log.Infof(nil, "cache size = %d", cap)
+
+	c.DB.RelayPushIDs.Init(0, cap)
+}
+
+func (c *Caches) initRelaySubscription() {
+	// Calculate maximum cache size.
+	cap := calculateResultCacheMax(
+		sizeofRelaySubscription(), // model in-mem size.
+		config.GetCacheRelaySubscriptionMemRatio(),
+	)
+
+	log.Infof(nil, "cache size = %d", cap)
+
+	copyF := func(r1 *gtsmodel.RelaySubscription) *gtsmodel.RelaySubscription {
+		r2 := new(gtsmodel.RelaySubscription)
+		*r2 = *r1
+
+		// Don't store matchers in the cache.
+		r2.Matchers = nil
+
+		return r2
+	}
+
+	c.DB.RelaySubscription.Init(structr.CacheConfig[*gtsmodel.RelaySubscription]{
+		Indices: []structr.IndexConfig{
+			{Fields: "ID"},
+			{Fields: "AccountID", Multiple: true},
+			{Fields: "RelayActorURI", Multiple: true},
+		},
+		MaxSize:    cap,
+		IgnoreErr:  ignoreErrors,
+		Copy:       copyF,
+		Invalidate: c.OnInvalidateRelaySubscription,
 	})
 }
 

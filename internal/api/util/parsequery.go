@@ -106,6 +106,10 @@ const (
 	/* Web view keys */
 
 	WebIncludeBoostsKey = "include_boosts"
+
+	/* Relay-related keys */
+
+	RelayMatcherIDKey = "matcher_id"
 )
 
 /*
@@ -291,6 +295,19 @@ func ParseAPIVersion(value string, availableVersion ...string) (string, gtserror
 
 func ParseID(value string) (string, gtserror.WithCode) {
 	key := IDKey
+
+	if value == "" {
+		return "", requiredError(key)
+	}
+
+	// ULIDs are always uppercase.
+	value = strings.ToUpper(value)
+
+	return value, nil
+}
+
+func ParseRelayMatcherID(value string) (string, gtserror.WithCode) {
+	key := RelayMatcherIDKey
 
 	if value == "" {
 		return "", requiredError(key)

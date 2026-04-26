@@ -61,6 +61,7 @@ type DBService struct {
 	db.Notification
 	db.Poll
 	db.Relationship
+	db.Relay
 	db.Report
 	db.Rule
 	db.ScheduledStatus
@@ -243,6 +244,10 @@ func NewBunDBService(ctx context.Context, state *state.State) (db.DB, error) {
 			state: state,
 		},
 		Relationship: &relationshipDB{
+			db:    db,
+			state: state,
+		},
+		Relay: &relayDB{
 			db:    db,
 			state: state,
 		},

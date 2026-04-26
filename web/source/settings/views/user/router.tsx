@@ -34,6 +34,9 @@ import AppDetail from "./applications/detail";
 import { AppTokenCallback } from "./applications/callback";
 import Migration from "./migration";
 import InstanceInfo from "./instance";
+import RelayPushesOverview from "./relay-pushes";
+import RelayPushNew from "./relay-pushes/new";
+import RelayPushDetail from "./relay-pushes/detail";
 
 /**
  * - /settings/user/profile
@@ -44,6 +47,7 @@ import InstanceInfo from "./instance";
  * - /settings/user/tokens
  * - /settings/user/interaction_requests
  * - /settings/user/applications
+ * - /settings/user/relay-pushes
  * - /settings/user/instance-info
  */
 export default function UserRouter() {
@@ -65,6 +69,31 @@ export default function UserRouter() {
 				</Switch>
 				<InteractionRequestsRouter />
 				<ApplicationsRouter />
+				<RelayPushesRouter />
+			</Router>
+		</BaseUrlContext.Provider>
+	);
+}
+
+/**
+ * - /settings/users/interaction_requests/search
+ * - /settings/users/interaction_requests/{reqId}
+ */
+function InteractionRequestsRouter() {
+	const parentUrl = useBaseUrl();
+	const thisBase = "/interaction_requests";
+	const absBase = parentUrl + thisBase;
+
+	return (
+		<BaseUrlContext.Provider value={absBase}>
+			<Router base={thisBase}>
+				<ErrorBoundary>
+					<Switch>
+						<Route path="/search" component={InteractionRequests} />
+						<Route path="/:reqId" component={InteractionRequestDetail} />
+						<Route><Redirect to="/search"/></Route>
+					</Switch>
+				</ErrorBoundary>
 			</Router>
 		</BaseUrlContext.Provider>
 	);
@@ -97,12 +126,13 @@ function ApplicationsRouter() {
 }
 
 /**
- * - /settings/users/interaction_requests/search
- * - /settings/users/interaction_requests/{reqId}
+ * - /settings/user/relay-pushes/overview
+ * - /settings/user/relay-pushes/new
+ * - /settings/user/relay-pushes/:relayPushId
  */
-function InteractionRequestsRouter() {
+function RelayPushesRouter() {
 	const parentUrl = useBaseUrl();
-	const thisBase = "/interaction_requests";
+	const thisBase = "/relay-pushes";
 	const absBase = parentUrl + thisBase;
 
 	return (
@@ -110,9 +140,10 @@ function InteractionRequestsRouter() {
 			<Router base={thisBase}>
 				<ErrorBoundary>
 					<Switch>
-						<Route path="/search" component={InteractionRequests} />
-						<Route path="/:reqId" component={InteractionRequestDetail} />
-						<Route><Redirect to="/search"/></Route>
+						<Route path="/overview" component={RelayPushesOverview} />
+						<Route path="/new" component={RelayPushNew} />
+						<Route path="/:relayPushId" component={RelayPushDetail} />
+						<Route><Redirect to="/overview" /></Route>
 					</Switch>
 				</ErrorBoundary>
 			</Router>

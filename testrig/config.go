@@ -133,8 +133,18 @@ func testDefaults() config.Configuration {
 		// the testrig uses in-memory storage by default, so we can
 		// safely set this value to 'test' to avoid running storage
 		// migrations, and other silly things like that
-		StorageBackend:       "test",
+		StorageBackend:       envStr("GTS_STORAGE_BACKEND", "test"),
 		StorageLocalBasePath: "",
+
+		StorageS3Endpoint:     envStr("GTS_STORAGE_S3_ENDPOINT", ""),
+		StorageS3AccessKey:    envStr("GTS_STORAGE_S3_ACCESS_KEY", ""),
+		StorageS3SecretKey:    envStr("GTS_STORAGE_S3_SECRET_KEY", ""),
+		StorageS3BucketName:   envStr("GTS_STORAGE_S3_BUCKET", ""),
+		StorageS3BucketLookup: envStr("GTS_STORAGE_S3_BUCKET_LOOKUP", ""),
+		StorageS3UseSSL:       envBool("GTS_STORAGE_S3_USE_SSL", true),
+		StorageS3Region:       envStr("GTS_STORAGE_S3_REGION", ""),
+		StorageS3Proxy:        envBool("GTS_STORAGE_S3_PROXY", false),
+		StorageS3RedirectURL:  envStr("GTS_STORAGE_S3_REDIRECT_URL", ""),
 
 		StatusesMaxChars:           5000,
 		StatusesPollMaxOptions:     6,

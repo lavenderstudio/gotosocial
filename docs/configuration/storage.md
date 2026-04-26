@@ -127,6 +127,17 @@ storage-s3-key-prefix: ""
 # Default: "auto"
 storage-s3-bucket-lookup: "auto"
 
+# String. Region containing the bucket.
+# 
+# If this is left blank, the region for the bucket will be automatically detected
+# using GetBucketLocation during startup.
+#
+# This can safely be left blank unless your provider does not support the GetBucketLocation Action. 
+# 
+# Examples: ["", "us-east-2"]
+# Default: ""
+storage-s3-region: ""
+
 cache:
   # cache.s3-object-info (if set) enables caching
   # of S3 object information in the storage driver.

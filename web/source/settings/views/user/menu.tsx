@@ -20,12 +20,6 @@
 import { MenuItem } from "../../lib/navigation/menu";
 import React from "react";
 
-/**
- * - /settings/user/profile
- * - /settings/user/posts
- * - /settings/user/emailpassword
- * - /settings/user/migration
- */
 export default function UserMenu() {	
 	return (
 		<MenuItem
@@ -81,6 +75,23 @@ export default function UserMenu() {
 				/>
 				<MenuItem
 					name="New Application"
+					itemUrl="new"
+					icon="fa-plus"
+				/>
+			</MenuItem>
+			<MenuItem
+				name="Relay Pushes"
+				itemUrl="relay-pushes"
+				defaultChild="overview"
+				icon="fa-share-alt"
+			>
+				<MenuItem
+					name="Overview"
+					itemUrl="overview"
+					icon="fa-list"
+				/>
+				<MenuItem
+					name="New"
 					itemUrl="new"
 					icon="fa-plus"
 				/>

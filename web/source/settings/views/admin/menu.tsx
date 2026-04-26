@@ -29,6 +29,9 @@ import { useHasPermission } from "../../lib/navigation/util";
  * - /settings/admin/instance/settings
  * - /settings/admin/instance/rules
  * - /settings/admin/instance/rules/:ruleId
+ * - /settings/admin/relay-subscriptions
+ * - /settings/admin/relay-subscriptions/new
+ * - /settings/admin/relay-subscriptions/:relaySubscriptionId
  * - /settings/admin/emojis
  * - /settings/admin/emojis/local
  * - /settings/admin/emojis/local/:emojiId
@@ -59,6 +62,7 @@ export default function AdminMenu() {
 		>
 			<AdminInstanceMenu />
 			<AdminEmojisMenu />
+			<AdminRelaySubscriptionsMenu />
 			<AdminInstancesMenu />
 			<AdminActionsMenu />
 			<AdminHTTPHeaderPermissionsMenu />
@@ -137,6 +141,28 @@ function AdminEmojisMenu() {
 				name="Remote"
 				itemUrl="remote"
 				icon="fa-cloud"
+			/>
+		</MenuItem>
+	);
+}
+
+function AdminRelaySubscriptionsMenu() {
+	return (
+		<MenuItem
+			name="Relay Subscriptions"
+			itemUrl="relay-subscriptions"
+			defaultChild="overview"
+			icon="fa-share-alt"
+		>
+			<MenuItem
+				name="Overview"
+				itemUrl="overview"
+				icon="fa-list"
+			/>
+			<MenuItem
+				name="New"
+				itemUrl="new"
+				icon="fa-plus"
 			/>
 		</MenuItem>
 	);
