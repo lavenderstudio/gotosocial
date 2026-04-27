@@ -159,6 +159,9 @@ const (
 	MediaFfmpegPoolSizeFlag                       = "media-ffmpeg-pool-size"
 	MediaThumbMaxPixelsFlag                       = "media-thumb-max-pixels"
 	CacheS3ObjectInfoFlag                         = "cache-s3-object-info"
+	CacheHomeTimelineSizeFlag                     = "cache-home-timeline-size"
+	CacheListTimelineSizeFlag                     = "cache-list-timeline-size"
+	CacheTagTimelineSizeFlag                      = "cache-tag-timeline-size"
 	CacheHomeTimelineTimeoutFlag                  = "cache-home-timeline-timeout"
 	CacheListTimelineTimeoutFlag                  = "cache-list-timeline-timeout"
 	CacheTagTimelineTimeoutFlag                   = "cache-tag-timeline-timeout"
@@ -372,7 +375,10 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Duration("media-cleanup-every", cfg.Media.CleanupEvery, "Period to elapse between cleanups, starting from media-cleanup-at.")
 	flags.Int("media-ffmpeg-pool-size", cfg.Media.FfmpegPoolSize, "Number of instances of the embedded ffmpeg WASM binary to add to the media processing pool. 0 or less uses GOMAXPROCS.")
 	flags.Int("media-thumb-max-pixels", cfg.Media.ThumbMaxPixels, "Max size in pixels of any one dimension of a thumbnail (as input media ratio is preserved).")
-	flags.Int("cache-s3-object-info", cfg.Cache.S3ObjectInfo, "Enables caching of S3 object information in the storage driver to reduce S3 calls, value is cache capacity.")
+	flags.Uint32("cache-s3-object-info", cfg.Cache.S3ObjectInfo, "Enables caching of S3 object information in the storage driver to reduce S3 calls, value is cache capacity.")
+	flags.Uint32("cache-home-timeline-size", cfg.Cache.HomeTimelineSize, "Per-user home timeline cache length, in number of posts. (minimum = 100)")
+	flags.Uint32("cache-list-timeline-size", cfg.Cache.ListTimelineSize, "Per-list timeline cache length, in number of posts. (minimum = 100)")
+	flags.Uint32("cache-tag-timeline-size", cfg.Cache.TagTimelineSize, "Per-tag timeline cache length, in number of posts. (minimum = 50)")
 	flags.Duration("cache-home-timeline-timeout", cfg.Cache.HomeTimelineTimeout, "Duration before any one home timeline cache is unloaded from memory. Values <= 0 disable unloading.")
 	flags.Duration("cache-list-timeline-timeout", cfg.Cache.ListTimelineTimeout, "Duration before any one list timeline cache is unloaded from memory. Values <= 0 disable unloading.")
 	flags.Duration("cache-tag-timeline-timeout", cfg.Cache.TagTimelineTimeout, "Duration before any one tag timeline cache is unloaded from memory. Values <= 0 disable unloading.")
@@ -448,7 +454,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 }
 
 func (cfg *Configuration) MarshalMap() map[string]any {
-	cfgmap := make(map[string]any, 210)
+	cfgmap := make(map[string]any, 214)
 	cfgmap["log-level"] = cfg.LogLevel
 	cfgmap["log-format"] = cfg.LogFormat
 	cfgmap["log-timestamp-format"] = cfg.LogTimestampFormat
@@ -579,6 +585,9 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["media-ffmpeg-pool-size"] = cfg.Media.FfmpegPoolSize
 	cfgmap["media-thumb-max-pixels"] = cfg.Media.ThumbMaxPixels
 	cfgmap["cache-s3-object-info"] = cfg.Cache.S3ObjectInfo
+	cfgmap["cache-home-timeline-size"] = cfg.Cache.HomeTimelineSize
+	cfgmap["cache-list-timeline-size"] = cfg.Cache.ListTimelineSize
+	cfgmap["cache-tag-timeline-size"] = cfg.Cache.TagTimelineSize
 	cfgmap["cache-home-timeline-timeout"] = cfg.Cache.HomeTimelineTimeout
 	cfgmap["cache-list-timeline-timeout"] = cfg.Cache.ListTimelineTimeout
 	cfgmap["cache-tag-timeline-timeout"] = cfg.Cache.TagTimelineTimeout
@@ -1737,9 +1746,33 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 
 	if ival, ok := cfgmap["cache-s3-object-info"]; ok {
 		var err error
-		cfg.Cache.S3ObjectInfo, err = cast.ToIntE(ival)
+		cfg.Cache.S3ObjectInfo, err = cast.ToUint32E(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'cache-s3-object-info': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> uint32 for 'cache-s3-object-info': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["cache-home-timeline-size"]; ok {
+		var err error
+		cfg.Cache.HomeTimelineSize, err = cast.ToUint32E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> uint32 for 'cache-home-timeline-size': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["cache-list-timeline-size"]; ok {
+		var err error
+		cfg.Cache.ListTimelineSize, err = cast.ToUint32E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> uint32 for 'cache-list-timeline-size': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["cache-tag-timeline-size"]; ok {
+		var err error
+		cfg.Cache.TagTimelineSize, err = cast.ToUint32E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> uint32 for 'cache-tag-timeline-size': %w", ival, err)
 		}
 	}
 
@@ -2399,16 +2432,11 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 
 // GetLogLevel safely fetches the Configuration value for state's 'LogLevel' field
 func (st *ConfigState) GetLogLevel() (v string) {
-	st.mutex.RLock()
-	v = st.config.LogLevel
-	st.mutex.RUnlock()
-	return
+	return st.config.LogLevel
 }
 
 // SetLogLevel safely sets the Configuration value for state's 'LogLevel' field
 func (st *ConfigState) SetLogLevel(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.LogLevel = v
 	st.reloadToViper()
 }
@@ -2421,16 +2449,11 @@ func SetLogLevel(v string) { global.SetLogLevel(v) }
 
 // GetLogFormat safely fetches the Configuration value for state's 'LogFormat' field
 func (st *ConfigState) GetLogFormat() (v string) {
-	st.mutex.RLock()
-	v = st.config.LogFormat
-	st.mutex.RUnlock()
-	return
+	return st.config.LogFormat
 }
 
 // SetLogFormat safely sets the Configuration value for state's 'LogFormat' field
 func (st *ConfigState) SetLogFormat(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.LogFormat = v
 	st.reloadToViper()
 }
@@ -2443,16 +2466,11 @@ func SetLogFormat(v string) { global.SetLogFormat(v) }
 
 // GetLogTimestampFormat safely fetches the Configuration value for state's 'LogTimestampFormat' field
 func (st *ConfigState) GetLogTimestampFormat() (v string) {
-	st.mutex.RLock()
-	v = st.config.LogTimestampFormat
-	st.mutex.RUnlock()
-	return
+	return st.config.LogTimestampFormat
 }
 
 // SetLogTimestampFormat safely sets the Configuration value for state's 'LogTimestampFormat' field
 func (st *ConfigState) SetLogTimestampFormat(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.LogTimestampFormat = v
 	st.reloadToViper()
 }
@@ -2465,16 +2483,11 @@ func SetLogTimestampFormat(v string) { global.SetLogTimestampFormat(v) }
 
 // GetLogDbQueries safely fetches the Configuration value for state's 'LogDbQueries' field
 func (st *ConfigState) GetLogDbQueries() (v bool) {
-	st.mutex.RLock()
-	v = st.config.LogDbQueries
-	st.mutex.RUnlock()
-	return
+	return st.config.LogDbQueries
 }
 
 // SetLogDbQueries safely sets the Configuration value for state's 'LogDbQueries' field
 func (st *ConfigState) SetLogDbQueries(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.LogDbQueries = v
 	st.reloadToViper()
 }
@@ -2487,16 +2500,11 @@ func SetLogDbQueries(v bool) { global.SetLogDbQueries(v) }
 
 // GetLogClientIP safely fetches the Configuration value for state's 'LogClientIP' field
 func (st *ConfigState) GetLogClientIP() (v bool) {
-	st.mutex.RLock()
-	v = st.config.LogClientIP
-	st.mutex.RUnlock()
-	return
+	return st.config.LogClientIP
 }
 
 // SetLogClientIP safely sets the Configuration value for state's 'LogClientIP' field
 func (st *ConfigState) SetLogClientIP(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.LogClientIP = v
 	st.reloadToViper()
 }
@@ -2509,16 +2517,11 @@ func SetLogClientIP(v bool) { global.SetLogClientIP(v) }
 
 // GetRequestIDHeader safely fetches the Configuration value for state's 'RequestIDHeader' field
 func (st *ConfigState) GetRequestIDHeader() (v string) {
-	st.mutex.RLock()
-	v = st.config.RequestIDHeader
-	st.mutex.RUnlock()
-	return
+	return st.config.RequestIDHeader
 }
 
 // SetRequestIDHeader safely sets the Configuration value for state's 'RequestIDHeader' field
 func (st *ConfigState) SetRequestIDHeader(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.RequestIDHeader = v
 	st.reloadToViper()
 }
@@ -2531,16 +2534,11 @@ func SetRequestIDHeader(v string) { global.SetRequestIDHeader(v) }
 
 // GetConfigPath safely fetches the Configuration value for state's 'ConfigPath' field
 func (st *ConfigState) GetConfigPath() (v string) {
-	st.mutex.RLock()
-	v = st.config.ConfigPath
-	st.mutex.RUnlock()
-	return
+	return st.config.ConfigPath
 }
 
 // SetConfigPath safely sets the Configuration value for state's 'ConfigPath' field
 func (st *ConfigState) SetConfigPath(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.ConfigPath = v
 	st.reloadToViper()
 }
@@ -2553,16 +2551,11 @@ func SetConfigPath(v string) { global.SetConfigPath(v) }
 
 // GetApplicationName safely fetches the Configuration value for state's 'ApplicationName' field
 func (st *ConfigState) GetApplicationName() (v string) {
-	st.mutex.RLock()
-	v = st.config.ApplicationName
-	st.mutex.RUnlock()
-	return
+	return st.config.ApplicationName
 }
 
 // SetApplicationName safely sets the Configuration value for state's 'ApplicationName' field
 func (st *ConfigState) SetApplicationName(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.ApplicationName = v
 	st.reloadToViper()
 }
@@ -2575,16 +2568,11 @@ func SetApplicationName(v string) { global.SetApplicationName(v) }
 
 // GetLandingPageUser safely fetches the Configuration value for state's 'LandingPageUser' field
 func (st *ConfigState) GetLandingPageUser() (v string) {
-	st.mutex.RLock()
-	v = st.config.LandingPageUser
-	st.mutex.RUnlock()
-	return
+	return st.config.LandingPageUser
 }
 
 // SetLandingPageUser safely sets the Configuration value for state's 'LandingPageUser' field
 func (st *ConfigState) SetLandingPageUser(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.LandingPageUser = v
 	st.reloadToViper()
 }
@@ -2597,16 +2585,11 @@ func SetLandingPageUser(v string) { global.SetLandingPageUser(v) }
 
 // GetHost safely fetches the Configuration value for state's 'Host' field
 func (st *ConfigState) GetHost() (v string) {
-	st.mutex.RLock()
-	v = st.config.Host
-	st.mutex.RUnlock()
-	return
+	return st.config.Host
 }
 
 // SetHost safely sets the Configuration value for state's 'Host' field
 func (st *ConfigState) SetHost(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Host = v
 	st.reloadToViper()
 }
@@ -2619,16 +2602,11 @@ func SetHost(v string) { global.SetHost(v) }
 
 // GetAccountDomain safely fetches the Configuration value for state's 'AccountDomain' field
 func (st *ConfigState) GetAccountDomain() (v string) {
-	st.mutex.RLock()
-	v = st.config.AccountDomain
-	st.mutex.RUnlock()
-	return
+	return st.config.AccountDomain
 }
 
 // SetAccountDomain safely sets the Configuration value for state's 'AccountDomain' field
 func (st *ConfigState) SetAccountDomain(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AccountDomain = v
 	st.reloadToViper()
 }
@@ -2641,16 +2619,11 @@ func SetAccountDomain(v string) { global.SetAccountDomain(v) }
 
 // GetProtocol safely fetches the Configuration value for state's 'Protocol' field
 func (st *ConfigState) GetProtocol() (v string) {
-	st.mutex.RLock()
-	v = st.config.Protocol
-	st.mutex.RUnlock()
-	return
+	return st.config.Protocol
 }
 
 // SetProtocol safely sets the Configuration value for state's 'Protocol' field
 func (st *ConfigState) SetProtocol(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Protocol = v
 	st.reloadToViper()
 }
@@ -2663,16 +2636,11 @@ func SetProtocol(v string) { global.SetProtocol(v) }
 
 // GetBindAddress safely fetches the Configuration value for state's 'BindAddress' field
 func (st *ConfigState) GetBindAddress() (v string) {
-	st.mutex.RLock()
-	v = st.config.BindAddress
-	st.mutex.RUnlock()
-	return
+	return st.config.BindAddress
 }
 
 // SetBindAddress safely sets the Configuration value for state's 'BindAddress' field
 func (st *ConfigState) SetBindAddress(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.BindAddress = v
 	st.reloadToViper()
 }
@@ -2685,16 +2653,11 @@ func SetBindAddress(v string) { global.SetBindAddress(v) }
 
 // GetPort safely fetches the Configuration value for state's 'Port' field
 func (st *ConfigState) GetPort() (v int) {
-	st.mutex.RLock()
-	v = st.config.Port
-	st.mutex.RUnlock()
-	return
+	return st.config.Port
 }
 
 // SetPort safely sets the Configuration value for state's 'Port' field
 func (st *ConfigState) SetPort(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Port = v
 	st.reloadToViper()
 }
@@ -2707,16 +2670,11 @@ func SetPort(v int) { global.SetPort(v) }
 
 // GetTrustedProxies safely fetches the Configuration value for state's 'TrustedProxies' field
 func (st *ConfigState) GetTrustedProxies() (v []string) {
-	st.mutex.RLock()
-	v = st.config.TrustedProxies
-	st.mutex.RUnlock()
-	return
+	return st.config.TrustedProxies
 }
 
 // SetTrustedProxies safely sets the Configuration value for state's 'TrustedProxies' field
 func (st *ConfigState) SetTrustedProxies(v []string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.TrustedProxies = v
 	st.reloadToViper()
 }
@@ -2729,16 +2687,11 @@ func SetTrustedProxies(v []string) { global.SetTrustedProxies(v) }
 
 // GetSoftwareVersion safely fetches the Configuration value for state's 'SoftwareVersion' field
 func (st *ConfigState) GetSoftwareVersion() (v string) {
-	st.mutex.RLock()
-	v = st.config.SoftwareVersion
-	st.mutex.RUnlock()
-	return
+	return st.config.SoftwareVersion
 }
 
 // SetSoftwareVersion safely sets the Configuration value for state's 'SoftwareVersion' field
 func (st *ConfigState) SetSoftwareVersion(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.SoftwareVersion = v
 	st.reloadToViper()
 }
@@ -2751,16 +2704,11 @@ func SetSoftwareVersion(v string) { global.SetSoftwareVersion(v) }
 
 // GetDbType safely fetches the Configuration value for state's 'DbType' field
 func (st *ConfigState) GetDbType() (v string) {
-	st.mutex.RLock()
-	v = st.config.DbType
-	st.mutex.RUnlock()
-	return
+	return st.config.DbType
 }
 
 // SetDbType safely sets the Configuration value for state's 'DbType' field
 func (st *ConfigState) SetDbType(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbType = v
 	st.reloadToViper()
 }
@@ -2773,16 +2721,11 @@ func SetDbType(v string) { global.SetDbType(v) }
 
 // GetDbAddress safely fetches the Configuration value for state's 'DbAddress' field
 func (st *ConfigState) GetDbAddress() (v string) {
-	st.mutex.RLock()
-	v = st.config.DbAddress
-	st.mutex.RUnlock()
-	return
+	return st.config.DbAddress
 }
 
 // SetDbAddress safely sets the Configuration value for state's 'DbAddress' field
 func (st *ConfigState) SetDbAddress(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbAddress = v
 	st.reloadToViper()
 }
@@ -2795,16 +2738,11 @@ func SetDbAddress(v string) { global.SetDbAddress(v) }
 
 // GetDbPort safely fetches the Configuration value for state's 'DbPort' field
 func (st *ConfigState) GetDbPort() (v int) {
-	st.mutex.RLock()
-	v = st.config.DbPort
-	st.mutex.RUnlock()
-	return
+	return st.config.DbPort
 }
 
 // SetDbPort safely sets the Configuration value for state's 'DbPort' field
 func (st *ConfigState) SetDbPort(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbPort = v
 	st.reloadToViper()
 }
@@ -2817,16 +2755,11 @@ func SetDbPort(v int) { global.SetDbPort(v) }
 
 // GetDbUser safely fetches the Configuration value for state's 'DbUser' field
 func (st *ConfigState) GetDbUser() (v string) {
-	st.mutex.RLock()
-	v = st.config.DbUser
-	st.mutex.RUnlock()
-	return
+	return st.config.DbUser
 }
 
 // SetDbUser safely sets the Configuration value for state's 'DbUser' field
 func (st *ConfigState) SetDbUser(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbUser = v
 	st.reloadToViper()
 }
@@ -2839,16 +2772,11 @@ func SetDbUser(v string) { global.SetDbUser(v) }
 
 // GetDbPassword safely fetches the Configuration value for state's 'DbPassword' field
 func (st *ConfigState) GetDbPassword() (v string) {
-	st.mutex.RLock()
-	v = st.config.DbPassword
-	st.mutex.RUnlock()
-	return
+	return st.config.DbPassword
 }
 
 // SetDbPassword safely sets the Configuration value for state's 'DbPassword' field
 func (st *ConfigState) SetDbPassword(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbPassword = v
 	st.reloadToViper()
 }
@@ -2861,16 +2789,11 @@ func SetDbPassword(v string) { global.SetDbPassword(v) }
 
 // GetDbDatabase safely fetches the Configuration value for state's 'DbDatabase' field
 func (st *ConfigState) GetDbDatabase() (v string) {
-	st.mutex.RLock()
-	v = st.config.DbDatabase
-	st.mutex.RUnlock()
-	return
+	return st.config.DbDatabase
 }
 
 // SetDbDatabase safely sets the Configuration value for state's 'DbDatabase' field
 func (st *ConfigState) SetDbDatabase(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbDatabase = v
 	st.reloadToViper()
 }
@@ -2883,16 +2806,11 @@ func SetDbDatabase(v string) { global.SetDbDatabase(v) }
 
 // GetDbTLSMode safely fetches the Configuration value for state's 'DbTLSMode' field
 func (st *ConfigState) GetDbTLSMode() (v string) {
-	st.mutex.RLock()
-	v = st.config.DbTLSMode
-	st.mutex.RUnlock()
-	return
+	return st.config.DbTLSMode
 }
 
 // SetDbTLSMode safely sets the Configuration value for state's 'DbTLSMode' field
 func (st *ConfigState) SetDbTLSMode(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbTLSMode = v
 	st.reloadToViper()
 }
@@ -2905,16 +2823,11 @@ func SetDbTLSMode(v string) { global.SetDbTLSMode(v) }
 
 // GetDbTLSCACert safely fetches the Configuration value for state's 'DbTLSCACert' field
 func (st *ConfigState) GetDbTLSCACert() (v string) {
-	st.mutex.RLock()
-	v = st.config.DbTLSCACert
-	st.mutex.RUnlock()
-	return
+	return st.config.DbTLSCACert
 }
 
 // SetDbTLSCACert safely sets the Configuration value for state's 'DbTLSCACert' field
 func (st *ConfigState) SetDbTLSCACert(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbTLSCACert = v
 	st.reloadToViper()
 }
@@ -2927,16 +2840,11 @@ func SetDbTLSCACert(v string) { global.SetDbTLSCACert(v) }
 
 // GetDbMaxOpenConnsMultiplier safely fetches the Configuration value for state's 'DbMaxOpenConnsMultiplier' field
 func (st *ConfigState) GetDbMaxOpenConnsMultiplier() (v int) {
-	st.mutex.RLock()
-	v = st.config.DbMaxOpenConnsMultiplier
-	st.mutex.RUnlock()
-	return
+	return st.config.DbMaxOpenConnsMultiplier
 }
 
 // SetDbMaxOpenConnsMultiplier safely sets the Configuration value for state's 'DbMaxOpenConnsMultiplier' field
 func (st *ConfigState) SetDbMaxOpenConnsMultiplier(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbMaxOpenConnsMultiplier = v
 	st.reloadToViper()
 }
@@ -2949,16 +2857,11 @@ func SetDbMaxOpenConnsMultiplier(v int) { global.SetDbMaxOpenConnsMultiplier(v) 
 
 // GetDbSqliteJournalMode safely fetches the Configuration value for state's 'DbSqliteJournalMode' field
 func (st *ConfigState) GetDbSqliteJournalMode() (v string) {
-	st.mutex.RLock()
-	v = st.config.DbSqliteJournalMode
-	st.mutex.RUnlock()
-	return
+	return st.config.DbSqliteJournalMode
 }
 
 // SetDbSqliteJournalMode safely sets the Configuration value for state's 'DbSqliteJournalMode' field
 func (st *ConfigState) SetDbSqliteJournalMode(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbSqliteJournalMode = v
 	st.reloadToViper()
 }
@@ -2971,16 +2874,11 @@ func SetDbSqliteJournalMode(v string) { global.SetDbSqliteJournalMode(v) }
 
 // GetDbSqliteSynchronous safely fetches the Configuration value for state's 'DbSqliteSynchronous' field
 func (st *ConfigState) GetDbSqliteSynchronous() (v string) {
-	st.mutex.RLock()
-	v = st.config.DbSqliteSynchronous
-	st.mutex.RUnlock()
-	return
+	return st.config.DbSqliteSynchronous
 }
 
 // SetDbSqliteSynchronous safely sets the Configuration value for state's 'DbSqliteSynchronous' field
 func (st *ConfigState) SetDbSqliteSynchronous(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbSqliteSynchronous = v
 	st.reloadToViper()
 }
@@ -2993,16 +2891,11 @@ func SetDbSqliteSynchronous(v string) { global.SetDbSqliteSynchronous(v) }
 
 // GetDbSqliteCacheSize safely fetches the Configuration value for state's 'DbSqliteCacheSize' field
 func (st *ConfigState) GetDbSqliteCacheSize() (v bytesize.Size) {
-	st.mutex.RLock()
-	v = st.config.DbSqliteCacheSize
-	st.mutex.RUnlock()
-	return
+	return st.config.DbSqliteCacheSize
 }
 
 // SetDbSqliteCacheSize safely sets the Configuration value for state's 'DbSqliteCacheSize' field
 func (st *ConfigState) SetDbSqliteCacheSize(v bytesize.Size) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbSqliteCacheSize = v
 	st.reloadToViper()
 }
@@ -3015,16 +2908,11 @@ func SetDbSqliteCacheSize(v bytesize.Size) { global.SetDbSqliteCacheSize(v) }
 
 // GetDbSqliteBusyTimeout safely fetches the Configuration value for state's 'DbSqliteBusyTimeout' field
 func (st *ConfigState) GetDbSqliteBusyTimeout() (v time.Duration) {
-	st.mutex.RLock()
-	v = st.config.DbSqliteBusyTimeout
-	st.mutex.RUnlock()
-	return
+	return st.config.DbSqliteBusyTimeout
 }
 
 // SetDbSqliteBusyTimeout safely sets the Configuration value for state's 'DbSqliteBusyTimeout' field
 func (st *ConfigState) SetDbSqliteBusyTimeout(v time.Duration) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbSqliteBusyTimeout = v
 	st.reloadToViper()
 }
@@ -3037,16 +2925,11 @@ func SetDbSqliteBusyTimeout(v time.Duration) { global.SetDbSqliteBusyTimeout(v) 
 
 // GetDbPostgresConnectionString safely fetches the Configuration value for state's 'DbPostgresConnectionString' field
 func (st *ConfigState) GetDbPostgresConnectionString() (v string) {
-	st.mutex.RLock()
-	v = st.config.DbPostgresConnectionString
-	st.mutex.RUnlock()
-	return
+	return st.config.DbPostgresConnectionString
 }
 
 // SetDbPostgresConnectionString safely sets the Configuration value for state's 'DbPostgresConnectionString' field
 func (st *ConfigState) SetDbPostgresConnectionString(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.DbPostgresConnectionString = v
 	st.reloadToViper()
 }
@@ -3059,16 +2942,11 @@ func SetDbPostgresConnectionString(v string) { global.SetDbPostgresConnectionStr
 
 // GetWebTemplateBaseDir safely fetches the Configuration value for state's 'WebTemplateBaseDir' field
 func (st *ConfigState) GetWebTemplateBaseDir() (v string) {
-	st.mutex.RLock()
-	v = st.config.WebTemplateBaseDir
-	st.mutex.RUnlock()
-	return
+	return st.config.WebTemplateBaseDir
 }
 
 // SetWebTemplateBaseDir safely sets the Configuration value for state's 'WebTemplateBaseDir' field
 func (st *ConfigState) SetWebTemplateBaseDir(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.WebTemplateBaseDir = v
 	st.reloadToViper()
 }
@@ -3081,16 +2959,11 @@ func SetWebTemplateBaseDir(v string) { global.SetWebTemplateBaseDir(v) }
 
 // GetWebAssetBaseDir safely fetches the Configuration value for state's 'WebAssetBaseDir' field
 func (st *ConfigState) GetWebAssetBaseDir() (v string) {
-	st.mutex.RLock()
-	v = st.config.WebAssetBaseDir
-	st.mutex.RUnlock()
-	return
+	return st.config.WebAssetBaseDir
 }
 
 // SetWebAssetBaseDir safely sets the Configuration value for state's 'WebAssetBaseDir' field
 func (st *ConfigState) SetWebAssetBaseDir(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.WebAssetBaseDir = v
 	st.reloadToViper()
 }
@@ -3103,16 +2976,11 @@ func SetWebAssetBaseDir(v string) { global.SetWebAssetBaseDir(v) }
 
 // GetInstanceFederationMode safely fetches the Configuration value for state's 'InstanceFederationMode' field
 func (st *ConfigState) GetInstanceFederationMode() (v string) {
-	st.mutex.RLock()
-	v = st.config.InstanceFederationMode
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceFederationMode
 }
 
 // SetInstanceFederationMode safely sets the Configuration value for state's 'InstanceFederationMode' field
 func (st *ConfigState) SetInstanceFederationMode(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceFederationMode = v
 	st.reloadToViper()
 }
@@ -3125,16 +2993,11 @@ func SetInstanceFederationMode(v string) { global.SetInstanceFederationMode(v) }
 
 // GetInstanceFederationSpamFilter safely fetches the Configuration value for state's 'InstanceFederationSpamFilter' field
 func (st *ConfigState) GetInstanceFederationSpamFilter() (v bool) {
-	st.mutex.RLock()
-	v = st.config.InstanceFederationSpamFilter
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceFederationSpamFilter
 }
 
 // SetInstanceFederationSpamFilter safely sets the Configuration value for state's 'InstanceFederationSpamFilter' field
 func (st *ConfigState) SetInstanceFederationSpamFilter(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceFederationSpamFilter = v
 	st.reloadToViper()
 }
@@ -3147,16 +3010,11 @@ func SetInstanceFederationSpamFilter(v bool) { global.SetInstanceFederationSpamF
 
 // GetInstanceExposePeers safely fetches the Configuration value for state's 'InstanceExposePeers' field
 func (st *ConfigState) GetInstanceExposePeers() (v bool) {
-	st.mutex.RLock()
-	v = st.config.InstanceExposePeers
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceExposePeers
 }
 
 // SetInstanceExposePeers safely sets the Configuration value for state's 'InstanceExposePeers' field
 func (st *ConfigState) SetInstanceExposePeers(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceExposePeers = v
 	st.reloadToViper()
 }
@@ -3169,16 +3027,11 @@ func SetInstanceExposePeers(v bool) { global.SetInstanceExposePeers(v) }
 
 // GetInstanceExposeBlocklist safely fetches the Configuration value for state's 'InstanceExposeBlocklist' field
 func (st *ConfigState) GetInstanceExposeBlocklist() (v bool) {
-	st.mutex.RLock()
-	v = st.config.InstanceExposeBlocklist
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceExposeBlocklist
 }
 
 // SetInstanceExposeBlocklist safely sets the Configuration value for state's 'InstanceExposeBlocklist' field
 func (st *ConfigState) SetInstanceExposeBlocklist(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceExposeBlocklist = v
 	st.reloadToViper()
 }
@@ -3191,16 +3044,11 @@ func SetInstanceExposeBlocklist(v bool) { global.SetInstanceExposeBlocklist(v) }
 
 // GetInstanceExposeBlocklistWeb safely fetches the Configuration value for state's 'InstanceExposeBlocklistWeb' field
 func (st *ConfigState) GetInstanceExposeBlocklistWeb() (v bool) {
-	st.mutex.RLock()
-	v = st.config.InstanceExposeBlocklistWeb
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceExposeBlocklistWeb
 }
 
 // SetInstanceExposeBlocklistWeb safely sets the Configuration value for state's 'InstanceExposeBlocklistWeb' field
 func (st *ConfigState) SetInstanceExposeBlocklistWeb(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceExposeBlocklistWeb = v
 	st.reloadToViper()
 }
@@ -3213,16 +3061,11 @@ func SetInstanceExposeBlocklistWeb(v bool) { global.SetInstanceExposeBlocklistWe
 
 // GetInstanceExposeAllowlist safely fetches the Configuration value for state's 'InstanceExposeAllowlist' field
 func (st *ConfigState) GetInstanceExposeAllowlist() (v bool) {
-	st.mutex.RLock()
-	v = st.config.InstanceExposeAllowlist
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceExposeAllowlist
 }
 
 // SetInstanceExposeAllowlist safely sets the Configuration value for state's 'InstanceExposeAllowlist' field
 func (st *ConfigState) SetInstanceExposeAllowlist(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceExposeAllowlist = v
 	st.reloadToViper()
 }
@@ -3235,16 +3078,11 @@ func SetInstanceExposeAllowlist(v bool) { global.SetInstanceExposeAllowlist(v) }
 
 // GetInstanceExposeAllowlistWeb safely fetches the Configuration value for state's 'InstanceExposeAllowlistWeb' field
 func (st *ConfigState) GetInstanceExposeAllowlistWeb() (v bool) {
-	st.mutex.RLock()
-	v = st.config.InstanceExposeAllowlistWeb
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceExposeAllowlistWeb
 }
 
 // SetInstanceExposeAllowlistWeb safely sets the Configuration value for state's 'InstanceExposeAllowlistWeb' field
 func (st *ConfigState) SetInstanceExposeAllowlistWeb(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceExposeAllowlistWeb = v
 	st.reloadToViper()
 }
@@ -3257,16 +3095,11 @@ func SetInstanceExposeAllowlistWeb(v bool) { global.SetInstanceExposeAllowlistWe
 
 // GetInstanceExposePublicTimeline safely fetches the Configuration value for state's 'InstanceExposePublicTimeline' field
 func (st *ConfigState) GetInstanceExposePublicTimeline() (v bool) {
-	st.mutex.RLock()
-	v = st.config.InstanceExposePublicTimeline
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceExposePublicTimeline
 }
 
 // SetInstanceExposePublicTimeline safely sets the Configuration value for state's 'InstanceExposePublicTimeline' field
 func (st *ConfigState) SetInstanceExposePublicTimeline(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceExposePublicTimeline = v
 	st.reloadToViper()
 }
@@ -3279,16 +3112,11 @@ func SetInstanceExposePublicTimeline(v bool) { global.SetInstanceExposePublicTim
 
 // GetInstanceExposeCustomEmojis safely fetches the Configuration value for state's 'InstanceExposeCustomEmojis' field
 func (st *ConfigState) GetInstanceExposeCustomEmojis() (v bool) {
-	st.mutex.RLock()
-	v = st.config.InstanceExposeCustomEmojis
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceExposeCustomEmojis
 }
 
 // SetInstanceExposeCustomEmojis safely sets the Configuration value for state's 'InstanceExposeCustomEmojis' field
 func (st *ConfigState) SetInstanceExposeCustomEmojis(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceExposeCustomEmojis = v
 	st.reloadToViper()
 }
@@ -3301,16 +3129,11 @@ func SetInstanceExposeCustomEmojis(v bool) { global.SetInstanceExposeCustomEmoji
 
 // GetInstanceDirectoryMode safely fetches the Configuration value for state's 'InstanceDirectoryMode' field
 func (st *ConfigState) GetInstanceDirectoryMode() (v InstanceDirectoryMode) {
-	st.mutex.RLock()
-	v = st.config.InstanceDirectoryMode
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceDirectoryMode
 }
 
 // SetInstanceDirectoryMode safely sets the Configuration value for state's 'InstanceDirectoryMode' field
 func (st *ConfigState) SetInstanceDirectoryMode(v InstanceDirectoryMode) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceDirectoryMode = v
 	st.reloadToViper()
 }
@@ -3323,16 +3146,11 @@ func SetInstanceDirectoryMode(v InstanceDirectoryMode) { global.SetInstanceDirec
 
 // GetInstanceDeliverToSharedInboxes safely fetches the Configuration value for state's 'InstanceDeliverToSharedInboxes' field
 func (st *ConfigState) GetInstanceDeliverToSharedInboxes() (v bool) {
-	st.mutex.RLock()
-	v = st.config.InstanceDeliverToSharedInboxes
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceDeliverToSharedInboxes
 }
 
 // SetInstanceDeliverToSharedInboxes safely sets the Configuration value for state's 'InstanceDeliverToSharedInboxes' field
 func (st *ConfigState) SetInstanceDeliverToSharedInboxes(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceDeliverToSharedInboxes = v
 	st.reloadToViper()
 }
@@ -3345,16 +3163,11 @@ func SetInstanceDeliverToSharedInboxes(v bool) { global.SetInstanceDeliverToShar
 
 // GetInstanceInjectMastodonVersion safely fetches the Configuration value for state's 'InstanceInjectMastodonVersion' field
 func (st *ConfigState) GetInstanceInjectMastodonVersion() (v bool) {
-	st.mutex.RLock()
-	v = st.config.InstanceInjectMastodonVersion
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceInjectMastodonVersion
 }
 
 // SetInstanceInjectMastodonVersion safely sets the Configuration value for state's 'InstanceInjectMastodonVersion' field
 func (st *ConfigState) SetInstanceInjectMastodonVersion(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceInjectMastodonVersion = v
 	st.reloadToViper()
 }
@@ -3367,16 +3180,11 @@ func SetInstanceInjectMastodonVersion(v bool) { global.SetInstanceInjectMastodon
 
 // GetInstanceLanguages safely fetches the Configuration value for state's 'InstanceLanguages' field
 func (st *ConfigState) GetInstanceLanguages() (v language.Languages) {
-	st.mutex.RLock()
-	v = st.config.InstanceLanguages
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceLanguages
 }
 
 // SetInstanceLanguages safely sets the Configuration value for state's 'InstanceLanguages' field
 func (st *ConfigState) SetInstanceLanguages(v language.Languages) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceLanguages = v
 	st.reloadToViper()
 }
@@ -3389,16 +3197,11 @@ func SetInstanceLanguages(v language.Languages) { global.SetInstanceLanguages(v)
 
 // GetInstanceSubscriptionsProcessFrom safely fetches the Configuration value for state's 'InstanceSubscriptionsProcessFrom' field
 func (st *ConfigState) GetInstanceSubscriptionsProcessFrom() (v string) {
-	st.mutex.RLock()
-	v = st.config.InstanceSubscriptionsProcessFrom
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceSubscriptionsProcessFrom
 }
 
 // SetInstanceSubscriptionsProcessFrom safely sets the Configuration value for state's 'InstanceSubscriptionsProcessFrom' field
 func (st *ConfigState) SetInstanceSubscriptionsProcessFrom(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceSubscriptionsProcessFrom = v
 	st.reloadToViper()
 }
@@ -3413,16 +3216,11 @@ func SetInstanceSubscriptionsProcessFrom(v string) { global.SetInstanceSubscript
 
 // GetInstanceSubscriptionsProcessEvery safely fetches the Configuration value for state's 'InstanceSubscriptionsProcessEvery' field
 func (st *ConfigState) GetInstanceSubscriptionsProcessEvery() (v time.Duration) {
-	st.mutex.RLock()
-	v = st.config.InstanceSubscriptionsProcessEvery
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceSubscriptionsProcessEvery
 }
 
 // SetInstanceSubscriptionsProcessEvery safely sets the Configuration value for state's 'InstanceSubscriptionsProcessEvery' field
 func (st *ConfigState) SetInstanceSubscriptionsProcessEvery(v time.Duration) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceSubscriptionsProcessEvery = v
 	st.reloadToViper()
 }
@@ -3439,16 +3237,11 @@ func SetInstanceSubscriptionsProcessEvery(v time.Duration) {
 
 // GetInstanceStatsMode safely fetches the Configuration value for state's 'InstanceStatsMode' field
 func (st *ConfigState) GetInstanceStatsMode() (v string) {
-	st.mutex.RLock()
-	v = st.config.InstanceStatsMode
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceStatsMode
 }
 
 // SetInstanceStatsMode safely sets the Configuration value for state's 'InstanceStatsMode' field
 func (st *ConfigState) SetInstanceStatsMode(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceStatsMode = v
 	st.reloadToViper()
 }
@@ -3461,16 +3254,11 @@ func SetInstanceStatsMode(v string) { global.SetInstanceStatsMode(v) }
 
 // GetInstanceAllowBackdatingStatuses safely fetches the Configuration value for state's 'InstanceAllowBackdatingStatuses' field
 func (st *ConfigState) GetInstanceAllowBackdatingStatuses() (v bool) {
-	st.mutex.RLock()
-	v = st.config.InstanceAllowBackdatingStatuses
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceAllowBackdatingStatuses
 }
 
 // SetInstanceAllowBackdatingStatuses safely sets the Configuration value for state's 'InstanceAllowBackdatingStatuses' field
 func (st *ConfigState) SetInstanceAllowBackdatingStatuses(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceAllowBackdatingStatuses = v
 	st.reloadToViper()
 }
@@ -3483,16 +3271,11 @@ func SetInstanceAllowBackdatingStatuses(v bool) { global.SetInstanceAllowBackdat
 
 // GetInstanceRobotsAllowIndexing safely fetches the Configuration value for state's 'InstanceRobotsAllowIndexing' field
 func (st *ConfigState) GetInstanceRobotsAllowIndexing() (v bool) {
-	st.mutex.RLock()
-	v = st.config.InstanceRobotsAllowIndexing
-	st.mutex.RUnlock()
-	return
+	return st.config.InstanceRobotsAllowIndexing
 }
 
 // SetInstanceRobotsAllowIndexing safely sets the Configuration value for state's 'InstanceRobotsAllowIndexing' field
 func (st *ConfigState) SetInstanceRobotsAllowIndexing(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.InstanceRobotsAllowIndexing = v
 	st.reloadToViper()
 }
@@ -3505,16 +3288,11 @@ func SetInstanceRobotsAllowIndexing(v bool) { global.SetInstanceRobotsAllowIndex
 
 // GetAccountsRegistrationOpen safely fetches the Configuration value for state's 'AccountsRegistrationOpen' field
 func (st *ConfigState) GetAccountsRegistrationOpen() (v bool) {
-	st.mutex.RLock()
-	v = st.config.AccountsRegistrationOpen
-	st.mutex.RUnlock()
-	return
+	return st.config.AccountsRegistrationOpen
 }
 
 // SetAccountsRegistrationOpen safely sets the Configuration value for state's 'AccountsRegistrationOpen' field
 func (st *ConfigState) SetAccountsRegistrationOpen(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AccountsRegistrationOpen = v
 	st.reloadToViper()
 }
@@ -3527,16 +3305,11 @@ func SetAccountsRegistrationOpen(v bool) { global.SetAccountsRegistrationOpen(v)
 
 // GetAccountsReasonRequired safely fetches the Configuration value for state's 'AccountsReasonRequired' field
 func (st *ConfigState) GetAccountsReasonRequired() (v bool) {
-	st.mutex.RLock()
-	v = st.config.AccountsReasonRequired
-	st.mutex.RUnlock()
-	return
+	return st.config.AccountsReasonRequired
 }
 
 // SetAccountsReasonRequired safely sets the Configuration value for state's 'AccountsReasonRequired' field
 func (st *ConfigState) SetAccountsReasonRequired(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AccountsReasonRequired = v
 	st.reloadToViper()
 }
@@ -3549,16 +3322,11 @@ func SetAccountsReasonRequired(v bool) { global.SetAccountsReasonRequired(v) }
 
 // GetAccountsRegistrationDailyLimit safely fetches the Configuration value for state's 'AccountsRegistrationDailyLimit' field
 func (st *ConfigState) GetAccountsRegistrationDailyLimit() (v int) {
-	st.mutex.RLock()
-	v = st.config.AccountsRegistrationDailyLimit
-	st.mutex.RUnlock()
-	return
+	return st.config.AccountsRegistrationDailyLimit
 }
 
 // SetAccountsRegistrationDailyLimit safely sets the Configuration value for state's 'AccountsRegistrationDailyLimit' field
 func (st *ConfigState) SetAccountsRegistrationDailyLimit(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AccountsRegistrationDailyLimit = v
 	st.reloadToViper()
 }
@@ -3571,16 +3339,11 @@ func SetAccountsRegistrationDailyLimit(v int) { global.SetAccountsRegistrationDa
 
 // GetAccountsRegistrationBacklogLimit safely fetches the Configuration value for state's 'AccountsRegistrationBacklogLimit' field
 func (st *ConfigState) GetAccountsRegistrationBacklogLimit() (v int) {
-	st.mutex.RLock()
-	v = st.config.AccountsRegistrationBacklogLimit
-	st.mutex.RUnlock()
-	return
+	return st.config.AccountsRegistrationBacklogLimit
 }
 
 // SetAccountsRegistrationBacklogLimit safely sets the Configuration value for state's 'AccountsRegistrationBacklogLimit' field
 func (st *ConfigState) SetAccountsRegistrationBacklogLimit(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AccountsRegistrationBacklogLimit = v
 	st.reloadToViper()
 }
@@ -3593,16 +3356,11 @@ func SetAccountsRegistrationBacklogLimit(v int) { global.SetAccountsRegistration
 
 // GetAccountsAllowCustomCSS safely fetches the Configuration value for state's 'AccountsAllowCustomCSS' field
 func (st *ConfigState) GetAccountsAllowCustomCSS() (v bool) {
-	st.mutex.RLock()
-	v = st.config.AccountsAllowCustomCSS
-	st.mutex.RUnlock()
-	return
+	return st.config.AccountsAllowCustomCSS
 }
 
 // SetAccountsAllowCustomCSS safely sets the Configuration value for state's 'AccountsAllowCustomCSS' field
 func (st *ConfigState) SetAccountsAllowCustomCSS(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AccountsAllowCustomCSS = v
 	st.reloadToViper()
 }
@@ -3615,16 +3373,11 @@ func SetAccountsAllowCustomCSS(v bool) { global.SetAccountsAllowCustomCSS(v) }
 
 // GetAccountsCustomCSSLength safely fetches the Configuration value for state's 'AccountsCustomCSSLength' field
 func (st *ConfigState) GetAccountsCustomCSSLength() (v int) {
-	st.mutex.RLock()
-	v = st.config.AccountsCustomCSSLength
-	st.mutex.RUnlock()
-	return
+	return st.config.AccountsCustomCSSLength
 }
 
 // SetAccountsCustomCSSLength safely sets the Configuration value for state's 'AccountsCustomCSSLength' field
 func (st *ConfigState) SetAccountsCustomCSSLength(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AccountsCustomCSSLength = v
 	st.reloadToViper()
 }
@@ -3637,16 +3390,11 @@ func SetAccountsCustomCSSLength(v int) { global.SetAccountsCustomCSSLength(v) }
 
 // GetAccountsMaxProfileFields safely fetches the Configuration value for state's 'AccountsMaxProfileFields' field
 func (st *ConfigState) GetAccountsMaxProfileFields() (v int) {
-	st.mutex.RLock()
-	v = st.config.AccountsMaxProfileFields
-	st.mutex.RUnlock()
-	return
+	return st.config.AccountsMaxProfileFields
 }
 
 // SetAccountsMaxProfileFields safely sets the Configuration value for state's 'AccountsMaxProfileFields' field
 func (st *ConfigState) SetAccountsMaxProfileFields(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AccountsMaxProfileFields = v
 	st.reloadToViper()
 }
@@ -3659,16 +3407,11 @@ func SetAccountsMaxProfileFields(v int) { global.SetAccountsMaxProfileFields(v) 
 
 // GetStorageBackend safely fetches the Configuration value for state's 'StorageBackend' field
 func (st *ConfigState) GetStorageBackend() (v string) {
-	st.mutex.RLock()
-	v = st.config.StorageBackend
-	st.mutex.RUnlock()
-	return
+	return st.config.StorageBackend
 }
 
 // SetStorageBackend safely sets the Configuration value for state's 'StorageBackend' field
 func (st *ConfigState) SetStorageBackend(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StorageBackend = v
 	st.reloadToViper()
 }
@@ -3681,16 +3424,11 @@ func SetStorageBackend(v string) { global.SetStorageBackend(v) }
 
 // GetStorageLocalBasePath safely fetches the Configuration value for state's 'StorageLocalBasePath' field
 func (st *ConfigState) GetStorageLocalBasePath() (v string) {
-	st.mutex.RLock()
-	v = st.config.StorageLocalBasePath
-	st.mutex.RUnlock()
-	return
+	return st.config.StorageLocalBasePath
 }
 
 // SetStorageLocalBasePath safely sets the Configuration value for state's 'StorageLocalBasePath' field
 func (st *ConfigState) SetStorageLocalBasePath(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StorageLocalBasePath = v
 	st.reloadToViper()
 }
@@ -3703,16 +3441,11 @@ func SetStorageLocalBasePath(v string) { global.SetStorageLocalBasePath(v) }
 
 // GetStorageS3Endpoint safely fetches the Configuration value for state's 'StorageS3Endpoint' field
 func (st *ConfigState) GetStorageS3Endpoint() (v string) {
-	st.mutex.RLock()
-	v = st.config.StorageS3Endpoint
-	st.mutex.RUnlock()
-	return
+	return st.config.StorageS3Endpoint
 }
 
 // SetStorageS3Endpoint safely sets the Configuration value for state's 'StorageS3Endpoint' field
 func (st *ConfigState) SetStorageS3Endpoint(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StorageS3Endpoint = v
 	st.reloadToViper()
 }
@@ -3725,16 +3458,11 @@ func SetStorageS3Endpoint(v string) { global.SetStorageS3Endpoint(v) }
 
 // GetStorageS3AccessKey safely fetches the Configuration value for state's 'StorageS3AccessKey' field
 func (st *ConfigState) GetStorageS3AccessKey() (v string) {
-	st.mutex.RLock()
-	v = st.config.StorageS3AccessKey
-	st.mutex.RUnlock()
-	return
+	return st.config.StorageS3AccessKey
 }
 
 // SetStorageS3AccessKey safely sets the Configuration value for state's 'StorageS3AccessKey' field
 func (st *ConfigState) SetStorageS3AccessKey(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StorageS3AccessKey = v
 	st.reloadToViper()
 }
@@ -3747,16 +3475,11 @@ func SetStorageS3AccessKey(v string) { global.SetStorageS3AccessKey(v) }
 
 // GetStorageS3SecretKey safely fetches the Configuration value for state's 'StorageS3SecretKey' field
 func (st *ConfigState) GetStorageS3SecretKey() (v string) {
-	st.mutex.RLock()
-	v = st.config.StorageS3SecretKey
-	st.mutex.RUnlock()
-	return
+	return st.config.StorageS3SecretKey
 }
 
 // SetStorageS3SecretKey safely sets the Configuration value for state's 'StorageS3SecretKey' field
 func (st *ConfigState) SetStorageS3SecretKey(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StorageS3SecretKey = v
 	st.reloadToViper()
 }
@@ -3769,16 +3492,11 @@ func SetStorageS3SecretKey(v string) { global.SetStorageS3SecretKey(v) }
 
 // GetStorageS3UseSSL safely fetches the Configuration value for state's 'StorageS3UseSSL' field
 func (st *ConfigState) GetStorageS3UseSSL() (v bool) {
-	st.mutex.RLock()
-	v = st.config.StorageS3UseSSL
-	st.mutex.RUnlock()
-	return
+	return st.config.StorageS3UseSSL
 }
 
 // SetStorageS3UseSSL safely sets the Configuration value for state's 'StorageS3UseSSL' field
 func (st *ConfigState) SetStorageS3UseSSL(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StorageS3UseSSL = v
 	st.reloadToViper()
 }
@@ -3791,16 +3509,11 @@ func SetStorageS3UseSSL(v bool) { global.SetStorageS3UseSSL(v) }
 
 // GetStorageS3BucketName safely fetches the Configuration value for state's 'StorageS3BucketName' field
 func (st *ConfigState) GetStorageS3BucketName() (v string) {
-	st.mutex.RLock()
-	v = st.config.StorageS3BucketName
-	st.mutex.RUnlock()
-	return
+	return st.config.StorageS3BucketName
 }
 
 // SetStorageS3BucketName safely sets the Configuration value for state's 'StorageS3BucketName' field
 func (st *ConfigState) SetStorageS3BucketName(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StorageS3BucketName = v
 	st.reloadToViper()
 }
@@ -3813,16 +3526,11 @@ func SetStorageS3BucketName(v string) { global.SetStorageS3BucketName(v) }
 
 // GetStorageS3Proxy safely fetches the Configuration value for state's 'StorageS3Proxy' field
 func (st *ConfigState) GetStorageS3Proxy() (v bool) {
-	st.mutex.RLock()
-	v = st.config.StorageS3Proxy
-	st.mutex.RUnlock()
-	return
+	return st.config.StorageS3Proxy
 }
 
 // SetStorageS3Proxy safely sets the Configuration value for state's 'StorageS3Proxy' field
 func (st *ConfigState) SetStorageS3Proxy(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StorageS3Proxy = v
 	st.reloadToViper()
 }
@@ -3835,16 +3543,11 @@ func SetStorageS3Proxy(v bool) { global.SetStorageS3Proxy(v) }
 
 // GetStorageS3RedirectURL safely fetches the Configuration value for state's 'StorageS3RedirectURL' field
 func (st *ConfigState) GetStorageS3RedirectURL() (v string) {
-	st.mutex.RLock()
-	v = st.config.StorageS3RedirectURL
-	st.mutex.RUnlock()
-	return
+	return st.config.StorageS3RedirectURL
 }
 
 // SetStorageS3RedirectURL safely sets the Configuration value for state's 'StorageS3RedirectURL' field
 func (st *ConfigState) SetStorageS3RedirectURL(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StorageS3RedirectURL = v
 	st.reloadToViper()
 }
@@ -3857,16 +3560,11 @@ func SetStorageS3RedirectURL(v string) { global.SetStorageS3RedirectURL(v) }
 
 // GetStorageS3BucketLookup safely fetches the Configuration value for state's 'StorageS3BucketLookup' field
 func (st *ConfigState) GetStorageS3BucketLookup() (v string) {
-	st.mutex.RLock()
-	v = st.config.StorageS3BucketLookup
-	st.mutex.RUnlock()
-	return
+	return st.config.StorageS3BucketLookup
 }
 
 // SetStorageS3BucketLookup safely sets the Configuration value for state's 'StorageS3BucketLookup' field
 func (st *ConfigState) SetStorageS3BucketLookup(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StorageS3BucketLookup = v
 	st.reloadToViper()
 }
@@ -3879,16 +3577,11 @@ func SetStorageS3BucketLookup(v string) { global.SetStorageS3BucketLookup(v) }
 
 // GetStorageS3KeyPrefix safely fetches the Configuration value for state's 'StorageS3KeyPrefix' field
 func (st *ConfigState) GetStorageS3KeyPrefix() (v string) {
-	st.mutex.RLock()
-	v = st.config.StorageS3KeyPrefix
-	st.mutex.RUnlock()
-	return
+	return st.config.StorageS3KeyPrefix
 }
 
 // SetStorageS3KeyPrefix safely sets the Configuration value for state's 'StorageS3KeyPrefix' field
 func (st *ConfigState) SetStorageS3KeyPrefix(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StorageS3KeyPrefix = v
 	st.reloadToViper()
 }
@@ -3901,16 +3594,11 @@ func SetStorageS3KeyPrefix(v string) { global.SetStorageS3KeyPrefix(v) }
 
 // GetStorageS3Region safely fetches the Configuration value for state's 'StorageS3Region' field
 func (st *ConfigState) GetStorageS3Region() (v string) {
-	st.mutex.RLock()
-	v = st.config.StorageS3Region
-	st.mutex.RUnlock()
-	return
+	return st.config.StorageS3Region
 }
 
 // SetStorageS3Region safely sets the Configuration value for state's 'StorageS3Region' field
 func (st *ConfigState) SetStorageS3Region(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StorageS3Region = v
 	st.reloadToViper()
 }
@@ -3923,16 +3611,11 @@ func SetStorageS3Region(v string) { global.SetStorageS3Region(v) }
 
 // GetStatusesMaxChars safely fetches the Configuration value for state's 'StatusesMaxChars' field
 func (st *ConfigState) GetStatusesMaxChars() (v int) {
-	st.mutex.RLock()
-	v = st.config.StatusesMaxChars
-	st.mutex.RUnlock()
-	return
+	return st.config.StatusesMaxChars
 }
 
 // SetStatusesMaxChars safely sets the Configuration value for state's 'StatusesMaxChars' field
 func (st *ConfigState) SetStatusesMaxChars(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StatusesMaxChars = v
 	st.reloadToViper()
 }
@@ -3945,16 +3628,11 @@ func SetStatusesMaxChars(v int) { global.SetStatusesMaxChars(v) }
 
 // GetStatusesPollMaxOptions safely fetches the Configuration value for state's 'StatusesPollMaxOptions' field
 func (st *ConfigState) GetStatusesPollMaxOptions() (v int) {
-	st.mutex.RLock()
-	v = st.config.StatusesPollMaxOptions
-	st.mutex.RUnlock()
-	return
+	return st.config.StatusesPollMaxOptions
 }
 
 // SetStatusesPollMaxOptions safely sets the Configuration value for state's 'StatusesPollMaxOptions' field
 func (st *ConfigState) SetStatusesPollMaxOptions(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StatusesPollMaxOptions = v
 	st.reloadToViper()
 }
@@ -3967,16 +3645,11 @@ func SetStatusesPollMaxOptions(v int) { global.SetStatusesPollMaxOptions(v) }
 
 // GetStatusesPollOptionMaxChars safely fetches the Configuration value for state's 'StatusesPollOptionMaxChars' field
 func (st *ConfigState) GetStatusesPollOptionMaxChars() (v int) {
-	st.mutex.RLock()
-	v = st.config.StatusesPollOptionMaxChars
-	st.mutex.RUnlock()
-	return
+	return st.config.StatusesPollOptionMaxChars
 }
 
 // SetStatusesPollOptionMaxChars safely sets the Configuration value for state's 'StatusesPollOptionMaxChars' field
 func (st *ConfigState) SetStatusesPollOptionMaxChars(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StatusesPollOptionMaxChars = v
 	st.reloadToViper()
 }
@@ -3989,16 +3662,11 @@ func SetStatusesPollOptionMaxChars(v int) { global.SetStatusesPollOptionMaxChars
 
 // GetStatusesMediaMaxFiles safely fetches the Configuration value for state's 'StatusesMediaMaxFiles' field
 func (st *ConfigState) GetStatusesMediaMaxFiles() (v int) {
-	st.mutex.RLock()
-	v = st.config.StatusesMediaMaxFiles
-	st.mutex.RUnlock()
-	return
+	return st.config.StatusesMediaMaxFiles
 }
 
 // SetStatusesMediaMaxFiles safely sets the Configuration value for state's 'StatusesMediaMaxFiles' field
 func (st *ConfigState) SetStatusesMediaMaxFiles(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.StatusesMediaMaxFiles = v
 	st.reloadToViper()
 }
@@ -4011,16 +3679,11 @@ func SetStatusesMediaMaxFiles(v int) { global.SetStatusesMediaMaxFiles(v) }
 
 // GetScheduledStatusesMaxTotal safely fetches the Configuration value for state's 'ScheduledStatusesMaxTotal' field
 func (st *ConfigState) GetScheduledStatusesMaxTotal() (v int) {
-	st.mutex.RLock()
-	v = st.config.ScheduledStatusesMaxTotal
-	st.mutex.RUnlock()
-	return
+	return st.config.ScheduledStatusesMaxTotal
 }
 
 // SetScheduledStatusesMaxTotal safely sets the Configuration value for state's 'ScheduledStatusesMaxTotal' field
 func (st *ConfigState) SetScheduledStatusesMaxTotal(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.ScheduledStatusesMaxTotal = v
 	st.reloadToViper()
 }
@@ -4033,16 +3696,11 @@ func SetScheduledStatusesMaxTotal(v int) { global.SetScheduledStatusesMaxTotal(v
 
 // GetScheduledStatusesMaxDaily safely fetches the Configuration value for state's 'ScheduledStatusesMaxDaily' field
 func (st *ConfigState) GetScheduledStatusesMaxDaily() (v int) {
-	st.mutex.RLock()
-	v = st.config.ScheduledStatusesMaxDaily
-	st.mutex.RUnlock()
-	return
+	return st.config.ScheduledStatusesMaxDaily
 }
 
 // SetScheduledStatusesMaxDaily safely sets the Configuration value for state's 'ScheduledStatusesMaxDaily' field
 func (st *ConfigState) SetScheduledStatusesMaxDaily(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.ScheduledStatusesMaxDaily = v
 	st.reloadToViper()
 }
@@ -4055,16 +3713,11 @@ func SetScheduledStatusesMaxDaily(v int) { global.SetScheduledStatusesMaxDaily(v
 
 // GetLetsEncryptEnabled safely fetches the Configuration value for state's 'LetsEncryptEnabled' field
 func (st *ConfigState) GetLetsEncryptEnabled() (v bool) {
-	st.mutex.RLock()
-	v = st.config.LetsEncryptEnabled
-	st.mutex.RUnlock()
-	return
+	return st.config.LetsEncryptEnabled
 }
 
 // SetLetsEncryptEnabled safely sets the Configuration value for state's 'LetsEncryptEnabled' field
 func (st *ConfigState) SetLetsEncryptEnabled(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.LetsEncryptEnabled = v
 	st.reloadToViper()
 }
@@ -4077,16 +3730,11 @@ func SetLetsEncryptEnabled(v bool) { global.SetLetsEncryptEnabled(v) }
 
 // GetLetsEncryptPort safely fetches the Configuration value for state's 'LetsEncryptPort' field
 func (st *ConfigState) GetLetsEncryptPort() (v int) {
-	st.mutex.RLock()
-	v = st.config.LetsEncryptPort
-	st.mutex.RUnlock()
-	return
+	return st.config.LetsEncryptPort
 }
 
 // SetLetsEncryptPort safely sets the Configuration value for state's 'LetsEncryptPort' field
 func (st *ConfigState) SetLetsEncryptPort(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.LetsEncryptPort = v
 	st.reloadToViper()
 }
@@ -4099,16 +3747,11 @@ func SetLetsEncryptPort(v int) { global.SetLetsEncryptPort(v) }
 
 // GetLetsEncryptCertDir safely fetches the Configuration value for state's 'LetsEncryptCertDir' field
 func (st *ConfigState) GetLetsEncryptCertDir() (v string) {
-	st.mutex.RLock()
-	v = st.config.LetsEncryptCertDir
-	st.mutex.RUnlock()
-	return
+	return st.config.LetsEncryptCertDir
 }
 
 // SetLetsEncryptCertDir safely sets the Configuration value for state's 'LetsEncryptCertDir' field
 func (st *ConfigState) SetLetsEncryptCertDir(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.LetsEncryptCertDir = v
 	st.reloadToViper()
 }
@@ -4121,16 +3764,11 @@ func SetLetsEncryptCertDir(v string) { global.SetLetsEncryptCertDir(v) }
 
 // GetLetsEncryptEmailAddress safely fetches the Configuration value for state's 'LetsEncryptEmailAddress' field
 func (st *ConfigState) GetLetsEncryptEmailAddress() (v string) {
-	st.mutex.RLock()
-	v = st.config.LetsEncryptEmailAddress
-	st.mutex.RUnlock()
-	return
+	return st.config.LetsEncryptEmailAddress
 }
 
 // SetLetsEncryptEmailAddress safely sets the Configuration value for state's 'LetsEncryptEmailAddress' field
 func (st *ConfigState) SetLetsEncryptEmailAddress(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.LetsEncryptEmailAddress = v
 	st.reloadToViper()
 }
@@ -4143,16 +3781,11 @@ func SetLetsEncryptEmailAddress(v string) { global.SetLetsEncryptEmailAddress(v)
 
 // GetTLSCertificateChain safely fetches the Configuration value for state's 'TLSCertificateChain' field
 func (st *ConfigState) GetTLSCertificateChain() (v string) {
-	st.mutex.RLock()
-	v = st.config.TLSCertificateChain
-	st.mutex.RUnlock()
-	return
+	return st.config.TLSCertificateChain
 }
 
 // SetTLSCertificateChain safely sets the Configuration value for state's 'TLSCertificateChain' field
 func (st *ConfigState) SetTLSCertificateChain(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.TLSCertificateChain = v
 	st.reloadToViper()
 }
@@ -4165,16 +3798,11 @@ func SetTLSCertificateChain(v string) { global.SetTLSCertificateChain(v) }
 
 // GetTLSCertificateKey safely fetches the Configuration value for state's 'TLSCertificateKey' field
 func (st *ConfigState) GetTLSCertificateKey() (v string) {
-	st.mutex.RLock()
-	v = st.config.TLSCertificateKey
-	st.mutex.RUnlock()
-	return
+	return st.config.TLSCertificateKey
 }
 
 // SetTLSCertificateKey safely sets the Configuration value for state's 'TLSCertificateKey' field
 func (st *ConfigState) SetTLSCertificateKey(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.TLSCertificateKey = v
 	st.reloadToViper()
 }
@@ -4187,16 +3815,11 @@ func SetTLSCertificateKey(v string) { global.SetTLSCertificateKey(v) }
 
 // GetOIDCEnabled safely fetches the Configuration value for state's 'OIDCEnabled' field
 func (st *ConfigState) GetOIDCEnabled() (v bool) {
-	st.mutex.RLock()
-	v = st.config.OIDCEnabled
-	st.mutex.RUnlock()
-	return
+	return st.config.OIDCEnabled
 }
 
 // SetOIDCEnabled safely sets the Configuration value for state's 'OIDCEnabled' field
 func (st *ConfigState) SetOIDCEnabled(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.OIDCEnabled = v
 	st.reloadToViper()
 }
@@ -4209,16 +3832,11 @@ func SetOIDCEnabled(v bool) { global.SetOIDCEnabled(v) }
 
 // GetOIDCIdpName safely fetches the Configuration value for state's 'OIDCIdpName' field
 func (st *ConfigState) GetOIDCIdpName() (v string) {
-	st.mutex.RLock()
-	v = st.config.OIDCIdpName
-	st.mutex.RUnlock()
-	return
+	return st.config.OIDCIdpName
 }
 
 // SetOIDCIdpName safely sets the Configuration value for state's 'OIDCIdpName' field
 func (st *ConfigState) SetOIDCIdpName(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.OIDCIdpName = v
 	st.reloadToViper()
 }
@@ -4231,16 +3849,11 @@ func SetOIDCIdpName(v string) { global.SetOIDCIdpName(v) }
 
 // GetOIDCSkipVerification safely fetches the Configuration value for state's 'OIDCSkipVerification' field
 func (st *ConfigState) GetOIDCSkipVerification() (v bool) {
-	st.mutex.RLock()
-	v = st.config.OIDCSkipVerification
-	st.mutex.RUnlock()
-	return
+	return st.config.OIDCSkipVerification
 }
 
 // SetOIDCSkipVerification safely sets the Configuration value for state's 'OIDCSkipVerification' field
 func (st *ConfigState) SetOIDCSkipVerification(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.OIDCSkipVerification = v
 	st.reloadToViper()
 }
@@ -4253,16 +3866,11 @@ func SetOIDCSkipVerification(v bool) { global.SetOIDCSkipVerification(v) }
 
 // GetOIDCIssuer safely fetches the Configuration value for state's 'OIDCIssuer' field
 func (st *ConfigState) GetOIDCIssuer() (v string) {
-	st.mutex.RLock()
-	v = st.config.OIDCIssuer
-	st.mutex.RUnlock()
-	return
+	return st.config.OIDCIssuer
 }
 
 // SetOIDCIssuer safely sets the Configuration value for state's 'OIDCIssuer' field
 func (st *ConfigState) SetOIDCIssuer(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.OIDCIssuer = v
 	st.reloadToViper()
 }
@@ -4275,16 +3883,11 @@ func SetOIDCIssuer(v string) { global.SetOIDCIssuer(v) }
 
 // GetOIDCClientID safely fetches the Configuration value for state's 'OIDCClientID' field
 func (st *ConfigState) GetOIDCClientID() (v string) {
-	st.mutex.RLock()
-	v = st.config.OIDCClientID
-	st.mutex.RUnlock()
-	return
+	return st.config.OIDCClientID
 }
 
 // SetOIDCClientID safely sets the Configuration value for state's 'OIDCClientID' field
 func (st *ConfigState) SetOIDCClientID(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.OIDCClientID = v
 	st.reloadToViper()
 }
@@ -4297,16 +3900,11 @@ func SetOIDCClientID(v string) { global.SetOIDCClientID(v) }
 
 // GetOIDCClientSecret safely fetches the Configuration value for state's 'OIDCClientSecret' field
 func (st *ConfigState) GetOIDCClientSecret() (v string) {
-	st.mutex.RLock()
-	v = st.config.OIDCClientSecret
-	st.mutex.RUnlock()
-	return
+	return st.config.OIDCClientSecret
 }
 
 // SetOIDCClientSecret safely sets the Configuration value for state's 'OIDCClientSecret' field
 func (st *ConfigState) SetOIDCClientSecret(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.OIDCClientSecret = v
 	st.reloadToViper()
 }
@@ -4319,16 +3917,11 @@ func SetOIDCClientSecret(v string) { global.SetOIDCClientSecret(v) }
 
 // GetOIDCScopes safely fetches the Configuration value for state's 'OIDCScopes' field
 func (st *ConfigState) GetOIDCScopes() (v []string) {
-	st.mutex.RLock()
-	v = st.config.OIDCScopes
-	st.mutex.RUnlock()
-	return
+	return st.config.OIDCScopes
 }
 
 // SetOIDCScopes safely sets the Configuration value for state's 'OIDCScopes' field
 func (st *ConfigState) SetOIDCScopes(v []string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.OIDCScopes = v
 	st.reloadToViper()
 }
@@ -4341,16 +3934,11 @@ func SetOIDCScopes(v []string) { global.SetOIDCScopes(v) }
 
 // GetOIDCLinkExisting safely fetches the Configuration value for state's 'OIDCLinkExisting' field
 func (st *ConfigState) GetOIDCLinkExisting() (v bool) {
-	st.mutex.RLock()
-	v = st.config.OIDCLinkExisting
-	st.mutex.RUnlock()
-	return
+	return st.config.OIDCLinkExisting
 }
 
 // SetOIDCLinkExisting safely sets the Configuration value for state's 'OIDCLinkExisting' field
 func (st *ConfigState) SetOIDCLinkExisting(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.OIDCLinkExisting = v
 	st.reloadToViper()
 }
@@ -4363,16 +3951,11 @@ func SetOIDCLinkExisting(v bool) { global.SetOIDCLinkExisting(v) }
 
 // GetOIDCAllowedGroups safely fetches the Configuration value for state's 'OIDCAllowedGroups' field
 func (st *ConfigState) GetOIDCAllowedGroups() (v []string) {
-	st.mutex.RLock()
-	v = st.config.OIDCAllowedGroups
-	st.mutex.RUnlock()
-	return
+	return st.config.OIDCAllowedGroups
 }
 
 // SetOIDCAllowedGroups safely sets the Configuration value for state's 'OIDCAllowedGroups' field
 func (st *ConfigState) SetOIDCAllowedGroups(v []string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.OIDCAllowedGroups = v
 	st.reloadToViper()
 }
@@ -4385,16 +3968,11 @@ func SetOIDCAllowedGroups(v []string) { global.SetOIDCAllowedGroups(v) }
 
 // GetOIDCAdminGroups safely fetches the Configuration value for state's 'OIDCAdminGroups' field
 func (st *ConfigState) GetOIDCAdminGroups() (v []string) {
-	st.mutex.RLock()
-	v = st.config.OIDCAdminGroups
-	st.mutex.RUnlock()
-	return
+	return st.config.OIDCAdminGroups
 }
 
 // SetOIDCAdminGroups safely sets the Configuration value for state's 'OIDCAdminGroups' field
 func (st *ConfigState) SetOIDCAdminGroups(v []string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.OIDCAdminGroups = v
 	st.reloadToViper()
 }
@@ -4407,16 +3985,11 @@ func SetOIDCAdminGroups(v []string) { global.SetOIDCAdminGroups(v) }
 
 // GetTracingEnabled safely fetches the Configuration value for state's 'TracingEnabled' field
 func (st *ConfigState) GetTracingEnabled() (v bool) {
-	st.mutex.RLock()
-	v = st.config.TracingEnabled
-	st.mutex.RUnlock()
-	return
+	return st.config.TracingEnabled
 }
 
 // SetTracingEnabled safely sets the Configuration value for state's 'TracingEnabled' field
 func (st *ConfigState) SetTracingEnabled(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.TracingEnabled = v
 	st.reloadToViper()
 }
@@ -4429,16 +4002,11 @@ func SetTracingEnabled(v bool) { global.SetTracingEnabled(v) }
 
 // GetMetricsEnabled safely fetches the Configuration value for state's 'MetricsEnabled' field
 func (st *ConfigState) GetMetricsEnabled() (v bool) {
-	st.mutex.RLock()
-	v = st.config.MetricsEnabled
-	st.mutex.RUnlock()
-	return
+	return st.config.MetricsEnabled
 }
 
 // SetMetricsEnabled safely sets the Configuration value for state's 'MetricsEnabled' field
 func (st *ConfigState) SetMetricsEnabled(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.MetricsEnabled = v
 	st.reloadToViper()
 }
@@ -4451,16 +4019,11 @@ func SetMetricsEnabled(v bool) { global.SetMetricsEnabled(v) }
 
 // GetSMTPHost safely fetches the Configuration value for state's 'SMTPHost' field
 func (st *ConfigState) GetSMTPHost() (v string) {
-	st.mutex.RLock()
-	v = st.config.SMTPHost
-	st.mutex.RUnlock()
-	return
+	return st.config.SMTPHost
 }
 
 // SetSMTPHost safely sets the Configuration value for state's 'SMTPHost' field
 func (st *ConfigState) SetSMTPHost(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.SMTPHost = v
 	st.reloadToViper()
 }
@@ -4473,16 +4036,11 @@ func SetSMTPHost(v string) { global.SetSMTPHost(v) }
 
 // GetSMTPPort safely fetches the Configuration value for state's 'SMTPPort' field
 func (st *ConfigState) GetSMTPPort() (v int) {
-	st.mutex.RLock()
-	v = st.config.SMTPPort
-	st.mutex.RUnlock()
-	return
+	return st.config.SMTPPort
 }
 
 // SetSMTPPort safely sets the Configuration value for state's 'SMTPPort' field
 func (st *ConfigState) SetSMTPPort(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.SMTPPort = v
 	st.reloadToViper()
 }
@@ -4495,16 +4053,11 @@ func SetSMTPPort(v int) { global.SetSMTPPort(v) }
 
 // GetSMTPUsername safely fetches the Configuration value for state's 'SMTPUsername' field
 func (st *ConfigState) GetSMTPUsername() (v string) {
-	st.mutex.RLock()
-	v = st.config.SMTPUsername
-	st.mutex.RUnlock()
-	return
+	return st.config.SMTPUsername
 }
 
 // SetSMTPUsername safely sets the Configuration value for state's 'SMTPUsername' field
 func (st *ConfigState) SetSMTPUsername(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.SMTPUsername = v
 	st.reloadToViper()
 }
@@ -4517,16 +4070,11 @@ func SetSMTPUsername(v string) { global.SetSMTPUsername(v) }
 
 // GetSMTPPassword safely fetches the Configuration value for state's 'SMTPPassword' field
 func (st *ConfigState) GetSMTPPassword() (v string) {
-	st.mutex.RLock()
-	v = st.config.SMTPPassword
-	st.mutex.RUnlock()
-	return
+	return st.config.SMTPPassword
 }
 
 // SetSMTPPassword safely sets the Configuration value for state's 'SMTPPassword' field
 func (st *ConfigState) SetSMTPPassword(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.SMTPPassword = v
 	st.reloadToViper()
 }
@@ -4539,16 +4087,11 @@ func SetSMTPPassword(v string) { global.SetSMTPPassword(v) }
 
 // GetSMTPFrom safely fetches the Configuration value for state's 'SMTPFrom' field
 func (st *ConfigState) GetSMTPFrom() (v string) {
-	st.mutex.RLock()
-	v = st.config.SMTPFrom
-	st.mutex.RUnlock()
-	return
+	return st.config.SMTPFrom
 }
 
 // SetSMTPFrom safely sets the Configuration value for state's 'SMTPFrom' field
 func (st *ConfigState) SetSMTPFrom(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.SMTPFrom = v
 	st.reloadToViper()
 }
@@ -4561,16 +4104,11 @@ func SetSMTPFrom(v string) { global.SetSMTPFrom(v) }
 
 // GetSMTPFromDisplayName safely fetches the Configuration value for state's 'SMTPFromDisplayName' field
 func (st *ConfigState) GetSMTPFromDisplayName() (v string) {
-	st.mutex.RLock()
-	v = st.config.SMTPFromDisplayName
-	st.mutex.RUnlock()
-	return
+	return st.config.SMTPFromDisplayName
 }
 
 // SetSMTPFromDisplayName safely sets the Configuration value for state's 'SMTPFromDisplayName' field
 func (st *ConfigState) SetSMTPFromDisplayName(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.SMTPFromDisplayName = v
 	st.reloadToViper()
 }
@@ -4583,16 +4121,11 @@ func SetSMTPFromDisplayName(v string) { global.SetSMTPFromDisplayName(v) }
 
 // GetSMTPDiscloseRecipients safely fetches the Configuration value for state's 'SMTPDiscloseRecipients' field
 func (st *ConfigState) GetSMTPDiscloseRecipients() (v bool) {
-	st.mutex.RLock()
-	v = st.config.SMTPDiscloseRecipients
-	st.mutex.RUnlock()
-	return
+	return st.config.SMTPDiscloseRecipients
 }
 
 // SetSMTPDiscloseRecipients safely sets the Configuration value for state's 'SMTPDiscloseRecipients' field
 func (st *ConfigState) SetSMTPDiscloseRecipients(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.SMTPDiscloseRecipients = v
 	st.reloadToViper()
 }
@@ -4605,16 +4138,11 @@ func SetSMTPDiscloseRecipients(v bool) { global.SetSMTPDiscloseRecipients(v) }
 
 // GetSyslogEnabled safely fetches the Configuration value for state's 'SyslogEnabled' field
 func (st *ConfigState) GetSyslogEnabled() (v bool) {
-	st.mutex.RLock()
-	v = st.config.SyslogEnabled
-	st.mutex.RUnlock()
-	return
+	return st.config.SyslogEnabled
 }
 
 // SetSyslogEnabled safely sets the Configuration value for state's 'SyslogEnabled' field
 func (st *ConfigState) SetSyslogEnabled(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.SyslogEnabled = v
 	st.reloadToViper()
 }
@@ -4627,16 +4155,11 @@ func SetSyslogEnabled(v bool) { global.SetSyslogEnabled(v) }
 
 // GetSyslogProtocol safely fetches the Configuration value for state's 'SyslogProtocol' field
 func (st *ConfigState) GetSyslogProtocol() (v string) {
-	st.mutex.RLock()
-	v = st.config.SyslogProtocol
-	st.mutex.RUnlock()
-	return
+	return st.config.SyslogProtocol
 }
 
 // SetSyslogProtocol safely sets the Configuration value for state's 'SyslogProtocol' field
 func (st *ConfigState) SetSyslogProtocol(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.SyslogProtocol = v
 	st.reloadToViper()
 }
@@ -4649,16 +4172,11 @@ func SetSyslogProtocol(v string) { global.SetSyslogProtocol(v) }
 
 // GetSyslogAddress safely fetches the Configuration value for state's 'SyslogAddress' field
 func (st *ConfigState) GetSyslogAddress() (v string) {
-	st.mutex.RLock()
-	v = st.config.SyslogAddress
-	st.mutex.RUnlock()
-	return
+	return st.config.SyslogAddress
 }
 
 // SetSyslogAddress safely sets the Configuration value for state's 'SyslogAddress' field
 func (st *ConfigState) SetSyslogAddress(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.SyslogAddress = v
 	st.reloadToViper()
 }
@@ -4671,16 +4189,11 @@ func SetSyslogAddress(v string) { global.SetSyslogAddress(v) }
 
 // GetAdvancedCookiesSamesite safely fetches the Configuration value for state's 'Advanced.CookiesSamesite' field
 func (st *ConfigState) GetAdvancedCookiesSamesite() (v string) {
-	st.mutex.RLock()
-	v = st.config.Advanced.CookiesSamesite
-	st.mutex.RUnlock()
-	return
+	return st.config.Advanced.CookiesSamesite
 }
 
 // SetAdvancedCookiesSamesite safely sets the Configuration value for state's 'Advanced.CookiesSamesite' field
 func (st *ConfigState) SetAdvancedCookiesSamesite(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Advanced.CookiesSamesite = v
 	st.reloadToViper()
 }
@@ -4693,16 +4206,11 @@ func SetAdvancedCookiesSamesite(v string) { global.SetAdvancedCookiesSamesite(v)
 
 // GetAdvancedSenderMultiplier safely fetches the Configuration value for state's 'Advanced.SenderMultiplier' field
 func (st *ConfigState) GetAdvancedSenderMultiplier() (v int) {
-	st.mutex.RLock()
-	v = st.config.Advanced.SenderMultiplier
-	st.mutex.RUnlock()
-	return
+	return st.config.Advanced.SenderMultiplier
 }
 
 // SetAdvancedSenderMultiplier safely sets the Configuration value for state's 'Advanced.SenderMultiplier' field
 func (st *ConfigState) SetAdvancedSenderMultiplier(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Advanced.SenderMultiplier = v
 	st.reloadToViper()
 }
@@ -4715,16 +4223,11 @@ func SetAdvancedSenderMultiplier(v int) { global.SetAdvancedSenderMultiplier(v) 
 
 // GetAdvancedCSPExtraURIs safely fetches the Configuration value for state's 'Advanced.CSPExtraURIs' field
 func (st *ConfigState) GetAdvancedCSPExtraURIs() (v []string) {
-	st.mutex.RLock()
-	v = st.config.Advanced.CSPExtraURIs
-	st.mutex.RUnlock()
-	return
+	return st.config.Advanced.CSPExtraURIs
 }
 
 // SetAdvancedCSPExtraURIs safely sets the Configuration value for state's 'Advanced.CSPExtraURIs' field
 func (st *ConfigState) SetAdvancedCSPExtraURIs(v []string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Advanced.CSPExtraURIs = v
 	st.reloadToViper()
 }
@@ -4737,16 +4240,11 @@ func SetAdvancedCSPExtraURIs(v []string) { global.SetAdvancedCSPExtraURIs(v) }
 
 // GetAdvancedHeaderFilterMode safely fetches the Configuration value for state's 'Advanced.HeaderFilterMode' field
 func (st *ConfigState) GetAdvancedHeaderFilterMode() (v string) {
-	st.mutex.RLock()
-	v = st.config.Advanced.HeaderFilterMode
-	st.mutex.RUnlock()
-	return
+	return st.config.Advanced.HeaderFilterMode
 }
 
 // SetAdvancedHeaderFilterMode safely sets the Configuration value for state's 'Advanced.HeaderFilterMode' field
 func (st *ConfigState) SetAdvancedHeaderFilterMode(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Advanced.HeaderFilterMode = v
 	st.reloadToViper()
 }
@@ -4759,16 +4257,11 @@ func SetAdvancedHeaderFilterMode(v string) { global.SetAdvancedHeaderFilterMode(
 
 // GetAdvancedRateLimitRequests safely fetches the Configuration value for state's 'Advanced.RateLimit.Requests' field
 func (st *ConfigState) GetAdvancedRateLimitRequests() (v int) {
-	st.mutex.RLock()
-	v = st.config.Advanced.RateLimit.Requests
-	st.mutex.RUnlock()
-	return
+	return st.config.Advanced.RateLimit.Requests
 }
 
 // SetAdvancedRateLimitRequests safely sets the Configuration value for state's 'Advanced.RateLimit.Requests' field
 func (st *ConfigState) SetAdvancedRateLimitRequests(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Advanced.RateLimit.Requests = v
 	st.reloadToViper()
 }
@@ -4781,16 +4274,11 @@ func SetAdvancedRateLimitRequests(v int) { global.SetAdvancedRateLimitRequests(v
 
 // GetAdvancedRateLimitExceptions safely fetches the Configuration value for state's 'Advanced.RateLimit.Exceptions' field
 func (st *ConfigState) GetAdvancedRateLimitExceptions() (v IPPrefixes) {
-	st.mutex.RLock()
-	v = st.config.Advanced.RateLimit.Exceptions
-	st.mutex.RUnlock()
-	return
+	return st.config.Advanced.RateLimit.Exceptions
 }
 
 // SetAdvancedRateLimitExceptions safely sets the Configuration value for state's 'Advanced.RateLimit.Exceptions' field
 func (st *ConfigState) SetAdvancedRateLimitExceptions(v IPPrefixes) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Advanced.RateLimit.Exceptions = v
 	st.reloadToViper()
 }
@@ -4803,16 +4291,11 @@ func SetAdvancedRateLimitExceptions(v IPPrefixes) { global.SetAdvancedRateLimitE
 
 // GetAdvancedThrottlingMultiplier safely fetches the Configuration value for state's 'Advanced.Throttling.Multiplier' field
 func (st *ConfigState) GetAdvancedThrottlingMultiplier() (v int) {
-	st.mutex.RLock()
-	v = st.config.Advanced.Throttling.Multiplier
-	st.mutex.RUnlock()
-	return
+	return st.config.Advanced.Throttling.Multiplier
 }
 
 // SetAdvancedThrottlingMultiplier safely sets the Configuration value for state's 'Advanced.Throttling.Multiplier' field
 func (st *ConfigState) SetAdvancedThrottlingMultiplier(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Advanced.Throttling.Multiplier = v
 	st.reloadToViper()
 }
@@ -4825,16 +4308,11 @@ func SetAdvancedThrottlingMultiplier(v int) { global.SetAdvancedThrottlingMultip
 
 // GetAdvancedThrottlingRetryAfter safely fetches the Configuration value for state's 'Advanced.Throttling.RetryAfter' field
 func (st *ConfigState) GetAdvancedThrottlingRetryAfter() (v time.Duration) {
-	st.mutex.RLock()
-	v = st.config.Advanced.Throttling.RetryAfter
-	st.mutex.RUnlock()
-	return
+	return st.config.Advanced.Throttling.RetryAfter
 }
 
 // SetAdvancedThrottlingRetryAfter safely sets the Configuration value for state's 'Advanced.Throttling.RetryAfter' field
 func (st *ConfigState) SetAdvancedThrottlingRetryAfter(v time.Duration) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Advanced.Throttling.RetryAfter = v
 	st.reloadToViper()
 }
@@ -4847,16 +4325,11 @@ func SetAdvancedThrottlingRetryAfter(v time.Duration) { global.SetAdvancedThrott
 
 // GetHTTPClientAllowIPs safely fetches the Configuration value for state's 'HTTPClient.AllowIPs' field
 func (st *ConfigState) GetHTTPClientAllowIPs() (v []string) {
-	st.mutex.RLock()
-	v = st.config.HTTPClient.AllowIPs
-	st.mutex.RUnlock()
-	return
+	return st.config.HTTPClient.AllowIPs
 }
 
 // SetHTTPClientAllowIPs safely sets the Configuration value for state's 'HTTPClient.AllowIPs' field
 func (st *ConfigState) SetHTTPClientAllowIPs(v []string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.HTTPClient.AllowIPs = v
 	st.reloadToViper()
 }
@@ -4869,16 +4342,11 @@ func SetHTTPClientAllowIPs(v []string) { global.SetHTTPClientAllowIPs(v) }
 
 // GetHTTPClientBlockIPs safely fetches the Configuration value for state's 'HTTPClient.BlockIPs' field
 func (st *ConfigState) GetHTTPClientBlockIPs() (v []string) {
-	st.mutex.RLock()
-	v = st.config.HTTPClient.BlockIPs
-	st.mutex.RUnlock()
-	return
+	return st.config.HTTPClient.BlockIPs
 }
 
 // SetHTTPClientBlockIPs safely sets the Configuration value for state's 'HTTPClient.BlockIPs' field
 func (st *ConfigState) SetHTTPClientBlockIPs(v []string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.HTTPClient.BlockIPs = v
 	st.reloadToViper()
 }
@@ -4891,16 +4359,11 @@ func SetHTTPClientBlockIPs(v []string) { global.SetHTTPClientBlockIPs(v) }
 
 // GetHTTPClientTimeout safely fetches the Configuration value for state's 'HTTPClient.Timeout' field
 func (st *ConfigState) GetHTTPClientTimeout() (v time.Duration) {
-	st.mutex.RLock()
-	v = st.config.HTTPClient.Timeout
-	st.mutex.RUnlock()
-	return
+	return st.config.HTTPClient.Timeout
 }
 
 // SetHTTPClientTimeout safely sets the Configuration value for state's 'HTTPClient.Timeout' field
 func (st *ConfigState) SetHTTPClientTimeout(v time.Duration) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.HTTPClient.Timeout = v
 	st.reloadToViper()
 }
@@ -4913,16 +4376,11 @@ func SetHTTPClientTimeout(v time.Duration) { global.SetHTTPClientTimeout(v) }
 
 // GetHTTPClientTLSInsecureSkipVerify safely fetches the Configuration value for state's 'HTTPClient.TLSInsecureSkipVerify' field
 func (st *ConfigState) GetHTTPClientTLSInsecureSkipVerify() (v bool) {
-	st.mutex.RLock()
-	v = st.config.HTTPClient.TLSInsecureSkipVerify
-	st.mutex.RUnlock()
-	return
+	return st.config.HTTPClient.TLSInsecureSkipVerify
 }
 
 // SetHTTPClientTLSInsecureSkipVerify safely sets the Configuration value for state's 'HTTPClient.TLSInsecureSkipVerify' field
 func (st *ConfigState) SetHTTPClientTLSInsecureSkipVerify(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.HTTPClient.TLSInsecureSkipVerify = v
 	st.reloadToViper()
 }
@@ -4935,16 +4393,11 @@ func SetHTTPClientTLSInsecureSkipVerify(v bool) { global.SetHTTPClientTLSInsecur
 
 // GetHTTPClientInsecureOutgoing safely fetches the Configuration value for state's 'HTTPClient.InsecureOutgoing' field
 func (st *ConfigState) GetHTTPClientInsecureOutgoing() (v bool) {
-	st.mutex.RLock()
-	v = st.config.HTTPClient.InsecureOutgoing
-	st.mutex.RUnlock()
-	return
+	return st.config.HTTPClient.InsecureOutgoing
 }
 
 // SetHTTPClientInsecureOutgoing safely sets the Configuration value for state's 'HTTPClient.InsecureOutgoing' field
 func (st *ConfigState) SetHTTPClientInsecureOutgoing(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.HTTPClient.InsecureOutgoing = v
 	st.reloadToViper()
 }
@@ -4957,16 +4410,11 @@ func SetHTTPClientInsecureOutgoing(v bool) { global.SetHTTPClientInsecureOutgoin
 
 // GetMediaDescriptionMinChars safely fetches the Configuration value for state's 'Media.DescriptionMinChars' field
 func (st *ConfigState) GetMediaDescriptionMinChars() (v int) {
-	st.mutex.RLock()
-	v = st.config.Media.DescriptionMinChars
-	st.mutex.RUnlock()
-	return
+	return st.config.Media.DescriptionMinChars
 }
 
 // SetMediaDescriptionMinChars safely sets the Configuration value for state's 'Media.DescriptionMinChars' field
 func (st *ConfigState) SetMediaDescriptionMinChars(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Media.DescriptionMinChars = v
 	st.reloadToViper()
 }
@@ -4979,16 +4427,11 @@ func SetMediaDescriptionMinChars(v int) { global.SetMediaDescriptionMinChars(v) 
 
 // GetMediaDescriptionMaxChars safely fetches the Configuration value for state's 'Media.DescriptionMaxChars' field
 func (st *ConfigState) GetMediaDescriptionMaxChars() (v int) {
-	st.mutex.RLock()
-	v = st.config.Media.DescriptionMaxChars
-	st.mutex.RUnlock()
-	return
+	return st.config.Media.DescriptionMaxChars
 }
 
 // SetMediaDescriptionMaxChars safely sets the Configuration value for state's 'Media.DescriptionMaxChars' field
 func (st *ConfigState) SetMediaDescriptionMaxChars(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Media.DescriptionMaxChars = v
 	st.reloadToViper()
 }
@@ -5001,16 +4444,11 @@ func SetMediaDescriptionMaxChars(v int) { global.SetMediaDescriptionMaxChars(v) 
 
 // GetMediaRemoteCacheDays safely fetches the Configuration value for state's 'Media.RemoteCacheDays' field
 func (st *ConfigState) GetMediaRemoteCacheDays() (v int) {
-	st.mutex.RLock()
-	v = st.config.Media.RemoteCacheDays
-	st.mutex.RUnlock()
-	return
+	return st.config.Media.RemoteCacheDays
 }
 
 // SetMediaRemoteCacheDays safely sets the Configuration value for state's 'Media.RemoteCacheDays' field
 func (st *ConfigState) SetMediaRemoteCacheDays(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Media.RemoteCacheDays = v
 	st.reloadToViper()
 }
@@ -5023,16 +4461,11 @@ func SetMediaRemoteCacheDays(v int) { global.SetMediaRemoteCacheDays(v) }
 
 // GetMediaEmojiLocalMaxSize safely fetches the Configuration value for state's 'Media.EmojiLocalMaxSize' field
 func (st *ConfigState) GetMediaEmojiLocalMaxSize() (v bytesize.Size) {
-	st.mutex.RLock()
-	v = st.config.Media.EmojiLocalMaxSize
-	st.mutex.RUnlock()
-	return
+	return st.config.Media.EmojiLocalMaxSize
 }
 
 // SetMediaEmojiLocalMaxSize safely sets the Configuration value for state's 'Media.EmojiLocalMaxSize' field
 func (st *ConfigState) SetMediaEmojiLocalMaxSize(v bytesize.Size) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Media.EmojiLocalMaxSize = v
 	st.reloadToViper()
 }
@@ -5045,16 +4478,11 @@ func SetMediaEmojiLocalMaxSize(v bytesize.Size) { global.SetMediaEmojiLocalMaxSi
 
 // GetMediaEmojiRemoteMaxSize safely fetches the Configuration value for state's 'Media.EmojiRemoteMaxSize' field
 func (st *ConfigState) GetMediaEmojiRemoteMaxSize() (v bytesize.Size) {
-	st.mutex.RLock()
-	v = st.config.Media.EmojiRemoteMaxSize
-	st.mutex.RUnlock()
-	return
+	return st.config.Media.EmojiRemoteMaxSize
 }
 
 // SetMediaEmojiRemoteMaxSize safely sets the Configuration value for state's 'Media.EmojiRemoteMaxSize' field
 func (st *ConfigState) SetMediaEmojiRemoteMaxSize(v bytesize.Size) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Media.EmojiRemoteMaxSize = v
 	st.reloadToViper()
 }
@@ -5067,16 +4495,11 @@ func SetMediaEmojiRemoteMaxSize(v bytesize.Size) { global.SetMediaEmojiRemoteMax
 
 // GetMediaImageSizeHint safely fetches the Configuration value for state's 'Media.ImageSizeHint' field
 func (st *ConfigState) GetMediaImageSizeHint() (v bytesize.Size) {
-	st.mutex.RLock()
-	v = st.config.Media.ImageSizeHint
-	st.mutex.RUnlock()
-	return
+	return st.config.Media.ImageSizeHint
 }
 
 // SetMediaImageSizeHint safely sets the Configuration value for state's 'Media.ImageSizeHint' field
 func (st *ConfigState) SetMediaImageSizeHint(v bytesize.Size) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Media.ImageSizeHint = v
 	st.reloadToViper()
 }
@@ -5089,16 +4512,11 @@ func SetMediaImageSizeHint(v bytesize.Size) { global.SetMediaImageSizeHint(v) }
 
 // GetMediaVideoSizeHint safely fetches the Configuration value for state's 'Media.VideoSizeHint' field
 func (st *ConfigState) GetMediaVideoSizeHint() (v bytesize.Size) {
-	st.mutex.RLock()
-	v = st.config.Media.VideoSizeHint
-	st.mutex.RUnlock()
-	return
+	return st.config.Media.VideoSizeHint
 }
 
 // SetMediaVideoSizeHint safely sets the Configuration value for state's 'Media.VideoSizeHint' field
 func (st *ConfigState) SetMediaVideoSizeHint(v bytesize.Size) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Media.VideoSizeHint = v
 	st.reloadToViper()
 }
@@ -5111,16 +4529,11 @@ func SetMediaVideoSizeHint(v bytesize.Size) { global.SetMediaVideoSizeHint(v) }
 
 // GetMediaLocalMaxSize safely fetches the Configuration value for state's 'Media.LocalMaxSize' field
 func (st *ConfigState) GetMediaLocalMaxSize() (v bytesize.Size) {
-	st.mutex.RLock()
-	v = st.config.Media.LocalMaxSize
-	st.mutex.RUnlock()
-	return
+	return st.config.Media.LocalMaxSize
 }
 
 // SetMediaLocalMaxSize safely sets the Configuration value for state's 'Media.LocalMaxSize' field
 func (st *ConfigState) SetMediaLocalMaxSize(v bytesize.Size) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Media.LocalMaxSize = v
 	st.reloadToViper()
 }
@@ -5133,16 +4546,11 @@ func SetMediaLocalMaxSize(v bytesize.Size) { global.SetMediaLocalMaxSize(v) }
 
 // GetMediaRemoteMaxSize safely fetches the Configuration value for state's 'Media.RemoteMaxSize' field
 func (st *ConfigState) GetMediaRemoteMaxSize() (v bytesize.Size) {
-	st.mutex.RLock()
-	v = st.config.Media.RemoteMaxSize
-	st.mutex.RUnlock()
-	return
+	return st.config.Media.RemoteMaxSize
 }
 
 // SetMediaRemoteMaxSize safely sets the Configuration value for state's 'Media.RemoteMaxSize' field
 func (st *ConfigState) SetMediaRemoteMaxSize(v bytesize.Size) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Media.RemoteMaxSize = v
 	st.reloadToViper()
 }
@@ -5155,16 +4563,11 @@ func SetMediaRemoteMaxSize(v bytesize.Size) { global.SetMediaRemoteMaxSize(v) }
 
 // GetMediaCleanupFrom safely fetches the Configuration value for state's 'Media.CleanupFrom' field
 func (st *ConfigState) GetMediaCleanupFrom() (v string) {
-	st.mutex.RLock()
-	v = st.config.Media.CleanupFrom
-	st.mutex.RUnlock()
-	return
+	return st.config.Media.CleanupFrom
 }
 
 // SetMediaCleanupFrom safely sets the Configuration value for state's 'Media.CleanupFrom' field
 func (st *ConfigState) SetMediaCleanupFrom(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Media.CleanupFrom = v
 	st.reloadToViper()
 }
@@ -5177,16 +4580,11 @@ func SetMediaCleanupFrom(v string) { global.SetMediaCleanupFrom(v) }
 
 // GetMediaCleanupEvery safely fetches the Configuration value for state's 'Media.CleanupEvery' field
 func (st *ConfigState) GetMediaCleanupEvery() (v time.Duration) {
-	st.mutex.RLock()
-	v = st.config.Media.CleanupEvery
-	st.mutex.RUnlock()
-	return
+	return st.config.Media.CleanupEvery
 }
 
 // SetMediaCleanupEvery safely sets the Configuration value for state's 'Media.CleanupEvery' field
 func (st *ConfigState) SetMediaCleanupEvery(v time.Duration) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Media.CleanupEvery = v
 	st.reloadToViper()
 }
@@ -5199,16 +4597,11 @@ func SetMediaCleanupEvery(v time.Duration) { global.SetMediaCleanupEvery(v) }
 
 // GetMediaFfmpegPoolSize safely fetches the Configuration value for state's 'Media.FfmpegPoolSize' field
 func (st *ConfigState) GetMediaFfmpegPoolSize() (v int) {
-	st.mutex.RLock()
-	v = st.config.Media.FfmpegPoolSize
-	st.mutex.RUnlock()
-	return
+	return st.config.Media.FfmpegPoolSize
 }
 
 // SetMediaFfmpegPoolSize safely sets the Configuration value for state's 'Media.FfmpegPoolSize' field
 func (st *ConfigState) SetMediaFfmpegPoolSize(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Media.FfmpegPoolSize = v
 	st.reloadToViper()
 }
@@ -5221,16 +4614,11 @@ func SetMediaFfmpegPoolSize(v int) { global.SetMediaFfmpegPoolSize(v) }
 
 // GetMediaThumbMaxPixels safely fetches the Configuration value for state's 'Media.ThumbMaxPixels' field
 func (st *ConfigState) GetMediaThumbMaxPixels() (v int) {
-	st.mutex.RLock()
-	v = st.config.Media.ThumbMaxPixels
-	st.mutex.RUnlock()
-	return
+	return st.config.Media.ThumbMaxPixels
 }
 
 // SetMediaThumbMaxPixels safely sets the Configuration value for state's 'Media.ThumbMaxPixels' field
 func (st *ConfigState) SetMediaThumbMaxPixels(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Media.ThumbMaxPixels = v
 	st.reloadToViper()
 }
@@ -5242,39 +4630,80 @@ func GetMediaThumbMaxPixels() int { return global.GetMediaThumbMaxPixels() }
 func SetMediaThumbMaxPixels(v int) { global.SetMediaThumbMaxPixels(v) }
 
 // GetCacheS3ObjectInfo safely fetches the Configuration value for state's 'Cache.S3ObjectInfo' field
-func (st *ConfigState) GetCacheS3ObjectInfo() (v int) {
-	st.mutex.RLock()
-	v = st.config.Cache.S3ObjectInfo
-	st.mutex.RUnlock()
-	return
+func (st *ConfigState) GetCacheS3ObjectInfo() (v uint32) {
+	return st.config.Cache.S3ObjectInfo
 }
 
 // SetCacheS3ObjectInfo safely sets the Configuration value for state's 'Cache.S3ObjectInfo' field
-func (st *ConfigState) SetCacheS3ObjectInfo(v int) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
+func (st *ConfigState) SetCacheS3ObjectInfo(v uint32) {
 	st.config.Cache.S3ObjectInfo = v
 	st.reloadToViper()
 }
 
 // GetCacheS3ObjectInfo safely fetches the value for global configuration 'Cache.S3ObjectInfo' field
-func GetCacheS3ObjectInfo() int { return global.GetCacheS3ObjectInfo() }
+func GetCacheS3ObjectInfo() uint32 { return global.GetCacheS3ObjectInfo() }
 
 // SetCacheS3ObjectInfo safely sets the value for global configuration 'Cache.S3ObjectInfo' field
-func SetCacheS3ObjectInfo(v int) { global.SetCacheS3ObjectInfo(v) }
+func SetCacheS3ObjectInfo(v uint32) { global.SetCacheS3ObjectInfo(v) }
+
+// GetCacheHomeTimelineSize safely fetches the Configuration value for state's 'Cache.HomeTimelineSize' field
+func (st *ConfigState) GetCacheHomeTimelineSize() (v uint32) {
+	return st.config.Cache.HomeTimelineSize
+}
+
+// SetCacheHomeTimelineSize safely sets the Configuration value for state's 'Cache.HomeTimelineSize' field
+func (st *ConfigState) SetCacheHomeTimelineSize(v uint32) {
+	st.config.Cache.HomeTimelineSize = v
+	st.reloadToViper()
+}
+
+// GetCacheHomeTimelineSize safely fetches the value for global configuration 'Cache.HomeTimelineSize' field
+func GetCacheHomeTimelineSize() uint32 { return global.GetCacheHomeTimelineSize() }
+
+// SetCacheHomeTimelineSize safely sets the value for global configuration 'Cache.HomeTimelineSize' field
+func SetCacheHomeTimelineSize(v uint32) { global.SetCacheHomeTimelineSize(v) }
+
+// GetCacheListTimelineSize safely fetches the Configuration value for state's 'Cache.ListTimelineSize' field
+func (st *ConfigState) GetCacheListTimelineSize() (v uint32) {
+	return st.config.Cache.ListTimelineSize
+}
+
+// SetCacheListTimelineSize safely sets the Configuration value for state's 'Cache.ListTimelineSize' field
+func (st *ConfigState) SetCacheListTimelineSize(v uint32) {
+	st.config.Cache.ListTimelineSize = v
+	st.reloadToViper()
+}
+
+// GetCacheListTimelineSize safely fetches the value for global configuration 'Cache.ListTimelineSize' field
+func GetCacheListTimelineSize() uint32 { return global.GetCacheListTimelineSize() }
+
+// SetCacheListTimelineSize safely sets the value for global configuration 'Cache.ListTimelineSize' field
+func SetCacheListTimelineSize(v uint32) { global.SetCacheListTimelineSize(v) }
+
+// GetCacheTagTimelineSize safely fetches the Configuration value for state's 'Cache.TagTimelineSize' field
+func (st *ConfigState) GetCacheTagTimelineSize() (v uint32) {
+	return st.config.Cache.TagTimelineSize
+}
+
+// SetCacheTagTimelineSize safely sets the Configuration value for state's 'Cache.TagTimelineSize' field
+func (st *ConfigState) SetCacheTagTimelineSize(v uint32) {
+	st.config.Cache.TagTimelineSize = v
+	st.reloadToViper()
+}
+
+// GetCacheTagTimelineSize safely fetches the value for global configuration 'Cache.TagTimelineSize' field
+func GetCacheTagTimelineSize() uint32 { return global.GetCacheTagTimelineSize() }
+
+// SetCacheTagTimelineSize safely sets the value for global configuration 'Cache.TagTimelineSize' field
+func SetCacheTagTimelineSize(v uint32) { global.SetCacheTagTimelineSize(v) }
 
 // GetCacheHomeTimelineTimeout safely fetches the Configuration value for state's 'Cache.HomeTimelineTimeout' field
 func (st *ConfigState) GetCacheHomeTimelineTimeout() (v time.Duration) {
-	st.mutex.RLock()
-	v = st.config.Cache.HomeTimelineTimeout
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.HomeTimelineTimeout
 }
 
 // SetCacheHomeTimelineTimeout safely sets the Configuration value for state's 'Cache.HomeTimelineTimeout' field
 func (st *ConfigState) SetCacheHomeTimelineTimeout(v time.Duration) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.HomeTimelineTimeout = v
 	st.reloadToViper()
 }
@@ -5287,16 +4716,11 @@ func SetCacheHomeTimelineTimeout(v time.Duration) { global.SetCacheHomeTimelineT
 
 // GetCacheListTimelineTimeout safely fetches the Configuration value for state's 'Cache.ListTimelineTimeout' field
 func (st *ConfigState) GetCacheListTimelineTimeout() (v time.Duration) {
-	st.mutex.RLock()
-	v = st.config.Cache.ListTimelineTimeout
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.ListTimelineTimeout
 }
 
 // SetCacheListTimelineTimeout safely sets the Configuration value for state's 'Cache.ListTimelineTimeout' field
 func (st *ConfigState) SetCacheListTimelineTimeout(v time.Duration) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.ListTimelineTimeout = v
 	st.reloadToViper()
 }
@@ -5309,16 +4733,11 @@ func SetCacheListTimelineTimeout(v time.Duration) { global.SetCacheListTimelineT
 
 // GetCacheTagTimelineTimeout safely fetches the Configuration value for state's 'Cache.TagTimelineTimeout' field
 func (st *ConfigState) GetCacheTagTimelineTimeout() (v time.Duration) {
-	st.mutex.RLock()
-	v = st.config.Cache.TagTimelineTimeout
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.TagTimelineTimeout
 }
 
 // SetCacheTagTimelineTimeout safely sets the Configuration value for state's 'Cache.TagTimelineTimeout' field
 func (st *ConfigState) SetCacheTagTimelineTimeout(v time.Duration) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.TagTimelineTimeout = v
 	st.reloadToViper()
 }
@@ -5331,16 +4750,11 @@ func SetCacheTagTimelineTimeout(v time.Duration) { global.SetCacheTagTimelineTim
 
 // GetCacheMemoryTarget safely fetches the Configuration value for state's 'Cache.MemoryTarget' field
 func (st *ConfigState) GetCacheMemoryTarget() (v bytesize.Size) {
-	st.mutex.RLock()
-	v = st.config.Cache.MemoryTarget
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.MemoryTarget
 }
 
 // SetCacheMemoryTarget safely sets the Configuration value for state's 'Cache.MemoryTarget' field
 func (st *ConfigState) SetCacheMemoryTarget(v bytesize.Size) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.MemoryTarget = v
 	st.reloadToViper()
 }
@@ -5353,16 +4767,11 @@ func SetCacheMemoryTarget(v bytesize.Size) { global.SetCacheMemoryTarget(v) }
 
 // GetCacheAccountMemRatio safely fetches the Configuration value for state's 'Cache.AccountMemRatio' field
 func (st *ConfigState) GetCacheAccountMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.AccountMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.AccountMemRatio
 }
 
 // SetCacheAccountMemRatio safely sets the Configuration value for state's 'Cache.AccountMemRatio' field
 func (st *ConfigState) SetCacheAccountMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.AccountMemRatio = v
 	st.reloadToViper()
 }
@@ -5375,16 +4784,11 @@ func SetCacheAccountMemRatio(v float64) { global.SetCacheAccountMemRatio(v) }
 
 // GetCacheAccountNoteMemRatio safely fetches the Configuration value for state's 'Cache.AccountNoteMemRatio' field
 func (st *ConfigState) GetCacheAccountNoteMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.AccountNoteMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.AccountNoteMemRatio
 }
 
 // SetCacheAccountNoteMemRatio safely sets the Configuration value for state's 'Cache.AccountNoteMemRatio' field
 func (st *ConfigState) SetCacheAccountNoteMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.AccountNoteMemRatio = v
 	st.reloadToViper()
 }
@@ -5397,16 +4801,11 @@ func SetCacheAccountNoteMemRatio(v float64) { global.SetCacheAccountNoteMemRatio
 
 // GetCacheAccountSettingsMemRatio safely fetches the Configuration value for state's 'Cache.AccountSettingsMemRatio' field
 func (st *ConfigState) GetCacheAccountSettingsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.AccountSettingsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.AccountSettingsMemRatio
 }
 
 // SetCacheAccountSettingsMemRatio safely sets the Configuration value for state's 'Cache.AccountSettingsMemRatio' field
 func (st *ConfigState) SetCacheAccountSettingsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.AccountSettingsMemRatio = v
 	st.reloadToViper()
 }
@@ -5419,16 +4818,11 @@ func SetCacheAccountSettingsMemRatio(v float64) { global.SetCacheAccountSettings
 
 // GetCacheAccountStatsMemRatio safely fetches the Configuration value for state's 'Cache.AccountStatsMemRatio' field
 func (st *ConfigState) GetCacheAccountStatsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.AccountStatsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.AccountStatsMemRatio
 }
 
 // SetCacheAccountStatsMemRatio safely sets the Configuration value for state's 'Cache.AccountStatsMemRatio' field
 func (st *ConfigState) SetCacheAccountStatsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.AccountStatsMemRatio = v
 	st.reloadToViper()
 }
@@ -5441,16 +4835,11 @@ func SetCacheAccountStatsMemRatio(v float64) { global.SetCacheAccountStatsMemRat
 
 // GetCacheApplicationMemRatio safely fetches the Configuration value for state's 'Cache.ApplicationMemRatio' field
 func (st *ConfigState) GetCacheApplicationMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.ApplicationMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.ApplicationMemRatio
 }
 
 // SetCacheApplicationMemRatio safely sets the Configuration value for state's 'Cache.ApplicationMemRatio' field
 func (st *ConfigState) SetCacheApplicationMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.ApplicationMemRatio = v
 	st.reloadToViper()
 }
@@ -5463,16 +4852,11 @@ func SetCacheApplicationMemRatio(v float64) { global.SetCacheApplicationMemRatio
 
 // GetCacheBlockMemRatio safely fetches the Configuration value for state's 'Cache.BlockMemRatio' field
 func (st *ConfigState) GetCacheBlockMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.BlockMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.BlockMemRatio
 }
 
 // SetCacheBlockMemRatio safely sets the Configuration value for state's 'Cache.BlockMemRatio' field
 func (st *ConfigState) SetCacheBlockMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.BlockMemRatio = v
 	st.reloadToViper()
 }
@@ -5485,16 +4869,11 @@ func SetCacheBlockMemRatio(v float64) { global.SetCacheBlockMemRatio(v) }
 
 // GetCacheBlockIDsMemRatio safely fetches the Configuration value for state's 'Cache.BlockIDsMemRatio' field
 func (st *ConfigState) GetCacheBlockIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.BlockIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.BlockIDsMemRatio
 }
 
 // SetCacheBlockIDsMemRatio safely sets the Configuration value for state's 'Cache.BlockIDsMemRatio' field
 func (st *ConfigState) SetCacheBlockIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.BlockIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -5507,16 +4886,11 @@ func SetCacheBlockIDsMemRatio(v float64) { global.SetCacheBlockIDsMemRatio(v) }
 
 // GetCacheBoostOfIDsMemRatio safely fetches the Configuration value for state's 'Cache.BoostOfIDsMemRatio' field
 func (st *ConfigState) GetCacheBoostOfIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.BoostOfIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.BoostOfIDsMemRatio
 }
 
 // SetCacheBoostOfIDsMemRatio safely sets the Configuration value for state's 'Cache.BoostOfIDsMemRatio' field
 func (st *ConfigState) SetCacheBoostOfIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.BoostOfIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -5529,16 +4903,11 @@ func SetCacheBoostOfIDsMemRatio(v float64) { global.SetCacheBoostOfIDsMemRatio(v
 
 // GetCacheClientMemRatio safely fetches the Configuration value for state's 'Cache.ClientMemRatio' field
 func (st *ConfigState) GetCacheClientMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.ClientMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.ClientMemRatio
 }
 
 // SetCacheClientMemRatio safely sets the Configuration value for state's 'Cache.ClientMemRatio' field
 func (st *ConfigState) SetCacheClientMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.ClientMemRatio = v
 	st.reloadToViper()
 }
@@ -5551,16 +4920,11 @@ func SetCacheClientMemRatio(v float64) { global.SetCacheClientMemRatio(v) }
 
 // GetCacheConversationMemRatio safely fetches the Configuration value for state's 'Cache.ConversationMemRatio' field
 func (st *ConfigState) GetCacheConversationMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.ConversationMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.ConversationMemRatio
 }
 
 // SetCacheConversationMemRatio safely sets the Configuration value for state's 'Cache.ConversationMemRatio' field
 func (st *ConfigState) SetCacheConversationMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.ConversationMemRatio = v
 	st.reloadToViper()
 }
@@ -5573,16 +4937,11 @@ func SetCacheConversationMemRatio(v float64) { global.SetCacheConversationMemRat
 
 // GetCacheConversationLastStatusIDsMemRatio safely fetches the Configuration value for state's 'Cache.ConversationLastStatusIDsMemRatio' field
 func (st *ConfigState) GetCacheConversationLastStatusIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.ConversationLastStatusIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.ConversationLastStatusIDsMemRatio
 }
 
 // SetCacheConversationLastStatusIDsMemRatio safely sets the Configuration value for state's 'Cache.ConversationLastStatusIDsMemRatio' field
 func (st *ConfigState) SetCacheConversationLastStatusIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.ConversationLastStatusIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -5599,16 +4958,11 @@ func SetCacheConversationLastStatusIDsMemRatio(v float64) {
 
 // GetCacheDomainPermissionDraftMemRatio safely fetches the Configuration value for state's 'Cache.DomainPermissionDraftMemRatio' field
 func (st *ConfigState) GetCacheDomainPermissionDraftMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.DomainPermissionDraftMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.DomainPermissionDraftMemRatio
 }
 
 // SetCacheDomainPermissionDraftMemRatio safely sets the Configuration value for state's 'Cache.DomainPermissionDraftMemRatio' field
 func (st *ConfigState) SetCacheDomainPermissionDraftMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.DomainPermissionDraftMemRatio = v
 	st.reloadToViper()
 }
@@ -5625,16 +4979,11 @@ func SetCacheDomainPermissionDraftMemRatio(v float64) {
 
 // GetCacheDomainLimitMemRatio safely fetches the Configuration value for state's 'Cache.DomainLimitMemRatio' field
 func (st *ConfigState) GetCacheDomainLimitMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.DomainLimitMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.DomainLimitMemRatio
 }
 
 // SetCacheDomainLimitMemRatio safely sets the Configuration value for state's 'Cache.DomainLimitMemRatio' field
 func (st *ConfigState) SetCacheDomainLimitMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.DomainLimitMemRatio = v
 	st.reloadToViper()
 }
@@ -5647,16 +4996,11 @@ func SetCacheDomainLimitMemRatio(v float64) { global.SetCacheDomainLimitMemRatio
 
 // GetCacheDomainPermissionSubscriptionMemRatio safely fetches the Configuration value for state's 'Cache.DomainPermissionSubscriptionMemRatio' field
 func (st *ConfigState) GetCacheDomainPermissionSubscriptionMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.DomainPermissionSubscriptionMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.DomainPermissionSubscriptionMemRatio
 }
 
 // SetCacheDomainPermissionSubscriptionMemRatio safely sets the Configuration value for state's 'Cache.DomainPermissionSubscriptionMemRatio' field
 func (st *ConfigState) SetCacheDomainPermissionSubscriptionMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.DomainPermissionSubscriptionMemRatio = v
 	st.reloadToViper()
 }
@@ -5673,16 +5017,11 @@ func SetCacheDomainPermissionSubscriptionMemRatio(v float64) {
 
 // GetCacheEmojiMemRatio safely fetches the Configuration value for state's 'Cache.EmojiMemRatio' field
 func (st *ConfigState) GetCacheEmojiMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.EmojiMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.EmojiMemRatio
 }
 
 // SetCacheEmojiMemRatio safely sets the Configuration value for state's 'Cache.EmojiMemRatio' field
 func (st *ConfigState) SetCacheEmojiMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.EmojiMemRatio = v
 	st.reloadToViper()
 }
@@ -5695,16 +5034,11 @@ func SetCacheEmojiMemRatio(v float64) { global.SetCacheEmojiMemRatio(v) }
 
 // GetCacheEmojiCategoryMemRatio safely fetches the Configuration value for state's 'Cache.EmojiCategoryMemRatio' field
 func (st *ConfigState) GetCacheEmojiCategoryMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.EmojiCategoryMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.EmojiCategoryMemRatio
 }
 
 // SetCacheEmojiCategoryMemRatio safely sets the Configuration value for state's 'Cache.EmojiCategoryMemRatio' field
 func (st *ConfigState) SetCacheEmojiCategoryMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.EmojiCategoryMemRatio = v
 	st.reloadToViper()
 }
@@ -5717,16 +5051,11 @@ func SetCacheEmojiCategoryMemRatio(v float64) { global.SetCacheEmojiCategoryMemR
 
 // GetCacheFederationErrorMemRatio safely fetches the Configuration value for state's 'Cache.FederationErrorMemRatio' field
 func (st *ConfigState) GetCacheFederationErrorMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.FederationErrorMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.FederationErrorMemRatio
 }
 
 // SetCacheFederationErrorMemRatio safely sets the Configuration value for state's 'Cache.FederationErrorMemRatio' field
 func (st *ConfigState) SetCacheFederationErrorMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.FederationErrorMemRatio = v
 	st.reloadToViper()
 }
@@ -5739,16 +5068,11 @@ func SetCacheFederationErrorMemRatio(v float64) { global.SetCacheFederationError
 
 // GetCacheFilterMemRatio safely fetches the Configuration value for state's 'Cache.FilterMemRatio' field
 func (st *ConfigState) GetCacheFilterMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.FilterMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.FilterMemRatio
 }
 
 // SetCacheFilterMemRatio safely sets the Configuration value for state's 'Cache.FilterMemRatio' field
 func (st *ConfigState) SetCacheFilterMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.FilterMemRatio = v
 	st.reloadToViper()
 }
@@ -5761,16 +5085,11 @@ func SetCacheFilterMemRatio(v float64) { global.SetCacheFilterMemRatio(v) }
 
 // GetCacheFilterIDsMemRatio safely fetches the Configuration value for state's 'Cache.FilterIDsMemRatio' field
 func (st *ConfigState) GetCacheFilterIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.FilterIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.FilterIDsMemRatio
 }
 
 // SetCacheFilterIDsMemRatio safely sets the Configuration value for state's 'Cache.FilterIDsMemRatio' field
 func (st *ConfigState) SetCacheFilterIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.FilterIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -5783,16 +5102,11 @@ func SetCacheFilterIDsMemRatio(v float64) { global.SetCacheFilterIDsMemRatio(v) 
 
 // GetCacheFilterKeywordMemRatio safely fetches the Configuration value for state's 'Cache.FilterKeywordMemRatio' field
 func (st *ConfigState) GetCacheFilterKeywordMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.FilterKeywordMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.FilterKeywordMemRatio
 }
 
 // SetCacheFilterKeywordMemRatio safely sets the Configuration value for state's 'Cache.FilterKeywordMemRatio' field
 func (st *ConfigState) SetCacheFilterKeywordMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.FilterKeywordMemRatio = v
 	st.reloadToViper()
 }
@@ -5805,16 +5119,11 @@ func SetCacheFilterKeywordMemRatio(v float64) { global.SetCacheFilterKeywordMemR
 
 // GetCacheFilterStatusMemRatio safely fetches the Configuration value for state's 'Cache.FilterStatusMemRatio' field
 func (st *ConfigState) GetCacheFilterStatusMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.FilterStatusMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.FilterStatusMemRatio
 }
 
 // SetCacheFilterStatusMemRatio safely sets the Configuration value for state's 'Cache.FilterStatusMemRatio' field
 func (st *ConfigState) SetCacheFilterStatusMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.FilterStatusMemRatio = v
 	st.reloadToViper()
 }
@@ -5827,16 +5136,11 @@ func SetCacheFilterStatusMemRatio(v float64) { global.SetCacheFilterStatusMemRat
 
 // GetCacheFollowMemRatio safely fetches the Configuration value for state's 'Cache.FollowMemRatio' field
 func (st *ConfigState) GetCacheFollowMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.FollowMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.FollowMemRatio
 }
 
 // SetCacheFollowMemRatio safely sets the Configuration value for state's 'Cache.FollowMemRatio' field
 func (st *ConfigState) SetCacheFollowMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.FollowMemRatio = v
 	st.reloadToViper()
 }
@@ -5849,16 +5153,11 @@ func SetCacheFollowMemRatio(v float64) { global.SetCacheFollowMemRatio(v) }
 
 // GetCacheFollowIDsMemRatio safely fetches the Configuration value for state's 'Cache.FollowIDsMemRatio' field
 func (st *ConfigState) GetCacheFollowIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.FollowIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.FollowIDsMemRatio
 }
 
 // SetCacheFollowIDsMemRatio safely sets the Configuration value for state's 'Cache.FollowIDsMemRatio' field
 func (st *ConfigState) SetCacheFollowIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.FollowIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -5871,16 +5170,11 @@ func SetCacheFollowIDsMemRatio(v float64) { global.SetCacheFollowIDsMemRatio(v) 
 
 // GetCacheFollowRequestMemRatio safely fetches the Configuration value for state's 'Cache.FollowRequestMemRatio' field
 func (st *ConfigState) GetCacheFollowRequestMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.FollowRequestMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.FollowRequestMemRatio
 }
 
 // SetCacheFollowRequestMemRatio safely sets the Configuration value for state's 'Cache.FollowRequestMemRatio' field
 func (st *ConfigState) SetCacheFollowRequestMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.FollowRequestMemRatio = v
 	st.reloadToViper()
 }
@@ -5893,16 +5187,11 @@ func SetCacheFollowRequestMemRatio(v float64) { global.SetCacheFollowRequestMemR
 
 // GetCacheFollowRequestIDsMemRatio safely fetches the Configuration value for state's 'Cache.FollowRequestIDsMemRatio' field
 func (st *ConfigState) GetCacheFollowRequestIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.FollowRequestIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.FollowRequestIDsMemRatio
 }
 
 // SetCacheFollowRequestIDsMemRatio safely sets the Configuration value for state's 'Cache.FollowRequestIDsMemRatio' field
 func (st *ConfigState) SetCacheFollowRequestIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.FollowRequestIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -5915,16 +5204,11 @@ func SetCacheFollowRequestIDsMemRatio(v float64) { global.SetCacheFollowRequestI
 
 // GetCacheFollowingTagIDsMemRatio safely fetches the Configuration value for state's 'Cache.FollowingTagIDsMemRatio' field
 func (st *ConfigState) GetCacheFollowingTagIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.FollowingTagIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.FollowingTagIDsMemRatio
 }
 
 // SetCacheFollowingTagIDsMemRatio safely sets the Configuration value for state's 'Cache.FollowingTagIDsMemRatio' field
 func (st *ConfigState) SetCacheFollowingTagIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.FollowingTagIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -5937,16 +5221,11 @@ func SetCacheFollowingTagIDsMemRatio(v float64) { global.SetCacheFollowingTagIDs
 
 // GetCacheHomeAccountIDsMemRatio safely fetches the Configuration value for state's 'Cache.HomeAccountIDsMemRatio' field
 func (st *ConfigState) GetCacheHomeAccountIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.HomeAccountIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.HomeAccountIDsMemRatio
 }
 
 // SetCacheHomeAccountIDsMemRatio safely sets the Configuration value for state's 'Cache.HomeAccountIDsMemRatio' field
 func (st *ConfigState) SetCacheHomeAccountIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.HomeAccountIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -5959,16 +5238,11 @@ func SetCacheHomeAccountIDsMemRatio(v float64) { global.SetCacheHomeAccountIDsMe
 
 // GetCacheInReplyToIDsMemRatio safely fetches the Configuration value for state's 'Cache.InReplyToIDsMemRatio' field
 func (st *ConfigState) GetCacheInReplyToIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.InReplyToIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.InReplyToIDsMemRatio
 }
 
 // SetCacheInReplyToIDsMemRatio safely sets the Configuration value for state's 'Cache.InReplyToIDsMemRatio' field
 func (st *ConfigState) SetCacheInReplyToIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.InReplyToIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -5981,16 +5255,11 @@ func SetCacheInReplyToIDsMemRatio(v float64) { global.SetCacheInReplyToIDsMemRat
 
 // GetCacheInstanceMemRatio safely fetches the Configuration value for state's 'Cache.InstanceMemRatio' field
 func (st *ConfigState) GetCacheInstanceMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.InstanceMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.InstanceMemRatio
 }
 
 // SetCacheInstanceMemRatio safely sets the Configuration value for state's 'Cache.InstanceMemRatio' field
 func (st *ConfigState) SetCacheInstanceMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.InstanceMemRatio = v
 	st.reloadToViper()
 }
@@ -6003,16 +5272,11 @@ func SetCacheInstanceMemRatio(v float64) { global.SetCacheInstanceMemRatio(v) }
 
 // GetCacheInteractionRequestMemRatio safely fetches the Configuration value for state's 'Cache.InteractionRequestMemRatio' field
 func (st *ConfigState) GetCacheInteractionRequestMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.InteractionRequestMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.InteractionRequestMemRatio
 }
 
 // SetCacheInteractionRequestMemRatio safely sets the Configuration value for state's 'Cache.InteractionRequestMemRatio' field
 func (st *ConfigState) SetCacheInteractionRequestMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.InteractionRequestMemRatio = v
 	st.reloadToViper()
 }
@@ -6025,16 +5289,11 @@ func SetCacheInteractionRequestMemRatio(v float64) { global.SetCacheInteractionR
 
 // GetCacheListMemRatio safely fetches the Configuration value for state's 'Cache.ListMemRatio' field
 func (st *ConfigState) GetCacheListMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.ListMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.ListMemRatio
 }
 
 // SetCacheListMemRatio safely sets the Configuration value for state's 'Cache.ListMemRatio' field
 func (st *ConfigState) SetCacheListMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.ListMemRatio = v
 	st.reloadToViper()
 }
@@ -6047,16 +5306,11 @@ func SetCacheListMemRatio(v float64) { global.SetCacheListMemRatio(v) }
 
 // GetCacheListIDsMemRatio safely fetches the Configuration value for state's 'Cache.ListIDsMemRatio' field
 func (st *ConfigState) GetCacheListIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.ListIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.ListIDsMemRatio
 }
 
 // SetCacheListIDsMemRatio safely sets the Configuration value for state's 'Cache.ListIDsMemRatio' field
 func (st *ConfigState) SetCacheListIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.ListIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -6069,16 +5323,11 @@ func SetCacheListIDsMemRatio(v float64) { global.SetCacheListIDsMemRatio(v) }
 
 // GetCacheListedIDsMemRatio safely fetches the Configuration value for state's 'Cache.ListedIDsMemRatio' field
 func (st *ConfigState) GetCacheListedIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.ListedIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.ListedIDsMemRatio
 }
 
 // SetCacheListedIDsMemRatio safely sets the Configuration value for state's 'Cache.ListedIDsMemRatio' field
 func (st *ConfigState) SetCacheListedIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.ListedIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -6091,16 +5340,11 @@ func SetCacheListedIDsMemRatio(v float64) { global.SetCacheListedIDsMemRatio(v) 
 
 // GetCacheMarkerMemRatio safely fetches the Configuration value for state's 'Cache.MarkerMemRatio' field
 func (st *ConfigState) GetCacheMarkerMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.MarkerMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.MarkerMemRatio
 }
 
 // SetCacheMarkerMemRatio safely sets the Configuration value for state's 'Cache.MarkerMemRatio' field
 func (st *ConfigState) SetCacheMarkerMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.MarkerMemRatio = v
 	st.reloadToViper()
 }
@@ -6113,16 +5357,11 @@ func SetCacheMarkerMemRatio(v float64) { global.SetCacheMarkerMemRatio(v) }
 
 // GetCacheMediaMemRatio safely fetches the Configuration value for state's 'Cache.MediaMemRatio' field
 func (st *ConfigState) GetCacheMediaMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.MediaMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.MediaMemRatio
 }
 
 // SetCacheMediaMemRatio safely sets the Configuration value for state's 'Cache.MediaMemRatio' field
 func (st *ConfigState) SetCacheMediaMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.MediaMemRatio = v
 	st.reloadToViper()
 }
@@ -6135,16 +5374,11 @@ func SetCacheMediaMemRatio(v float64) { global.SetCacheMediaMemRatio(v) }
 
 // GetCacheMentionMemRatio safely fetches the Configuration value for state's 'Cache.MentionMemRatio' field
 func (st *ConfigState) GetCacheMentionMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.MentionMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.MentionMemRatio
 }
 
 // SetCacheMentionMemRatio safely sets the Configuration value for state's 'Cache.MentionMemRatio' field
 func (st *ConfigState) SetCacheMentionMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.MentionMemRatio = v
 	st.reloadToViper()
 }
@@ -6157,16 +5391,11 @@ func SetCacheMentionMemRatio(v float64) { global.SetCacheMentionMemRatio(v) }
 
 // GetCacheMoveMemRatio safely fetches the Configuration value for state's 'Cache.MoveMemRatio' field
 func (st *ConfigState) GetCacheMoveMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.MoveMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.MoveMemRatio
 }
 
 // SetCacheMoveMemRatio safely sets the Configuration value for state's 'Cache.MoveMemRatio' field
 func (st *ConfigState) SetCacheMoveMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.MoveMemRatio = v
 	st.reloadToViper()
 }
@@ -6179,16 +5408,11 @@ func SetCacheMoveMemRatio(v float64) { global.SetCacheMoveMemRatio(v) }
 
 // GetCacheNotificationMemRatio safely fetches the Configuration value for state's 'Cache.NotificationMemRatio' field
 func (st *ConfigState) GetCacheNotificationMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.NotificationMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.NotificationMemRatio
 }
 
 // SetCacheNotificationMemRatio safely sets the Configuration value for state's 'Cache.NotificationMemRatio' field
 func (st *ConfigState) SetCacheNotificationMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.NotificationMemRatio = v
 	st.reloadToViper()
 }
@@ -6201,16 +5425,11 @@ func SetCacheNotificationMemRatio(v float64) { global.SetCacheNotificationMemRat
 
 // GetCachePollMemRatio safely fetches the Configuration value for state's 'Cache.PollMemRatio' field
 func (st *ConfigState) GetCachePollMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.PollMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.PollMemRatio
 }
 
 // SetCachePollMemRatio safely sets the Configuration value for state's 'Cache.PollMemRatio' field
 func (st *ConfigState) SetCachePollMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.PollMemRatio = v
 	st.reloadToViper()
 }
@@ -6223,16 +5442,11 @@ func SetCachePollMemRatio(v float64) { global.SetCachePollMemRatio(v) }
 
 // GetCachePollVoteMemRatio safely fetches the Configuration value for state's 'Cache.PollVoteMemRatio' field
 func (st *ConfigState) GetCachePollVoteMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.PollVoteMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.PollVoteMemRatio
 }
 
 // SetCachePollVoteMemRatio safely sets the Configuration value for state's 'Cache.PollVoteMemRatio' field
 func (st *ConfigState) SetCachePollVoteMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.PollVoteMemRatio = v
 	st.reloadToViper()
 }
@@ -6245,16 +5459,11 @@ func SetCachePollVoteMemRatio(v float64) { global.SetCachePollVoteMemRatio(v) }
 
 // GetCachePollVoteIDsMemRatio safely fetches the Configuration value for state's 'Cache.PollVoteIDsMemRatio' field
 func (st *ConfigState) GetCachePollVoteIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.PollVoteIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.PollVoteIDsMemRatio
 }
 
 // SetCachePollVoteIDsMemRatio safely sets the Configuration value for state's 'Cache.PollVoteIDsMemRatio' field
 func (st *ConfigState) SetCachePollVoteIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.PollVoteIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -6267,16 +5476,11 @@ func SetCachePollVoteIDsMemRatio(v float64) { global.SetCachePollVoteIDsMemRatio
 
 // GetCacheReportMemRatio safely fetches the Configuration value for state's 'Cache.ReportMemRatio' field
 func (st *ConfigState) GetCacheReportMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.ReportMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.ReportMemRatio
 }
 
 // SetCacheReportMemRatio safely sets the Configuration value for state's 'Cache.ReportMemRatio' field
 func (st *ConfigState) SetCacheReportMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.ReportMemRatio = v
 	st.reloadToViper()
 }
@@ -6289,16 +5493,11 @@ func SetCacheReportMemRatio(v float64) { global.SetCacheReportMemRatio(v) }
 
 // GetCacheRelayMatcherMemRatio safely fetches the Configuration value for state's 'Cache.RelayMatcherMemRatio' field
 func (st *ConfigState) GetCacheRelayMatcherMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.RelayMatcherMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.RelayMatcherMemRatio
 }
 
 // SetCacheRelayMatcherMemRatio safely sets the Configuration value for state's 'Cache.RelayMatcherMemRatio' field
 func (st *ConfigState) SetCacheRelayMatcherMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.RelayMatcherMemRatio = v
 	st.reloadToViper()
 }
@@ -6311,16 +5510,11 @@ func SetCacheRelayMatcherMemRatio(v float64) { global.SetCacheRelayMatcherMemRat
 
 // GetCacheRelayPushMemRatio safely fetches the Configuration value for state's 'Cache.RelayPushMemRatio' field
 func (st *ConfigState) GetCacheRelayPushMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.RelayPushMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.RelayPushMemRatio
 }
 
 // SetCacheRelayPushMemRatio safely sets the Configuration value for state's 'Cache.RelayPushMemRatio' field
 func (st *ConfigState) SetCacheRelayPushMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.RelayPushMemRatio = v
 	st.reloadToViper()
 }
@@ -6333,16 +5527,11 @@ func SetCacheRelayPushMemRatio(v float64) { global.SetCacheRelayPushMemRatio(v) 
 
 // GetCacheRelayPushIDsMemRatio safely fetches the Configuration value for state's 'Cache.RelayPushIDsMemRatio' field
 func (st *ConfigState) GetCacheRelayPushIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.RelayPushIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.RelayPushIDsMemRatio
 }
 
 // SetCacheRelayPushIDsMemRatio safely sets the Configuration value for state's 'Cache.RelayPushIDsMemRatio' field
 func (st *ConfigState) SetCacheRelayPushIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.RelayPushIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -6355,16 +5544,11 @@ func SetCacheRelayPushIDsMemRatio(v float64) { global.SetCacheRelayPushIDsMemRat
 
 // GetCacheRelaySubscriptionMemRatio safely fetches the Configuration value for state's 'Cache.RelaySubscriptionMemRatio' field
 func (st *ConfigState) GetCacheRelaySubscriptionMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.RelaySubscriptionMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.RelaySubscriptionMemRatio
 }
 
 // SetCacheRelaySubscriptionMemRatio safely sets the Configuration value for state's 'Cache.RelaySubscriptionMemRatio' field
 func (st *ConfigState) SetCacheRelaySubscriptionMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.RelaySubscriptionMemRatio = v
 	st.reloadToViper()
 }
@@ -6377,16 +5561,11 @@ func SetCacheRelaySubscriptionMemRatio(v float64) { global.SetCacheRelaySubscrip
 
 // GetCacheScheduledStatusMemRatio safely fetches the Configuration value for state's 'Cache.ScheduledStatusMemRatio' field
 func (st *ConfigState) GetCacheScheduledStatusMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.ScheduledStatusMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.ScheduledStatusMemRatio
 }
 
 // SetCacheScheduledStatusMemRatio safely sets the Configuration value for state's 'Cache.ScheduledStatusMemRatio' field
 func (st *ConfigState) SetCacheScheduledStatusMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.ScheduledStatusMemRatio = v
 	st.reloadToViper()
 }
@@ -6399,16 +5578,11 @@ func SetCacheScheduledStatusMemRatio(v float64) { global.SetCacheScheduledStatus
 
 // GetCacheSinBinStatusMemRatio safely fetches the Configuration value for state's 'Cache.SinBinStatusMemRatio' field
 func (st *ConfigState) GetCacheSinBinStatusMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.SinBinStatusMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.SinBinStatusMemRatio
 }
 
 // SetCacheSinBinStatusMemRatio safely sets the Configuration value for state's 'Cache.SinBinStatusMemRatio' field
 func (st *ConfigState) SetCacheSinBinStatusMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.SinBinStatusMemRatio = v
 	st.reloadToViper()
 }
@@ -6421,16 +5595,11 @@ func SetCacheSinBinStatusMemRatio(v float64) { global.SetCacheSinBinStatusMemRat
 
 // GetCacheStatusMemRatio safely fetches the Configuration value for state's 'Cache.StatusMemRatio' field
 func (st *ConfigState) GetCacheStatusMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.StatusMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.StatusMemRatio
 }
 
 // SetCacheStatusMemRatio safely sets the Configuration value for state's 'Cache.StatusMemRatio' field
 func (st *ConfigState) SetCacheStatusMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.StatusMemRatio = v
 	st.reloadToViper()
 }
@@ -6443,16 +5612,11 @@ func SetCacheStatusMemRatio(v float64) { global.SetCacheStatusMemRatio(v) }
 
 // GetCacheStatusBookmarkMemRatio safely fetches the Configuration value for state's 'Cache.StatusBookmarkMemRatio' field
 func (st *ConfigState) GetCacheStatusBookmarkMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.StatusBookmarkMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.StatusBookmarkMemRatio
 }
 
 // SetCacheStatusBookmarkMemRatio safely sets the Configuration value for state's 'Cache.StatusBookmarkMemRatio' field
 func (st *ConfigState) SetCacheStatusBookmarkMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.StatusBookmarkMemRatio = v
 	st.reloadToViper()
 }
@@ -6465,16 +5629,11 @@ func SetCacheStatusBookmarkMemRatio(v float64) { global.SetCacheStatusBookmarkMe
 
 // GetCacheStatusBookmarkIDsMemRatio safely fetches the Configuration value for state's 'Cache.StatusBookmarkIDsMemRatio' field
 func (st *ConfigState) GetCacheStatusBookmarkIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.StatusBookmarkIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.StatusBookmarkIDsMemRatio
 }
 
 // SetCacheStatusBookmarkIDsMemRatio safely sets the Configuration value for state's 'Cache.StatusBookmarkIDsMemRatio' field
 func (st *ConfigState) SetCacheStatusBookmarkIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.StatusBookmarkIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -6487,16 +5646,11 @@ func SetCacheStatusBookmarkIDsMemRatio(v float64) { global.SetCacheStatusBookmar
 
 // GetCacheStatusEditMemRatio safely fetches the Configuration value for state's 'Cache.StatusEditMemRatio' field
 func (st *ConfigState) GetCacheStatusEditMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.StatusEditMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.StatusEditMemRatio
 }
 
 // SetCacheStatusEditMemRatio safely sets the Configuration value for state's 'Cache.StatusEditMemRatio' field
 func (st *ConfigState) SetCacheStatusEditMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.StatusEditMemRatio = v
 	st.reloadToViper()
 }
@@ -6509,16 +5663,11 @@ func SetCacheStatusEditMemRatio(v float64) { global.SetCacheStatusEditMemRatio(v
 
 // GetCacheStatusFaveMemRatio safely fetches the Configuration value for state's 'Cache.StatusFaveMemRatio' field
 func (st *ConfigState) GetCacheStatusFaveMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.StatusFaveMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.StatusFaveMemRatio
 }
 
 // SetCacheStatusFaveMemRatio safely sets the Configuration value for state's 'Cache.StatusFaveMemRatio' field
 func (st *ConfigState) SetCacheStatusFaveMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.StatusFaveMemRatio = v
 	st.reloadToViper()
 }
@@ -6531,16 +5680,11 @@ func SetCacheStatusFaveMemRatio(v float64) { global.SetCacheStatusFaveMemRatio(v
 
 // GetCacheStatusFaveIDsMemRatio safely fetches the Configuration value for state's 'Cache.StatusFaveIDsMemRatio' field
 func (st *ConfigState) GetCacheStatusFaveIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.StatusFaveIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.StatusFaveIDsMemRatio
 }
 
 // SetCacheStatusFaveIDsMemRatio safely sets the Configuration value for state's 'Cache.StatusFaveIDsMemRatio' field
 func (st *ConfigState) SetCacheStatusFaveIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.StatusFaveIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -6553,16 +5697,11 @@ func SetCacheStatusFaveIDsMemRatio(v float64) { global.SetCacheStatusFaveIDsMemR
 
 // GetCacheStatusPinnedIDsMemRatio safely fetches the Configuration value for state's 'Cache.StatusPinnedIDsMemRatio' field
 func (st *ConfigState) GetCacheStatusPinnedIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.StatusPinnedIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.StatusPinnedIDsMemRatio
 }
 
 // SetCacheStatusPinnedIDsMemRatio safely sets the Configuration value for state's 'Cache.StatusPinnedIDsMemRatio' field
 func (st *ConfigState) SetCacheStatusPinnedIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.StatusPinnedIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -6575,16 +5714,11 @@ func SetCacheStatusPinnedIDsMemRatio(v float64) { global.SetCacheStatusPinnedIDs
 
 // GetCacheTagMemRatio safely fetches the Configuration value for state's 'Cache.TagMemRatio' field
 func (st *ConfigState) GetCacheTagMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.TagMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.TagMemRatio
 }
 
 // SetCacheTagMemRatio safely sets the Configuration value for state's 'Cache.TagMemRatio' field
 func (st *ConfigState) SetCacheTagMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.TagMemRatio = v
 	st.reloadToViper()
 }
@@ -6597,16 +5731,11 @@ func SetCacheTagMemRatio(v float64) { global.SetCacheTagMemRatio(v) }
 
 // GetCacheThreadMuteMemRatio safely fetches the Configuration value for state's 'Cache.ThreadMuteMemRatio' field
 func (st *ConfigState) GetCacheThreadMuteMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.ThreadMuteMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.ThreadMuteMemRatio
 }
 
 // SetCacheThreadMuteMemRatio safely sets the Configuration value for state's 'Cache.ThreadMuteMemRatio' field
 func (st *ConfigState) SetCacheThreadMuteMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.ThreadMuteMemRatio = v
 	st.reloadToViper()
 }
@@ -6619,16 +5748,11 @@ func SetCacheThreadMuteMemRatio(v float64) { global.SetCacheThreadMuteMemRatio(v
 
 // GetCacheTokenMemRatio safely fetches the Configuration value for state's 'Cache.TokenMemRatio' field
 func (st *ConfigState) GetCacheTokenMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.TokenMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.TokenMemRatio
 }
 
 // SetCacheTokenMemRatio safely sets the Configuration value for state's 'Cache.TokenMemRatio' field
 func (st *ConfigState) SetCacheTokenMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.TokenMemRatio = v
 	st.reloadToViper()
 }
@@ -6641,16 +5765,11 @@ func SetCacheTokenMemRatio(v float64) { global.SetCacheTokenMemRatio(v) }
 
 // GetCacheTombstoneMemRatio safely fetches the Configuration value for state's 'Cache.TombstoneMemRatio' field
 func (st *ConfigState) GetCacheTombstoneMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.TombstoneMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.TombstoneMemRatio
 }
 
 // SetCacheTombstoneMemRatio safely sets the Configuration value for state's 'Cache.TombstoneMemRatio' field
 func (st *ConfigState) SetCacheTombstoneMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.TombstoneMemRatio = v
 	st.reloadToViper()
 }
@@ -6663,16 +5782,11 @@ func SetCacheTombstoneMemRatio(v float64) { global.SetCacheTombstoneMemRatio(v) 
 
 // GetCacheUserMemRatio safely fetches the Configuration value for state's 'Cache.UserMemRatio' field
 func (st *ConfigState) GetCacheUserMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.UserMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.UserMemRatio
 }
 
 // SetCacheUserMemRatio safely sets the Configuration value for state's 'Cache.UserMemRatio' field
 func (st *ConfigState) SetCacheUserMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.UserMemRatio = v
 	st.reloadToViper()
 }
@@ -6685,16 +5799,11 @@ func SetCacheUserMemRatio(v float64) { global.SetCacheUserMemRatio(v) }
 
 // GetCacheUserMuteMemRatio safely fetches the Configuration value for state's 'Cache.UserMuteMemRatio' field
 func (st *ConfigState) GetCacheUserMuteMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.UserMuteMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.UserMuteMemRatio
 }
 
 // SetCacheUserMuteMemRatio safely sets the Configuration value for state's 'Cache.UserMuteMemRatio' field
 func (st *ConfigState) SetCacheUserMuteMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.UserMuteMemRatio = v
 	st.reloadToViper()
 }
@@ -6707,16 +5816,11 @@ func SetCacheUserMuteMemRatio(v float64) { global.SetCacheUserMuteMemRatio(v) }
 
 // GetCacheUserMuteIDsMemRatio safely fetches the Configuration value for state's 'Cache.UserMuteIDsMemRatio' field
 func (st *ConfigState) GetCacheUserMuteIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.UserMuteIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.UserMuteIDsMemRatio
 }
 
 // SetCacheUserMuteIDsMemRatio safely sets the Configuration value for state's 'Cache.UserMuteIDsMemRatio' field
 func (st *ConfigState) SetCacheUserMuteIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.UserMuteIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -6729,16 +5833,11 @@ func SetCacheUserMuteIDsMemRatio(v float64) { global.SetCacheUserMuteIDsMemRatio
 
 // GetCacheWebfingerMemRatio safely fetches the Configuration value for state's 'Cache.WebfingerMemRatio' field
 func (st *ConfigState) GetCacheWebfingerMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.WebfingerMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.WebfingerMemRatio
 }
 
 // SetCacheWebfingerMemRatio safely sets the Configuration value for state's 'Cache.WebfingerMemRatio' field
 func (st *ConfigState) SetCacheWebfingerMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.WebfingerMemRatio = v
 	st.reloadToViper()
 }
@@ -6751,16 +5850,11 @@ func SetCacheWebfingerMemRatio(v float64) { global.SetCacheWebfingerMemRatio(v) 
 
 // GetCacheWebPushSubscriptionMemRatio safely fetches the Configuration value for state's 'Cache.WebPushSubscriptionMemRatio' field
 func (st *ConfigState) GetCacheWebPushSubscriptionMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.WebPushSubscriptionMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.WebPushSubscriptionMemRatio
 }
 
 // SetCacheWebPushSubscriptionMemRatio safely sets the Configuration value for state's 'Cache.WebPushSubscriptionMemRatio' field
 func (st *ConfigState) SetCacheWebPushSubscriptionMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.WebPushSubscriptionMemRatio = v
 	st.reloadToViper()
 }
@@ -6775,16 +5869,11 @@ func SetCacheWebPushSubscriptionMemRatio(v float64) { global.SetCacheWebPushSubs
 
 // GetCacheWebPushSubscriptionIDsMemRatio safely fetches the Configuration value for state's 'Cache.WebPushSubscriptionIDsMemRatio' field
 func (st *ConfigState) GetCacheWebPushSubscriptionIDsMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.WebPushSubscriptionIDsMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.WebPushSubscriptionIDsMemRatio
 }
 
 // SetCacheWebPushSubscriptionIDsMemRatio safely sets the Configuration value for state's 'Cache.WebPushSubscriptionIDsMemRatio' field
 func (st *ConfigState) SetCacheWebPushSubscriptionIDsMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.WebPushSubscriptionIDsMemRatio = v
 	st.reloadToViper()
 }
@@ -6801,16 +5890,11 @@ func SetCacheWebPushSubscriptionIDsMemRatio(v float64) {
 
 // GetCacheMutesMemRatio safely fetches the Configuration value for state's 'Cache.MutesMemRatio' field
 func (st *ConfigState) GetCacheMutesMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.MutesMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.MutesMemRatio
 }
 
 // SetCacheMutesMemRatio safely sets the Configuration value for state's 'Cache.MutesMemRatio' field
 func (st *ConfigState) SetCacheMutesMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.MutesMemRatio = v
 	st.reloadToViper()
 }
@@ -6823,16 +5907,11 @@ func SetCacheMutesMemRatio(v float64) { global.SetCacheMutesMemRatio(v) }
 
 // GetCacheStatusFilterMemRatio safely fetches the Configuration value for state's 'Cache.StatusFilterMemRatio' field
 func (st *ConfigState) GetCacheStatusFilterMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.StatusFilterMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.StatusFilterMemRatio
 }
 
 // SetCacheStatusFilterMemRatio safely sets the Configuration value for state's 'Cache.StatusFilterMemRatio' field
 func (st *ConfigState) SetCacheStatusFilterMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.StatusFilterMemRatio = v
 	st.reloadToViper()
 }
@@ -6845,16 +5924,11 @@ func SetCacheStatusFilterMemRatio(v float64) { global.SetCacheStatusFilterMemRat
 
 // GetCacheVisibilityMemRatio safely fetches the Configuration value for state's 'Cache.VisibilityMemRatio' field
 func (st *ConfigState) GetCacheVisibilityMemRatio() (v float64) {
-	st.mutex.RLock()
-	v = st.config.Cache.VisibilityMemRatio
-	st.mutex.RUnlock()
-	return
+	return st.config.Cache.VisibilityMemRatio
 }
 
 // SetCacheVisibilityMemRatio safely sets the Configuration value for state's 'Cache.VisibilityMemRatio' field
 func (st *ConfigState) SetCacheVisibilityMemRatio(v float64) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.Cache.VisibilityMemRatio = v
 	st.reloadToViper()
 }
@@ -6867,16 +5941,11 @@ func SetCacheVisibilityMemRatio(v float64) { global.SetCacheVisibilityMemRatio(v
 
 // GetAdminAccountUsername safely fetches the Configuration value for state's 'AdminAccountUsername' field
 func (st *ConfigState) GetAdminAccountUsername() (v string) {
-	st.mutex.RLock()
-	v = st.config.AdminAccountUsername
-	st.mutex.RUnlock()
-	return
+	return st.config.AdminAccountUsername
 }
 
 // SetAdminAccountUsername safely sets the Configuration value for state's 'AdminAccountUsername' field
 func (st *ConfigState) SetAdminAccountUsername(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AdminAccountUsername = v
 	st.reloadToViper()
 }
@@ -6889,16 +5958,11 @@ func SetAdminAccountUsername(v string) { global.SetAdminAccountUsername(v) }
 
 // GetAdminAccountEmail safely fetches the Configuration value for state's 'AdminAccountEmail' field
 func (st *ConfigState) GetAdminAccountEmail() (v string) {
-	st.mutex.RLock()
-	v = st.config.AdminAccountEmail
-	st.mutex.RUnlock()
-	return
+	return st.config.AdminAccountEmail
 }
 
 // SetAdminAccountEmail safely sets the Configuration value for state's 'AdminAccountEmail' field
 func (st *ConfigState) SetAdminAccountEmail(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AdminAccountEmail = v
 	st.reloadToViper()
 }
@@ -6911,16 +5975,11 @@ func SetAdminAccountEmail(v string) { global.SetAdminAccountEmail(v) }
 
 // GetAdminAccountPassword safely fetches the Configuration value for state's 'AdminAccountPassword' field
 func (st *ConfigState) GetAdminAccountPassword() (v string) {
-	st.mutex.RLock()
-	v = st.config.AdminAccountPassword
-	st.mutex.RUnlock()
-	return
+	return st.config.AdminAccountPassword
 }
 
 // SetAdminAccountPassword safely sets the Configuration value for state's 'AdminAccountPassword' field
 func (st *ConfigState) SetAdminAccountPassword(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AdminAccountPassword = v
 	st.reloadToViper()
 }
@@ -6933,16 +5992,11 @@ func SetAdminAccountPassword(v string) { global.SetAdminAccountPassword(v) }
 
 // GetAdminTransPath safely fetches the Configuration value for state's 'AdminTransPath' field
 func (st *ConfigState) GetAdminTransPath() (v string) {
-	st.mutex.RLock()
-	v = st.config.AdminTransPath
-	st.mutex.RUnlock()
-	return
+	return st.config.AdminTransPath
 }
 
 // SetAdminTransPath safely sets the Configuration value for state's 'AdminTransPath' field
 func (st *ConfigState) SetAdminTransPath(v string) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AdminTransPath = v
 	st.reloadToViper()
 }
@@ -6955,16 +6009,11 @@ func SetAdminTransPath(v string) { global.SetAdminTransPath(v) }
 
 // GetAdminMediaPruneDryRun safely fetches the Configuration value for state's 'AdminMediaPruneDryRun' field
 func (st *ConfigState) GetAdminMediaPruneDryRun() (v bool) {
-	st.mutex.RLock()
-	v = st.config.AdminMediaPruneDryRun
-	st.mutex.RUnlock()
-	return
+	return st.config.AdminMediaPruneDryRun
 }
 
 // SetAdminMediaPruneDryRun safely sets the Configuration value for state's 'AdminMediaPruneDryRun' field
 func (st *ConfigState) SetAdminMediaPruneDryRun(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AdminMediaPruneDryRun = v
 	st.reloadToViper()
 }
@@ -6977,16 +6026,11 @@ func SetAdminMediaPruneDryRun(v bool) { global.SetAdminMediaPruneDryRun(v) }
 
 // GetAdminMediaListLocalOnly safely fetches the Configuration value for state's 'AdminMediaListLocalOnly' field
 func (st *ConfigState) GetAdminMediaListLocalOnly() (v bool) {
-	st.mutex.RLock()
-	v = st.config.AdminMediaListLocalOnly
-	st.mutex.RUnlock()
-	return
+	return st.config.AdminMediaListLocalOnly
 }
 
 // SetAdminMediaListLocalOnly safely sets the Configuration value for state's 'AdminMediaListLocalOnly' field
 func (st *ConfigState) SetAdminMediaListLocalOnly(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AdminMediaListLocalOnly = v
 	st.reloadToViper()
 }
@@ -6999,16 +6043,11 @@ func SetAdminMediaListLocalOnly(v bool) { global.SetAdminMediaListLocalOnly(v) }
 
 // GetAdminMediaListRemoteOnly safely fetches the Configuration value for state's 'AdminMediaListRemoteOnly' field
 func (st *ConfigState) GetAdminMediaListRemoteOnly() (v bool) {
-	st.mutex.RLock()
-	v = st.config.AdminMediaListRemoteOnly
-	st.mutex.RUnlock()
-	return
+	return st.config.AdminMediaListRemoteOnly
 }
 
 // SetAdminMediaListRemoteOnly safely sets the Configuration value for state's 'AdminMediaListRemoteOnly' field
 func (st *ConfigState) SetAdminMediaListRemoteOnly(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.AdminMediaListRemoteOnly = v
 	st.reloadToViper()
 }
@@ -7021,16 +6060,11 @@ func SetAdminMediaListRemoteOnly(v bool) { global.SetAdminMediaListRemoteOnly(v)
 
 // GetTestrigSkipDBSetup safely fetches the Configuration value for state's 'TestrigSkipDBSetup' field
 func (st *ConfigState) GetTestrigSkipDBSetup() (v bool) {
-	st.mutex.RLock()
-	v = st.config.TestrigSkipDBSetup
-	st.mutex.RUnlock()
-	return
+	return st.config.TestrigSkipDBSetup
 }
 
 // SetTestrigSkipDBSetup safely sets the Configuration value for state's 'TestrigSkipDBSetup' field
 func (st *ConfigState) SetTestrigSkipDBSetup(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.TestrigSkipDBSetup = v
 	st.reloadToViper()
 }
@@ -7043,16 +6077,11 @@ func SetTestrigSkipDBSetup(v bool) { global.SetTestrigSkipDBSetup(v) }
 
 // GetTestrigSkipDBTeardown safely fetches the Configuration value for state's 'TestrigSkipDBTeardown' field
 func (st *ConfigState) GetTestrigSkipDBTeardown() (v bool) {
-	st.mutex.RLock()
-	v = st.config.TestrigSkipDBTeardown
-	st.mutex.RUnlock()
-	return
+	return st.config.TestrigSkipDBTeardown
 }
 
 // SetTestrigSkipDBTeardown safely sets the Configuration value for state's 'TestrigSkipDBTeardown' field
 func (st *ConfigState) SetTestrigSkipDBTeardown(v bool) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	st.config.TestrigSkipDBTeardown = v
 	st.reloadToViper()
 }
@@ -7065,7 +6094,6 @@ func SetTestrigSkipDBTeardown(v bool) { global.SetTestrigSkipDBTeardown(v) }
 
 // GetTotalOfMemRatios safely fetches the combined value for all the state's mem ratio fields
 func (st *ConfigState) GetTotalOfMemRatios() (total float64) {
-	st.mutex.RLock()
 	total += st.config.Cache.AccountMemRatio
 	total += st.config.Cache.AccountNoteMemRatio
 	total += st.config.Cache.AccountSettingsMemRatio
@@ -7134,7 +6162,6 @@ func (st *ConfigState) GetTotalOfMemRatios() (total float64) {
 	total += st.config.Cache.MutesMemRatio
 	total += st.config.Cache.StatusFilterMemRatio
 	total += st.config.Cache.VisibilityMemRatio
-	st.mutex.RUnlock()
 	return
 }
 
@@ -7439,6 +6466,39 @@ func flattenConfigMap(cfgmap map[string]any) {
 		ival, ok := mapGet(cfgmap, key...)
 		if ok {
 			cfgmap["cache-s3-object-info"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"cache", "home-timeline-size"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["cache-home-timeline-size"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"cache", "list-timeline-size"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["cache-list-timeline-size"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"cache", "tag-timeline-size"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["cache-tag-timeline-size"] = ival
 			nestedKeys[key[0]] = struct{}{}
 			break
 		}

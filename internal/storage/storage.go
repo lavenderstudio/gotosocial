@@ -246,7 +246,7 @@ func NewS3Storage() (*Driver, error) {
 
 	// Check if an S3 object info cache was requested.
 	if cap := config.GetCacheS3ObjectInfo(); cap > 0 {
-		objCache = s3cache.New(0, cap)
+		objCache = s3cache.New(0, int(cap))
 	}
 
 	// Open the s3 storage backend with configuration.

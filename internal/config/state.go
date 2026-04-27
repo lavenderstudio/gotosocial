@@ -21,7 +21,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"sync"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -33,7 +32,6 @@ import (
 type ConfigState struct { //nolint
 	viper  *viper.Viper
 	config Configuration
-	mutex  sync.RWMutex
 }
 
 // NewState returns a new initialized ConfigState instance.
@@ -46,8 +44,6 @@ func NewState() *ConfigState {
 // Config provides safe access to the ConfigState's contained Configuration,
 // and will reload the current Configuration back into viper settings.
 func (st *ConfigState) Config(fn func(*Configuration)) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	fn(&st.config)
 	st.reloadToViper()
 }
@@ -55,17 +51,13 @@ func (st *ConfigState) Config(fn func(*Configuration)) {
 // Viper provides safe access to the ConfigState's contained viper instance,
 // and will reload the current viper setting state back into Configuration.
 func (st *ConfigState) Viper(fn func(*viper.Viper)) {
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 	fn(st.viper)
 	st.reloadFromViper()
 }
 
 // RegisterGlobalFlags ...
 func (st *ConfigState) RegisterGlobalFlags(root *cobra.Command) {
-	st.mutex.RLock()
 	st.config.RegisterFlags(root.PersistentFlags())
-	st.mutex.RUnlock()
 }
 
 // BindFlags will bind given Cobra command's pflags to this ConfigState's viper instance.
@@ -101,9 +93,6 @@ func (st *ConfigState) LoadConfigFile() (err error) {
 // Reset will totally clear
 // ConfigState{}, loading defaults.
 func (st *ConfigState) Reset() {
-	// Do within lock.
-	st.mutex.Lock()
-	defer st.mutex.Unlock()
 
 	// Create new viper.
 	st.viper = viper.New()

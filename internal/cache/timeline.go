@@ -64,31 +64,31 @@ func (c *Caches) initLocalTimeline() {
 }
 
 func (c *Caches) initHomeTimelines() {
-	// TODO: configurable
-	cap := 800
+	cap := config.GetCacheHomeTimelineSize()
+	cap = max(100, cap) // clamp to min=100
 
 	timeout := config.GetCacheHomeTimelineTimeout()
 	log.Infof(nil, "cache size = %d, timeout = %s", cap, timeout)
 
-	c.Timelines.Home.Init(cap, timeout)
+	c.Timelines.Home.Init(int(cap), timeout)
 }
 
 func (c *Caches) initListTimelines() {
-	// TODO: configurable
-	cap := 800
+	cap := config.GetCacheListTimelineSize()
+	cap = max(100, cap) // clamp to min=100
 
 	timeout := config.GetCacheListTimelineTimeout()
 	log.Infof(nil, "cache size = %d, timeout = %s", cap, timeout)
 
-	c.Timelines.List.Init(cap, timeout)
+	c.Timelines.List.Init(int(cap), timeout)
 }
 
 func (c *Caches) initTagTimelines() {
-	// TODO: configurable
-	cap := 400
+	cap := config.GetCacheTagTimelineSize()
+	cap = max(50, cap) // clamp to min=50
 
 	timeout := config.GetCacheTagTimelineTimeout()
 	log.Infof(nil, "cache size = %d, timeout = %s", cap, timeout)
 
-	c.Timelines.Tag.Init(cap, timeout)
+	c.Timelines.Tag.Init(int(cap), timeout)
 }

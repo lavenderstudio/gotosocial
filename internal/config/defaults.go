@@ -170,6 +170,11 @@ var Defaults = Configuration{
 		// to those on metered S3 to tweak.
 		S3ObjectInfo: 0,
 
+		// Timeline lengths.
+		HomeTimelineSize: 800,
+		ListTimelineSize: 800,
+		TagTimelineSize:  400,
+
 		// Timeline trim eviction timeouts.
 		HomeTimelineTimeout: 6 * time.Hour,
 		ListTimelineTimeout: 2 * time.Hour,

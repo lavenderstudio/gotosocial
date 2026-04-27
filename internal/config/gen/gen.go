@@ -465,15 +465,10 @@ func generateGetSetters(out io.Writer, fields []ConfigField) {
 		// ConfigState structure helper methods
 		fprintf(out, "// Get%s safely fetches the Configuration value for state's '%s' field\n", name, field.Path)
 		fprintf(out, "func (st *ConfigState) Get%s() (v %s) {\n", name, fieldType)
-		fprintf(out, "\tst.mutex.RLock()\n")
-		fprintf(out, "\tv = st.config.%s\n", field.Path)
-		fprintf(out, "\tst.mutex.RUnlock()\n")
-		fprintf(out, "\treturn\n")
+		fprintf(out, "\treturn st.config.%s\n", field.Path)
 		fprintf(out, "}\n\n")
 		fprintf(out, "// Set%s safely sets the Configuration value for state's '%s' field\n", name, field.Path)
 		fprintf(out, "func (st *ConfigState) Set%s(v %s) {\n", name, fieldType)
-		fprintf(out, "\tst.mutex.Lock()\n")
-		fprintf(out, "\tdefer st.mutex.Unlock()\n")
 		fprintf(out, "\tst.config.%s = v\n", field.Path)
 		fprintf(out, "\tst.reloadToViper()\n")
 		fprintf(out, "}\n\n")
@@ -492,11 +487,9 @@ func generateGetSetters(out io.Writer, fields []ConfigField) {
 
 	fprintf(out, "// GetTotalOfMemRatios safely fetches the combined value for all the state's mem ratio fields\n")
 	fprintf(out, "func (st *ConfigState) GetTotalOfMemRatios() (total float64) {\n")
-	fprintf(out, "\tst.mutex.RLock()\n")
 	for _, field := range memFields {
 		fprintf(out, "\ttotal += st.config.%s\n", field.Path)
 	}
-	fprintf(out, "\tst.mutex.RUnlock()\n")
 	fprintf(out, "\treturn\n")
 	fprintf(out, "}\n\n")
 
