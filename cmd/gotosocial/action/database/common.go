@@ -15,23 +15,26 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package migration
+package database
 
 import (
 	"context"
 	"fmt"
 
 	"code.superseriousbusiness.org/gopkg/log"
-	"code.superseriousbusiness.org/gotosocial/cmd/gotosocial/action"
 	"code.superseriousbusiness.org/gotosocial/internal/db/bundb"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
+	"github.com/uptrace/bun"
 )
 
-// check function conformance.
-var _ action.GTSAction = Run
+func Ping(ctx context.Context) error {
+	return do(ctx, func(db *bun.DB) error {
+		log.Info(ctx, "ping")
+		return db.PingContext(ctx)
+	})
+}
 
-// Run will initialize the database, running any available migrations.
-func Run(ctx context.Context) error {
+func do(ctx context.Context, do func(db *bun.DB) error) error {
 	var state state.State
 
 	defer func() {
@@ -55,14 +58,29 @@ func Run(ctx context.Context) error {
 
 	log.Info(ctx, "starting db service...")
 
-	// Open connection to the database now caches started.
-	dbService, err := bundb.NewBunDBService(ctx, &state)
+	// Open conn to database now caches started.
+	db, err := bundb.NewBunDBService(ctx, &state)
 	if err != nil {
 		return fmt.Errorf("error creating dbservice: %w", err)
 	}
 
-	// Set DB on state.
-	state.DB = dbService
+	// Add hook to log executed queries.
+	bundb := db.(*bundb.DBService).DB()
+	bundb = bundb.WithQueryHook(queryHook{})
+
+	// Perform the provided db function.
+	if err := do(bundb); err != nil {
+		return fmt.Errorf("error executing query: %w", err)
+	}
 
 	return nil
 }
+
+type queryHook struct{}
+
+func (h queryHook) BeforeQuery(ctx context.Context, ev *bun.QueryEvent) context.Context {
+	log.InfoKV(ctx, "query", ev.Query)
+	return ctx
+}
+
+func (h queryHook) AfterQuery(_ context.Context, _ *bun.QueryEvent) {}
