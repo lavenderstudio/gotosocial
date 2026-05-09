@@ -8,10 +8,6 @@ var (
 	// zerotime is zero
 	// time.Time (unix epoch).
 	zerotime time.Time
-
-	// emptytiming is a global
-	// timingempty to check against.
-	emptytiming timingempty
 )
 
 // Timing provides scheduling for a Job, determining the next time
@@ -22,12 +18,16 @@ type Timing interface {
 	Next(time.Time) time.Time
 }
 
-// timingempty is a 'zero' Timing implementation
-// that always returns zero time.
-type timingempty struct{}
+// immediately is a default Timing implementation
+// that fires once immediately, then never again.
+type immediately struct{ done bool }
 
-func (timingempty) Next(time.Time) time.Time {
-	return zerotime
+func (t *immediately) Next(now time.Time) time.Time {
+	if t.done {
+		return zerotime
+	}
+	t.done = true
+	return now
 }
 
 // Once implements Timing to

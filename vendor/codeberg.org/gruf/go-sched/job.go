@@ -27,7 +27,7 @@ func NewJob(fn func(now time.Time)) *Job {
 	}
 
 	j := &Job{ // set defaults
-		timing: emptytiming, // i.e. fire immediately
+		timing: &immediately{},
 		call:   fn,
 	}
 
@@ -65,7 +65,7 @@ func (job *Job) With(t Timing) *Job {
 		panic("job already scheduled")
 	}
 
-	if job.timing == emptytiming {
+	if _, ok := job.timing.(*immediately); ok {
 		// Set new timing
 		job.timing = t
 	} else {

@@ -52,7 +52,7 @@ func (sch *Scheduler) Start() bool {
 		// Prepare new channel.
 		ch := new(channel)
 		ch.ctx = ctx.Done()
-		ch.ch = make(chan interface{})
+		ch.ch = make(chan any)
 		sch.jch.Store(ch)
 
 		// Release
@@ -231,6 +231,12 @@ func (sch *Scheduler) handle(v interface{}) {
 		// Update next call time.
 		next := v.timing.Next(now)
 		v.next.Store(next)
+
+		if next.IsZero() {
+			// Job could
+			// never run.
+			return
+		}
 
 		// Append this job to queued/
 		sch.jobs = append(sch.jobs, v)
