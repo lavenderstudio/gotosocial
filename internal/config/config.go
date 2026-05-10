@@ -173,6 +173,9 @@ type Configuration struct {
 	// Advanced flags.
 	Advanced AdvancedConfig `name:"advanced"`
 
+	// HTTPServer configuration vars.
+	HTTPServer HTTPServerConfiguration `name:"http-server"`
+
 	// HTTPClient configuration vars.
 	HTTPClient HTTPClientConfiguration `name:"http-client"`
 
@@ -183,15 +186,39 @@ type Configuration struct {
 	Cache CacheConfiguration `name:"cache"`
 
 	// TODO: move these elsewhere, these are more ephemeral vs long-running flags like above
-	AdminAccountUsername     string `name:"username" usage:"the username to create/delete/etc" ephemeral:"yes"`
-	AdminAccountEmail        string `name:"email" usage:"the email address of this account" ephemeral:"yes"`
-	AdminAccountPassword     string `name:"password" usage:"the password to set for this account" ephemeral:"yes"`
-	AdminTransPath           string `name:"path" usage:"the path of the file to import from/export to" ephemeral:"yes"`
-	AdminMediaPruneDryRun    bool   `name:"dry-run" usage:"perform a dry run and only log number of items eligible for pruning" ephemeral:"yes"`
-	AdminMediaListLocalOnly  bool   `name:"local-only" usage:"list only local attachments/emojis; if specified then remote-only cannot also be true" ephemeral:"yes"`
-	AdminMediaListRemoteOnly bool   `name:"remote-only" usage:"list only remote attachments/emojis; if specified then local-only cannot also be true" ephemeral:"yes"`
-	TestrigSkipDBSetup       bool   `name:"skip-db-setup" usage:"skip testrig database setup with population of test models" ephemeral:"yes"`
-	TestrigSkipDBTeardown    bool   `name:"skip-db-teardown" usage:"skip testrig database teardown (i.e. data deletion and tables dropped)" ephemeral:"yes"`
+	AdminAccountUsername     string `name:"username" usage:"the username to create/delete/etc" nocli:"yes"`
+	AdminAccountEmail        string `name:"email" usage:"the email address of this account" nocli:"yes"`
+	AdminAccountPassword     string `name:"password" usage:"the password to set for this account" nocli:"yes"`
+	AdminTransPath           string `name:"path" usage:"the path of the file to import from/export to" nocli:"yes"`
+	AdminMediaPruneDryRun    bool   `name:"dry-run" usage:"perform a dry run and only log number of items eligible for pruning" nocli:"yes"`
+	AdminMediaListLocalOnly  bool   `name:"local-only" usage:"list only local attachments/emojis; if specified then remote-only cannot also be true" nocli:"yes"`
+	AdminMediaListRemoteOnly bool   `name:"remote-only" usage:"list only remote attachments/emojis; if specified then local-only cannot also be true" nocli:"yes"`
+	TestrigSkipDBSetup       bool   `name:"skip-db-setup" usage:"skip testrig database setup with population of test models" nocli:"yes"`
+	TestrigSkipDBTeardown    bool   `name:"skip-db-teardown" usage:"skip testrig database teardown (i.e. data deletion and tables dropped)" nocli:"yes"`
+}
+
+type HTTPServerConfiguration struct {
+	// gin.Engine{} internal configuration.
+	MaxMultipartMemory bytesize.Size `name:"max-multipart-memory"`
+	UseH2C             bool          `name:"use-h2c"`
+
+	// http.Server{} internal configuration.
+	ReadTimeout       time.Duration `name:"read-timeout"`
+	ReadHeaderTimeout time.Duration `name:"read-header-timeout"`
+	WriteTimeout      time.Duration `name:"write-timeout"`
+	IdleTimeout       time.Duration `name:"idle-timeout"`
+	MaxHeaderBytes    bytesize.Size `name:"max-header-bytes"`
+
+	// http.HTTP2Config{} internal configuration.
+	MaxConcurrentStreams          int           `name:"max-concurrent-streams"`
+	MaxDecoderHeaderTableSize     bytesize.Size `name:"max-decoder-header-table-size"`
+	MaxEncoderHeaderTableSize     bytesize.Size `name:"max-encoder-header-table-size"`
+	MaxReadFrameSize              bytesize.Size `name:"max-read-frame-size"`
+	MaxReceiveBufferPerConnection bytesize.Size `name:"max-receive-buffer-per-connection"`
+	MaxReceiveBufferPerStream     bytesize.Size `name:"max-receive-buffer-per-stream"`
+	SendPingTimeout               time.Duration `name:"send-ping-timeout"`
+	PingTimeout                   time.Duration `name:"ping-timeout"`
+	WriteByteTimeout              time.Duration `name:"write-byte-timeout"`
 }
 
 type HTTPClientConfiguration struct {
@@ -200,6 +227,18 @@ type HTTPClientConfiguration struct {
 	Timeout               time.Duration `name:"timeout"`
 	TLSInsecureSkipVerify bool          `name:"tls-insecure-skip-verify"`
 	InsecureOutgoing      bool          `name:"insecure-outgoing"`
+
+	// http.Transport{} internal configuration.
+	DisableKeepAlives     bool          `name:"disable-keep-alives"`
+	MaxIdleConns          int           `name:"max-idle-conns"`
+	MaxIdleConnsPerHost   int           `name:"max-idle-conns-per-host"`
+	MaxOpenConnsPerHost   int           `name:"max-open-conns-per-host"`
+	MaxConnsPerHost       int           `name:"max-conns-per-host"`
+	IdleConnTimeout       time.Duration `name:"idle-conn-timeout"`
+	TLSHandshakeTimeout   time.Duration `name:"tls-handshake-timeout"`
+	ResponseHeaderTimeout time.Duration `name:"response-header-timeout"`
+	ReadBufferSize        bytesize.Size `name:"read-buffer-size"`
+	WriteBufferSize       bytesize.Size `name:"write-buffer-size"`
 }
 
 type MediaConfiguration struct {
@@ -214,7 +253,7 @@ type MediaConfiguration struct {
 	RemoteMaxSize       bytesize.Size `name:"remote-max-size" usage:"Max size in bytes of media to download from other instances"`
 	CleanupFrom         string        `name:"cleanup-from" usage:"Time of day from which to start running media cleanup/prune jobs. Should be in the format 'hh:mm:ss', eg., '15:04:05'."`
 	CleanupEvery        time.Duration `name:"cleanup-every" usage:"Period to elapse between cleanups, starting from media-cleanup-at."`
-	FfmpegPoolSize      int           `name:"ffmpeg-pool-size" usage:"Number of instances of the embedded ffmpeg WASM binary to add to the media processing pool. 0 or less uses GOMAXPROCS."`
+	FfmpegPoolSize      int           `name:"ffmpeg-pool-size" usage:"Number of concurrent running instances of ffmpeg to permit. 0 or less uses GOMAXPROCS."`
 	ThumbMaxPixels      int           `name:"thumb-max-pixels" usage:"Max size in pixels of any one dimension of a thumbnail (as input media ratio is preserved)."`
 }
 

@@ -269,11 +269,44 @@ var Defaults = Configuration{
 		VisibilityMemRatio:                   2,
 	},
 
+	HTTPServer: HTTPServerConfiguration{
+		MaxMultipartMemory: 40 * bytesize.MiB,
+		UseH2C:             false, // default
+
+		ReadTimeout:       60 * time.Second,
+		ReadHeaderTimeout: 0, // default
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       30 * time.Second,
+		MaxHeaderBytes:    0, // default
+
+		MaxConcurrentStreams:          0, // default
+		MaxDecoderHeaderTableSize:     0, // default
+		MaxEncoderHeaderTableSize:     0, // default
+		MaxReadFrameSize:              0, // default
+		MaxReceiveBufferPerConnection: 0, // default
+		MaxReceiveBufferPerStream:     0, // default
+		SendPingTimeout:               0, // default
+		PingTimeout:                   0, // default
+		WriteByteTimeout:              0, // default
+	},
+
 	HTTPClient: HTTPClientConfiguration{
 		AllowIPs:              make([]string, 0),
 		BlockIPs:              make([]string, 0),
-		Timeout:               30 * time.Second,
+		Timeout:               time.Minute,
 		TLSInsecureSkipVerify: false,
+		InsecureOutgoing:      false,
+
+		DisableKeepAlives:     false, // default
+		MaxIdleConns:          0,     // default
+		MaxIdleConnsPerHost:   0,     // default
+		MaxOpenConnsPerHost:   0,     // default
+		MaxConnsPerHost:       0,     // default
+		IdleConnTimeout:       0,     // default
+		TLSHandshakeTimeout:   0,     // default
+		ResponseHeaderTimeout: 0,     // default
+		ReadBufferSize:        0,     // default
+		WriteBufferSize:       0,     // default
 	},
 
 	AdminMediaPruneDryRun: true,

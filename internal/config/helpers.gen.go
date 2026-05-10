@@ -140,11 +140,37 @@ const (
 	AdvancedRateLimitExceptionsFlag               = "advanced-rate-limit-exceptions"
 	AdvancedThrottlingMultiplierFlag              = "advanced-throttling-multiplier"
 	AdvancedThrottlingRetryAfterFlag              = "advanced-throttling-retry-after"
+	HTTPServerMaxMultipartMemoryFlag              = "http-server-max-multipart-memory"
+	HTTPServerUseH2CFlag                          = "http-server-use-h2c"
+	HTTPServerReadTimeoutFlag                     = "http-server-read-timeout"
+	HTTPServerReadHeaderTimeoutFlag               = "http-server-read-header-timeout"
+	HTTPServerWriteTimeoutFlag                    = "http-server-write-timeout"
+	HTTPServerIdleTimeoutFlag                     = "http-server-idle-timeout"
+	HTTPServerMaxHeaderBytesFlag                  = "http-server-max-header-bytes"
+	HTTPServerMaxConcurrentStreamsFlag            = "http-server-max-concurrent-streams"
+	HTTPServerMaxDecoderHeaderTableSizeFlag       = "http-server-max-decoder-header-table-size"
+	HTTPServerMaxEncoderHeaderTableSizeFlag       = "http-server-max-encoder-header-table-size"
+	HTTPServerMaxReadFrameSizeFlag                = "http-server-max-read-frame-size"
+	HTTPServerMaxReceiveBufferPerConnectionFlag   = "http-server-max-receive-buffer-per-connection"
+	HTTPServerMaxReceiveBufferPerStreamFlag       = "http-server-max-receive-buffer-per-stream"
+	HTTPServerSendPingTimeoutFlag                 = "http-server-send-ping-timeout"
+	HTTPServerPingTimeoutFlag                     = "http-server-ping-timeout"
+	HTTPServerWriteByteTimeoutFlag                = "http-server-write-byte-timeout"
 	HTTPClientAllowIPsFlag                        = "http-client-allow-ips"
 	HTTPClientBlockIPsFlag                        = "http-client-block-ips"
 	HTTPClientTimeoutFlag                         = "http-client-timeout"
 	HTTPClientTLSInsecureSkipVerifyFlag           = "http-client-tls-insecure-skip-verify"
 	HTTPClientInsecureOutgoingFlag                = "http-client-insecure-outgoing"
+	HTTPClientDisableKeepAlivesFlag               = "http-client-disable-keep-alives"
+	HTTPClientMaxIdleConnsFlag                    = "http-client-max-idle-conns"
+	HTTPClientMaxIdleConnsPerHostFlag             = "http-client-max-idle-conns-per-host"
+	HTTPClientMaxOpenConnsPerHostFlag             = "http-client-max-open-conns-per-host"
+	HTTPClientMaxConnsPerHostFlag                 = "http-client-max-conns-per-host"
+	HTTPClientIdleConnTimeoutFlag                 = "http-client-idle-conn-timeout"
+	HTTPClientTLSHandshakeTimeoutFlag             = "http-client-tls-handshake-timeout"
+	HTTPClientResponseHeaderTimeoutFlag           = "http-client-response-header-timeout"
+	HTTPClientReadBufferSizeFlag                  = "http-client-read-buffer-size"
+	HTTPClientWriteBufferSizeFlag                 = "http-client-write-buffer-size"
 	MediaDescriptionMinCharsFlag                  = "media-description-min-chars"
 	MediaDescriptionMaxCharsFlag                  = "media-description-max-chars"
 	MediaRemoteCacheDaysFlag                      = "media-remote-cache-days"
@@ -357,11 +383,37 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringSlice("advanced-rate-limit-exceptions", cfg.Advanced.RateLimit.Exceptions.Strings(), "Slice of CIDRs to exclude from rate limit restrictions.")
 	flags.Int("advanced-throttling-multiplier", cfg.Advanced.Throttling.Multiplier, "Multiplier to use per cpu for http request throttling. 0 or less turns throttling off.")
 	flags.Duration("advanced-throttling-retry-after", cfg.Advanced.Throttling.RetryAfter, "Retry-After duration response to send for throttled requests.")
+	flags.String("http-server-max-multipart-memory", cfg.HTTPServer.MaxMultipartMemory.String(), "")
+	flags.Bool("http-server-use-h2c", cfg.HTTPServer.UseH2C, "")
+	flags.Duration("http-server-read-timeout", cfg.HTTPServer.ReadTimeout, "")
+	flags.Duration("http-server-read-header-timeout", cfg.HTTPServer.ReadHeaderTimeout, "")
+	flags.Duration("http-server-write-timeout", cfg.HTTPServer.WriteTimeout, "")
+	flags.Duration("http-server-idle-timeout", cfg.HTTPServer.IdleTimeout, "")
+	flags.String("http-server-max-header-bytes", cfg.HTTPServer.MaxHeaderBytes.String(), "")
+	flags.Int("http-server-max-concurrent-streams", cfg.HTTPServer.MaxConcurrentStreams, "")
+	flags.String("http-server-max-decoder-header-table-size", cfg.HTTPServer.MaxDecoderHeaderTableSize.String(), "")
+	flags.String("http-server-max-encoder-header-table-size", cfg.HTTPServer.MaxEncoderHeaderTableSize.String(), "")
+	flags.String("http-server-max-read-frame-size", cfg.HTTPServer.MaxReadFrameSize.String(), "")
+	flags.String("http-server-max-receive-buffer-per-connection", cfg.HTTPServer.MaxReceiveBufferPerConnection.String(), "")
+	flags.String("http-server-max-receive-buffer-per-stream", cfg.HTTPServer.MaxReceiveBufferPerStream.String(), "")
+	flags.Duration("http-server-send-ping-timeout", cfg.HTTPServer.SendPingTimeout, "")
+	flags.Duration("http-server-ping-timeout", cfg.HTTPServer.PingTimeout, "")
+	flags.Duration("http-server-write-byte-timeout", cfg.HTTPServer.WriteByteTimeout, "")
 	flags.StringSlice("http-client-allow-ips", cfg.HTTPClient.AllowIPs, "")
 	flags.StringSlice("http-client-block-ips", cfg.HTTPClient.BlockIPs, "")
 	flags.Duration("http-client-timeout", cfg.HTTPClient.Timeout, "")
 	flags.Bool("http-client-tls-insecure-skip-verify", cfg.HTTPClient.TLSInsecureSkipVerify, "")
 	flags.Bool("http-client-insecure-outgoing", cfg.HTTPClient.InsecureOutgoing, "")
+	flags.Bool("http-client-disable-keep-alives", cfg.HTTPClient.DisableKeepAlives, "")
+	flags.Int("http-client-max-idle-conns", cfg.HTTPClient.MaxIdleConns, "")
+	flags.Int("http-client-max-idle-conns-per-host", cfg.HTTPClient.MaxIdleConnsPerHost, "")
+	flags.Int("http-client-max-open-conns-per-host", cfg.HTTPClient.MaxOpenConnsPerHost, "")
+	flags.Int("http-client-max-conns-per-host", cfg.HTTPClient.MaxConnsPerHost, "")
+	flags.Duration("http-client-idle-conn-timeout", cfg.HTTPClient.IdleConnTimeout, "")
+	flags.Duration("http-client-tls-handshake-timeout", cfg.HTTPClient.TLSHandshakeTimeout, "")
+	flags.Duration("http-client-response-header-timeout", cfg.HTTPClient.ResponseHeaderTimeout, "")
+	flags.String("http-client-read-buffer-size", cfg.HTTPClient.ReadBufferSize.String(), "")
+	flags.String("http-client-write-buffer-size", cfg.HTTPClient.WriteBufferSize.String(), "")
 	flags.Int("media-description-min-chars", cfg.Media.DescriptionMinChars, "Min required chars for an image description")
 	flags.Int("media-description-max-chars", cfg.Media.DescriptionMaxChars, "Max permitted chars for an image description")
 	flags.Int("media-remote-cache-days", cfg.Media.RemoteCacheDays, "Number of days to locally cache media from remote instances. If set to 0, remote media will be kept indefinitely.")
@@ -373,7 +425,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.String("media-remote-max-size", cfg.Media.RemoteMaxSize.String(), "Max size in bytes of media to download from other instances")
 	flags.String("media-cleanup-from", cfg.Media.CleanupFrom, "Time of day from which to start running media cleanup/prune jobs. Should be in the format 'hh:mm:ss', eg., '15:04:05'.")
 	flags.Duration("media-cleanup-every", cfg.Media.CleanupEvery, "Period to elapse between cleanups, starting from media-cleanup-at.")
-	flags.Int("media-ffmpeg-pool-size", cfg.Media.FfmpegPoolSize, "Number of instances of the embedded ffmpeg WASM binary to add to the media processing pool. 0 or less uses GOMAXPROCS.")
+	flags.Int("media-ffmpeg-pool-size", cfg.Media.FfmpegPoolSize, "Number of concurrent running instances of ffmpeg to permit. 0 or less uses GOMAXPROCS.")
 	flags.Int("media-thumb-max-pixels", cfg.Media.ThumbMaxPixels, "Max size in pixels of any one dimension of a thumbnail (as input media ratio is preserved).")
 	flags.Uint32("cache-s3-object-info", cfg.Cache.S3ObjectInfo, "Enables caching of S3 object information in the storage driver to reduce S3 calls, value is cache capacity.")
 	flags.Uint32("cache-home-timeline-size", cfg.Cache.HomeTimelineSize, "Per-user home timeline cache length, in number of posts. (minimum = 100)")
@@ -454,7 +506,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 }
 
 func (cfg *Configuration) MarshalMap() map[string]any {
-	cfgmap := make(map[string]any, 214)
+	cfgmap := make(map[string]any, 240)
 	cfgmap["log-level"] = cfg.LogLevel
 	cfgmap["log-format"] = cfg.LogFormat
 	cfgmap["log-timestamp-format"] = cfg.LogTimestampFormat
@@ -566,11 +618,37 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["advanced-rate-limit-exceptions"] = cfg.Advanced.RateLimit.Exceptions.Strings()
 	cfgmap["advanced-throttling-multiplier"] = cfg.Advanced.Throttling.Multiplier
 	cfgmap["advanced-throttling-retry-after"] = cfg.Advanced.Throttling.RetryAfter
+	cfgmap["http-server-max-multipart-memory"] = cfg.HTTPServer.MaxMultipartMemory.String()
+	cfgmap["http-server-use-h2c"] = cfg.HTTPServer.UseH2C
+	cfgmap["http-server-read-timeout"] = cfg.HTTPServer.ReadTimeout
+	cfgmap["http-server-read-header-timeout"] = cfg.HTTPServer.ReadHeaderTimeout
+	cfgmap["http-server-write-timeout"] = cfg.HTTPServer.WriteTimeout
+	cfgmap["http-server-idle-timeout"] = cfg.HTTPServer.IdleTimeout
+	cfgmap["http-server-max-header-bytes"] = cfg.HTTPServer.MaxHeaderBytes.String()
+	cfgmap["http-server-max-concurrent-streams"] = cfg.HTTPServer.MaxConcurrentStreams
+	cfgmap["http-server-max-decoder-header-table-size"] = cfg.HTTPServer.MaxDecoderHeaderTableSize.String()
+	cfgmap["http-server-max-encoder-header-table-size"] = cfg.HTTPServer.MaxEncoderHeaderTableSize.String()
+	cfgmap["http-server-max-read-frame-size"] = cfg.HTTPServer.MaxReadFrameSize.String()
+	cfgmap["http-server-max-receive-buffer-per-connection"] = cfg.HTTPServer.MaxReceiveBufferPerConnection.String()
+	cfgmap["http-server-max-receive-buffer-per-stream"] = cfg.HTTPServer.MaxReceiveBufferPerStream.String()
+	cfgmap["http-server-send-ping-timeout"] = cfg.HTTPServer.SendPingTimeout
+	cfgmap["http-server-ping-timeout"] = cfg.HTTPServer.PingTimeout
+	cfgmap["http-server-write-byte-timeout"] = cfg.HTTPServer.WriteByteTimeout
 	cfgmap["http-client-allow-ips"] = cfg.HTTPClient.AllowIPs
 	cfgmap["http-client-block-ips"] = cfg.HTTPClient.BlockIPs
 	cfgmap["http-client-timeout"] = cfg.HTTPClient.Timeout
 	cfgmap["http-client-tls-insecure-skip-verify"] = cfg.HTTPClient.TLSInsecureSkipVerify
 	cfgmap["http-client-insecure-outgoing"] = cfg.HTTPClient.InsecureOutgoing
+	cfgmap["http-client-disable-keep-alives"] = cfg.HTTPClient.DisableKeepAlives
+	cfgmap["http-client-max-idle-conns"] = cfg.HTTPClient.MaxIdleConns
+	cfgmap["http-client-max-idle-conns-per-host"] = cfg.HTTPClient.MaxIdleConnsPerHost
+	cfgmap["http-client-max-open-conns-per-host"] = cfg.HTTPClient.MaxOpenConnsPerHost
+	cfgmap["http-client-max-conns-per-host"] = cfg.HTTPClient.MaxConnsPerHost
+	cfgmap["http-client-idle-conn-timeout"] = cfg.HTTPClient.IdleConnTimeout
+	cfgmap["http-client-tls-handshake-timeout"] = cfg.HTTPClient.TLSHandshakeTimeout
+	cfgmap["http-client-response-header-timeout"] = cfg.HTTPClient.ResponseHeaderTimeout
+	cfgmap["http-client-read-buffer-size"] = cfg.HTTPClient.ReadBufferSize.String()
+	cfgmap["http-client-write-buffer-size"] = cfg.HTTPClient.WriteBufferSize.String()
 	cfgmap["media-description-min-chars"] = cfg.Media.DescriptionMinChars
 	cfgmap["media-description-max-chars"] = cfg.Media.DescriptionMaxChars
 	cfgmap["media-remote-cache-days"] = cfg.Media.RemoteCacheDays
@@ -1582,6 +1660,155 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		}
 	}
 
+	if ival, ok := cfgmap["http-server-max-multipart-memory"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'http-server-max-multipart-memory': %w", ival, err)
+		}
+		cfg.HTTPServer.MaxMultipartMemory = 0x0
+		if err := cfg.HTTPServer.MaxMultipartMemory.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'http-server-max-multipart-memory': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-use-h2c"]; ok {
+		var err error
+		cfg.HTTPServer.UseH2C, err = cast.ToBoolE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> bool for 'http-server-use-h2c': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-read-timeout"]; ok {
+		var err error
+		cfg.HTTPServer.ReadTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-read-timeout': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-read-header-timeout"]; ok {
+		var err error
+		cfg.HTTPServer.ReadHeaderTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-read-header-timeout': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-write-timeout"]; ok {
+		var err error
+		cfg.HTTPServer.WriteTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-write-timeout': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-idle-timeout"]; ok {
+		var err error
+		cfg.HTTPServer.IdleTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-idle-timeout': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-max-header-bytes"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'http-server-max-header-bytes': %w", ival, err)
+		}
+		cfg.HTTPServer.MaxHeaderBytes = 0x0
+		if err := cfg.HTTPServer.MaxHeaderBytes.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'http-server-max-header-bytes': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-max-concurrent-streams"]; ok {
+		var err error
+		cfg.HTTPServer.MaxConcurrentStreams, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> int for 'http-server-max-concurrent-streams': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-max-decoder-header-table-size"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'http-server-max-decoder-header-table-size': %w", ival, err)
+		}
+		cfg.HTTPServer.MaxDecoderHeaderTableSize = 0x0
+		if err := cfg.HTTPServer.MaxDecoderHeaderTableSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'http-server-max-decoder-header-table-size': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-max-encoder-header-table-size"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'http-server-max-encoder-header-table-size': %w", ival, err)
+		}
+		cfg.HTTPServer.MaxEncoderHeaderTableSize = 0x0
+		if err := cfg.HTTPServer.MaxEncoderHeaderTableSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'http-server-max-encoder-header-table-size': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-max-read-frame-size"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'http-server-max-read-frame-size': %w", ival, err)
+		}
+		cfg.HTTPServer.MaxReadFrameSize = 0x0
+		if err := cfg.HTTPServer.MaxReadFrameSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'http-server-max-read-frame-size': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-max-receive-buffer-per-connection"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'http-server-max-receive-buffer-per-connection': %w", ival, err)
+		}
+		cfg.HTTPServer.MaxReceiveBufferPerConnection = 0x0
+		if err := cfg.HTTPServer.MaxReceiveBufferPerConnection.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'http-server-max-receive-buffer-per-connection': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-max-receive-buffer-per-stream"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'http-server-max-receive-buffer-per-stream': %w", ival, err)
+		}
+		cfg.HTTPServer.MaxReceiveBufferPerStream = 0x0
+		if err := cfg.HTTPServer.MaxReceiveBufferPerStream.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'http-server-max-receive-buffer-per-stream': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-send-ping-timeout"]; ok {
+		var err error
+		cfg.HTTPServer.SendPingTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-send-ping-timeout': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-ping-timeout"]; ok {
+		var err error
+		cfg.HTTPServer.PingTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-ping-timeout': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-server-write-byte-timeout"]; ok {
+		var err error
+		cfg.HTTPServer.WriteByteTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-write-byte-timeout': %w", ival, err)
+		}
+	}
+
 	if ival, ok := cfgmap["http-client-allow-ips"]; ok {
 		var err error
 		cfg.HTTPClient.AllowIPs, err = toStringSlice(ival)
@@ -1619,6 +1846,92 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		cfg.HTTPClient.InsecureOutgoing, err = cast.ToBoolE(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> bool for 'http-client-insecure-outgoing': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-client-disable-keep-alives"]; ok {
+		var err error
+		cfg.HTTPClient.DisableKeepAlives, err = cast.ToBoolE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> bool for 'http-client-disable-keep-alives': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-client-max-idle-conns"]; ok {
+		var err error
+		cfg.HTTPClient.MaxIdleConns, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> int for 'http-client-max-idle-conns': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-client-max-idle-conns-per-host"]; ok {
+		var err error
+		cfg.HTTPClient.MaxIdleConnsPerHost, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> int for 'http-client-max-idle-conns-per-host': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-client-max-open-conns-per-host"]; ok {
+		var err error
+		cfg.HTTPClient.MaxOpenConnsPerHost, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> int for 'http-client-max-open-conns-per-host': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-client-max-conns-per-host"]; ok {
+		var err error
+		cfg.HTTPClient.MaxConnsPerHost, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> int for 'http-client-max-conns-per-host': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-client-idle-conn-timeout"]; ok {
+		var err error
+		cfg.HTTPClient.IdleConnTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> time.Duration for 'http-client-idle-conn-timeout': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-client-tls-handshake-timeout"]; ok {
+		var err error
+		cfg.HTTPClient.TLSHandshakeTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> time.Duration for 'http-client-tls-handshake-timeout': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-client-response-header-timeout"]; ok {
+		var err error
+		cfg.HTTPClient.ResponseHeaderTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> time.Duration for 'http-client-response-header-timeout': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-client-read-buffer-size"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'http-client-read-buffer-size': %w", ival, err)
+		}
+		cfg.HTTPClient.ReadBufferSize = 0x0
+		if err := cfg.HTTPClient.ReadBufferSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'http-client-read-buffer-size': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["http-client-write-buffer-size"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'http-client-write-buffer-size': %w", ival, err)
+		}
+		cfg.HTTPClient.WriteBufferSize = 0x0
+		if err := cfg.HTTPClient.WriteBufferSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'http-client-write-buffer-size': %w", ival, err)
 		}
 	}
 
@@ -4323,6 +4636,294 @@ func GetAdvancedThrottlingRetryAfter() time.Duration { return global.GetAdvanced
 // SetAdvancedThrottlingRetryAfter safely sets the value for global configuration 'Advanced.Throttling.RetryAfter' field
 func SetAdvancedThrottlingRetryAfter(v time.Duration) { global.SetAdvancedThrottlingRetryAfter(v) }
 
+// GetHTTPServerMaxMultipartMemory safely fetches the Configuration value for state's 'HTTPServer.MaxMultipartMemory' field
+func (st *ConfigState) GetHTTPServerMaxMultipartMemory() (v bytesize.Size) {
+	return st.config.HTTPServer.MaxMultipartMemory
+}
+
+// SetHTTPServerMaxMultipartMemory safely sets the Configuration value for state's 'HTTPServer.MaxMultipartMemory' field
+func (st *ConfigState) SetHTTPServerMaxMultipartMemory(v bytesize.Size) {
+	st.config.HTTPServer.MaxMultipartMemory = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerMaxMultipartMemory safely fetches the value for global configuration 'HTTPServer.MaxMultipartMemory' field
+func GetHTTPServerMaxMultipartMemory() bytesize.Size { return global.GetHTTPServerMaxMultipartMemory() }
+
+// SetHTTPServerMaxMultipartMemory safely sets the value for global configuration 'HTTPServer.MaxMultipartMemory' field
+func SetHTTPServerMaxMultipartMemory(v bytesize.Size) { global.SetHTTPServerMaxMultipartMemory(v) }
+
+// GetHTTPServerUseH2C safely fetches the Configuration value for state's 'HTTPServer.UseH2C' field
+func (st *ConfigState) GetHTTPServerUseH2C() (v bool) {
+	return st.config.HTTPServer.UseH2C
+}
+
+// SetHTTPServerUseH2C safely sets the Configuration value for state's 'HTTPServer.UseH2C' field
+func (st *ConfigState) SetHTTPServerUseH2C(v bool) {
+	st.config.HTTPServer.UseH2C = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerUseH2C safely fetches the value for global configuration 'HTTPServer.UseH2C' field
+func GetHTTPServerUseH2C() bool { return global.GetHTTPServerUseH2C() }
+
+// SetHTTPServerUseH2C safely sets the value for global configuration 'HTTPServer.UseH2C' field
+func SetHTTPServerUseH2C(v bool) { global.SetHTTPServerUseH2C(v) }
+
+// GetHTTPServerReadTimeout safely fetches the Configuration value for state's 'HTTPServer.ReadTimeout' field
+func (st *ConfigState) GetHTTPServerReadTimeout() (v time.Duration) {
+	return st.config.HTTPServer.ReadTimeout
+}
+
+// SetHTTPServerReadTimeout safely sets the Configuration value for state's 'HTTPServer.ReadTimeout' field
+func (st *ConfigState) SetHTTPServerReadTimeout(v time.Duration) {
+	st.config.HTTPServer.ReadTimeout = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerReadTimeout safely fetches the value for global configuration 'HTTPServer.ReadTimeout' field
+func GetHTTPServerReadTimeout() time.Duration { return global.GetHTTPServerReadTimeout() }
+
+// SetHTTPServerReadTimeout safely sets the value for global configuration 'HTTPServer.ReadTimeout' field
+func SetHTTPServerReadTimeout(v time.Duration) { global.SetHTTPServerReadTimeout(v) }
+
+// GetHTTPServerReadHeaderTimeout safely fetches the Configuration value for state's 'HTTPServer.ReadHeaderTimeout' field
+func (st *ConfigState) GetHTTPServerReadHeaderTimeout() (v time.Duration) {
+	return st.config.HTTPServer.ReadHeaderTimeout
+}
+
+// SetHTTPServerReadHeaderTimeout safely sets the Configuration value for state's 'HTTPServer.ReadHeaderTimeout' field
+func (st *ConfigState) SetHTTPServerReadHeaderTimeout(v time.Duration) {
+	st.config.HTTPServer.ReadHeaderTimeout = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerReadHeaderTimeout safely fetches the value for global configuration 'HTTPServer.ReadHeaderTimeout' field
+func GetHTTPServerReadHeaderTimeout() time.Duration { return global.GetHTTPServerReadHeaderTimeout() }
+
+// SetHTTPServerReadHeaderTimeout safely sets the value for global configuration 'HTTPServer.ReadHeaderTimeout' field
+func SetHTTPServerReadHeaderTimeout(v time.Duration) { global.SetHTTPServerReadHeaderTimeout(v) }
+
+// GetHTTPServerWriteTimeout safely fetches the Configuration value for state's 'HTTPServer.WriteTimeout' field
+func (st *ConfigState) GetHTTPServerWriteTimeout() (v time.Duration) {
+	return st.config.HTTPServer.WriteTimeout
+}
+
+// SetHTTPServerWriteTimeout safely sets the Configuration value for state's 'HTTPServer.WriteTimeout' field
+func (st *ConfigState) SetHTTPServerWriteTimeout(v time.Duration) {
+	st.config.HTTPServer.WriteTimeout = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerWriteTimeout safely fetches the value for global configuration 'HTTPServer.WriteTimeout' field
+func GetHTTPServerWriteTimeout() time.Duration { return global.GetHTTPServerWriteTimeout() }
+
+// SetHTTPServerWriteTimeout safely sets the value for global configuration 'HTTPServer.WriteTimeout' field
+func SetHTTPServerWriteTimeout(v time.Duration) { global.SetHTTPServerWriteTimeout(v) }
+
+// GetHTTPServerIdleTimeout safely fetches the Configuration value for state's 'HTTPServer.IdleTimeout' field
+func (st *ConfigState) GetHTTPServerIdleTimeout() (v time.Duration) {
+	return st.config.HTTPServer.IdleTimeout
+}
+
+// SetHTTPServerIdleTimeout safely sets the Configuration value for state's 'HTTPServer.IdleTimeout' field
+func (st *ConfigState) SetHTTPServerIdleTimeout(v time.Duration) {
+	st.config.HTTPServer.IdleTimeout = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerIdleTimeout safely fetches the value for global configuration 'HTTPServer.IdleTimeout' field
+func GetHTTPServerIdleTimeout() time.Duration { return global.GetHTTPServerIdleTimeout() }
+
+// SetHTTPServerIdleTimeout safely sets the value for global configuration 'HTTPServer.IdleTimeout' field
+func SetHTTPServerIdleTimeout(v time.Duration) { global.SetHTTPServerIdleTimeout(v) }
+
+// GetHTTPServerMaxHeaderBytes safely fetches the Configuration value for state's 'HTTPServer.MaxHeaderBytes' field
+func (st *ConfigState) GetHTTPServerMaxHeaderBytes() (v bytesize.Size) {
+	return st.config.HTTPServer.MaxHeaderBytes
+}
+
+// SetHTTPServerMaxHeaderBytes safely sets the Configuration value for state's 'HTTPServer.MaxHeaderBytes' field
+func (st *ConfigState) SetHTTPServerMaxHeaderBytes(v bytesize.Size) {
+	st.config.HTTPServer.MaxHeaderBytes = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerMaxHeaderBytes safely fetches the value for global configuration 'HTTPServer.MaxHeaderBytes' field
+func GetHTTPServerMaxHeaderBytes() bytesize.Size { return global.GetHTTPServerMaxHeaderBytes() }
+
+// SetHTTPServerMaxHeaderBytes safely sets the value for global configuration 'HTTPServer.MaxHeaderBytes' field
+func SetHTTPServerMaxHeaderBytes(v bytesize.Size) { global.SetHTTPServerMaxHeaderBytes(v) }
+
+// GetHTTPServerMaxConcurrentStreams safely fetches the Configuration value for state's 'HTTPServer.MaxConcurrentStreams' field
+func (st *ConfigState) GetHTTPServerMaxConcurrentStreams() (v int) {
+	return st.config.HTTPServer.MaxConcurrentStreams
+}
+
+// SetHTTPServerMaxConcurrentStreams safely sets the Configuration value for state's 'HTTPServer.MaxConcurrentStreams' field
+func (st *ConfigState) SetHTTPServerMaxConcurrentStreams(v int) {
+	st.config.HTTPServer.MaxConcurrentStreams = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerMaxConcurrentStreams safely fetches the value for global configuration 'HTTPServer.MaxConcurrentStreams' field
+func GetHTTPServerMaxConcurrentStreams() int { return global.GetHTTPServerMaxConcurrentStreams() }
+
+// SetHTTPServerMaxConcurrentStreams safely sets the value for global configuration 'HTTPServer.MaxConcurrentStreams' field
+func SetHTTPServerMaxConcurrentStreams(v int) { global.SetHTTPServerMaxConcurrentStreams(v) }
+
+// GetHTTPServerMaxDecoderHeaderTableSize safely fetches the Configuration value for state's 'HTTPServer.MaxDecoderHeaderTableSize' field
+func (st *ConfigState) GetHTTPServerMaxDecoderHeaderTableSize() (v bytesize.Size) {
+	return st.config.HTTPServer.MaxDecoderHeaderTableSize
+}
+
+// SetHTTPServerMaxDecoderHeaderTableSize safely sets the Configuration value for state's 'HTTPServer.MaxDecoderHeaderTableSize' field
+func (st *ConfigState) SetHTTPServerMaxDecoderHeaderTableSize(v bytesize.Size) {
+	st.config.HTTPServer.MaxDecoderHeaderTableSize = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerMaxDecoderHeaderTableSize safely fetches the value for global configuration 'HTTPServer.MaxDecoderHeaderTableSize' field
+func GetHTTPServerMaxDecoderHeaderTableSize() bytesize.Size {
+	return global.GetHTTPServerMaxDecoderHeaderTableSize()
+}
+
+// SetHTTPServerMaxDecoderHeaderTableSize safely sets the value for global configuration 'HTTPServer.MaxDecoderHeaderTableSize' field
+func SetHTTPServerMaxDecoderHeaderTableSize(v bytesize.Size) {
+	global.SetHTTPServerMaxDecoderHeaderTableSize(v)
+}
+
+// GetHTTPServerMaxEncoderHeaderTableSize safely fetches the Configuration value for state's 'HTTPServer.MaxEncoderHeaderTableSize' field
+func (st *ConfigState) GetHTTPServerMaxEncoderHeaderTableSize() (v bytesize.Size) {
+	return st.config.HTTPServer.MaxEncoderHeaderTableSize
+}
+
+// SetHTTPServerMaxEncoderHeaderTableSize safely sets the Configuration value for state's 'HTTPServer.MaxEncoderHeaderTableSize' field
+func (st *ConfigState) SetHTTPServerMaxEncoderHeaderTableSize(v bytesize.Size) {
+	st.config.HTTPServer.MaxEncoderHeaderTableSize = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerMaxEncoderHeaderTableSize safely fetches the value for global configuration 'HTTPServer.MaxEncoderHeaderTableSize' field
+func GetHTTPServerMaxEncoderHeaderTableSize() bytesize.Size {
+	return global.GetHTTPServerMaxEncoderHeaderTableSize()
+}
+
+// SetHTTPServerMaxEncoderHeaderTableSize safely sets the value for global configuration 'HTTPServer.MaxEncoderHeaderTableSize' field
+func SetHTTPServerMaxEncoderHeaderTableSize(v bytesize.Size) {
+	global.SetHTTPServerMaxEncoderHeaderTableSize(v)
+}
+
+// GetHTTPServerMaxReadFrameSize safely fetches the Configuration value for state's 'HTTPServer.MaxReadFrameSize' field
+func (st *ConfigState) GetHTTPServerMaxReadFrameSize() (v bytesize.Size) {
+	return st.config.HTTPServer.MaxReadFrameSize
+}
+
+// SetHTTPServerMaxReadFrameSize safely sets the Configuration value for state's 'HTTPServer.MaxReadFrameSize' field
+func (st *ConfigState) SetHTTPServerMaxReadFrameSize(v bytesize.Size) {
+	st.config.HTTPServer.MaxReadFrameSize = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerMaxReadFrameSize safely fetches the value for global configuration 'HTTPServer.MaxReadFrameSize' field
+func GetHTTPServerMaxReadFrameSize() bytesize.Size { return global.GetHTTPServerMaxReadFrameSize() }
+
+// SetHTTPServerMaxReadFrameSize safely sets the value for global configuration 'HTTPServer.MaxReadFrameSize' field
+func SetHTTPServerMaxReadFrameSize(v bytesize.Size) { global.SetHTTPServerMaxReadFrameSize(v) }
+
+// GetHTTPServerMaxReceiveBufferPerConnection safely fetches the Configuration value for state's 'HTTPServer.MaxReceiveBufferPerConnection' field
+func (st *ConfigState) GetHTTPServerMaxReceiveBufferPerConnection() (v bytesize.Size) {
+	return st.config.HTTPServer.MaxReceiveBufferPerConnection
+}
+
+// SetHTTPServerMaxReceiveBufferPerConnection safely sets the Configuration value for state's 'HTTPServer.MaxReceiveBufferPerConnection' field
+func (st *ConfigState) SetHTTPServerMaxReceiveBufferPerConnection(v bytesize.Size) {
+	st.config.HTTPServer.MaxReceiveBufferPerConnection = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerMaxReceiveBufferPerConnection safely fetches the value for global configuration 'HTTPServer.MaxReceiveBufferPerConnection' field
+func GetHTTPServerMaxReceiveBufferPerConnection() bytesize.Size {
+	return global.GetHTTPServerMaxReceiveBufferPerConnection()
+}
+
+// SetHTTPServerMaxReceiveBufferPerConnection safely sets the value for global configuration 'HTTPServer.MaxReceiveBufferPerConnection' field
+func SetHTTPServerMaxReceiveBufferPerConnection(v bytesize.Size) {
+	global.SetHTTPServerMaxReceiveBufferPerConnection(v)
+}
+
+// GetHTTPServerMaxReceiveBufferPerStream safely fetches the Configuration value for state's 'HTTPServer.MaxReceiveBufferPerStream' field
+func (st *ConfigState) GetHTTPServerMaxReceiveBufferPerStream() (v bytesize.Size) {
+	return st.config.HTTPServer.MaxReceiveBufferPerStream
+}
+
+// SetHTTPServerMaxReceiveBufferPerStream safely sets the Configuration value for state's 'HTTPServer.MaxReceiveBufferPerStream' field
+func (st *ConfigState) SetHTTPServerMaxReceiveBufferPerStream(v bytesize.Size) {
+	st.config.HTTPServer.MaxReceiveBufferPerStream = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerMaxReceiveBufferPerStream safely fetches the value for global configuration 'HTTPServer.MaxReceiveBufferPerStream' field
+func GetHTTPServerMaxReceiveBufferPerStream() bytesize.Size {
+	return global.GetHTTPServerMaxReceiveBufferPerStream()
+}
+
+// SetHTTPServerMaxReceiveBufferPerStream safely sets the value for global configuration 'HTTPServer.MaxReceiveBufferPerStream' field
+func SetHTTPServerMaxReceiveBufferPerStream(v bytesize.Size) {
+	global.SetHTTPServerMaxReceiveBufferPerStream(v)
+}
+
+// GetHTTPServerSendPingTimeout safely fetches the Configuration value for state's 'HTTPServer.SendPingTimeout' field
+func (st *ConfigState) GetHTTPServerSendPingTimeout() (v time.Duration) {
+	return st.config.HTTPServer.SendPingTimeout
+}
+
+// SetHTTPServerSendPingTimeout safely sets the Configuration value for state's 'HTTPServer.SendPingTimeout' field
+func (st *ConfigState) SetHTTPServerSendPingTimeout(v time.Duration) {
+	st.config.HTTPServer.SendPingTimeout = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerSendPingTimeout safely fetches the value for global configuration 'HTTPServer.SendPingTimeout' field
+func GetHTTPServerSendPingTimeout() time.Duration { return global.GetHTTPServerSendPingTimeout() }
+
+// SetHTTPServerSendPingTimeout safely sets the value for global configuration 'HTTPServer.SendPingTimeout' field
+func SetHTTPServerSendPingTimeout(v time.Duration) { global.SetHTTPServerSendPingTimeout(v) }
+
+// GetHTTPServerPingTimeout safely fetches the Configuration value for state's 'HTTPServer.PingTimeout' field
+func (st *ConfigState) GetHTTPServerPingTimeout() (v time.Duration) {
+	return st.config.HTTPServer.PingTimeout
+}
+
+// SetHTTPServerPingTimeout safely sets the Configuration value for state's 'HTTPServer.PingTimeout' field
+func (st *ConfigState) SetHTTPServerPingTimeout(v time.Duration) {
+	st.config.HTTPServer.PingTimeout = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerPingTimeout safely fetches the value for global configuration 'HTTPServer.PingTimeout' field
+func GetHTTPServerPingTimeout() time.Duration { return global.GetHTTPServerPingTimeout() }
+
+// SetHTTPServerPingTimeout safely sets the value for global configuration 'HTTPServer.PingTimeout' field
+func SetHTTPServerPingTimeout(v time.Duration) { global.SetHTTPServerPingTimeout(v) }
+
+// GetHTTPServerWriteByteTimeout safely fetches the Configuration value for state's 'HTTPServer.WriteByteTimeout' field
+func (st *ConfigState) GetHTTPServerWriteByteTimeout() (v time.Duration) {
+	return st.config.HTTPServer.WriteByteTimeout
+}
+
+// SetHTTPServerWriteByteTimeout safely sets the Configuration value for state's 'HTTPServer.WriteByteTimeout' field
+func (st *ConfigState) SetHTTPServerWriteByteTimeout(v time.Duration) {
+	st.config.HTTPServer.WriteByteTimeout = v
+	st.reloadToViper()
+}
+
+// GetHTTPServerWriteByteTimeout safely fetches the value for global configuration 'HTTPServer.WriteByteTimeout' field
+func GetHTTPServerWriteByteTimeout() time.Duration { return global.GetHTTPServerWriteByteTimeout() }
+
+// SetHTTPServerWriteByteTimeout safely sets the value for global configuration 'HTTPServer.WriteByteTimeout' field
+func SetHTTPServerWriteByteTimeout(v time.Duration) { global.SetHTTPServerWriteByteTimeout(v) }
+
 // GetHTTPClientAllowIPs safely fetches the Configuration value for state's 'HTTPClient.AllowIPs' field
 func (st *ConfigState) GetHTTPClientAllowIPs() (v []string) {
 	return st.config.HTTPClient.AllowIPs
@@ -4407,6 +5008,182 @@ func GetHTTPClientInsecureOutgoing() bool { return global.GetHTTPClientInsecureO
 
 // SetHTTPClientInsecureOutgoing safely sets the value for global configuration 'HTTPClient.InsecureOutgoing' field
 func SetHTTPClientInsecureOutgoing(v bool) { global.SetHTTPClientInsecureOutgoing(v) }
+
+// GetHTTPClientDisableKeepAlives safely fetches the Configuration value for state's 'HTTPClient.DisableKeepAlives' field
+func (st *ConfigState) GetHTTPClientDisableKeepAlives() (v bool) {
+	return st.config.HTTPClient.DisableKeepAlives
+}
+
+// SetHTTPClientDisableKeepAlives safely sets the Configuration value for state's 'HTTPClient.DisableKeepAlives' field
+func (st *ConfigState) SetHTTPClientDisableKeepAlives(v bool) {
+	st.config.HTTPClient.DisableKeepAlives = v
+	st.reloadToViper()
+}
+
+// GetHTTPClientDisableKeepAlives safely fetches the value for global configuration 'HTTPClient.DisableKeepAlives' field
+func GetHTTPClientDisableKeepAlives() bool { return global.GetHTTPClientDisableKeepAlives() }
+
+// SetHTTPClientDisableKeepAlives safely sets the value for global configuration 'HTTPClient.DisableKeepAlives' field
+func SetHTTPClientDisableKeepAlives(v bool) { global.SetHTTPClientDisableKeepAlives(v) }
+
+// GetHTTPClientMaxIdleConns safely fetches the Configuration value for state's 'HTTPClient.MaxIdleConns' field
+func (st *ConfigState) GetHTTPClientMaxIdleConns() (v int) {
+	return st.config.HTTPClient.MaxIdleConns
+}
+
+// SetHTTPClientMaxIdleConns safely sets the Configuration value for state's 'HTTPClient.MaxIdleConns' field
+func (st *ConfigState) SetHTTPClientMaxIdleConns(v int) {
+	st.config.HTTPClient.MaxIdleConns = v
+	st.reloadToViper()
+}
+
+// GetHTTPClientMaxIdleConns safely fetches the value for global configuration 'HTTPClient.MaxIdleConns' field
+func GetHTTPClientMaxIdleConns() int { return global.GetHTTPClientMaxIdleConns() }
+
+// SetHTTPClientMaxIdleConns safely sets the value for global configuration 'HTTPClient.MaxIdleConns' field
+func SetHTTPClientMaxIdleConns(v int) { global.SetHTTPClientMaxIdleConns(v) }
+
+// GetHTTPClientMaxIdleConnsPerHost safely fetches the Configuration value for state's 'HTTPClient.MaxIdleConnsPerHost' field
+func (st *ConfigState) GetHTTPClientMaxIdleConnsPerHost() (v int) {
+	return st.config.HTTPClient.MaxIdleConnsPerHost
+}
+
+// SetHTTPClientMaxIdleConnsPerHost safely sets the Configuration value for state's 'HTTPClient.MaxIdleConnsPerHost' field
+func (st *ConfigState) SetHTTPClientMaxIdleConnsPerHost(v int) {
+	st.config.HTTPClient.MaxIdleConnsPerHost = v
+	st.reloadToViper()
+}
+
+// GetHTTPClientMaxIdleConnsPerHost safely fetches the value for global configuration 'HTTPClient.MaxIdleConnsPerHost' field
+func GetHTTPClientMaxIdleConnsPerHost() int { return global.GetHTTPClientMaxIdleConnsPerHost() }
+
+// SetHTTPClientMaxIdleConnsPerHost safely sets the value for global configuration 'HTTPClient.MaxIdleConnsPerHost' field
+func SetHTTPClientMaxIdleConnsPerHost(v int) { global.SetHTTPClientMaxIdleConnsPerHost(v) }
+
+// GetHTTPClientMaxOpenConnsPerHost safely fetches the Configuration value for state's 'HTTPClient.MaxOpenConnsPerHost' field
+func (st *ConfigState) GetHTTPClientMaxOpenConnsPerHost() (v int) {
+	return st.config.HTTPClient.MaxOpenConnsPerHost
+}
+
+// SetHTTPClientMaxOpenConnsPerHost safely sets the Configuration value for state's 'HTTPClient.MaxOpenConnsPerHost' field
+func (st *ConfigState) SetHTTPClientMaxOpenConnsPerHost(v int) {
+	st.config.HTTPClient.MaxOpenConnsPerHost = v
+	st.reloadToViper()
+}
+
+// GetHTTPClientMaxOpenConnsPerHost safely fetches the value for global configuration 'HTTPClient.MaxOpenConnsPerHost' field
+func GetHTTPClientMaxOpenConnsPerHost() int { return global.GetHTTPClientMaxOpenConnsPerHost() }
+
+// SetHTTPClientMaxOpenConnsPerHost safely sets the value for global configuration 'HTTPClient.MaxOpenConnsPerHost' field
+func SetHTTPClientMaxOpenConnsPerHost(v int) { global.SetHTTPClientMaxOpenConnsPerHost(v) }
+
+// GetHTTPClientMaxConnsPerHost safely fetches the Configuration value for state's 'HTTPClient.MaxConnsPerHost' field
+func (st *ConfigState) GetHTTPClientMaxConnsPerHost() (v int) {
+	return st.config.HTTPClient.MaxConnsPerHost
+}
+
+// SetHTTPClientMaxConnsPerHost safely sets the Configuration value for state's 'HTTPClient.MaxConnsPerHost' field
+func (st *ConfigState) SetHTTPClientMaxConnsPerHost(v int) {
+	st.config.HTTPClient.MaxConnsPerHost = v
+	st.reloadToViper()
+}
+
+// GetHTTPClientMaxConnsPerHost safely fetches the value for global configuration 'HTTPClient.MaxConnsPerHost' field
+func GetHTTPClientMaxConnsPerHost() int { return global.GetHTTPClientMaxConnsPerHost() }
+
+// SetHTTPClientMaxConnsPerHost safely sets the value for global configuration 'HTTPClient.MaxConnsPerHost' field
+func SetHTTPClientMaxConnsPerHost(v int) { global.SetHTTPClientMaxConnsPerHost(v) }
+
+// GetHTTPClientIdleConnTimeout safely fetches the Configuration value for state's 'HTTPClient.IdleConnTimeout' field
+func (st *ConfigState) GetHTTPClientIdleConnTimeout() (v time.Duration) {
+	return st.config.HTTPClient.IdleConnTimeout
+}
+
+// SetHTTPClientIdleConnTimeout safely sets the Configuration value for state's 'HTTPClient.IdleConnTimeout' field
+func (st *ConfigState) SetHTTPClientIdleConnTimeout(v time.Duration) {
+	st.config.HTTPClient.IdleConnTimeout = v
+	st.reloadToViper()
+}
+
+// GetHTTPClientIdleConnTimeout safely fetches the value for global configuration 'HTTPClient.IdleConnTimeout' field
+func GetHTTPClientIdleConnTimeout() time.Duration { return global.GetHTTPClientIdleConnTimeout() }
+
+// SetHTTPClientIdleConnTimeout safely sets the value for global configuration 'HTTPClient.IdleConnTimeout' field
+func SetHTTPClientIdleConnTimeout(v time.Duration) { global.SetHTTPClientIdleConnTimeout(v) }
+
+// GetHTTPClientTLSHandshakeTimeout safely fetches the Configuration value for state's 'HTTPClient.TLSHandshakeTimeout' field
+func (st *ConfigState) GetHTTPClientTLSHandshakeTimeout() (v time.Duration) {
+	return st.config.HTTPClient.TLSHandshakeTimeout
+}
+
+// SetHTTPClientTLSHandshakeTimeout safely sets the Configuration value for state's 'HTTPClient.TLSHandshakeTimeout' field
+func (st *ConfigState) SetHTTPClientTLSHandshakeTimeout(v time.Duration) {
+	st.config.HTTPClient.TLSHandshakeTimeout = v
+	st.reloadToViper()
+}
+
+// GetHTTPClientTLSHandshakeTimeout safely fetches the value for global configuration 'HTTPClient.TLSHandshakeTimeout' field
+func GetHTTPClientTLSHandshakeTimeout() time.Duration {
+	return global.GetHTTPClientTLSHandshakeTimeout()
+}
+
+// SetHTTPClientTLSHandshakeTimeout safely sets the value for global configuration 'HTTPClient.TLSHandshakeTimeout' field
+func SetHTTPClientTLSHandshakeTimeout(v time.Duration) { global.SetHTTPClientTLSHandshakeTimeout(v) }
+
+// GetHTTPClientResponseHeaderTimeout safely fetches the Configuration value for state's 'HTTPClient.ResponseHeaderTimeout' field
+func (st *ConfigState) GetHTTPClientResponseHeaderTimeout() (v time.Duration) {
+	return st.config.HTTPClient.ResponseHeaderTimeout
+}
+
+// SetHTTPClientResponseHeaderTimeout safely sets the Configuration value for state's 'HTTPClient.ResponseHeaderTimeout' field
+func (st *ConfigState) SetHTTPClientResponseHeaderTimeout(v time.Duration) {
+	st.config.HTTPClient.ResponseHeaderTimeout = v
+	st.reloadToViper()
+}
+
+// GetHTTPClientResponseHeaderTimeout safely fetches the value for global configuration 'HTTPClient.ResponseHeaderTimeout' field
+func GetHTTPClientResponseHeaderTimeout() time.Duration {
+	return global.GetHTTPClientResponseHeaderTimeout()
+}
+
+// SetHTTPClientResponseHeaderTimeout safely sets the value for global configuration 'HTTPClient.ResponseHeaderTimeout' field
+func SetHTTPClientResponseHeaderTimeout(v time.Duration) {
+	global.SetHTTPClientResponseHeaderTimeout(v)
+}
+
+// GetHTTPClientReadBufferSize safely fetches the Configuration value for state's 'HTTPClient.ReadBufferSize' field
+func (st *ConfigState) GetHTTPClientReadBufferSize() (v bytesize.Size) {
+	return st.config.HTTPClient.ReadBufferSize
+}
+
+// SetHTTPClientReadBufferSize safely sets the Configuration value for state's 'HTTPClient.ReadBufferSize' field
+func (st *ConfigState) SetHTTPClientReadBufferSize(v bytesize.Size) {
+	st.config.HTTPClient.ReadBufferSize = v
+	st.reloadToViper()
+}
+
+// GetHTTPClientReadBufferSize safely fetches the value for global configuration 'HTTPClient.ReadBufferSize' field
+func GetHTTPClientReadBufferSize() bytesize.Size { return global.GetHTTPClientReadBufferSize() }
+
+// SetHTTPClientReadBufferSize safely sets the value for global configuration 'HTTPClient.ReadBufferSize' field
+func SetHTTPClientReadBufferSize(v bytesize.Size) { global.SetHTTPClientReadBufferSize(v) }
+
+// GetHTTPClientWriteBufferSize safely fetches the Configuration value for state's 'HTTPClient.WriteBufferSize' field
+func (st *ConfigState) GetHTTPClientWriteBufferSize() (v bytesize.Size) {
+	return st.config.HTTPClient.WriteBufferSize
+}
+
+// SetHTTPClientWriteBufferSize safely sets the Configuration value for state's 'HTTPClient.WriteBufferSize' field
+func (st *ConfigState) SetHTTPClientWriteBufferSize(v bytesize.Size) {
+	st.config.HTTPClient.WriteBufferSize = v
+	st.reloadToViper()
+}
+
+// GetHTTPClientWriteBufferSize safely fetches the value for global configuration 'HTTPClient.WriteBufferSize' field
+func GetHTTPClientWriteBufferSize() bytesize.Size { return global.GetHTTPClientWriteBufferSize() }
+
+// SetHTTPClientWriteBufferSize safely sets the value for global configuration 'HTTPClient.WriteBufferSize' field
+func SetHTTPClientWriteBufferSize(v bytesize.Size) { global.SetHTTPClientWriteBufferSize(v) }
 
 // GetMediaDescriptionMinChars safely fetches the Configuration value for state's 'Media.DescriptionMinChars' field
 func (st *ConfigState) GetMediaDescriptionMinChars() (v int) {
@@ -6263,6 +7040,182 @@ func flattenConfigMap(cfgmap map[string]any) {
 	}
 
 	for _, key := range [][]string{
+		{"http-server", "max-multipart-memory"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-max-multipart-memory"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "use-h2c"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-use-h2c"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "read-timeout"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-read-timeout"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "read-header-timeout"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-read-header-timeout"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "write-timeout"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-write-timeout"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "idle-timeout"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-idle-timeout"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "max-header-bytes"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-max-header-bytes"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "max-concurrent-streams"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-max-concurrent-streams"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "max-decoder-header-table-size"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-max-decoder-header-table-size"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "max-encoder-header-table-size"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-max-encoder-header-table-size"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "max-read-frame-size"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-max-read-frame-size"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "max-receive-buffer-per-connection"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-max-receive-buffer-per-connection"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "max-receive-buffer-per-stream"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-max-receive-buffer-per-stream"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "send-ping-timeout"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-send-ping-timeout"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "ping-timeout"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-ping-timeout"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-server", "write-byte-timeout"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-server-write-byte-timeout"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
 		{"http-client", "allow-ips"},
 	} {
 		ival, ok := mapGet(cfgmap, key...)
@@ -6312,6 +7265,116 @@ func flattenConfigMap(cfgmap map[string]any) {
 		ival, ok := mapGet(cfgmap, key...)
 		if ok {
 			cfgmap["http-client-insecure-outgoing"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-client", "disable-keep-alives"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-client-disable-keep-alives"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-client", "max-idle-conns"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-client-max-idle-conns"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-client", "max-idle-conns-per-host"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-client-max-idle-conns-per-host"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-client", "max-open-conns-per-host"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-client-max-open-conns-per-host"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-client", "max-conns-per-host"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-client-max-conns-per-host"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-client", "idle-conn-timeout"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-client-idle-conn-timeout"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-client", "tls-handshake-timeout"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-client-tls-handshake-timeout"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-client", "response-header-timeout"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-client-response-header-timeout"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-client", "read-buffer-size"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-client-read-buffer-size"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"http-client", "write-buffer-size"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["http-client-write-buffer-size"] = ival
 			nestedKeys[key[0]] = struct{}{}
 			break
 		}

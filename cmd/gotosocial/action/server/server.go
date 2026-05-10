@@ -77,7 +77,7 @@ var _ action.GTSAction = Start
 // Maintenance starts and creates a GoToSocial server
 // in maintenance mode (returns 503 for most requests).
 func Maintenance(ctx context.Context) error {
-	route, err := router.New(ctx)
+	route, err := router.New(ctx, router.Config{})
 	if err != nil {
 		return fmt.Errorf("error creating maintenance router: %w", err)
 	}
@@ -174,8 +174,8 @@ func Start(ctx context.Context) error {
 
 	var err error
 
-	// Create maintenance router.
-	route, err = router.New(ctx)
+	// Create maintenance router without config.
+	route, err = router.New(ctx, router.Config{})
 	if err != nil {
 		return fmt.Errorf("error creating maintenance router: %w", err)
 	}
@@ -248,8 +248,18 @@ func Start(ctx context.Context) error {
 	client := httpclient.New(httpclient.Config{
 		AllowRanges:           ranges.allow,
 		BlockRanges:           ranges.block,
-		Timeout:               config.GetHTTPClientTimeout(),
 		TLSInsecureSkipVerify: config.GetHTTPClientTLSInsecureSkipVerify(),
+		DisableKeepAlives:     config.GetHTTPClientDisableKeepAlives(),
+		MaxIdleConns:          config.GetHTTPClientMaxIdleConns(),
+		MaxIdleConnsPerHost:   config.GetHTTPClientMaxIdleConnsPerHost(),
+		MaxOpenConnsPerHost:   config.GetHTTPClientMaxOpenConnsPerHost(),
+		MaxConnsPerHost:       config.GetHTTPClientMaxConnsPerHost(),
+		IdleConnTimeout:       config.GetHTTPClientIdleConnTimeout(),
+		TLSHandshakeTimeout:   config.GetHTTPClientTLSHandshakeTimeout(),
+		ResponseHeaderTimeout: config.GetHTTPClientResponseHeaderTimeout(),
+		ReadBufferSize:        int(config.GetHTTPClientReadBufferSize()),  // nolint:gosec
+		WriteBufferSize:       int(config.GetHTTPClientWriteBufferSize()), // nolint:gosec
+		Timeout:               config.GetHTTPClientTimeout(),
 	})
 
 	// Compile WASM modules ahead of first use
@@ -411,8 +421,25 @@ func Start(ctx context.Context) error {
 		return fmt.Errorf("error stopping maintenance router: %w", err)
 	}
 
-	// Instantiate the main router.
-	route, err = router.New(ctx)
+	// Instantiate the main router with config.
+	route, err = router.New(ctx, router.Config{
+		MaxMultipartMemory:            int64(config.GetHTTPServerMaxMultipartMemory()), // nolint:gosec
+		UseH2C:                        config.GetHTTPServerUseH2C(),
+		ReadTimeout:                   config.GetHTTPServerReadTimeout(),
+		ReadHeaderTimeout:             config.GetHTTPServerReadHeaderTimeout(),
+		WriteTimeout:                  config.GetHTTPServerWriteTimeout(),
+		IdleTimeout:                   config.GetHTTPServerIdleTimeout(),
+		MaxHeaderBytes:                int(config.GetHTTPServerMaxHeaderBytes()), // nolint:gosec
+		MaxConcurrentStreams:          config.GetHTTPServerMaxConcurrentStreams(),
+		MaxDecoderHeaderTableSize:     int(config.GetHTTPServerMaxDecoderHeaderTableSize()),     // nolint:gosec
+		MaxEncoderHeaderTableSize:     int(config.GetHTTPServerMaxEncoderHeaderTableSize()),     // nolint:gosec
+		MaxReadFrameSize:              int(config.GetHTTPServerMaxReadFrameSize()),              // nolint:gosec
+		MaxReceiveBufferPerConnection: int(config.GetHTTPServerMaxReceiveBufferPerConnection()), // nolint:gosec
+		MaxReceiveBufferPerStream:     int(config.GetHTTPServerMaxReceiveBufferPerStream()),     // nolint:gosec
+		SendPingTimeout:               config.GetHTTPServerSendPingTimeout(),
+		PingTimeout:                   config.GetHTTPServerPingTimeout(),
+		WriteByteTimeout:              config.GetHTTPServerWriteByteTimeout(),
+	})
 	if err != nil {
 		return fmt.Errorf("error creating main router: %s", err)
 	}

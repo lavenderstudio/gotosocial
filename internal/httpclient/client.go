@@ -37,6 +37,7 @@ import (
 	"codeberg.org/gruf/go-cache/v3"
 	errorsv2 "codeberg.org/gruf/go-errors/v2"
 	"codeberg.org/gruf/go-iotools"
+	"github.com/klauspost/compress/gzhttp"
 )
 
 var (
@@ -56,10 +57,6 @@ var (
 // and http.Client{}, along with httpclient.Client{} specific.
 type Config struct {
 
-	// MaxOpenConnsPerHost limits the max
-	// number of open connections to a host.
-	MaxOpenConnsPerHost int
-
 	// AllowRanges allows outgoing
 	// communications to given IP nets.
 	AllowRanges []netip.Prefix
@@ -76,8 +73,29 @@ type Config struct {
 	// ARE LEAVING YOUR SERVER WIDE OPEN TO ATTACKS!
 	TLSInsecureSkipVerify bool
 
+	// DisableKeepAlives: see http.Transport{}.DisableKeepAlives.
+	DisableKeepAlives bool
+
 	// MaxIdleConns: see http.Transport{}.MaxIdleConns.
 	MaxIdleConns int
+
+	// MaxIdleConnsPerHost: see http.Transport{}.MaxIdleConnsPerHost.
+	MaxIdleConnsPerHost int
+
+	// MaxConnsPerHost: see http.Transport{}.MaxOpenConnsPerHost.
+	MaxOpenConnsPerHost int
+
+	// MaxConnsPerHost: see http.Transport{}.MaxConnsPerHost.
+	MaxConnsPerHost int
+
+	// IdleConnTimeout: see http.Transport{}.IdleConnTimeout.
+	IdleConnTimeout time.Duration
+
+	// TLSHandshakeTimeout: see http.Transport{}.TLSHandshakeTimeout.
+	TLSHandshakeTimeout time.Duration
+
+	// ResponseHeaderTimeout: see http.Transport{}.ResponseHeaderTimeout.
+	ResponseHeaderTimeout time.Duration
 
 	// ReadBufferSize: see http.Transport{}.ReadBufferSize.
 	ReadBufferSize int
@@ -87,9 +105,6 @@ type Config struct {
 
 	// Timeout: see http.Client{}.Timeout.
 	Timeout time.Duration
-
-	// DisableCompression: see http.Transport{}.DisableCompression.
-	DisableCompression bool
 }
 
 // Client wraps an underlying http.Client{} to provide the following:
@@ -119,7 +134,7 @@ func New(cfg Config) *Client {
 	}
 
 	if cfg.MaxOpenConnsPerHost <= 0 {
-		// By default base this value on GOMAXPROCS.
+		// By default base on on GOMAXPROCS.
 		maxprocs := runtime.GOMAXPROCS(0)
 		cfg.MaxOpenConnsPerHost = maxprocs * 20
 	}
@@ -140,39 +155,46 @@ func New(cfg Config) *Client {
 	c.client.Timeout = cfg.Timeout
 
 	// Prepare transport TLS config.
-	tlsClientConfig := &tls.Config{
-		InsecureSkipVerify: cfg.TLSInsecureSkipVerify, //nolint:gosec
-	}
+	var tlsClientConfig *tls.Config
+	if cfg.TLSInsecureSkipVerify {
+		tlsClientConfig = new(tls.Config)
+		tlsClientConfig.InsecureSkipVerify = true //nolint:gosec
 
-	if tlsClientConfig.InsecureSkipVerify {
 		// Warn against playing silly buggers.
 		log.Warn(nil, "http-client.tls-insecure-skip-verify was set to TRUE. "+
 			"*****THIS SHOULD BE USED FOR TESTING ONLY, IF YOU TURN THIS ON WHILE "+
 			"RUNNING IN PRODUCTION YOU ARE LEAVING YOUR SERVER WIDE OPEN TO ATTACKS! "+
-			"IF IN DOUBT, STOP YOUR SERVER *NOW* AND ADJUST YOUR CONFIGURATION!*****",
-		)
+			"IF IN DOUBT, STOP YOUR SERVER *NOW* AND ADJUST YOUR CONFIGURATION!*****")
 	}
 
-	// Set underlying HTTP client roundtripper.
-	c.client.Transport = &signingtransport{http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
+	// Set wrapped HTTP client roundtripper with compression and signing.
+	c.client.Transport = gzhttp.Transport(&signingtransport{http.Transport{
 		ForceAttemptHTTP2:     true,
 		DialContext:           d.DialContext,
 		TLSClientConfig:       tlsClientConfig,
 		MaxIdleConns:          cfg.MaxIdleConns,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
+		MaxIdleConnsPerHost:   cfg.MaxIdleConnsPerHost,
+		MaxConnsPerHost:       cfg.MaxConnsPerHost,
+		IdleConnTimeout:       cfg.IdleConnTimeout,
+		TLSHandshakeTimeout:   cfg.TLSHandshakeTimeout,
+		ResponseHeaderTimeout: cfg.ResponseHeaderTimeout,
 		ReadBufferSize:        cfg.ReadBufferSize,
 		WriteBufferSize:       cfg.WriteBufferSize,
-		DisableCompression:    cfg.DisableCompression,
-	}}
+
+		// Don't automatically set "Accept-Encoding: gzip",
+		// as we want to handle this ourselves and use the
+		// more performant klausspost/compress instead.
+		DisableCompression: true,
+	}},
+		gzhttp.TransportEnableGzip(true),
+		gzhttp.TransportEnableZstd(true),
+	)
 
 	// Initiate outgoing bad hosts lookup cache.
 	c.badHosts = cache.NewTTL[string, struct{}](0, 512, 0)
 	c.badHosts.SetTTL(time.Hour, false)
 	if !c.badHosts.Start(time.Minute) {
-		log.Panic(nil, "failed to start transport controller cache")
+		panic("failed to start transport controller cache")
 	}
 
 	return &c
@@ -295,7 +317,8 @@ func (c *Client) DoOnce(r *Request) (rsp *http.Response, retry bool, err error) 
 // do performs the "meat" of DoOnce(), but it's separated out to allow
 // easier wrapping of the response, retry, error returns with further logic.
 func (c *Client) do(r *Request) (rsp *http.Response, retry bool, err error) {
-	// Perform the HTTP request.
+
+	// Perform the actual HTTP request.
 	rsp, err = c.client.Do(r.Request)
 	if err != nil {
 

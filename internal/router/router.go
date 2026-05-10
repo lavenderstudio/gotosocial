@@ -29,20 +29,38 @@ import (
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"codeberg.org/gruf/go-bytesize"
 	"codeberg.org/gruf/go-debug"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/acme/autocert"
 )
 
 const (
-	readTimeout        = 60 * time.Second
-	writeTimeout       = 30 * time.Second
-	idleTimeout        = 30 * time.Second
-	readHeaderTimeout  = 30 * time.Second
-	shutdownTimeout    = 30 * time.Second
-	maxMultipartMemory = int64(8 * bytesize.MiB)
+	shutdownTimeout = 30 * time.Second
 )
+
+type Config struct {
+	// See: gin.Engine{}
+	MaxMultipartMemory int64
+	UseH2C             bool
+
+	// See: http.Server{}.
+	ReadTimeout       time.Duration
+	ReadHeaderTimeout time.Duration
+	WriteTimeout      time.Duration
+	IdleTimeout       time.Duration
+	MaxHeaderBytes    int
+
+	// See: http.HTTP2Config{}.
+	MaxConcurrentStreams          int
+	MaxDecoderHeaderTableSize     int
+	MaxEncoderHeaderTableSize     int
+	MaxReadFrameSize              int
+	MaxReceiveBufferPerConnection int
+	MaxReceiveBufferPerStream     int
+	SendPingTimeout               time.Duration
+	PingTimeout                   time.Duration
+	WriteByteTimeout              time.Duration
+}
 
 // Router provides the HTTP REST
 // interface for GoToSocial, using gin.
@@ -63,18 +81,19 @@ type Router struct {
 // gracefully.
 //
 // The provided context will be used as the base
-// context for all requests passing through the
-// underlying http.Server, so this should be a
-// long-running context.
-func New(ctx context.Context) (*Router, error) {
+// for all requests passing through the underlying
+// http.Server, so this should be a long-running context.
+func New(ctx context.Context, cfg Config) (*Router, error) {
+	engine := gin.New()
+
 	// TODO: make this configurable?
 	gin.SetMode(gin.ReleaseMode)
 
 	// Create the engine here -- this is the core
 	// request routing handler for GoToSocial.
-	engine := gin.New()
-	engine.MaxMultipartMemory = maxMultipartMemory
+	engine.MaxMultipartMemory = cfg.MaxMultipartMemory
 	engine.HandleMethodNotAllowed = true
+	engine.UseH2C = cfg.UseH2C
 
 	// Set up client IP forwarding via
 	// trusted x-forwarded-* headers.
@@ -99,20 +118,37 @@ func New(ctx context.Context) (*Router, error) {
 		strconv.Itoa(config.GetPort()),
 	)
 
-	s := &http.Server{
-		Addr:              addr,
-		Handler:           engine,
-		ReadTimeout:       readTimeout,
-		ReadHeaderTimeout: readHeaderTimeout,
-		WriteTimeout:      writeTimeout,
-		IdleTimeout:       idleTimeout,
-		BaseContext:       baseCtx,
-		ErrorLog:          log.NewStdLogger(log.ERROR),
+	// HTTP2 server configuration.
+	http2Conf := &http.HTTP2Config{
+		MaxConcurrentStreams:          cfg.MaxConcurrentStreams,
+		MaxDecoderHeaderTableSize:     cfg.MaxDecoderHeaderTableSize,
+		MaxEncoderHeaderTableSize:     cfg.MaxEncoderHeaderTableSize,
+		MaxReadFrameSize:              cfg.MaxReadFrameSize,
+		MaxReceiveBufferPerConnection: cfg.MaxReceiveBufferPerConnection,
+		MaxReceiveBufferPerStream:     cfg.MaxReceiveBufferPerStream,
+		SendPingTimeout:               cfg.SendPingTimeout,
+		PingTimeout:                   cfg.PingTimeout,
+		WriteByteTimeout:              cfg.WriteByteTimeout,
+	}
+
+	// Base HTTP server.
+	srv := &http.Server{
+		Addr:        addr,
+		Handler:     engine.Handler(),
+		HTTP2:       http2Conf,
+		BaseContext: baseCtx,
+		ErrorLog:    log.NewStdLogger(log.ERROR),
+
+		ReadTimeout:       cfg.ReadTimeout,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
+		MaxHeaderBytes:    cfg.MaxHeaderBytes,
 	}
 
 	return &Router{
 		engine: engine,
-		srv:    s,
+		srv:    srv,
 	}, nil
 }
 

@@ -61,7 +61,6 @@ func testHTTPClientWithBody(t *testing.T, body []byte) {
 
 	// Create new HTTP client with maximum body size
 	client := httpclient.New(httpclient.Config{
-		DisableCompression: true,
 		AllowRanges: []netip.Prefix{
 			// Loopback (used by server)
 			netip.MustParsePrefix("127.0.0.1/8"),

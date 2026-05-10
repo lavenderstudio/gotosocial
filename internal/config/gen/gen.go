@@ -115,10 +115,9 @@ type ConfigField struct {
 	// of the config field.
 	Type reflect.Type
 
-	// i.e. is this found in the configuration file?
-	// or just used in specific CLI commands? in the
-	// future we'll remove these from config struct.
-	Ephemeral bool
+	// Whether to generate
+	// CLI flag registering.
+	RegisterCLI bool
 }
 
 // Flag returns the combined "prefixes-name" CLI flag for config field.
@@ -190,12 +189,12 @@ func loadConfigFields(pathPrefixes, flagPrefixes []string, t reflect.Type) []Con
 
 		// Append prepared ConfigField.
 		out = append(out, ConfigField{
-			Prefixes:  flagPrefixes,
-			Name:      name,
-			Path:      fieldPath,
-			Usage:     field.Tag.Get("usage"),
-			Ephemeral: field.Tag.Get("ephemeral") == "yes",
-			Type:      field.Type,
+			Prefixes:    flagPrefixes,
+			Name:        name,
+			Path:        fieldPath,
+			Type:        field.Type,
+			Usage:       field.Tag.Get("usage"),
+			RegisterCLI: field.Tag.Get("nocli") != "yes",
 		})
 	}
 	return out
@@ -213,9 +212,9 @@ func generateFlagConsts(out io.Writer, fields []ConfigField) {
 func generateFlagRegistering(out io.Writer, fields []ConfigField) {
 	fprintf(out, "func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {\n")
 	for _, field := range fields {
-		if field.Ephemeral {
-			// Skip registering
-			// ephemeral flags.
+		if !field.RegisterCLI {
+			// Skip registering flags
+			// unpermitted in env / cli.
 			continue
 		}
 
