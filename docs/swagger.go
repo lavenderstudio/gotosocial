@@ -39,6 +39,7 @@
 //   - admin:write:domain_allows: grants admin write access to domain allows
 //   - admin:write:domain_blocks: grants admin write access to domain blocks
 //   - admin:write:domain_limits: grants admin write access to domain limits
+//   - admin:write:instances: grants admin write access to instances
 //   - admin:write:relays: grants admin write access to relays
 //   - admin:write:reports: grants admin write access to reports
 //   - profile: grants read access to verify_credentials
@@ -107,6 +108,7 @@
 //	      admin:write:domain_allows: grants admin write access to domain allows
 //	      admin:write:domain_blocks: grants admin write access to domain blocks
 //	      admin:write:domain_limits: grants admin write access to domain limits
+//	      admin:write:instances: grants admin write access to instances
 //	      admin:write:relays: grants admin write access to relays
 //	      admin:write:reports: grants admin write access to reports
 //	      profile: grants read access to verify_credentials

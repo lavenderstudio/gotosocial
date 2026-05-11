@@ -72,6 +72,7 @@ const (
 	InstanceRulesPathWithID                    = InstanceRulesPath + WithID
 	InstancesPath                              = BasePath + "/instances"
 	InstancesPathWithID                        = InstancesPath + WithID
+	InstanceClearDeliveryErrorsPath            = InstancesPathWithID + "/clear_delivery_errors"
 	RelaySubscriptionsPath                     = BasePath + "/relay_subscriptions"
 	RelaySubscriptionsPathWithID               = RelaySubscriptionsPath + WithID
 	RelaySubscriptionMatchersPath              = RelaySubscriptionsPathWithID + "/matchers"
@@ -190,6 +191,7 @@ func (m *Module) Route(attachHandler func(method string, path string, f ...gin.H
 	// instances stuff
 	attachHandler(http.MethodGet, InstancesPath, m.InstancesGETHandler)
 	attachHandler(http.MethodGet, InstancesPathWithID, m.InstanceGETHandler)
+	attachHandler(http.MethodPost, InstanceClearDeliveryErrorsPath, m.InstanceClearDeliveryErrorsPOSTHandler)
 
 	// relays stuff
 	attachHandler(http.MethodGet, RelaySubscriptionsPath, m.RelaySubscriptionsGETHandler)

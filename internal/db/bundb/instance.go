@@ -639,7 +639,7 @@ func (i *instanceDB) SetInstanceSuccessfulDelivery(
 	}
 
 	// Clear delivery errors for this instance (if any).
-	if err := i.clearFederationErrors(ctx,
+	if err := i.ClearFederationErrors(ctx,
 		instance.ID,
 		gtsmodel.FederationErrorTypeDelivery,
 	); err != nil {
@@ -692,7 +692,7 @@ func (i *instanceDB) getFederationErrors(
 	return i.getFederationErrorsByIDs(ctx, ids)
 }
 
-func (i *instanceDB) clearFederationErrors(
+func (i *instanceDB) ClearFederationErrors(
 	ctx context.Context,
 	instanceID string,
 	errType gtsmodel.FederationErrorType,

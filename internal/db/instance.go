@@ -55,6 +55,9 @@ type Instance interface {
 	// instance entry for the given domain to time.Now() and clears stored delivery errors.
 	SetInstanceSuccessfulDelivery(ctx context.Context, domain string) error
 
+	// ClearFederationErrors clears any stored federation errors for the given instance ID and error type.
+	ClearFederationErrors(ctx context.Context, instanceID string, errType gtsmodel.FederationErrorType) error
+
 	// GetInstanceAccounts returns a slice of accounts from the given instance, arranged by ID.
 	GetInstanceAccounts(ctx context.Context, domain string, maxID string, limit int) ([]*gtsmodel.Account, error)
 

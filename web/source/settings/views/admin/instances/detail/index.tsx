@@ -19,12 +19,13 @@
 
 import React, { ReactNode } from "react";
 
-import { useGetInstanceQuery } from "../../../../lib/query/admin";
+import { useClearInstanceDeliveryErrorsMutation, useGetInstanceQuery } from "../../../../lib/query/admin";
 import FormWithData from "../../../../lib/form/form-with-data";
 import { AdminInstance } from "../../../../lib/types/instance";
 import { useLocation, useParams } from "wouter";
 import { useBaseUrl } from "../../../../lib/navigation/util";
 import BackButton from "../../../../components/back-button";
+import MutationButton from "../../../../components/form/mutation-button";
 
 export default function InstanceDetail() {
 	const params: { instanceID: string } = useParams();
@@ -94,6 +95,8 @@ function InstanceDetailForm({ data: instance }: { data: AdminInstance }) {
 function InstanceDeliveryErrors({ data: instance }: { data: AdminInstance }): ReactNode {
 	const baseUrl = useBaseUrl();
 	const backLocation = `~${baseUrl}/${instance.id}`;
+	const [ clearDeliveryErrors, clearDeliveryErrorsResult ] = useClearInstanceDeliveryErrorsMutation();
+	
 	if (!instance.delivery_errors) {
 		return null;
 	}
@@ -110,6 +113,19 @@ function InstanceDeliveryErrors({ data: instance }: { data: AdminInstance }): Re
 					risk of later federating with an instance created by a baddie masquerading as the original instance owner.
 				</p>
 			</div>
+			<MutationButton
+				label={"Clear delivery errors"}
+				title={"Clear delivery errors"}
+				type="button"
+				className="button danger"
+				onClick={(e) => {
+					e.preventDefault();
+					clearDeliveryErrors(instance.id);
+				}}
+				disabled={false}
+				showError={false}
+				result={clearDeliveryErrorsResult}
+			/>
 			<dl className="info-list delivery-errors-list">
 				{ instance.delivery_errors.map((err, i) => {
 					return (

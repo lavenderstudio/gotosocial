@@ -102,6 +102,7 @@ const (
 	ScopeAdminReadDomainLimits  Scope = ScopeAdminRead + ":" + scopeDomainLimits
 	ScopeAdminWriteDomainLimits Scope = ScopeAdminWrite + ":" + scopeDomainLimits
 	ScopeAdminReadInstances     Scope = ScopeAdminRead + ":" + scopeInstances
+	ScopeAdminWriteInstances    Scope = ScopeAdminWrite + ":" + scopeInstances
 	ScopeAdminReadRelays        Scope = ScopeAdminRead + ":" + scopeRelays
 	ScopeAdminWriteRelays       Scope = ScopeAdminWrite + ":" + scopeRelays
 	ScopeAdminReadReports       Scope = ScopeAdminRead + ":" + scopeReports

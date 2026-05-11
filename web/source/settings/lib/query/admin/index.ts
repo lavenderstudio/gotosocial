@@ -148,6 +148,20 @@ const extended = gtsApi.injectEndpoints({
 			],
 		}),
 
+		clearInstanceDeliveryErrors: build.mutation<AdminInstance, string>({
+			query: (id) => ({
+				method: "POST",
+				url: `/api/v1/admin/instances/${id}/clear_delivery_errors`,
+			}),
+			invalidatesTags: (_result, _error, id) => [
+				// Invalidate this instance entry.
+				{ type: 'AdminInstance', id },
+				// Invalidate the whole list as
+				// this instance entry has changed.
+				{ type: "AdminInstance", id: "TRANSFORMED" },
+			],
+		}),
+
 		handleSignup: build.mutation<AdminAccount, HandleSignupParams>({
 			query: ({id, approve_or_reject, ...formData}) => {
 				return {
@@ -246,4 +260,5 @@ export const {
 	useDeleteInstanceRuleMutation,
 	useLazySearchInstancesQuery,
 	useGetInstanceQuery,
+	useClearInstanceDeliveryErrorsMutation,
 } = extended;

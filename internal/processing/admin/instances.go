@@ -27,6 +27,7 @@ import (
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
+	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
@@ -101,6 +102,39 @@ func (p *Processor) InstanceGet(ctx context.Context, id string) (*apimodel.Admin
 	if instance == nil {
 		err := gtserror.Newf("instance not found in the db: %w", err)
 		return nil, gtserror.NewErrorNotFound(err)
+	}
+
+	item, err := p.converter.InstanceToAdminAPIInstance(ctx, instance)
+	if err != nil {
+		err := gtserror.Newf("error converting to admin API instance: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	return item, nil
+}
+
+func (p *Processor) InstanceDeliveryErrorsClear(ctx context.Context, id string) (*apimodel.AdminInstance, gtserror.WithCode) {
+	// Get barebones model of instance with
+	// specified ID to make sure it exists.
+	//
+	// This will avoid populating delivery
+	// errors, which we're about to clear anyway.
+	instance, err := p.state.DB.GetInstanceByID(
+		gtscontext.SetBarebones(ctx),
+		id,
+	)
+	if err != nil {
+		err := gtserror.Newf("db error getting instance: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	// Clear delivery errors for the instance.
+	if err := p.state.DB.ClearFederationErrors(ctx,
+		id,
+		gtsmodel.FederationErrorTypeDelivery,
+	); err != nil {
+		err := gtserror.Newf("db error clearing delivery errors: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
 	}
 
 	item, err := p.converter.InstanceToAdminAPIInstance(ctx, instance)

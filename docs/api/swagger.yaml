@@ -4250,6 +4250,7 @@ info:
         admin:write:domain_allows: grants admin write access to domain allows
         admin:write:domain_blocks: grants admin write access to domain blocks
         admin:write:domain_limits: grants admin write access to domain limits
+        admin:write:instances: grants admin write access to instances
         admin:write:relays: grants admin write access to relays
         admin:write:reports: grants admin write access to reports
         profile: grants read access to verify_credentials
@@ -9226,6 +9227,48 @@ paths:
                 - OAuth2 Bearer:
                     - admin:read:instances
             summary: Show admin view of one instance.
+            tags:
+                - admin
+    /api/v1/admin/instances/{id}/clear_delivery_errors:
+        post:
+            operationId: adminInstanceClearDeliveryErrors
+            parameters:
+                - description: The id of the instance.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Admin model instance.
+                    schema:
+                        $ref: '#/definitions/adminInstance'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:instances
+            summary: Clear delivery errors for instance with given ID.
             tags:
                 - admin
     /api/v1/admin/media_cleanup:
@@ -18179,6 +18222,7 @@ securityDefinitions:
             admin:write:domain_allows: grants admin write access to domain allows
             admin:write:domain_blocks: grants admin write access to domain blocks
             admin:write:domain_limits: grants admin write access to domain limits
+            admin:write:instances: grants admin write access to instances
             admin:write:relays: grants admin write access to relays
             admin:write:reports: grants admin write access to reports
             profile: grants read access to verify_credentials
