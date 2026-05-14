@@ -493,17 +493,17 @@ func (f *DB) AnnounceRequest(ctx context.Context, announceReq vocab.GoToSocialAn
 	}
 
 	// Fetch origin status that this boost is targetting from database.
-	targetStatus, err := f.state.DB.GetStatusByURI(ctx, boost.BoostOfURI)
+	targetStatus, err := f.state.DB.GetStatusByURI(ctx, boost.BoostOfURIStr)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		return gtserror.Newf(
 			"db error getting announce object %s: %w",
-			boost.BoostOfURI, err,
+			boost.BoostOfURIStr, err,
 		)
 	}
 
 	if targetStatus == nil {
 		// Status doesn't seem to exist, just drop this AnnounceRequest.
-		log.Warnf(ctx, "received AnnounceRequest for non-existent status %s", boost.BoostOfURI)
+		log.Warnf(ctx, "received AnnounceRequest for non-existent status %s", boost.BoostOfURIStr)
 		return nil
 	}
 
@@ -512,7 +512,7 @@ func (f *DB) AnnounceRequest(ctx context.Context, announceReq vocab.GoToSocialAn
 		return gtserror.NewfWithCode(
 			http.StatusBadRequest,
 			"announce object %s not owned by receiving account %s",
-			boost.BoostOfURI, partial.receiving.URI,
+			boost.BoostOfURIStr, partial.receiving.URI,
 		)
 	}
 

@@ -20,6 +20,7 @@ package testrig
 import (
 	"code.superseriousbusiness.org/gotosocial/internal/federation"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/interaction"
+	"code.superseriousbusiness.org/gotosocial/internal/filter/relay"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
@@ -36,6 +37,7 @@ func NewTestFederator(state *state.State, tc transport.Controller, mediaManager 
 		typeutils.NewConverter(state),
 		visibility.NewFilter(state),
 		interaction.NewFilter(state),
+		relay.NewFilter(state),
 		mediaManager,
 	)
 }

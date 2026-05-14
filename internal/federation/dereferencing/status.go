@@ -25,54 +25,14 @@ import (
 	"time"
 
 	"code.superseriousbusiness.org/gopkg/log"
-	"code.superseriousbusiness.org/gopkg/xslices"
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
-	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
-	"code.superseriousbusiness.org/gotosocial/internal/media"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
-
-// statusFresh returns true if the given status is still
-// considered "fresh" according to the desired freshness
-// window (falls back to default status freshness if nil).
-//
-// Local statuses will always be considered fresh,
-// because there's no remote state that may have changed.
-//
-// Return value of false indicates that the status
-// is not fresh and should be refreshed from remote.
-func statusFresh(
-	status *gtsmodel.Status,
-	window *FreshnessWindow,
-) bool {
-	if status.Flags.Local() ||
-		status.Flags.Deleted() {
-		// Can't refresh deleted
-		// or local statuses!
-		return true
-	}
-
-	if window == nil {
-		// If no window given, fallback
-		// to default status freshness.
-		window = DefaultStatusFreshness
-	}
-
-	// Moment when the status is
-	// considered stale according to
-	// desired freshness window.
-	d := time.Duration(*window)
-	staleAt := status.FetchedAt.Add(d)
-
-	// It's still fresh if the time now
-	// is not past the point of staleness.
-	return !time.Now().After(staleAt)
-}
 
 // GetStatusByURI will attempt to fetch a status by its URI,
 // first checking the database. In the case of a newly-met
@@ -132,77 +92,6 @@ func (d *Dereferencer) GetStatusByURI(
 	return status, statusable, isNew, nil
 }
 
-// getStatusByURI is a package internal form of .GetStatusByURI()
-// that doesn't dereference thread on update, and may return
-// an existing status with error on failed re-fetch.
-func (d *Dereferencer) getStatusByURI(
-	ctx context.Context,
-	requestUser string,
-	uri *url.URL,
-) (
-	status *gtsmodel.Status,
-	statusable ap.Statusable,
-	isNew bool,
-	err error,
-) {
-	// Search the database
-	// for existing by URI.
-	uriStr := uri.String()
-	status, err = d.state.DB.GetStatusByURI(
-
-		// request a barebones object, it may be in the
-		// db but with related models not yet dereferenced.
-		gtscontext.SetBarebones(ctx),
-		uriStr,
-	)
-	if err != nil && !errors.Is(err, db.ErrNoEntries) {
-		return nil, nil, false, gtserror.Newf("error checking database for status %s by uri: %w", uriStr, err)
-	}
-
-	if status == nil {
-		// Else, search database for existing by URL.
-		status, err = d.state.DB.GetStatusByURL(
-			gtscontext.SetBarebones(ctx),
-			uriStr,
-		)
-		if err != nil && !errors.Is(err, db.ErrNoEntries) {
-			return nil, nil, false, gtserror.Newf("error checking database for status %s by url: %w", uriStr, err)
-		}
-	}
-
-	if status == nil {
-		// Ensure not a failed search for a local
-		// status, if so we know it doesn't exist.
-		if uri.Host == config.GetHost() ||
-			uri.Host == config.GetAccountDomain() {
-			return nil, nil, false, gtserror.SetUnretrievable(err)
-		}
-
-		// Create and pass-through a bare-bones model for deref.
-		return d.enrichStatusSafely(ctx, requestUser, uri,
-			&gtsmodel.Status{URI: uriStr}, nil)
-	}
-
-	if statusFresh(status, DefaultStatusFreshness) {
-		// This is an existing status that is up-to-date,
-		// before returning ensure it is fully populated.
-		if err := d.state.DB.PopulateStatus(ctx, status); err != nil {
-			log.Errorf(ctx, "error populating existing status: %v", err)
-		}
-
-		return status, nil, false, nil
-	}
-
-	// Status not found in db or not fresh.
-	// Try to deref new or update existing.
-	return d.enrichStatusSafely(ctx,
-		requestUser,
-		uri,
-		status,
-		nil,
-	)
-}
-
 // RefreshStatus is functionally equivalent to GetStatusByURI(),
 // except that it requires a pre populated status model (with AT
 // LEAST uri set), and ALL thread dereferencing is asynchronous.
@@ -241,7 +130,7 @@ func (d *Dereferencer) RefreshStatus(
 	// Try to update + dereference
 	// the passed status model.
 	var isNew bool
-	latest, latestStatusable, isNew, err = d.enrichStatusSafely(ctx,
+	latest, latestStatusable, isNew, err = d.enrichAndStoreStatusSafely(ctx,
 		requestUser,
 		uri,
 		status,
@@ -263,11 +152,106 @@ func (d *Dereferencer) RefreshStatus(
 	return latest, latestStatusable, err
 }
 
-// enrichStatusSafely wraps enrichStatus() to perform it within
-// a State{}.FedLocks mutexmap, which protects it within per-URI
-// mutex locks. This also handles necessary delete of now-deleted
-// statuses, and updating fetched_at on returned HTTP errors.
-func (d *Dereferencer) enrichStatusSafely(
+/*
+	INTERNAL / UTIL FUNCTIONS HERE
+*/
+
+// statusFresh returns true if the given status is still
+// considered "fresh" according to the desired freshness
+// window (falls back to default status freshness if nil).
+//
+// Local statuses will always be considered fresh,
+// because there's no remote state that may have changed.
+//
+// Return value of false indicates that the status
+// is not fresh and should be refreshed from remote.
+func statusFresh(
+	status *gtsmodel.Status,
+	window *FreshnessWindow,
+) bool {
+	if status.Flags.Local() ||
+		status.Flags.Deleted() {
+		// Can't refresh deleted
+		// or local statuses!
+		return true
+	}
+
+	if window == nil {
+		// If no window given, fallback
+		// to default status freshness.
+		window = DefaultStatusFreshness
+	}
+
+	// Moment when the status is
+	// considered stale according to
+	// desired freshness window.
+	d := time.Duration(*window)
+	staleAt := status.FetchedAt.Add(d)
+
+	// It's still fresh if the time now
+	// is not past the point of staleness.
+	return !time.Now().After(staleAt)
+}
+
+// getStatusByURI is a package internal form of .GetStatusByURI()
+// that doesn't dereference thread on update, and may return
+// an existing status with error on failed re-fetch.
+func (d *Dereferencer) getStatusByURI(
+	ctx context.Context,
+	requestUser string,
+	uri *url.URL,
+) (
+	status *gtsmodel.Status,
+	statusable ap.Statusable,
+	isNew bool,
+	err error,
+) {
+	// Search the database
+	// for existing status.
+	uriStr := uri.String()
+	status, err = d.getStatusDBOnly(ctx, uriStr)
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	if status == nil {
+		// Ensure not a failed search for a local
+		// status, if so we know it doesn't exist.
+		if uri.Host == config.GetHost() ||
+			uri.Host == config.GetAccountDomain() {
+			return nil, nil, false, gtserror.SetUnretrievable(err)
+		}
+
+		// Create and pass-through a bare-bones model for deref.
+		return d.enrichAndStoreStatusSafely(ctx, requestUser, uri,
+			&gtsmodel.Status{URI: uriStr}, nil)
+	}
+
+	if statusFresh(status, DefaultStatusFreshness) {
+		// This is an existing status that is up-to-date,
+		// before returning ensure it is fully populated.
+		if err := d.state.DB.PopulateStatus(ctx, status); err != nil {
+			log.Errorf(ctx, "error populating existing status: %v", err)
+		}
+
+		return status, nil, false, nil
+	}
+
+	// Status not found in db or not fresh.
+	// Try to deref new or update existing.
+	return d.enrichAndStoreStatusSafely(ctx,
+		requestUser,
+		uri,
+		status,
+		nil,
+	)
+}
+
+// enrichAndStoreStatusSafely wraps enrichStatus() to perform it within a
+// State{}.FedLocks mutexmap, which protects it within per-URI mutex locks.
+// This also handles necessary delete of now-deleted statuses, and updating
+// fetched_at on returned HTTP errors.
+func (d *Dereferencer) enrichAndStoreStatusSafely(
 	ctx context.Context,
 	requestUser string,
 	uri *url.URL,
@@ -283,30 +267,30 @@ func (d *Dereferencer) enrichStatusSafely(
 	unlock = util.DoOnce(unlock)
 	defer unlock()
 
-	var err error
-	var isNew bool
-
-	// Check if this is a new status (to us).
-	if isNew = (status.ID == ""); !isNew {
-
+	if status.ID != "" {
+		// If ID was set it means we've stored this status before.
+		//
 		// We reload the existing status, just to ensure we have the
 		// latest version of it. e.g. another racing thread might have
 		// just input a change but we still have an old status copy.
 		//
 		// Note: returned status will be fully populated, required below.
+		var err error
 		status, err = d.state.DB.GetStatusByID(ctx, status.ID)
 		if err != nil {
 			return nil, nil, false, gtserror.Newf("error getting up-to-date existing status: %w", err)
 		}
 	}
 
-	// Perform status enrichment with passed vars.
-	latest, statusable, err := d.enrichStatus(ctx,
+	// Perform status enrichment + storage with passed vars.
+	//
+	// isNew may be true if this status was actually stored
+	// under a different URI than the one we were given.
+	latest, statusable, isNew, err := d.enrichAndStoreStatus(ctx,
 		requestUser,
 		uri,
 		status,
 		statusable,
-		isNew,
 	)
 
 	// Check for a returned HTTP code via error.
@@ -361,7 +345,7 @@ func (d *Dereferencer) enrichStatusSafely(
 
 		// DATA RACE! We likely lost out to another goroutine
 		// in a call to db.Put(Status). Look again in DB by URI.
-		latest, err = d.state.DB.GetStatusByURI(ctx, status.URI)
+		latest, err = d.getStatusDBOnly(ctx, status.URI)
 		if err != nil {
 			err = gtserror.Newf("error getting status %s from database after race: %w", uriStr, err)
 		}
@@ -370,135 +354,73 @@ func (d *Dereferencer) enrichStatusSafely(
 	return latest, statusable, isNew, err
 }
 
-// enrichStatus will enrich the given status, whether a new
-// barebones model, or existing model from the database.
-// It handles necessary dereferencing, database updates, etc.
-func (d *Dereferencer) enrichStatus(
+// enrichAndStoreStatus will enrich the given status, whether
+// a new barebones model, or existing model from the database,
+// handling necessary dereferencing. The result is then stored,
+// either updating or putting a new status status in the db.
+//
+// The return values are the latest up-to-date model of the status,
+// the statusable AP representation, and a boolean indicating whether
+// the status is truly new or whether it had already been stored
+// under a different URI than the one given, after dereferencing.
+func (d *Dereferencer) enrichAndStoreStatus(
 	ctx context.Context,
 	requestUser string,
 	uri *url.URL,
 	status *gtsmodel.Status,
 	statusable ap.Statusable,
-	isNew bool,
 ) (
-	*gtsmodel.Status,
-	ap.Statusable,
-	error,
+	*gtsmodel.Status, // latestStatus
+	ap.Statusable, // statusable
+	bool, // isNew
+	error, // error
 ) {
-	// Pre-fetch a transport for requesting username, used by later dereferencing.
-	tsport, err := d.transportController.NewTransportForUsername(ctx, requestUser)
-	if err != nil {
-		return nil, nil, gtserror.Newf("couldn't create transport: %w", err)
-	}
+	// New--ie., hasn't been stored
+	// in the db--if no ID was set yet.
+	isNew := status.ID == ""
 
 	// Check whether this status URI is a blocked domain / subdomain.
 	if blocked, err := d.state.DB.IsDomainBlocked(ctx, uri.Host); err != nil {
-		return nil, nil, gtserror.Newf("error checking blocked domain: %w", err)
+		return nil, nil, isNew, gtserror.Newf("error checking blocked domain: %w", err)
 	} else if blocked {
 		err := gtserror.Newf("%s is blocked", uri.Host)
-		return nil, nil, gtserror.SetUnretrievable(err)
+		return nil, nil, isNew, gtserror.SetUnretrievable(err)
 	}
 
 	if statusable == nil {
-		// Dereference latest version of the status.
-		rsp, err := tsport.Dereference(ctx, uri)
+		// Create transport on behalf of requesting username.
+		tsport, err := d.transportController.NewTransportForUsername(ctx, requestUser)
 		if err != nil {
-			err := gtserror.Newf("error dereferencing %s: %w", uri, err)
-			return nil, nil, gtserror.SetUnretrievable(err)
+			return nil, nil, isNew, gtserror.Newf("couldn't create transport: %w", err)
 		}
 
-		// Attempt to resolve ActivityPub status from response.
-		statusable, err = ap.ResolveStatusable(ctx, rsp.Body)
-
-		// Tidy up now done.
-		_ = rsp.Body.Close()
-
+		// Dereference statusable from remote,
+		// checking if we already had this
+		// status stored under a different URI
+		// (ie., the final URI after redirects).
+		var alreadyStatus *gtsmodel.Status
+		statusable, alreadyStatus, err = d.retrieveStatusable(ctx, tsport, uri)
 		if err != nil {
-			// ResolveStatusable will set gtserror.WrongType
-			// on the returned error, so we don't need to do it here.
-			err := gtserror.Newf("error resolving statusable %s: %w", uri, err)
-			return nil, nil, err
+			return nil, nil, isNew, err
 		}
 
-		// Check whether input URI and final returned URI
-		// have changed (i.e. we followed some redirects).
-		if finalURIStr := rsp.Request.URL.String(); //
-		finalURIStr != uri.String() {
-
-			// NOTE: this URI check + database call is performed
-			// AFTER reading and closing response body, for performance.
-			//
-			// Check whether we have this status stored under *final* URI.
-			alreadyStatus, err := d.state.DB.GetStatusByURI(ctx, finalURIStr)
-			if err != nil && !errors.Is(err, db.ErrNoEntries) {
-				return nil, nil, gtserror.Newf("db error getting status after redirects: %w", err)
-			}
-
-			if alreadyStatus != nil {
-				// We had this status stored
-				// under discovered final URI.
-				//
-				// Proceed with this status.
-				status = alreadyStatus
-			}
-
-			// Update the input URI to
-			// the final determined URI
-			// for later URI checks.
-			uri = rsp.Request.URL
+		// If alreadyStatus was returned, it means we
+		// already had this status stored in the db under
+		// its final reachable URI and not the given URI.
+		//
+		// Continue with this status and mark it as not
+		// new so we don't try to store it again below.
+		if alreadyStatus != nil {
+			status = alreadyStatus
+			isNew = false
 		}
-	}
-
-	// Get the attributed-to account in order to fetch profile.
-	attributedTo, err := ap.ExtractAttributedToURI(statusable)
-	if err != nil {
-		return nil, nil, gtserror.New("attributedTo was empty")
-	}
-
-	// Ensure we have the author account of the status dereferenced (+ up-to-date). If this is a new status
-	// (i.e. status.AccountID == "") then any error here is irrecoverable. status.AccountID must ALWAYS be set.
-	// We want the exact URI match here as well, not the imprecise URL match.
-	if _, _, err := d.getAccountByURI(ctx, requestUser, attributedTo, false); err != nil && status.AccountID == "" {
-
-		// Note that we specifically DO NOT wrap the error, instead collapsing it as string.
-		// Errors fetching an account do not necessarily relate to dereferencing the status.
-		return nil, nil, gtserror.Newf("failed to dereference status author %s: %v", uri, err)
 	}
 
 	// ActivityPub model was recently dereferenced, so assume passed status
 	// may contain out-of-date information. Convert AP model to our GTS model.
-	latestStatus, err := d.converter.ASStatusToStatus(ctx, statusable)
+	latestStatus, err := d.convertStatusable(ctx, requestUser, uri, statusable)
 	if err != nil {
-		return nil, nil, gtserror.Newf("error converting statusable to gts model for status %s: %w", uri, err)
-	}
-
-	// Ensure final status isn't attempting
-	// to claim being authored by local user.
-	if latestStatus.Account.IsLocal() {
-		return nil, nil, gtserror.Newf(
-			"dereferenced status %s claiming to be local",
-			latestStatus.URI,
-		)
-	}
-
-	// Ensure the final parsed status URI or URL matches
-	// the input URI we fetched (or received) it as.
-	matches, err := util.URIMatches(uri, append(
-		ap.GetURL(statusable),      // status URL(s)
-		ap.GetJSONLDId(statusable), // status URI
-	)...)
-	if err != nil {
-		return nil, nil, gtserror.Newf(
-			"error checking dereferenced status uri %s: %w",
-			latestStatus.URI, err,
-		)
-	}
-
-	if !matches {
-		return nil, nil, gtserror.Newf(
-			"dereferenced status uri %s does not match %s",
-			latestStatus.URI, uri.String(),
-		)
+		return nil, nil, isNew, err
 	}
 
 	if isNew {
@@ -510,7 +432,7 @@ func (d *Dereferencer) enrichStatus(
 		// Ensure that status isn't trying to re-date itself.
 		if !latestStatus.CreatedAt.Equal(status.CreatedAt) {
 			err := gtserror.Newf("status %s 'published' changed", uri)
-			return nil, nil, gtserror.SetMalformed(err)
+			return nil, nil, isNew, gtserror.SetMalformed(err)
 		}
 
 		// Reuse existing status ID.
@@ -542,96 +464,28 @@ func (d *Dereferencer) enrichStatus(
 	// and handles removal of existing statuses no longer permitted.
 	permit, err := d.isPermittedStatus(ctx, requestUser, status, latestStatus, isNew)
 	if err != nil {
-		return nil, nil, gtserror.Newf("error checking permissibility for status %s: %w", uri, err)
+		return nil, nil, isNew, gtserror.Newf("error checking permissibility for status %s: %w", uri, err)
 	}
 
 	if !permit {
 		// Return a checkable error type that can be ignored.
 		err := gtserror.Newf("dropping unpermitted status: %s", uri)
-		return nil, nil, gtserror.SetNotPermitted(err)
+		return nil, nil, isNew, gtserror.SetNotPermitted(err)
 	}
 
-	// Insert / update any attached status poll.
-	pollChanged, err := d.handleStatusPoll(ctx,
-		status,
-		latestStatus,
+	// Handle all peripheral changes / new stuff
+	// for this status: polls, mentions, media, etc.
+	changes, err := d.handleStatusPeripherals(ctx,
+		requestUser, uri, status, latestStatus,
 	)
 	if err != nil {
-		return nil, nil, gtserror.Newf("error handling poll for status %s: %w", uri, err)
+		return nil, nil, isNew, err
 	}
-
-	// Populate mentions associated with status, passing
-	// in existing status to reuse old where possible.
-	// (especially important here to reduce need to dereference).
-	mentionsChanged, err := d.fetchStatusMentions(ctx,
-		requestUser,
-		status,
-		latestStatus,
-	)
-	if err != nil {
-		return nil, nil, gtserror.Newf("error populating mentions for status %s: %w", uri, err)
-	}
-
-	// Populate tags associated with status, passing
-	// in existing status to reuse old where possible.
-	tagsChanged, err := d.fetchStatusTags(ctx,
-		status,
-		latestStatus,
-	)
-	if err != nil {
-		return nil, nil, gtserror.Newf("error populating tags for status %s: %w", uri, err)
-	}
-
-	// Check if there's any limits in place for (sub)domain.
-	limit, err := d.state.DB.MatchDomainLimit(ctx, uri.Host)
-	if err != nil {
-		return nil, nil, gtserror.Newf("error matching domain limit: %w", err)
-	}
-
-	// If domain media is limited, set reject reason,
-	// this gets passed to media fetching functions
-	// and prevents download of attached status media.
-	var rejectReason *gtsmodel.MediaErrorDetails
-	if limit.MediaReject() {
-		rejectReason = new(gtsmodel.MediaErrorDetails)
-		*rejectReason = gtsmodel.NewMediaErrorDetails(
-			gtsmodel.MediaErrorTypePolicy,
-			gtsmodel.MediaErrorTypePolicy_Domain,
-		)
-	}
-
-	// Populate media attachments associated with status,
-	// passing in existing status to reuse old where possible
-	// (especially important here to reduce need to dereference).
-	mediaChanged, err := d.fetchStatusAttachments(ctx,
-		requestUser,
-		status,
-		latestStatus,
-		rejectReason,
-	)
-	if err != nil {
-		return nil, nil, gtserror.Newf("error populating attachments for status %s: %w", uri, err)
-	}
-
-	// Populate emoji associated with status, passing
-	// in existing status to reuse old where possible
-	// (especially important here to reduce need to dereference).
-	emojiChanged, err := d.fetchStatusEmojis(ctx,
-		status,
-		latestStatus,
-		rejectReason,
-	)
-	if err != nil {
-		return nil, nil, gtserror.Newf("error populating emojis for status %s: %w", uri, err)
-	}
-
-	// Check if interaction policy has changed between status and latestStatus.
-	interactionPolicyChanged := status.InteractionPolicy.DifferentFrom(latestStatus.InteractionPolicy)
 
 	if isNew {
 		// Simplest case, insert this new remote status into the database.
 		if err := d.state.DB.PutStatus(ctx, latestStatus); err != nil {
-			return nil, nil, gtserror.Newf("error inserting new status %s: %w", uri, err)
+			return nil, nil, isNew, gtserror.Newf("error inserting new status %s: %w", uri, err)
 		}
 	} else {
 		// Check for and handle any edits to status, inserting
@@ -640,768 +494,22 @@ func (d *Dereferencer) enrichStatus(
 		cols, err := d.handleStatusEdit(ctx,
 			status,
 			latestStatus,
-			pollChanged,
-			mentionsChanged,
-			tagsChanged,
-			mediaChanged,
-			emojiChanged,
-			interactionPolicyChanged,
+			changes.pollChanged,
+			changes.mentionsChanged,
+			changes.tagsChanged,
+			changes.mediaChanged,
+			changes.emojiChanged,
+			changes.interactionPolicyChanged,
 		)
 		if err != nil {
-			return nil, nil, gtserror.Newf("error handling edit for status %s: %w", uri, err)
+			return nil, nil, isNew, gtserror.Newf("error handling edit for status %s: %w", uri, err)
 		}
 
 		// With returned changed columns, now update the existing status entry.
 		if err := d.state.DB.UpdateStatus(ctx, latestStatus, cols...); err != nil {
-			return nil, nil, gtserror.Newf("error updating existing status %s: %w", uri, err)
+			return nil, nil, isNew, gtserror.Newf("error updating existing status %s: %w", uri, err)
 		}
 	}
 
-	return latestStatus, statusable, nil
-}
-
-// fetchStatusMentions populates the mentions on 'status', creating
-// new where needed, or using unchanged mentions from 'existing' status.
-func (d *Dereferencer) fetchStatusMentions(
-	ctx context.Context,
-	requestUser string,
-	existing *gtsmodel.Status,
-	status *gtsmodel.Status,
-) (
-	changed bool,
-	err error,
-) {
-
-	// Get most-recent modified time
-	// for use in new mention ULIDs.
-	updatedAt := status.UpdatedAt()
-
-	// Allocate new slice to take the yet-to-be created mention IDs.
-	status.MentionIDs = make([]string, len(status.Mentions))
-
-	for i := range status.Mentions {
-		var (
-			mention       = status.Mentions[i]
-			alreadyExists bool
-		)
-
-		// Search existing status + db for a mention already stored,
-		// else ensure new mention's target account is populated.
-		mention, alreadyExists, err = d.newOrExistingMention(ctx,
-			requestUser,
-			existing,
-			mention,
-		)
-		if err != nil {
-			log.Errorf(ctx, "failed to derive mention: %v", err)
-			continue
-		}
-
-		if alreadyExists {
-			// This mention was already
-			// stored, use it and continue.
-			status.Mentions[i] = mention
-			status.MentionIDs[i] = mention.ID
-			continue
-		}
-
-		// Mark status as
-		// having changed.
-		changed = true
-
-		// This mention didn't exist yet.
-		// Generate new ID according to latest update.
-		mention.ID = id.NewULIDFromTime(updatedAt)
-
-		// Set further mention details.
-		mention.CreatedAt = updatedAt
-		mention.OriginAccount = status.Account
-		mention.OriginAccountID = status.AccountID
-		mention.OriginAccountURI = status.AccountURI
-		mention.TargetAccountID = mention.TargetAccount.ID
-		mention.TargetAccountURI = mention.TargetAccount.URI
-		mention.TargetAccountURL = mention.TargetAccount.URL
-		mention.StatusID = status.ID
-		mention.Status = status
-		mention.IsNew = true
-
-		// Place the new mention into the database.
-		if err := d.state.DB.PutMention(ctx, mention); err != nil {
-			return changed, gtserror.Newf("error putting mention in database: %w", err)
-		}
-
-		// Set the *new* mention and ID.
-		status.Mentions[i] = mention
-		status.MentionIDs[i] = mention.ID
-	}
-
-	for i := 0; i < len(status.MentionIDs); {
-		if status.MentionIDs[i] == "" {
-			// This is a failed mention population, likely due
-			// to invalid incoming data / now-deleted accounts.
-			copy(status.Mentions[i:], status.Mentions[i+1:])
-			copy(status.MentionIDs[i:], status.MentionIDs[i+1:])
-			status.Mentions = status.Mentions[:len(status.Mentions)-1]
-			status.MentionIDs = status.MentionIDs[:len(status.MentionIDs)-1]
-			continue
-		}
-		i++
-	}
-
-	return changed, nil
-}
-
-// fetchStatusTags populates the tags on 'status', fetching existing
-// from the database and creating new where needed. 'existing' is used
-// to fetch tags that have not changed since previous stored status.
-func (d *Dereferencer) fetchStatusTags(
-	ctx context.Context,
-	existing *gtsmodel.Status,
-	status *gtsmodel.Status,
-) (
-	changed bool,
-	err error,
-) {
-
-	// Allocate new slice to take the yet-to-be determined tag IDs.
-	status.TagIDs = make([]string, len(status.Tags))
-
-	for i := range status.Tags {
-		tag := status.Tags[i]
-
-		// Look for tag in existing status with name.
-		existing, ok := existing.GetTagByName(tag.Name)
-		if ok && existing.ID != "" {
-			status.Tags[i] = existing
-			status.TagIDs[i] = existing.ID
-			continue
-		}
-
-		// Mark status as
-		// having changed.
-		changed = true
-
-		// Look for existing tag with name in the database.
-		existing, err := d.state.DB.GetTagByName(ctx, tag.Name)
-		if err != nil && !errors.Is(err, db.ErrNoEntries) {
-			return changed, gtserror.Newf("db error getting tag %s: %w", tag.Name, err)
-		} else if existing != nil {
-			status.Tags[i] = existing
-			status.TagIDs[i] = existing.ID
-			continue
-		}
-
-		// Create new ID for tag.
-		tag.ID = id.NewULID()
-
-		// Insert this tag with new name into the database.
-		if err := d.state.DB.PutTag(ctx, tag); err != nil {
-			log.Errorf(ctx, "db error putting tag %s: %v", tag.Name, err)
-			continue
-		}
-
-		// Set new tag ID in slice.
-		status.TagIDs[i] = tag.ID
-	}
-
-	// Remove any tag we couldn't get or create.
-	for i := 0; i < len(status.TagIDs); {
-		if status.TagIDs[i] == "" {
-			// This is a failed tag population, likely due
-			// to some database peculiarity / race condition.
-			copy(status.Tags[i:], status.Tags[i+1:])
-			copy(status.TagIDs[i:], status.TagIDs[i+1:])
-			status.Tags = status.Tags[:len(status.Tags)-1]
-			status.TagIDs = status.TagIDs[:len(status.TagIDs)-1]
-			continue
-		}
-		i++
-	}
-
-	return changed, nil
-}
-
-// fetchStatusAttachments populates the attachments on 'status', creating new database
-// entries where needed and dereferencing it, or using unchanged from 'existing' status.
-func (d *Dereferencer) fetchStatusAttachments(
-	ctx context.Context,
-	requestUser string,
-	existing *gtsmodel.Status,
-	status *gtsmodel.Status,
-	rejectReason *gtsmodel.MediaErrorDetails, // optional reason to reject media with
-) (
-	changed bool,
-	err error,
-) {
-	// Allocate new slice to take the yet-to-be fetched attachment IDs.
-	status.AttachmentIDs = make([]string, len(status.Attachments))
-	for i := range status.Attachments {
-		placeholder := status.Attachments[i]
-
-		// Look for existing media attachment with remote URL first.
-		existing, ok := existing.GetAttachmentByRemoteURL(placeholder.RemoteURL)
-		if ok && existing.ID != "" {
-
-			info := media.AdditionalMediaInfo{
-				// Pass reject reason ptr, which
-				// will skip downloading if set.
-				RejectReason: rejectReason,
-			}
-
-			// Look for any difference in stored media description.
-			diff := (existing.Description != placeholder.Description)
-			if diff {
-				info.Description = &placeholder.Description
-			}
-
-			// If description changed,
-			// we mark media as changed.
-			changed = changed || diff
-
-			// Store any attachment updates
-			// and ensure media is locally
-			// cached (if appropriate).
-			existing, err := d.RefreshMedia(ctx,
-				requestUser,
-				existing,
-				info,
-				diff,
-				true, // async
-			)
-			if err != nil {
-				log.Errorf(ctx, "error updating existing attachment: %v", err)
-
-				// specifically do NOT continue here,
-				// we already have a model, we don't
-				// want to drop it from the status, just
-				// log that an update for it failed.
-			}
-
-			// Set the existing attachment.
-			status.Attachments[i] = existing
-			status.AttachmentIDs[i] = existing.ID
-			continue
-		}
-
-		// Mark status as
-		// having changed.
-		changed = true
-
-		// Load this new media attachment.
-		attachment, err := d.GetMedia(ctx,
-			requestUser,
-			status.AccountID,
-			placeholder.RemoteURL,
-			media.AdditionalMediaInfo{
-				StatusID:    &status.ID,
-				RemoteURL:   &placeholder.RemoteURL,
-				Description: &placeholder.Description,
-				Blurhash:    &placeholder.Blurhash,
-				FocusX:      &placeholder.FileMeta.Focus.X,
-				FocusY:      &placeholder.FileMeta.Focus.Y,
-
-				// Pass reject reason ptr, which
-				// will skip downloading if set.
-				RejectReason: rejectReason,
-			},
-			false, // async
-		)
-		if err != nil {
-			if attachment == nil {
-				log.Errorf(ctx, "error loading attachment %s: %v", placeholder.RemoteURL, err)
-				continue
-			}
-
-			// non-fatal error occurred during loading, still use it.
-			log.Warnf(ctx, "partially loaded attachment: %v", err)
-		}
-
-		// Set the *new* attachment and ID.
-		status.Attachments[i] = attachment
-		status.AttachmentIDs[i] = attachment.ID
-	}
-
-	for i := 0; i < len(status.AttachmentIDs); {
-		if status.AttachmentIDs[i] == "" {
-			// Remove totally failed attachment populations
-			copy(status.Attachments[i:], status.Attachments[i+1:])
-			copy(status.AttachmentIDs[i:], status.AttachmentIDs[i+1:])
-			status.Attachments = status.Attachments[:len(status.Attachments)-1]
-			status.AttachmentIDs = status.AttachmentIDs[:len(status.AttachmentIDs)-1]
-			continue
-		}
-		i++
-	}
-
-	return changed, nil
-}
-
-// fetchStatusEmojis populates the emojis on 'status', creating new database entries
-// where needed and dereferencing it, or using unchanged from 'existing' status.
-func (d *Dereferencer) fetchStatusEmojis(
-	ctx context.Context,
-	existing *gtsmodel.Status,
-	status *gtsmodel.Status,
-	rejectReason *gtsmodel.MediaErrorDetails, // optional reason to reject media with
-) (
-	changed bool,
-	err error,
-) {
-
-	// Fetch the updated emojis for our status.
-	emojis, changed, err := d.fetchEmojis(ctx,
-		existing.Emojis,
-		status.Emojis,
-		rejectReason,
-	)
-	if err != nil {
-		return changed, gtserror.Newf("error fetching emojis: %w", err)
-	}
-
-	if !changed {
-		// Use existing status emoji objects.
-		status.EmojiIDs = existing.EmojiIDs
-		status.Emojis = existing.Emojis
-		return false, nil
-	}
-
-	// Set latest emojis.
-	status.Emojis = emojis
-
-	// Extract IDs from latest slice of emojis.
-	status.EmojiIDs = make([]string, len(emojis))
-	for i, emoji := range emojis {
-		status.EmojiIDs[i] = emoji.ID
-	}
-
-	// Combine both old and new emojis, as statuses.emojis
-	// keeps track of emojis for both old and current edits.
-	status.EmojiIDs = append(status.EmojiIDs, existing.EmojiIDs...)
-	status.Emojis = append(status.Emojis, existing.Emojis...)
-	status.EmojiIDs = xslices.Deduplicate(status.EmojiIDs)
-	status.Emojis = xslices.DeduplicateFunc(status.Emojis,
-		func(e *gtsmodel.Emoji) string { return e.ID },
-	)
-
-	return true, nil
-}
-
-// handleStatusPoll handles both inserting of new status poll or the
-// update of an existing poll. this handles the case of simple vote
-// count updates (without being classified as a change of the poll
-// itself), as well as full poll changes that delete existing instance.
-func (d *Dereferencer) handleStatusPoll(
-	ctx context.Context,
-	existing *gtsmodel.Status,
-	status *gtsmodel.Status,
-) (
-	changed bool,
-	err error,
-) {
-	switch {
-	case existing.Poll == nil && status.Poll == nil:
-		// no poll before or after, nothing to do.
-		return false, nil
-
-	case existing.Poll == nil && status.Poll != nil:
-		// no previous poll, insert new status poll!
-		return true, d.insertStatusPoll(ctx, status)
-
-	case status.Poll == nil:
-		// existing status poll has been deleted, remove this from the database.
-		if err = d.state.DB.DeletePollByID(ctx, existing.Poll.ID); err != nil {
-			err = gtserror.Newf("error deleting poll from database: %w", err)
-		}
-		return true, err
-
-	case pollChanged(existing.Poll, status.Poll):
-		// existing status poll has been changed, remove this from the database.
-		if err = d.state.DB.DeletePollByID(ctx, existing.Poll.ID); err != nil {
-			return true, gtserror.Newf("error deleting poll from database: %w", err)
-		}
-
-		// insert latest poll version into database.
-		return true, d.insertStatusPoll(ctx, status)
-
-	case pollStateUpdated(existing.Poll, status.Poll):
-		// Since we last saw it, the poll has updated!
-		// Whether that be stats, or close time.
-		poll := existing.Poll
-		poll.Closing = pollJustClosed(existing.Poll, status.Poll)
-		poll.ClosedAt = status.Poll.ClosedAt
-		poll.Voters = status.Poll.Voters
-		poll.Votes = status.Poll.Votes
-
-		// Update poll model in the database (specifically only the possible changed columns).
-		if err = d.state.DB.UpdatePoll(ctx, poll, "closed_at", "voters", "votes"); err != nil {
-			return false, gtserror.Newf("error updating poll: %w", err)
-		}
-
-		// Update poll on status.
-		status.PollID = poll.ID
-		status.Poll = poll
-		return false, nil
-
-	default:
-		// latest and existing
-		// polls are up to date.
-		poll := existing.Poll
-		status.PollID = poll.ID
-		status.Poll = poll
-		return false, nil
-	}
-}
-
-// insertStatusPoll inserts an assumed new poll attached to status into the database, this
-// also handles generating new ID for the poll and setting necessary fields on the status.
-func (d *Dereferencer) insertStatusPoll(ctx context.Context, status *gtsmodel.Status) error {
-	var err error
-
-	// Get most-recent modified time
-	// which will be poll creation time.
-	createdAt := status.UpdatedAt()
-
-	// Generate new ID for poll from createdAt.
-	status.Poll.ID = id.NewULIDFromTime(createdAt)
-
-	// Update the status<->poll links.
-	status.PollID = status.Poll.ID
-	status.Poll.StatusID = status.ID
-	status.Poll.Status = status
-
-	// Insert this latest poll into the database.
-	err = d.state.DB.PutPoll(ctx, status.Poll)
-	if err != nil {
-		return gtserror.Newf("error putting poll in database: %w", err)
-	}
-
-	return nil
-}
-
-// handleStatusEdit compiles a list of changed status table columns between
-// existing and latest status model, and where necessary inserts a historic
-// edit of the status into the database to store its previous state. the
-// returned slice is a list of columns requiring updating in the database.
-func (d *Dereferencer) handleStatusEdit(
-	ctx context.Context,
-	existing *gtsmodel.Status,
-	status *gtsmodel.Status,
-	pollChanged bool,
-	mentionsChanged bool,
-	tagsChanged bool,
-	mediaChanged bool,
-	emojiChanged bool,
-	interactionPolicyChanged bool,
-) (
-	cols []string,
-	err error,
-) {
-	var edited bool
-
-	// Copy previous status edit columns.
-	status.EditIDs = existing.EditIDs
-	status.Edits = existing.Edits
-
-	// Preallocate max slice length.
-	cols = make([]string, 1, 13)
-
-	// Always update `fetched_at`.
-	cols[0] = "fetched_at"
-
-	// Check for edited status content.
-	if existing.Content != status.Content {
-		cols = append(cols, "content")
-		edited = true
-	}
-
-	// Check for edited status content warning.
-	if existing.ContentWarning != status.ContentWarning {
-		cols = append(cols, "content_warning")
-		edited = true
-	}
-
-	// Check for edited status sensitive flag.
-	if existing.Flags.Sensitive() != status.Flags.Sensitive() {
-		cols = append(cols, "flags")
-		edited = true
-	}
-
-	// Check for edited status language tag.
-	if existing.Language != status.Language {
-		cols = append(cols, "language")
-		edited = true
-	}
-
-	if pollChanged {
-		// Attached poll was changed.
-		cols = append(cols, "poll_id")
-		edited = true
-	}
-
-	if mentionsChanged {
-		cols = append(cols, "mentions") // i.e. MentionIDs
-
-		// Mentions changed doesn't necessarily
-		// indicate an edit, it may just not have
-		// been previously populated properly.
-	}
-
-	if tagsChanged {
-		cols = append(cols, "tags") // i.e. TagIDs
-
-		// Tags changed doesn't necessarily
-		// indicate an edit, it may just not have
-		// been previously populated properly.
-	}
-
-	if mediaChanged {
-		// Attached media was changed.
-		cols = append(cols, "attachments") // i.e. AttachmentIDs
-		edited = true
-	}
-
-	if emojiChanged {
-		// Attached emojis changed.
-		cols = append(cols, "emojis") // i.e. EmojiIDs
-
-		// We specifically store both *new* AND *old* edit
-		// revision emojis in the statuses.emojis column.
-		emojiByID := func(e *gtsmodel.Emoji) string { return e.ID }
-		status.Emojis = append(status.Emojis, existing.Emojis...)
-		status.Emojis = xslices.DeduplicateFunc(status.Emojis, emojiByID)
-		status.EmojiIDs = xslices.Gather(status.EmojiIDs[:0], status.Emojis, emojiByID)
-
-		// Emojis changed doesn't necessarily
-		// indicate an edit, it may just not have
-		// been previously populated properly.
-	}
-
-	if interactionPolicyChanged {
-		// Interaction policy changed.
-		cols = append(cols, "interaction_policy")
-
-		// Int pol changed doesn't necessarily
-		// indicate an edit, it may just not have
-		// been previously populated properly.
-	}
-
-	if edited {
-		// Get previous-most-recent modified time,
-		// which will be this edit's creation time.
-		createdAt := existing.UpdatedAt()
-
-		// Status has been editted since last
-		// we saw it, take snapshot of existing.
-		var edit gtsmodel.StatusEdit
-		edit.ID = id.NewULIDFromTime(createdAt)
-		edit.Content = existing.Content
-		edit.ContentWarning = existing.ContentWarning
-		edit.Text = existing.Text
-		edit.ContentType = existing.ContentType
-		edit.Language = existing.Language
-		edit.Sensitive = util.Ptr(existing.Flags.Sensitive())
-		edit.StatusID = status.ID
-		edit.CreatedAt = createdAt
-
-		// Copy existing attachments and descriptions.
-		edit.AttachmentIDs = existing.AttachmentIDs
-		edit.Attachments = existing.Attachments
-		if l := len(existing.Attachments); l > 0 {
-			edit.AttachmentDescriptions = make([]string, l)
-			for i, attach := range existing.Attachments {
-				edit.AttachmentDescriptions[i] = attach.Description
-			}
-		}
-
-		if existing.Poll != nil {
-			// Poll only set if existing contained them.
-			edit.PollOptions = existing.Poll.Options
-
-			if pollChanged || !*existing.Poll.HideCounts ||
-				!existing.Poll.ClosedAt.IsZero() {
-				// If the counts are allowed to be
-				// shown, or poll has changed, then
-				// include poll vote counts in edit.
-				edit.PollVotes = existing.Poll.Votes
-			}
-		}
-
-		// Insert this new edit of existing status into database.
-		if err := d.state.DB.PutStatusEdit(ctx, &edit); err != nil {
-			return nil, gtserror.Newf("error putting edit in database: %w", err)
-		}
-
-		// Add edit to list of edits on the status.
-		status.EditIDs = append(status.EditIDs, edit.ID)
-		status.Edits = append(status.Edits, &edit)
-
-		// Add edit to list of cols.
-		cols = append(cols, "edits")
-	}
-
-	if !existing.EditedAt.Equal(status.EditedAt) {
-		// Whether status edited or not,
-		// edited_at column has changed.
-		cols = append(cols, "edited_at")
-	}
-
-	return cols, nil
-}
-
-// newOrExistingMention tries to populate the given
-// mention with the correct TargetAccount and (if not
-// yet set) TargetAccountURI, returning the populated
-// mention.
-//
-// Will check on the existing status and in the db
-// if the mention is already there and populated;
-// if so, existing mention will be returned along
-// with `true` to indicate that it already existed.
-//
-// Otherwise, this function will try to parse first
-// the Href of the mention, and then the namestring,
-// to see who it targets, and go fetch that account.
-//
-// Note: Ordinarily it would make sense to try the
-// namestring first, as it definitely can't be a URL
-// rather than a URI, but because some remotes do
-// silly things like only provide `@username` instead
-// of `@username@domain`, we try by URI first.
-func (d *Dereferencer) newOrExistingMention(
-	ctx context.Context,
-	requestUser string,
-	existing *gtsmodel.Status,
-	mention *gtsmodel.Mention,
-) (
-	*gtsmodel.Mention,
-	bool, // True if mention already exists in the DB.
-	error,
-) {
-	// Mentions can be created using `name` or `href`.
-	//
-	// Prefer `href` (TargetAccountURI), fall back to Name.
-	switch {
-	case mention.TargetAccountURI != "":
-		// Look on the status for existing mention with target account's URI.
-		existingMention, ok := existing.GetMentionByTargetURI(mention.TargetAccountURI)
-		if ok && existingMention.ID != "" {
-			// Already populated
-			// mention, use this.
-			return existingMention, true, nil
-		}
-
-		// Ensure that mention account URI is parseable.
-		targetAccountURI, err := url.Parse(mention.TargetAccountURI)
-		if err != nil {
-			err := gtserror.Newf("invalid account uri %q: %w", mention.TargetAccountURI, err)
-			return nil, false, err
-		}
-
-		// Ensure we have the account of
-		// the mention target dereferenced.
-		//
-		// Use exact URI match only, not URL,
-		// as we want to be precise here.
-		mention.TargetAccount, _, err = d.getAccountByURI(ctx,
-			requestUser,
-			targetAccountURI,
-			false,
-		)
-		if err != nil {
-			err := gtserror.Newf("failed to dereference account %s: %w", targetAccountURI, err)
-			return nil, false, err
-		}
-
-		// Look in the db for this existing mention.
-		existingMention, err = d.state.DB.GetMentionByTargetAcctStatus(
-			ctx,
-			mention.TargetAccount.ID,
-			existing.ID,
-		)
-		if err != nil && !errors.Is(err, db.ErrNoEntries) {
-			err := gtserror.Newf("db error looking for existing mention: %w", err)
-			return nil, false, err
-		}
-
-		if existingMention != nil {
-			// Already had stored
-			// mention, use this.
-			return existingMention, true, nil
-		}
-
-	case mention.NameString != "":
-		// Href wasn't set, extract the username and domain parts from namestring.
-		username, domain, err := util.ExtractNamestringParts(mention.NameString)
-		if err != nil {
-			err := gtserror.Newf("failed to parse namestring %s: %w", mention.NameString, err)
-			return nil, false, err
-		}
-
-		// Look on the status for existing mention with username domain target.
-		existingMention, ok := existing.GetMentionByUsernameDomain(username, domain)
-		if ok && existingMention.ID != "" {
-			// Already populated
-			// mention, use this.
-			return existingMention, true, nil
-		}
-
-		// Ensure we have the account of
-		// the mention target dereferenced.
-		//
-		// This might fail if the remote does
-		// something silly like only setting
-		// `@username` and not `@username@domain`.
-		mention.TargetAccount, _, err = d.getAccountByUsernameDomain(ctx,
-			requestUser,
-			username,
-			domain,
-		)
-		if err != nil && !errors.Is(err, db.ErrNoEntries) {
-			err := gtserror.Newf("failed to dereference account %s: %w", mention.NameString, err)
-			return nil, false, err
-		}
-
-		if mention.TargetAccount == nil {
-			// Probably failed for abovementioned
-			// silly reason. Nothing we can do about it.
-			err := gtserror.Newf(
-				"failed to populate mention target account (badly formatted namestring?) %s: %w",
-				mention.NameString, err,
-			)
-			return nil, false, err
-		}
-
-		// Look on the status for existing mention with target account's URI.
-		existingMention, ok = existing.GetMentionByTargetURI(mention.TargetAccountURI)
-		if ok && existingMention.ID != "" {
-			// Already populated
-			// mention, use this.
-			return existingMention, true, nil
-		}
-
-		// Look in the db for this existing mention.
-		existingMention, err = d.state.DB.GetMentionByTargetAcctStatus(
-			ctx,
-			mention.TargetAccount.ID,
-			existing.ID,
-		)
-		if err != nil && !errors.Is(err, db.ErrNoEntries) {
-			err := gtserror.Newf("db error looking for existing mention: %w", err)
-			return nil, false, err
-		}
-
-		if existingMention != nil {
-			// Already had stored
-			// mention, use this.
-			return existingMention, true, nil
-		}
-
-	default:
-		const errText = "neither target uri nor namestring were set on mention, cannot process it"
-		return nil, false, gtserror.New(errText)
-	}
-
-	// At this point, mention.TargetAccountURI
-	// and mention.TargetAccount must be set.
-	return mention, false, nil
+	return latestStatus, statusable, isNew, nil
 }

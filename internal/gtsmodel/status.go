@@ -18,6 +18,7 @@
 package gtsmodel
 
 import (
+	"net/url"
 	"time"
 
 	"code.superseriousbusiness.org/gopkg/log"
@@ -93,9 +94,10 @@ type Status struct {
 	// the URI of the status this status is a boost of
 	// (not inserted in the db, just for dereferencing purposes),
 	// and the status that corresponds to boostOfID.
-	BoostOfID  string  `bun:"type:CHAR(26),nullzero"`
-	BoostOfURI string  `bun:"-"`
-	BoostOf    *Status `bun:"-"`
+	BoostOfID     string   `bun:"type:CHAR(26),nullzero"`
+	BoostOfURI    *url.URL `bun:"-"`
+	BoostOfURIStr string   `bun:"-"`
+	BoostOf       *Status  `bun:"-"`
 
 	// ID of the account that owns the boosted status,
 	// and account that corresponds to boostOfAccountID

@@ -222,6 +222,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithNonMatchingURI() {
 
 	const (
 		remoteURI    = "https://turnip.farm/users/turniplover6969/statuses/70c53e54-3146-42d5-a630-83c8b6c7c042"
+		remoteURL    = "https://turnip.farm/@turniplover6969/70c53e54-3146-42d5-a630-83c8b6c7c042"
 		remoteAltURI = "https://turnip.farm/users/turniphater420/statuses/70c53e54-3146-42d5-a630-83c8b6c7c042"
 	)
 
@@ -236,7 +237,11 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithNonMatchingURI() {
 		testrig.URLMustParse(remoteAltURI),
 		nil,
 	)
-	suite.Equal(err.Error(), fmt.Sprintf("enrichStatus: dereferenced status uri %s does not match %s", remoteURI, remoteAltURI))
+	expectErrStr := fmt.Sprintf(
+		"retrieveStatusable: http URI %s does not match dereferenced statusable id or url(s) [%s %s]",
+		remoteAltURI, remoteURL, remoteURI,
+	)
+	suite.Equal(expectErrStr, err.Error())
 	suite.Nil(fetchedStatus)
 }
 

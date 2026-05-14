@@ -27,6 +27,7 @@ import (
 
 	"code.superseriousbusiness.org/gotosocial/internal/federation"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/interaction"
+	"code.superseriousbusiness.org/gotosocial/internal/filter/relay"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
@@ -65,6 +66,7 @@ func (suite *FederatingActorTestSuite) TestSendNoRemoteFollowers() {
 		suite.typeconverter,
 		visibility.NewFilter(&suite.state),
 		interaction.NewFilter(&suite.state),
+		relay.NewFilter(&suite.state),
 		testrig.NewTestMediaManager(&suite.state),
 	)
 
@@ -116,6 +118,7 @@ func (suite *FederatingActorTestSuite) TestSendRemoteFollower() {
 		suite.typeconverter,
 		visibility.NewFilter(&suite.state),
 		interaction.NewFilter(&suite.state),
+		relay.NewFilter(&suite.state),
 		testrig.NewTestMediaManager(&suite.state),
 	)
 

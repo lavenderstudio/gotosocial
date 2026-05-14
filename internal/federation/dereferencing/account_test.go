@@ -266,6 +266,7 @@ func (suite *AccountTestSuite) TestDereferenceLocalAccountByRedirect() {
 		testrig.NewTestTransportController(&suite.state, suite.client),
 		suite.visFilter,
 		suite.intFilter,
+		suite.relayFilter,
 		suite.media,
 	)
 
@@ -322,6 +323,7 @@ func (suite *AccountTestSuite) TestDereferenceMasqueradingLocalAccount() {
 		testrig.NewTestTransportController(&suite.state, suite.client),
 		suite.visFilter,
 		suite.intFilter,
+		suite.relayFilter,
 		suite.media,
 	)
 

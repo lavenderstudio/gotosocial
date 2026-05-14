@@ -58,7 +58,8 @@ func (suite *FromFediAPITestSuite) TestProcessFederationAnnounce() {
 
 	announceStatus := &gtsmodel.Status{}
 	announceStatus.URI = "https://example.org/some-announce-uri"
-	announceStatus.BoostOfURI = boostedStatus.URI
+	announceStatus.BoostOfURI = testrig.URLMustParse(boostedStatus.URI)
+	announceStatus.BoostOfURIStr = boostedStatus.URI
 	announceStatus.CreatedAt = time.Now()
 	announceStatus.AccountID = boostingAccount.ID
 	announceStatus.AccountURI = boostingAccount.URI

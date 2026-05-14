@@ -621,7 +621,7 @@ func (d *Dereferencer) isPermittedBoost(
 		status.ApprovedByURI, // approval uri
 		boostOf.AccountURI,   // actor
 		status.URI,           // object
-		status.BoostOfURI,    // target
+		status.BoostOfURIStr, // target
 	)
 	if err != nil {
 		// Error dereferencing means we couldn't

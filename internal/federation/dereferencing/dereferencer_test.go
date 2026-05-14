@@ -23,6 +23,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/federation/dereferencing"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/interaction"
+	"code.superseriousbusiness.org/gotosocial/internal/filter/relay"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
@@ -35,14 +36,15 @@ import (
 
 type DereferencerStandardTestSuite struct {
 	suite.Suite
-	db        db.DB
-	storage   *storage.Driver
-	state     state.State
-	client    *testrig.MockHTTPClient
-	converter *typeutils.Converter
-	visFilter *visibility.Filter
-	intFilter *interaction.Filter
-	media     *media.Manager
+	db          db.DB
+	storage     *storage.Driver
+	state       state.State
+	client      *testrig.MockHTTPClient
+	converter   *typeutils.Converter
+	visFilter   *visibility.Filter
+	intFilter   *interaction.Filter
+	relayFilter *relay.Filter
+	media       *media.Manager
 
 	testRemoteStatuses    map[string]vocab.ActivityStreamsNote
 	testRemotePeople      map[string]vocab.ActivityStreamsPerson
@@ -75,6 +77,7 @@ func (suite *DereferencerStandardTestSuite) SetupTest() {
 	suite.converter = typeutils.NewConverter(&suite.state)
 	suite.visFilter = visibility.NewFilter(&suite.state)
 	suite.intFilter = interaction.NewFilter(&suite.state)
+	suite.relayFilter = relay.NewFilter(&suite.state)
 	suite.media = testrig.NewTestMediaManager(&suite.state)
 
 	suite.client = testrig.NewMockHTTPClient(nil, "../../../testrig/media")
@@ -92,6 +95,7 @@ func (suite *DereferencerStandardTestSuite) SetupTest() {
 		),
 		suite.visFilter,
 		suite.intFilter,
+		suite.relayFilter,
 		suite.media,
 	)
 	testrig.StandardDBSetup(suite.db, nil)

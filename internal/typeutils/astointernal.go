@@ -660,7 +660,8 @@ func (c *Converter) ASAnnounceToStatus(
 
 	// Set the URI of the boosted status on
 	// the boost, for later dereferencing.
-	boost.BoostOfURI = boostOf[0].String()
+	boost.BoostOfURI = boostOf[0]
+	boost.BoostOfURIStr = boost.BoostOfURI.String()
 
 	// Extract published time for the boost,
 	// zero-time will fall back to db defaults.

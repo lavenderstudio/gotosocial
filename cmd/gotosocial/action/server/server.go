@@ -43,6 +43,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/federation/federatingdb"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/interaction"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/mutes"
+	"code.superseriousbusiness.org/gotosocial/internal/filter/relay"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/spam"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/status"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
@@ -289,6 +290,7 @@ func Start(ctx context.Context) error {
 	intFilter := interaction.NewFilter(state)
 	statusFilter := status.NewFilter(state)
 	spamFilter := spam.NewFilter(state)
+	relayFilter := relay.NewFilter(state)
 	federatingDB := federatingdb.New(state, typeConverter, visFilter, intFilter, spamFilter)
 	transportController := transport.NewController(state, federatingDB, client)
 	federator := federation.NewFederator(
@@ -298,6 +300,7 @@ func Start(ctx context.Context) error {
 		typeConverter,
 		visFilter,
 		intFilter,
+		relayFilter,
 		mediaManager,
 	)
 

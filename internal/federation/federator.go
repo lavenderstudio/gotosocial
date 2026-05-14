@@ -23,6 +23,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/federation/dereferencing"
 	"code.superseriousbusiness.org/gotosocial/internal/federation/federatingdb"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/interaction"
+	"code.superseriousbusiness.org/gotosocial/internal/filter/relay"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
@@ -59,6 +60,7 @@ func NewFederator(
 	converter *typeutils.Converter,
 	visFilter *visibility.Filter,
 	intFilter *interaction.Filter,
+	relayFilter *relay.Filter,
 	mediaManager *media.Manager,
 ) *Federator {
 	clock := &Clock{}
@@ -76,6 +78,7 @@ func NewFederator(
 			transportController,
 			visFilter,
 			intFilter,
+			relayFilter,
 			mediaManager,
 		),
 

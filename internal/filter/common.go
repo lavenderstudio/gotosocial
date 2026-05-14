@@ -15,14 +15,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package status
+package filter
 
 import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/text"
 )
 
-// getFilterableFields returns text fields from
+// GetFilterableFields returns text fields from
 // a status that we might want to filter on:
 //
 //   - content warning
@@ -34,7 +34,7 @@ import (
 // scenarios where false-positive multiple-word matches
 // can be made by matching the last word of one field
 // combined with the first word of the next field together.
-func getFilterableFields(status *gtsmodel.Status) []string {
+func GetFilterableFields(status *gtsmodel.Status) []string {
 
 	// Estimate expected no of status fields.
 	fieldCount := 2 + len(status.Attachments)

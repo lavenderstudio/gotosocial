@@ -25,6 +25,7 @@ import (
 	"code.superseriousbusiness.org/activity/streams/vocab"
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
@@ -67,13 +68,6 @@ func (f *DB) Create(ctx context.Context, asType vocab.Type) error {
 		return nil
 	}
 
-	if receiving.IsInstance() {
-		// Don't process this activity via our instance actor's inbox YET.
-		// TODO: Rework this check in subsequent relay subscription/push PR.
-		log.Debug(ctx, "dropping activity received in our instance service actor's inbox")
-		return nil
-	}
-
 	// Cast to the expected types we handle in this func.
 	creatable, ok := asType.(vocab.ActivityStreamsCreate)
 	if !ok {
@@ -85,6 +79,16 @@ func (f *DB) Create(ctx context.Context, asType vocab.Type) error {
 
 	// Extract objects from create activity.
 	objects := ap.ExtractObjects(creatable)
+
+	// If the receiver is our own instance service
+	// account, process the Create differently.
+	if receiving.IsInstance() {
+		return f.createViaInstanceAccount(ctx,
+			requesting,
+			receiving,
+			objects,
+		)
+	}
 
 	// Extract PollOptionables (votes!) from objects slice.
 	optionables, objects := ap.ExtractPollOptionables(objects)
@@ -103,7 +107,7 @@ func (f *DB) Create(ctx context.Context, asType vocab.Type) error {
 	}
 
 	// Extract Statusables from objects slice (this must be
-	// done AFTER extracting options due to how AS typing works).
+	// done AFTER poll options due to how AS typing works).
 	statusables, objects := ap.ExtractStatusables(objects)
 
 	for _, statusable := range statusables {
@@ -128,6 +132,85 @@ func (f *DB) Create(ctx context.Context, asType vocab.Type) error {
 	}
 
 	return errs.Combine()
+}
+
+func (f *DB) createViaInstanceAccount(
+	ctx context.Context,
+	requesting *gtsmodel.Account,
+	instanceAcct *gtsmodel.Account,
+	objects []ap.TypeOrIRI,
+) error {
+	// Via our instance account's inbox we should
+	// only process a Create if it originates from
+	// a relay actor that we subscribe to + follow.
+
+	// First check subscriptions, we need
+	// at least one targeting this actor.
+	subscriptions, err := f.state.DB.GetRelaySubscriptionsByActorURI(ctx, requesting.URI)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return gtserror.Newf("db error getting relay subscriptions for actor URI %s: %w", requesting.URI, err)
+	}
+	if len(subscriptions) == 0 {
+		// No relay subscriptions means we're not interested.
+		log.Debugf(ctx, "dropping delivery from %s (no relay subscription targeting this actor)", requesting.URI)
+		return nil
+	}
+
+	// Now ensure we follow the relay actor with
+	// our instance account (the receiving account).
+	following, err := f.state.DB.IsFollowing(ctx, instanceAcct.ID, requesting.ID)
+	if err != nil {
+		return gtserror.Newf("db error checking follow of actor URI %s: %w", requesting.URI, err)
+	}
+	if !following {
+		// No follow means we're not interested.
+		log.Debugf(ctx, "dropping delivery from %s (not following this actor)", requesting.URI)
+		return nil
+	}
+
+	// We subscribe to + follow this relay
+	// actor, so continue processing the create.
+
+	// Skim off any poll votes as we don't
+	// care about them from relay actors.
+	_, objects = ap.ExtractPollOptionables(objects)
+
+	// Extract Statusables from objects slice (this must be
+	// done AFTER poll options due to how AS typing works).
+	statusables, objects := ap.ExtractStatusables(objects)
+
+	for _, statusable := range statusables {
+		uri := ap.GetJSONLDId(statusable)
+		if uri.Host == config.GetHost() ||
+			uri.Host == config.GetAccountDomain() {
+			// Can't relay our own
+			// status to us, silly.
+			continue
+		}
+
+		// Pass just the remote statusable URI into the processor
+		// worker and do the rest of the processing asynchronously.
+		//
+		// The fact that it's our instance account receiving the message
+		// will indicate to the processor that this is from a relay,
+		// and that appropriateness checks should be done on the status
+		f.state.Workers.Federator.Queue.Push(&messages.FromFediAPI{
+			APObjectType:   ap.ObjectNote,
+			APActivityType: ap.ActivityCreate,
+			APIRI:          uri,
+			APObject:       nil,
+			GTSModel:       nil,
+			Receiving:      instanceAcct,
+			Requesting:     requesting,
+		})
+	}
+
+	if len(objects) > 0 {
+		// Log any unhandled objects after filtering for debug purposes.
+		log.Debugf(ctx, "unhandled CREATE types: %v", typeNames(objects))
+	}
+
+	return nil
 }
 
 // createPollOptionable handles a Create activity for a PollOptionable.

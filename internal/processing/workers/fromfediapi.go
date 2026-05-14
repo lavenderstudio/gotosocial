@@ -239,6 +239,14 @@ func (p *Processor) ProcessFromFediAPI(ctx context.Context, fMsg *messages.FromF
 // It is also capable of handling impolite reply requests to local + remote statuses,
 // ie., replies sent directly without doing the ReplyRequest process first.
 func (p *fediAPI) CreateStatus(ctx context.Context, fMsg *messages.FromFediAPI) error {
+	// If we received this status via our instance account,
+	// it must originate from a relay actor we subscribe to.
+	if fMsg.Receiving.IsInstance() {
+		return p.createStatusFromRelay(ctx, fMsg)
+	}
+
+	// Non-relay status,
+	// process normally.
 	var (
 		status     *gtsmodel.Status
 		statusable ap.Statusable
@@ -391,6 +399,62 @@ func (p *fediAPI) CreateStatus(ctx context.Context, fMsg *messages.FromFediAPI) 
 
 	if err := p.surfacer.TimelineAndNotifyStatus(ctx, status); err != nil {
 		log.Errorf(ctx, "error timelining and notifying status: %v", err)
+	}
+
+	return nil
+}
+
+func (p *fediAPI) createStatusFromRelay(ctx context.Context, fMsg *messages.FromFediAPI) error {
+	// Retrieve the relayed status, and store it
+	// if it's matched by a relay subscription.
+	status, err := p.federate.GetRelayedStatus(ctx,
+		fMsg.Receiving,  // Our instance account.
+		fMsg.Requesting, // Relaying account.
+		fMsg.APIRI,      // Relayed status ID/URI.
+		// Pass callback to insert
+		// other statuses in thread
+		// into timelines (as appropriate).
+		p.surfacer.TimelineAndNotifyStatus,
+	)
+
+	uriStr := fMsg.APIRI.String()
+	l := log.
+		WithContext(ctx).
+		WithField("uri", uriStr)
+
+	// Check for semi-expected errors
+	// encountered during dereferencing.
+	switch {
+	case err == nil:
+		// No problem.
+
+	case gtserror.IsUnretrievable(err):
+		// Remote domain probably blocked.
+		l.Debugf("status not retrievable: %v", err)
+		return nil
+
+	case gtserror.IsMalformed(err):
+		// Final URI probably borked.
+		l.Debugf("status malformed: %v", err)
+		return nil
+
+	default:
+		// Actual error (db error, transport error, etc).
+		return gtserror.Newf("error dereferencing %s: %w", uriStr, err)
+	}
+
+	// If status is nil that means it probably
+	// didn't match a relay subscription, or it
+	// wasn't permitted by interaction policy checks.
+	if status == nil {
+		l.Debug("status dropped as not relayable")
+		return nil
+	}
+
+	// Status was in the db already or was
+	// inserted into the db, do side effects.
+	if err := p.surfacer.TimelineAndNotifyStatus(ctx, status); err != nil {
+		l.Errorf("error timelining and notifying status: %v", err)
 	}
 
 	return nil
@@ -907,6 +971,13 @@ func (p *fediAPI) CreateLikeRequest(ctx context.Context, fMsg *messages.FromFedi
 }
 
 func (p *fediAPI) CreateAnnounce(ctx context.Context, fMsg *messages.FromFediAPI) error {
+	// If we received this announce via our instance account,
+	// it must originate from a relay actor we subscribe to.
+	if fMsg.Receiving.IsInstance() {
+		return p.createAnnounceFromRelay(ctx, fMsg)
+	}
+
+	// Non-relay announce, process normally.
 	boost, ok := fMsg.GTSModel.(*gtsmodel.Status)
 	if !ok {
 		return gtserror.Newf("%T not parseable as *gtsmodel.Status", fMsg.GTSModel)
@@ -1048,6 +1119,71 @@ func (p *fediAPI) CreateAnnounce(ctx context.Context, fMsg *messages.FromFediAPI
 
 	if err := p.surfacer.NotifyAnnounce(ctx, boost); err != nil {
 		log.Errorf(ctx, "error notifying announce: %v", err)
+	}
+
+	return nil
+}
+
+func (p *fediAPI) createAnnounceFromRelay(ctx context.Context, fMsg *messages.FromFediAPI) error {
+	// Unpack the boost wrapper.
+	boost, ok := fMsg.GTSModel.(*gtsmodel.Status)
+	if !ok {
+		return gtserror.Newf("%T not parseable as *gtsmodel.Status", fMsg.GTSModel)
+	}
+
+	// Retrieve the relayed status wrapped in the boost,
+	// and store it if it's matched by a relay subscription.
+	//
+	// Note that this doesn't store the boost wrapper status
+	// itself as we don't really care about it that much.
+	status, err := p.federate.GetRelayedAnnounce(ctx,
+		fMsg.Receiving,  // Our instance account.
+		fMsg.Requesting, // Relaying account.
+		boost,           // Boost wrapper status.
+		// Pass callback to insert
+		// other statuses in thread
+		// into timelines (as appropriate).
+		p.surfacer.TimelineAndNotifyStatus,
+	)
+
+	uriStr := boost.BoostOfURIStr
+	l := log.
+		WithContext(ctx).
+		WithField("uri", uriStr)
+
+	// Check for semi-expected errors
+	// encountered during dereferencing.
+	switch {
+	case err == nil:
+		// No problem.
+
+	case gtserror.IsUnretrievable(err):
+		// Remote domain probably blocked.
+		l.Debugf("status not retrievable: %v", err)
+		return nil
+
+	case gtserror.IsMalformed(err):
+		// Final URI probably borked.
+		l.Debugf("status malformed: %v", err)
+		return nil
+
+	default:
+		// Actual error (db error, transport error, etc).
+		return gtserror.Newf("error dereferencing %s: %w", uriStr, err)
+	}
+
+	// If status is nil that means it probably
+	// didn't match a relay subscription, or it
+	// wasn't permitted by interaction policy checks.
+	if status == nil {
+		l.Debug("status dropped as not relayable")
+		return nil
+	}
+
+	// Status was in the db already or was
+	// inserted into the db, do side effects.
+	if err := p.surfacer.TimelineAndNotifyStatus(ctx, status); err != nil {
+		l.Errorf("error timelining and notifying status: %v", err)
 	}
 
 	return nil

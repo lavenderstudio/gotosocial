@@ -105,6 +105,23 @@ func (m *Module) prepareProfile(c *gin.Context) *profile {
 		return nil
 	}
 
+	if host := config.GetHost(); account.Username == host {
+		// If this is the instance account, we can
+		// return early without trying to fetch statuses
+		// or do further checks for pinned, rss, etc.
+		//
+		// Rewrite a few bits and bobs on the account so
+		// visitors to the page aren't completely baffled.
+		account.Note = "This is the instance service/application actor account for " +
+			host + "; it is used only for relaying and admin tasks."
+		account.HideCollections = true
+		return &profile{
+			instance:   instance,
+			account:    account,
+			statusResp: paging.EmptyResponse(),
+		}
+	}
+
 	// If target account is suspended,
 	// this page should not be visible.
 	//

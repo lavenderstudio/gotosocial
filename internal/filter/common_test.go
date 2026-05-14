@@ -15,11 +15,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package status
+package filter_test
 
 import (
 	"testing"
 
+	"code.superseriousbusiness.org/gotosocial/internal/filter"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"github.com/stretchr/testify/assert"
 )
@@ -78,7 +79,7 @@ func TestFilterableText(t *testing.T) {
 			},
 		},
 	} {
-		fields := getFilterableFields(testcase.status)
+		fields := filter.GetFilterableFields(testcase.status)
 		assert.Equal(t, testcase.expectedFields, fields)
 	}
 }

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"code.superseriousbusiness.org/gotosocial/internal/filter/interaction"
+	"code.superseriousbusiness.org/gotosocial/internal/filter/relay"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
@@ -86,6 +87,7 @@ type Dereferencer struct {
 	mediaManager        *media.Manager
 	visFilter           *visibility.Filter
 	intFilter           *interaction.Filter
+	relayFilter         *relay.Filter
 
 	// in-progress dereferencing media / emoji
 	derefMedia    keyedList[*media.ProcessingMedia]
@@ -112,6 +114,7 @@ func NewDereferencer(
 	transportController transport.Controller,
 	visFilter *visibility.Filter,
 	intFilter *interaction.Filter,
+	relayFilter *relay.Filter,
 	mediaManager *media.Manager,
 ) Dereferencer {
 	return Dereferencer{
@@ -121,6 +124,7 @@ func NewDereferencer(
 		mediaManager:        mediaManager,
 		visFilter:           visFilter,
 		intFilter:           intFilter,
+		relayFilter:         relayFilter,
 		handshakes:          make(map[string][]*url.URL),
 	}
 }

@@ -29,6 +29,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/cache"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -562,9 +563,10 @@ func (suite *ASToInternalTestSuite) TestParseAnnounce() {
 	suite.Equal(boostingAccount.ID, boost.AccountID)
 	suite.NotNil(boost.Account)
 
-	// Of the 'BoostOf' fields, only BoostOfURI will be set.
+	// Of the 'BoostOf' fields, only BoostOfURIs will be set.
 	// Others are set in dereferencing.EnrichAnnounceSafely.
-	suite.Equal(targetStatus.URI, boost.BoostOfURI)
+	suite.EqualValues(testrig.URLMustParse(targetStatus.URI), boost.BoostOfURI)
+	suite.Equal(targetStatus.URI, boost.BoostOfURIStr)
 	suite.Empty(boost.BoostOfID)
 	suite.Nil(boost.BoostOf)
 	suite.Empty(boost.BoostOfAccountID)

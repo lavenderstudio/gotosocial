@@ -25,6 +25,7 @@ import (
 
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/cache"
+	"code.superseriousbusiness.org/gotosocial/internal/filter"
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
@@ -194,7 +195,7 @@ func (f *Filter) getStatusFilterResults(
 
 	// Get the string fields status is
 	// filterable on for keyword matching.
-	fields := getFilterableFields(status)
+	fields := filter.GetFilterableFields(status)
 
 	// Get all status filters owned by the requesting account.
 	filters, err := f.state.DB.GetFiltersByAccountID(ctx, requester.ID)

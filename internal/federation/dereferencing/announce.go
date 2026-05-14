@@ -20,7 +20,6 @@ package dereferencing
 import (
 	"context"
 	"errors"
-	"net/url"
 
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
@@ -44,42 +43,39 @@ func (d *Dereferencer) EnrichAnnounce(
 	requestUser string,
 	newThreadEntryCallback func(context.Context, *gtsmodel.Status) error,
 ) (*gtsmodel.Status, bool, error) {
-	targetURI := boost.BoostOfURI
-	if targetURI == "" {
+	if boost.BoostOfURIStr == "" {
 		// We can't do anything.
 		return nil, false, gtserror.Newf("no URI to dereference")
 	}
 
-	// Parse the boost target status URI.
-	targetURIObj, err := url.Parse(targetURI)
-	if err != nil {
-		return nil, false, gtserror.Newf(
-			"couldn't parse boost target status URI %s: %w",
-			targetURI, err,
-		)
-	}
+	// Take relevant URIs.
+	targetURIStr := boost.BoostOfURIStr
+	targetURI := boost.BoostOfURI
 
-	// Fetch and dereference status being boosted, noting that
-	// d.GetStatusByURI handles domain blocks and local statuses.
+	// Fetch and dereference status being boosted.
+	//
+	// GetStatusByURI accounts for domain blocks and local
+	// statuses, and also updates targetURI in case of redirects.
 	target, _, targetIsNew, err := d.GetStatusByURI(
 		ctx,
 		requestUser,
-		targetURIObj,
+		targetURI,
 		newThreadEntryCallback,
 	)
 	if err != nil {
-		return nil, false, gtserror.Newf("error fetching boost target %s: %w", targetURI, err)
+		return nil, false, gtserror.Newf("error fetching boost target %s: %w", targetURIStr, err)
 	}
 
 	if target.BoostOfID != "" {
 		// Ensure that the target is not a boost (should not be possible).
-		err := gtserror.Newf("target status %s is a boost", targetURI)
+		err := gtserror.Newf("target status %s is a boost", targetURIStr)
 		return nil, false, err
 	}
 
-	// Set boost_of_uri again in case the
+	// Set boost of URIs again in case the
 	// original URI was an indirect link.
-	boost.BoostOfURI = target.URI
+	boost.BoostOfURI = targetURI
+	boost.BoostOfURIStr = target.URI
 
 	// Boosts are not considered
 	// sensitive even if their target is.
