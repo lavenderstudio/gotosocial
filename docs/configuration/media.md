@@ -98,28 +98,15 @@ media-ffmpeg-pool-size: 1
 # what these settings do, with some customization examples, see the docs:
 # https://docs.gotosocial.org/en/latest/admin/media_caching#cleanup
 
-# Int. Number of days to cache media from remote instances before
-# they are removed from the cache. When remote media is removed from
-# the cache, it is deleted from storage but the database entries for
-# the media are kept so that it can be fetched again if requested by a user.
-#
-# If this is set to 0, then media from remote instances will be cached indefinitely.
-#
-# Examples: [30, 60, 7, 0]
-# Default: 7
-media-remote-cache-days: 7
+# Integer duration.
+# 
+# Examples: ["7 days", "1 week", "1 month"]
+# Default: "7 days"
+media-remote-cache-duration: "7 days"
 
-# String. 24hr time of day formatted as hh:mm.
-# Examples: ["14:30", "00:00", "04:00"]
-# Default: "00:00" (midnight). 
-media-cleanup-from: "00:00"
-
-# Duration. Period between media cleanup runs.
-# More than once per 24h is not recommended
-# is likely overkill. Setting this to something
-# very low like once every 10 minutes will probably
-# cause lag and possibly other issues.
-# Examples: ["24h", "72h", "12h"]
-# Default: "24h" (once per day).
-media-cleanup-every: "24h"
+# Cron expression (see https://crontab.guru/ for help).
+# 
+# Examples: ["0 0 * * *", "30 0 * * *", "0 0 * * 0"]
+# Default: "0 0 * * *" (at 00:00am, every day)
+media-cleanup-cron: "0 0 * * *"
 ```

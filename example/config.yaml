@@ -946,8 +946,8 @@ statuses-media-max-files: 6
 # Cron expression (see https://crontab.guru/ for help).
 # 
 # Examples: ["0 0 * * *", "30 0 * * *", "0 0 * * 0"]
-# Default: "0 0 * * *" (at 00:00am, every day)
-statuses-cleanup-cron: "0 0 * * *"
+# Default: "0 1 * * 0" (at 01:00am, every Sunday)
+statuses-cleanup-cron: "0 1 * * 0"
 
 # Integer duration.
 # 

@@ -176,15 +176,11 @@ instance-deliver-to-shared-inboxes: true
 # Default: false
 instance-inject-mastodon-version: false
 
-# String. 24hr time of day formatted as hh:mm.
-# Examples: ["14:30", "00:00", "04:00"]
-# Default: "23:00" (11pm).
-instance-subscriptions-process-from: "23:00"
-
-# Duration. Period between subscription updates.
-# Examples: ["24h", "72h", "12h"]
-# Default: "24h" (once per day).
-instance-subscriptions-process-every: "24h"
+# Cron expression (see https://crontab.guru/ for help).
+# 
+# Examples: ["0 0 * * *", "30 0 * * *", "0 0 * * 0"]
+# Default: "0 23 * * *" (at 23:00pm, every day)
+instance-subscriptions-process-cron: "0 23 * * *"
 
 # String. Allows you to customize if and how stats are served to
 # crawlers at the /api/v1|v2/instance and /nodeinfo endpoints.

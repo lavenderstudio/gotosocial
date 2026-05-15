@@ -36,6 +36,18 @@ statuses-poll-option-max-chars: 50
 # Default: 6
 statuses-media-max-files: 6
 
+# Cron expression (see https://crontab.guru/ for help).
+# 
+# Examples: ["0 0 * * *", "30 0 * * *", "0 0 * * 0"]
+# Default: "0 1 * * 0" (at 01:00am, every Sunday)
+statuses-cleanup-cron: "0 1 * * 0"
+
+# Integer duration.
+# 
+# Examples: ["7 days", "1 week", "1 month"]
+# Default: "0" (i.e. disabled)
+statuses-cleanup-remote-older-than: "0"
+
 # Int. Maximum number of statuses a user can schedule at time.
 # Examples: [300]
 # Default: 300
