@@ -27,7 +27,6 @@ import (
 
 	"code.superseriousbusiness.org/gotosocial/internal/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/cleaner"
-	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
@@ -41,8 +40,6 @@ import (
 type MediaTestSuite struct {
 	suite.Suite
 
-	db                  db.DB
-	storage             *storage.Driver
 	state               state.State
 	manager             *media.Manager
 	cleaner             *cleaner.Cleaner
@@ -63,14 +60,12 @@ func (suite *MediaTestSuite) SetupTest() {
 	suite.state.Caches.Init()
 	testrig.StartNoopWorkers(&suite.state)
 
-	suite.db = testrig.NewTestDB(&suite.state)
-	suite.storage = testrig.NewInMemoryStorage()
-	suite.state.DB = suite.db
+	_ = testrig.NewTestDB(&suite.state)
+	suite.state.Storage = testrig.NewInMemoryStorage()
 	suite.state.AdminActions = admin.New(suite.state.DB, &suite.state.Workers)
-	suite.state.Storage = suite.storage
 
-	testrig.StandardStorageSetup(suite.storage, "../../testrig/media")
-	testrig.StandardDBSetup(suite.db, nil)
+	testrig.StandardStorageSetup(suite.state.Storage, "../../testrig/media")
+	testrig.StandardDBSetup(suite.state.DB, nil)
 
 	suite.testAttachments = testrig.NewTestAttachments()
 	suite.testAccounts = testrig.NewTestAccounts()
@@ -81,8 +76,8 @@ func (suite *MediaTestSuite) SetupTest() {
 }
 
 func (suite *MediaTestSuite) TearDownTest() {
-	testrig.StandardDBTeardown(suite.db)
-	testrig.StandardStorageTeardown(suite.storage)
+	testrig.StandardDBTeardown(suite.state.DB)
+	testrig.StandardStorageTeardown(suite.state.Storage)
 	testrig.StopWorkers(&suite.state)
 }
 
@@ -100,11 +95,11 @@ func (suite *MediaTestSuite) TestUncacheRemote() {
 	suite.NoError(err)
 	suite.Equal(3, totalUncached)
 
-	uncachedAttachment, err := suite.db.GetAttachmentByID(ctx, testStatusAttachment.ID)
+	uncachedAttachment, err := suite.state.DB.GetAttachmentByID(ctx, testStatusAttachment.ID)
 	suite.NoError(err)
 	suite.False(uncachedAttachment.Cached())
 
-	uncachedAttachment, err = suite.db.GetAttachmentByID(ctx, testHeader.ID)
+	uncachedAttachment, err = suite.state.DB.GetAttachmentByID(ctx, testHeader.ID)
 	suite.NoError(err)
 	suite.False(uncachedAttachment.Cached())
 }
@@ -158,11 +153,11 @@ func (suite *MediaTestSuite) TestUncacheRemoteDry() {
 	suite.NoError(err)
 	suite.Equal(3, totalUncached)
 
-	uncachedAttachment, err := suite.db.GetAttachmentByID(ctx, testStatusAttachment.ID)
+	uncachedAttachment, err := suite.state.DB.GetAttachmentByID(ctx, testStatusAttachment.ID)
 	suite.NoError(err)
 	suite.True(uncachedAttachment.Cached())
 
-	uncachedAttachment, err = suite.db.GetAttachmentByID(ctx, testHeader.ID)
+	uncachedAttachment, err = suite.state.DB.GetAttachmentByID(ctx, testHeader.ID)
 	suite.NoError(err)
 	suite.True(uncachedAttachment.Cached())
 }
@@ -192,13 +187,13 @@ func (suite *MediaTestSuite) TestUncacheAndRecache() {
 	suite.Equal(3, totalUncached)
 
 	// media should no longer be stored
-	_, err = suite.storage.Get(ctx, testStatusAttachment.File.Path)
+	_, err = suite.state.Storage.Get(ctx, testStatusAttachment.File.Path)
 	suite.True(storage.IsNotFound(err))
-	_, err = suite.storage.Get(ctx, testStatusAttachment.Thumbnail.Path)
+	_, err = suite.state.Storage.Get(ctx, testStatusAttachment.Thumbnail.Path)
 	suite.True(storage.IsNotFound(err))
-	_, err = suite.storage.Get(ctx, testHeader.File.Path)
+	_, err = suite.state.Storage.Get(ctx, testHeader.File.Path)
 	suite.True(storage.IsNotFound(err))
-	_, err = suite.storage.Get(ctx, testHeader.Thumbnail.Path)
+	_, err = suite.state.Storage.Get(ctx, testHeader.Thumbnail.Path)
 	suite.True(storage.IsNotFound(err))
 
 	// now recache the image....
@@ -230,9 +225,9 @@ func (suite *MediaTestSuite) TestUncacheAndRecache() {
 		suite.EqualValues(original.FileMeta, recachedAttachment.FileMeta)       // and the filemeta should be the same
 
 		// recached files should be back in storage
-		_, err = suite.storage.Get(ctx, recachedAttachment.File.Path)
+		_, err = suite.state.Storage.Get(ctx, recachedAttachment.File.Path)
 		suite.NoError(err)
-		_, err = suite.storage.Get(ctx, recachedAttachment.Thumbnail.Path)
+		_, err = suite.state.Storage.Get(ctx, recachedAttachment.Thumbnail.Path)
 		suite.NoError(err)
 	}
 }
@@ -242,10 +237,10 @@ func (suite *MediaTestSuite) TestUncacheOneNonExistent() {
 	testStatusAttachment := suite.testAttachments["remote_account_1_status_1_attachment_1"]
 
 	// Delete this attachment cached on disk
-	media, err := suite.db.GetAttachmentByID(ctx, testStatusAttachment.ID)
+	media, err := suite.state.DB.GetAttachmentByID(ctx, testStatusAttachment.ID)
 	suite.NoError(err)
 	suite.True(media.Cached())
-	err = suite.storage.Delete(ctx, media.File.Path)
+	err = suite.state.Storage.Delete(ctx, media.File.Path)
 	suite.NoError(err)
 
 	// Now attempt to uncache remote for item with db entry no file

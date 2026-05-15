@@ -46,46 +46,7 @@ import (
 
 // ScheduleJobs schedules domain permission subscription
 // fetching + updating using configured parameters.
-//
-// Returns an error if `MediaCleanupFrom`
-// is not a valid format (hh:mm:ss).
 func (s *Subscriptions) ScheduleJobs() error {
-	const hourMinute = "15:04"
-
-	var (
-		now            = time.Now()
-		processEvery   = config.GetInstanceSubscriptionsProcessEvery()
-		processFromStr = config.GetInstanceSubscriptionsProcessFrom()
-	)
-
-	// Parse processFromStr as hh:mm.
-	// Resulting time will be on 1 Jan year zero.
-	processFrom, err := time.Parse(hourMinute, processFromStr)
-	if err != nil {
-		return gtserror.Newf(
-			"error parsing '%s' in time format 'hh:mm': %w",
-			processFromStr, err,
-		)
-	}
-
-	// Time travel from
-	// year zero, groovy.
-	firstProcessAt := time.Date(
-		now.Year(),
-		now.Month(),
-		now.Day(),
-		processFrom.Hour(),
-		processFrom.Minute(),
-		0,
-		0,
-		now.Location(),
-	)
-
-	// Ensure first processing is in the future.
-	for firstProcessAt.Before(now) {
-		firstProcessAt = firstProcessAt.Add(processEvery)
-	}
-
 	fn := func(ctx context.Context, start time.Time) {
 		log.Info(ctx, "starting instance subscriptions processing")
 
@@ -115,19 +76,17 @@ func (s *Subscriptions) ScheduleJobs() error {
 		log.Infof(ctx, "finished instance subscriptions processing after %s", time.Since(start))
 	}
 
-	log.Infof(nil,
-		"scheduling instance subscriptions processing to run every %s, starting from %s; next processing will run at %s",
-		processEvery, processFromStr, firstProcessAt,
-	)
+	expr := config.GetInstanceSubscriptionsProcessCron()
+	log.Infof(nil, "scheduling instance subscriptions processing: %s", expr.Expr)
 
-	// Schedule processing to execute according to schedule.
-	if !s.state.Workers.Scheduler.AddRecurring(
-		"@subsprocessing",
-		firstProcessAt,
-		processEvery,
+	// Schedule processing to
+	// execute according to schedule.
+	if !s.state.Workers.Scheduler.Add(
+		"@instancesubsprocessing",
 		fn,
+		expr,
 	) {
-		panic("failed to schedule @subsprocessing")
+		panic("failed to schedule @instancesubsprocessing")
 	}
 
 	return nil

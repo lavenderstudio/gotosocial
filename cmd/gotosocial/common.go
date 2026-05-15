@@ -27,6 +27,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// add will add 'next' to 'base' command, returning 'next' after applying any 'flagFns'.
+func add(base, next *cobra.Command, flagFns ...func(*cobra.Command)) *cobra.Command {
+	base.AddCommand(next)
+	for _, flagFn := range flagFns {
+		flagFn(next)
+	}
+	return next
+}
+
 type preRunArgs struct {
 	cmd            *cobra.Command
 	skipValidation bool

@@ -179,7 +179,7 @@ func (suite *StatusTestSuite) TestDeleteStatus() {
 	targetStatus := &gtsmodel.Status{}
 	*targetStatus = *suite.testStatuses["admin_account_status_1"]
 
-	err := suite.db.DeleteStatus(suite.T().Context(), targetStatus)
+	err := suite.db.DeleteStatus(suite.T().Context(), targetStatus, true)
 	suite.NoError(err)
 
 	_, err = suite.db.GetStatusByID(suite.T().Context(), targetStatus.ID)
@@ -198,7 +198,7 @@ func (suite *StatusTestSuite) TestPutPopulatedStatus() {
 	}
 
 	// Delete it from the database.
-	if err := suite.db.DeleteStatus(ctx, targetStatus); err != nil {
+	if err := suite.db.DeleteStatus(ctx, targetStatus, true); err != nil {
 		suite.FailNow(err.Error())
 	}
 
@@ -562,9 +562,9 @@ func (suite *StatusTestSuite) TestDeleteStatusLeafStubsNowNotALeaf() {
 
 func (suite *StatusTestSuite) testDeleteStatusLeafStubs(expect int) {
 	ctx := suite.T().Context()
-	deleted, err := suite.db.DeleteStatusLeafStubs(ctx, &paging.Page{Limit: 100})
+	n, _, err := suite.db.DeleteLeafStubStatuses(ctx, &paging.Page{Limit: 100})
 	suite.NoError(err)
-	suite.Len(deleted, expect)
+	suite.Equal(n, expect)
 }
 
 // hasReply returns whether status ID has a reply (child) in given map of test statuses.

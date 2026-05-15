@@ -15,10 +15,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package prune
+package media
 
 import (
 	"context"
+	"time"
 
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/cmd/gotosocial/action"
@@ -27,10 +28,11 @@ import (
 )
 
 // check function conformance.
-var _ action.GTSAction = All
+var _ action.GTSAction = PruneAll
 
-// All performs all media clean actions
-func All(ctx context.Context) error {
+// PruneAll performs all media clean actions
+func PruneAll(ctx context.Context) error {
+
 	// Setup pruning utilities.
 	prune, err := setupPrune(ctx)
 	if err != nil {
@@ -49,11 +51,15 @@ func All(ctx context.Context) error {
 		ctx = gtscontext.SetDryRun(ctx)
 	}
 
-	days := config.GetMediaRemoteCacheDays()
+	// Current time.
+	now := time.Now()
+
+	// Get media maximum remote cache duration.
+	dur := config.GetMediaRemoteCacheDuration()
 
 	// Perform the actual pruning with logging.
-	prune.cleaner.Media().AllAndFix(ctx, days)
-	prune.cleaner.Emoji().AllAndFix(ctx, days)
+	prune.cleaner.Media().AllAndFix(ctx, now, dur)
+	prune.cleaner.Emoji().AllAndFix(ctx, now, dur)
 
 	return nil
 }

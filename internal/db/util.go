@@ -18,11 +18,14 @@
 package db
 
 import (
+	"context"
+	"database/sql"
 	"database/sql/driver"
 
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect"
 	"github.com/uptrace/bun/dialect/pgdialect"
+	"github.com/uptrace/bun/schema"
 )
 
 // BunExpr encompasses the arguments
@@ -31,6 +34,32 @@ import (
 type BunExpr struct {
 	Fmt string
 	Arg []any
+}
+
+// BunQueryable defines a bun type that
+// permits starting a new database query.
+type BunQueryable interface {
+	Dialect() schema.Dialect
+	NewValues(model any) *bun.ValuesQuery
+	NewSelect() *bun.SelectQuery
+	NewInsert() *bun.InsertQuery
+	NewUpdate() *bun.UpdateQuery
+	NewDelete() *bun.DeleteQuery
+	NewRaw(query string, args ...any) *bun.RawQuery
+}
+
+// BunQueryBuilder defines a bun query builder type.
+type BunQueryBuilder[QueryType any] interface {
+	BunQueryable
+	Table(tables ...string) QueryType
+	TableExpr(query string, args ...any) QueryType
+	Column(columns ...string) QueryType
+	ColumnExpr(query string, args ...any) QueryType
+	Where(query string, args ...any) QueryType
+	Limit(n int) QueryType
+	Order(orders ...string) QueryType
+	OrderExpr(query string, args ...any) QueryType
+	Scan(ctx context.Context, args ...any) error
 }
 
 // ToNamedValues converts older driver.Value types to driver.NamedValue types.
@@ -68,12 +97,12 @@ func BitNotSet[Type ~int16](col string, value Type) (
 	return "? & ? = 0", bun.Ident(col), value
 }
 
-// BitSetExpr ...
+// BitSetExpr returns the results of BitSet() as a BunExpr{}.
 func BitSetExpr[Type ~int16](col string, value Type) BunExpr {
 	return BunExpr{"? & ? != 0", []any{bun.Ident(col), value}}
 }
 
-// BitNotSetExpr ...
+// BitNotSetExpr returns the results of BitNotSet() as a BunExpr{}.
 func BitNotSetExpr[Type ~int16](col string, value Type) BunExpr {
 	return BunExpr{"? & ? = 0", []any{bun.Ident(col), value}}
 }
@@ -107,6 +136,24 @@ func ArrayType(db bun.IDB, arr any) any {
 	}
 }
 
+// GroupArrayExpr returns the appropriate expression for database
+// type for grouping an array of column values into a single array.
+func GroupArrayExpr(db bun.IDB) string {
+	switch db.Dialect().Name() {
+	case dialect.SQLite:
+		return "json_group_array(?)"
+	case dialect.PG:
+		return "array_ag(?)"
+	default:
+		panic("unreachable")
+	}
+}
+
+// GroupArray returns a grouped selection of column values as an array type parseable by bun.
+func GroupArray(db bun.IDB, col string) (string, bun.Ident) {
+	return GroupArrayExpr(db), bun.Ident(col)
+}
+
 // WhereArrayIsNullOrEmpty returns a BunExpr checking whether value contained in
 // 'col' is NULL or is an empty JSON array, depending on current database type.
 func WhereArrayIsNullOrEmpty(db bun.IDB, col string) (string, bun.Ident, bun.Ident) {
@@ -135,4 +182,60 @@ func WhereArrayIsNullOrEmptyExpr(db bun.IDB, col string) (expr BunExpr) {
 	}
 	expr.Arg = []any{bun.Ident(col), bun.Ident(col)}
 	return
+}
+
+// Scannable defines a type that
+// provides separate SQLite and
+// PostgreSQL scanning functions.
+type Scannable interface {
+	ScanRowPG(context.Context, *sql.Rows) error
+	ScanRowSQLite(context.Context, *sql.Rows) error
+
+	ScanRowsPG(context.Context, *sql.Rows) (int, error)
+	ScanRowsSQLite(context.Context, *sql.Rows) (int, error)
+}
+
+// Scan calls Scan() by wrapping type T to use the appropriate scanning function for current db.
+// This should only be required for types that bun otherwise gets confused about trying to scan.
+func Scan[Q any, T Scannable](ctx context.Context, q BunQueryBuilder[Q], dst T) error {
+	switch q.Dialect().Name() {
+	case dialect.PG:
+		return q.Scan(ctx, &asPGScanner[T]{dst})
+	case dialect.SQLite:
+		return q.Scan(ctx, &asSQLiteScanner[T]{dst})
+	default:
+		panic("unreachable")
+	}
+}
+
+// asPGScanner is a type-alias for
+// ScannableValue that calls ScanRow(s)?PG().
+type asPGScanner[T Scannable] struct{ T T }
+
+func (v *asPGScanner[T]) ScanRow(ctx context.Context, rows *sql.Rows) error {
+	return v.T.ScanRowPG(ctx, rows)
+}
+
+func (v *asPGScanner[T]) ScanRows(ctx context.Context, rows *sql.Rows) (int, error) {
+	return v.T.ScanRowsPG(ctx, rows)
+}
+
+func (v *asPGScanner[T]) Value() any {
+	return v.T
+}
+
+// asSQLiteScanner is a type-alias for
+// ScannableValue that calls ScanRow(s)?SQLite().
+type asSQLiteScanner[T Scannable] struct{ T T }
+
+func (v *asSQLiteScanner[T]) ScanRow(ctx context.Context, rows *sql.Rows) error {
+	return v.T.ScanRowSQLite(ctx, rows)
+}
+
+func (v *asSQLiteScanner[T]) ScanRows(ctx context.Context, rows *sql.Rows) (int, error) {
+	return v.T.ScanRowsSQLite(ctx, rows)
+}
+
+func (v *asSQLiteScanner[T]) Value() any {
+	return v.T
 }

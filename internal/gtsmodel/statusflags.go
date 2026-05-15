@@ -35,8 +35,6 @@ const (
 
 	// StatusFlagDeleted indices whether status is marked as deleted,
 	// (and thus should be stubbed-out and replaced with placeholders).
-	//
-	// TODO: NOT YET IMPLEMENTED
 	StatusFlagDeleted StatusFlag = 1 << 1
 
 	// StatusFlagSensitive indicates whether status is marked as sensitive.

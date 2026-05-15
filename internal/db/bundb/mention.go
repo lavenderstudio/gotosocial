@@ -191,19 +191,18 @@ func (m *mentionDB) PutMention(ctx context.Context, mention *gtsmodel.Mention) e
 	})
 }
 
-func (m *mentionDB) DeleteMentionByID(ctx context.Context, id string) error {
-	// Delete mention with given ID,
-	// returning the deleted models.
+func (m *mentionDB) DeleteMentions(ctx context.Context, ids ...string) error {
+	// Delete mentions with IDs.
 	if _, err := m.db.NewDelete().
 		Table("mentions").
-		Where("? = ?", bun.Ident("id"), id).
+		Where("? IN (?)", bun.Ident("id"), bun.List(ids)).
 		Exec(ctx); err != nil &&
 		!errors.Is(err, db.ErrNoEntries) {
 		return err
 	}
 
-	// Invalidate the cached mention with ID.
-	m.state.Caches.DB.Mention.Invalidate("ID", id)
+	// Invalidate the cached mentions with given IDs.
+	m.state.Caches.DB.Mention.InvalidateIDs("ID", ids)
 
 	return nil
 }

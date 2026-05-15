@@ -53,14 +53,8 @@ func (t *timelineDB) GetHomeTimeline(ctx context.Context, accountID string, page
 				return nil, gtserror.Newf("error getting home account ids: %w", err)
 			}
 
-			// Provide IDs as common table expression values.
-			values := make([]accountIDValue, len(accountIDs))
-			if len(values) != len(accountIDs) {
-				panic(gtserror.New("bound check elimination"))
-			}
-			for i, id := range accountIDs {
-				values[i] = accountIDValue{id}
-			}
+			// Provide IDs as a bun CTE value type.
+			values := toAccountIDValues(accountIDs)
 
 			// "Join" on the CTE values to select only
 			// statuses belonging to those account IDs.
@@ -221,14 +215,8 @@ func (t *timelineDB) GetListTimeline(ctx context.Context, listID string, page *p
 				return nil, gtserror.Newf("error getting account IDs in list: %w", err)
 			}
 
-			// Provide IDs as common table expression values.
-			values := make([]accountIDValue, len(accountIDs))
-			if len(values) != len(accountIDs) {
-				panic(gtserror.New("bound check elimination"))
-			}
-			for i, id := range accountIDs {
-				values[i] = accountIDValue{id}
-			}
+			// Provide IDs as a bun CTE value type.
+			values := toAccountIDValues(accountIDs)
 
 			// "Join" on the CTE values to select only
 			// statuses belonging to those account IDs.

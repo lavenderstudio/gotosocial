@@ -21,6 +21,7 @@ import (
 	"context"
 
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/id"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 )
 
@@ -41,6 +42,15 @@ type Status interface {
 	// GetStatusBoost fetches the status whose boost_of_id column refers to boostOfID, authored by given account ID.
 	GetStatusBoost(ctx context.Context, boostOfID string, byAccountID string) (*gtsmodel.Status, error)
 
+	// GetStatusBoostIDs returns IDs of any boosts of the given status ID.
+	GetStatusBoostIDs(ctx context.Context, statusID string) ([]string, error)
+
+	// DeleteStatusBoost deletes the given boost, unlike DeleteStatus() this will not perform other side-effects.
+	DeleteStatusBoost(ctx context.Context, boost *gtsmodel.Status) error
+
+	// DeleteStatusBoosts deletes boosts with the given IDs, unlike DeleteStatus() this will not perform other side-effects.
+	DeleteStatusBoosts(ctx context.Context, ids ...string) error
+
 	// PopulateStatus ensures that all sub-models of a status are populated (e.g. mentions, attachments, etc).
 	// Except for edits, to fetch these please call PopulateStatusEdits() .
 	PopulateStatus(ctx context.Context, status *gtsmodel.Status) error
@@ -54,14 +64,30 @@ type Status interface {
 	// UpdateStatus updates one status in the database, limited to specific columns if provided.
 	UpdateStatus(ctx context.Context, status *gtsmodel.Status, columns ...string) error
 
-	// StubStatus ...
-	StubStatus(ctx context.Context, status *gtsmodel.Status) error
+	// StubStatus stubs out the model (i.e. marks as deleted) given status in the database.
+	//
+	// NOTE: unlike other database functions, this handles deletion of related models.
+	// 'includeMedia' determines whether to also delete vs just unattach any related media.
+	StubStatus(ctx context.Context, status *gtsmodel.Status, includeMedia bool) error
 
-	// DeleteStatus ...
-	DeleteStatus(ctx context.Context, status *gtsmodel.Status) error
+	// DeleteStatus removes the given status from the database.
+	//
+	// NOTE: unlike other database functions, this handles deletion of related models.
+	// 'includeMedia' determines whether to also delete vs just unattach any related media.
+	DeleteStatus(ctx context.Context, status *gtsmodel.Status, includeMedia bool) error
 
-	// DeleteLeafStubs ...
-	DeleteStatusLeafStubs(ctx context.Context, page *paging.Page) ([]*gtsmodel.Status, error)
+	// DeleteLeafStubStatuses deletes 'leaf' stub statuses from the database according to paging parameters,
+	// where a 'leaf' status is refers to a status at the end of a thread tree-branch with zero replies.
+	//
+	// This returns the number of statuses deleted, and the next page to use for next query, if any remain.
+	DeleteLeafStubStatuses(ctx context.Context, page *paging.Page) (count int, next *paging.Page, err error)
+
+	// DeleteOldRemoteStatuses deletes remote status from the database according to paging parameters,
+	// specifically limited to statuses that have zero interactions with local users, where no statuses
+	// have have recent boosts or replies, and all statuses have not been fetched recently.
+	//
+	// This returns the number of statuses deleted, and the next page to use for next query, if any remain.
+	DeleteOldRemoteStatuses(ctx context.Context, olderThan id.ULID, threadPage *paging.Page) (count int, next *paging.Page, err error)
 
 	// GetStatuses gets a slice of statuses corresponding to the given status IDs.
 	GetStatusesByIDs(ctx context.Context, ids []string) ([]*gtsmodel.Status, error)

@@ -20,11 +20,13 @@ package admin
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"codeberg.org/gruf/go-longdur"
 )
 
 // MediaRefetch forces a refetch of remote emojis.
@@ -49,19 +51,16 @@ func (p *Processor) MediaRefetch(ctx context.Context, requestingAccount *gtsmode
 	return nil
 }
 
-// MediaPrune triggers a non-blocking prune of unused
-// media, orphaned, uncaching remote and fixing cache states.
-func (p *Processor) MediaPrune(
-	ctx context.Context,
-	remoteCacheDays int,
-) gtserror.WithCode {
+// MediaPrune triggers a non-blocking prune of unused media, orphaned, uncaching remote and fixing cache states.
+func (p *Processor) MediaPrune(ctx context.Context, remoteCacheAge longdur.Duration) gtserror.WithCode {
 
 	// Start background task
 	// performing media cleanup.
 	go func() {
+		now := time.Now()
 		ctx := gtscontext.WithValues(context.Background(), ctx)
-		p.cleaner.Media().AllAndFix(ctx, remoteCacheDays)
-		p.cleaner.Emoji().AllAndFix(ctx, remoteCacheDays)
+		p.cleaner.Media().AllAndFix(ctx, now, remoteCacheAge)
+		p.cleaner.Emoji().AllAndFix(ctx, now, remoteCacheAge)
 	}()
 
 	return nil

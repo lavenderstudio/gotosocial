@@ -9281,13 +9281,13 @@ paths:
             operationId: mediaCleanup
             parameters:
                 - description: |-
-                    Number of days of remote media to keep.
+                    Integer number of days, or duration string, of duration of remote media to keep.
                     If value is not specified, the value of media-remote-cache-days in the server config will be used.
-                  format: int64
                   in: query
                   name: remote_cache_days
-                  type: integer
+                  type: string
                   x-go-name: RemoteCacheDays
+                  x-go-type: code.superseriousbusiness.org/gotosocial/internal/api/model.DurationOrDays
             produces:
                 - application/json
             responses:

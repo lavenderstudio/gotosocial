@@ -19,11 +19,14 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"code.superseriousbusiness.org/gotosocial/internal/language"
 	"codeberg.org/gruf/go-bytesize"
+	"codeberg.org/gruf/go-longdur"
+	"github.com/hashicorp/cronexpr"
 	"github.com/spf13/cast"
 	"github.com/spf13/pflag"
 )
@@ -76,6 +79,7 @@ const (
 	InstanceLanguagesFlag                         = "instance-languages"
 	InstanceSubscriptionsProcessFromFlag          = "instance-subscriptions-process-from"
 	InstanceSubscriptionsProcessEveryFlag         = "instance-subscriptions-process-every"
+	InstanceSubscriptionsProcessCronFlag          = "instance-subscriptions-process-cron"
 	InstanceStatsModeFlag                         = "instance-stats-mode"
 	InstanceAllowBackdatingStatusesFlag           = "instance-allow-backdating-statuses"
 	InstanceRobotsAllowIndexingFlag               = "instance-robots-allow-indexing"
@@ -102,6 +106,8 @@ const (
 	StatusesPollMaxOptionsFlag                    = "statuses-poll-max-options"
 	StatusesPollOptionMaxCharsFlag                = "statuses-poll-option-max-chars"
 	StatusesMediaMaxFilesFlag                     = "statuses-media-max-files"
+	StatusesCleanupCronFlag                       = "statuses-cleanup-cron"
+	StatusesCleanupRemoteOlderThanFlag            = "statuses-cleanup-remote-older-than"
 	ScheduledStatusesMaxTotalFlag                 = "scheduled-statuses-max-total"
 	ScheduledStatusesMaxDailyFlag                 = "scheduled-statuses-max-daily"
 	LetsEncryptEnabledFlag                        = "letsencrypt-enabled"
@@ -173,17 +179,19 @@ const (
 	HTTPClientWriteBufferSizeFlag                 = "http-client-write-buffer-size"
 	MediaDescriptionMinCharsFlag                  = "media-description-min-chars"
 	MediaDescriptionMaxCharsFlag                  = "media-description-max-chars"
-	MediaRemoteCacheDaysFlag                      = "media-remote-cache-days"
 	MediaEmojiLocalMaxSizeFlag                    = "media-emoji-local-max-size"
 	MediaEmojiRemoteMaxSizeFlag                   = "media-emoji-remote-max-size"
 	MediaImageSizeHintFlag                        = "media-image-size-hint"
 	MediaVideoSizeHintFlag                        = "media-video-size-hint"
 	MediaLocalMaxSizeFlag                         = "media-local-max-size"
 	MediaRemoteMaxSizeFlag                        = "media-remote-max-size"
-	MediaCleanupFromFlag                          = "media-cleanup-from"
-	MediaCleanupEveryFlag                         = "media-cleanup-every"
 	MediaFfmpegPoolSizeFlag                       = "media-ffmpeg-pool-size"
 	MediaThumbMaxPixelsFlag                       = "media-thumb-max-pixels"
+	MediaRemoteCacheDurationFlag                  = "media-remote-cache-duration"
+	MediaCleanupCronFlag                          = "media-cleanup-cron"
+	MediaRemoteCacheDaysFlag                      = "media-remote-cache-days"
+	MediaCleanupFromFlag                          = "media-cleanup-from"
+	MediaCleanupEveryFlag                         = "media-cleanup-every"
 	CacheS3ObjectInfoFlag                         = "cache-s3-object-info"
 	CacheHomeTimelineSizeFlag                     = "cache-home-timeline-size"
 	CacheListTimelineSizeFlag                     = "cache-list-timeline-size"
@@ -317,8 +325,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Bool("instance-deliver-to-shared-inboxes", cfg.InstanceDeliverToSharedInboxes, "Deliver federated messages to shared inboxes, if they're available.")
 	flags.Bool("instance-inject-mastodon-version", cfg.InstanceInjectMastodonVersion, "This injects a Mastodon compatible version in /api/v1/instance to help Mastodon clients that use that version for feature detection")
 	flags.StringSlice("instance-languages", cfg.InstanceLanguages.Strings(), "BCP47 language tags for the instance. Used to indicate the preferred languages of instance residents (in order from most-preferred to least-preferred).")
-	flags.String("instance-subscriptions-process-from", cfg.InstanceSubscriptionsProcessFrom, "Time of day from which to start running instance subscriptions processing jobs. Should be in the format 'hh:mm:ss', eg., '15:04:05'.")
-	flags.Duration("instance-subscriptions-process-every", cfg.InstanceSubscriptionsProcessEvery, "Period to elapse between instance subscriptions processing jobs, starting from instance-subscriptions-process-from.")
+	flags.String("instance-subscriptions-process-cron", cfg.InstanceSubscriptionsProcessCron.String(), "Cron expression defining instance subscription processing job scheduling")
 	flags.String("instance-stats-mode", cfg.InstanceStatsMode, "Allows you to customize the way stats are served to crawlers: one of '', 'serve', 'zero', 'baffle'. Home page stats remain unchanged.")
 	flags.Bool("instance-allow-backdating-statuses", cfg.InstanceAllowBackdatingStatuses, "Allow local accounts to backdate statuses using the scheduled_at param to /api/v1/statuses")
 	flags.Bool("instance-robots-allow-indexing", cfg.InstanceRobotsAllowIndexing, "Return robots headers and meta tags that allow search engine indexing of instance home page, directory (if enabled), and accounts that have opted in to being discoverable.")
@@ -345,6 +352,8 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Int("statuses-poll-max-options", cfg.StatusesPollMaxOptions, "Max amount of options permitted on a poll")
 	flags.Int("statuses-poll-option-max-chars", cfg.StatusesPollOptionMaxChars, "Max amount of characters for a poll option")
 	flags.Int("statuses-media-max-files", cfg.StatusesMediaMaxFiles, "Maximum number of media files/attachments per status")
+	flags.String("statuses-cleanup-cron", cfg.StatusesCleanupCron.String(), "Cron expression defining statuses cleanup task scheduling")
+	flags.String("statuses-cleanup-remote-older-than", cfg.StatusesCleanupRemoteOlderThan.String(), "Duration defining status age beyond which to clean")
 	flags.Int("scheduled-statuses-max-total", cfg.ScheduledStatusesMaxTotal, "Maximum number of scheduled statuses per user")
 	flags.Int("scheduled-statuses-max-daily", cfg.ScheduledStatusesMaxDaily, "Maximum number of scheduled statuses per user for a single day")
 	flags.Bool("letsencrypt-enabled", cfg.LetsEncryptEnabled, "Enable letsencrypt TLS certs for this server. If set to true, then cert dir also needs to be set (or take the default).")
@@ -416,17 +425,16 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.String("http-client-write-buffer-size", cfg.HTTPClient.WriteBufferSize.String(), "")
 	flags.Int("media-description-min-chars", cfg.Media.DescriptionMinChars, "Min required chars for an image description")
 	flags.Int("media-description-max-chars", cfg.Media.DescriptionMaxChars, "Max permitted chars for an image description")
-	flags.Int("media-remote-cache-days", cfg.Media.RemoteCacheDays, "Number of days to locally cache media from remote instances. If set to 0, remote media will be kept indefinitely.")
 	flags.String("media-emoji-local-max-size", cfg.Media.EmojiLocalMaxSize.String(), "Max size in bytes of emojis uploaded to this instance via the admin API.")
 	flags.String("media-emoji-remote-max-size", cfg.Media.EmojiRemoteMaxSize.String(), "Max size in bytes of emojis to download from other instances.")
 	flags.String("media-image-size-hint", cfg.Media.ImageSizeHint.String(), "Size in bytes of max image size referred to on /api/v_/instance endpoints (else, local max size)")
 	flags.String("media-video-size-hint", cfg.Media.VideoSizeHint.String(), "Size in bytes of max video size referred to on /api/v_/instance endpoints (else, local max size)")
 	flags.String("media-local-max-size", cfg.Media.LocalMaxSize.String(), "Max size in bytes of media uploaded to this instance via API")
 	flags.String("media-remote-max-size", cfg.Media.RemoteMaxSize.String(), "Max size in bytes of media to download from other instances")
-	flags.String("media-cleanup-from", cfg.Media.CleanupFrom, "Time of day from which to start running media cleanup/prune jobs. Should be in the format 'hh:mm:ss', eg., '15:04:05'.")
-	flags.Duration("media-cleanup-every", cfg.Media.CleanupEvery, "Period to elapse between cleanups, starting from media-cleanup-at.")
-	flags.Int("media-ffmpeg-pool-size", cfg.Media.FfmpegPoolSize, "Number of concurrent running instances of ffmpeg to permit. 0 or less uses GOMAXPROCS.")
+	flags.Int("media-ffmpeg-pool-size", cfg.Media.FfmpegPoolSize, "Number of instances of the embedded ffmpeg WASM binary to add to the media processing pool. 0 or less uses GOMAXPROCS.")
 	flags.Int("media-thumb-max-pixels", cfg.Media.ThumbMaxPixels, "Max size in pixels of any one dimension of a thumbnail (as input media ratio is preserved).")
+	flags.String("media-remote-cache-duration", cfg.Media.RemoteCacheDuration.String(), "Duration defining how long to locally cache media from remote instances. (zero keeps indefinitely)")
+	flags.String("media-cleanup-cron", cfg.Media.CleanupCron.String(), "Cron expression defining media cleanup task scheduling")
 	flags.Uint32("cache-s3-object-info", cfg.Cache.S3ObjectInfo, "Enables caching of S3 object information in the storage driver to reduce S3 calls, value is cache capacity.")
 	flags.Uint32("cache-home-timeline-size", cfg.Cache.HomeTimelineSize, "Per-user home timeline cache length, in number of posts. (minimum = 100)")
 	flags.Uint32("cache-list-timeline-size", cfg.Cache.ListTimelineSize, "Per-list timeline cache length, in number of posts. (minimum = 100)")
@@ -506,7 +514,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 }
 
 func (cfg *Configuration) MarshalMap() map[string]any {
-	cfgmap := make(map[string]any, 240)
+	cfgmap := make(map[string]any, 245)
 	cfgmap["log-level"] = cfg.LogLevel
 	cfgmap["log-format"] = cfg.LogFormat
 	cfgmap["log-timestamp-format"] = cfg.LogTimestampFormat
@@ -552,8 +560,7 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["instance-deliver-to-shared-inboxes"] = cfg.InstanceDeliverToSharedInboxes
 	cfgmap["instance-inject-mastodon-version"] = cfg.InstanceInjectMastodonVersion
 	cfgmap["instance-languages"] = cfg.InstanceLanguages.Strings()
-	cfgmap["instance-subscriptions-process-from"] = cfg.InstanceSubscriptionsProcessFrom
-	cfgmap["instance-subscriptions-process-every"] = cfg.InstanceSubscriptionsProcessEvery
+	cfgmap["instance-subscriptions-process-cron"] = cfg.InstanceSubscriptionsProcessCron.String()
 	cfgmap["instance-stats-mode"] = cfg.InstanceStatsMode
 	cfgmap["instance-allow-backdating-statuses"] = cfg.InstanceAllowBackdatingStatuses
 	cfgmap["instance-robots-allow-indexing"] = cfg.InstanceRobotsAllowIndexing
@@ -580,6 +587,8 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["statuses-poll-max-options"] = cfg.StatusesPollMaxOptions
 	cfgmap["statuses-poll-option-max-chars"] = cfg.StatusesPollOptionMaxChars
 	cfgmap["statuses-media-max-files"] = cfg.StatusesMediaMaxFiles
+	cfgmap["statuses-cleanup-cron"] = cfg.StatusesCleanupCron.String()
+	cfgmap["statuses-cleanup-remote-older-than"] = cfg.StatusesCleanupRemoteOlderThan.String()
 	cfgmap["scheduled-statuses-max-total"] = cfg.ScheduledStatusesMaxTotal
 	cfgmap["scheduled-statuses-max-daily"] = cfg.ScheduledStatusesMaxDaily
 	cfgmap["letsencrypt-enabled"] = cfg.LetsEncryptEnabled
@@ -651,17 +660,16 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["http-client-write-buffer-size"] = cfg.HTTPClient.WriteBufferSize.String()
 	cfgmap["media-description-min-chars"] = cfg.Media.DescriptionMinChars
 	cfgmap["media-description-max-chars"] = cfg.Media.DescriptionMaxChars
-	cfgmap["media-remote-cache-days"] = cfg.Media.RemoteCacheDays
 	cfgmap["media-emoji-local-max-size"] = cfg.Media.EmojiLocalMaxSize.String()
 	cfgmap["media-emoji-remote-max-size"] = cfg.Media.EmojiRemoteMaxSize.String()
 	cfgmap["media-image-size-hint"] = cfg.Media.ImageSizeHint.String()
 	cfgmap["media-video-size-hint"] = cfg.Media.VideoSizeHint.String()
 	cfgmap["media-local-max-size"] = cfg.Media.LocalMaxSize.String()
 	cfgmap["media-remote-max-size"] = cfg.Media.RemoteMaxSize.String()
-	cfgmap["media-cleanup-from"] = cfg.Media.CleanupFrom
-	cfgmap["media-cleanup-every"] = cfg.Media.CleanupEvery
 	cfgmap["media-ffmpeg-pool-size"] = cfg.Media.FfmpegPoolSize
 	cfgmap["media-thumb-max-pixels"] = cfg.Media.ThumbMaxPixels
+	cfgmap["media-remote-cache-duration"] = cfg.Media.RemoteCacheDuration.String()
+	cfgmap["media-cleanup-cron"] = cfg.Media.CleanupCron.String()
 	cfgmap["cache-s3-object-info"] = cfg.Cache.S3ObjectInfo
 	cfgmap["cache-home-timeline-size"] = cfg.Cache.HomeTimelineSize
 	cfgmap["cache-list-timeline-size"] = cfg.Cache.ListTimelineSize
@@ -1127,19 +1135,22 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		}
 	}
 
-	if ival, ok := cfgmap["instance-subscriptions-process-from"]; ok {
-		var err error
-		cfg.InstanceSubscriptionsProcessFrom, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'instance-subscriptions-process-from': %w", ival, err)
-		}
+	if ival, ok := cfgmap["instance-subscriptions-process-from"]; ok && ival != "" {
+		return errors.New("value received for deprecated field 'instance-subscriptions-process-from', please use 'instance-subscriptions-process-cron' instead")
 	}
 
-	if ival, ok := cfgmap["instance-subscriptions-process-every"]; ok {
-		var err error
-		cfg.InstanceSubscriptionsProcessEvery, err = cast.ToDurationE(ival)
+	if ival, ok := cfgmap["instance-subscriptions-process-every"]; ok && ival != "" {
+		return errors.New("value received for deprecated field 'instance-subscriptions-process-every', please use 'instance-subscriptions-process-cron' instead")
+	}
+
+	if ival, ok := cfgmap["instance-subscriptions-process-cron"]; ok {
+		t, err := cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'instance-subscriptions-process-every': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> string for 'instance-subscriptions-process-cron': %w", ival, err)
+		}
+		cfg.InstanceSubscriptionsProcessCron = CronExpression{Expression: (*cronexpr.Expression)(nil), Expr: ""}
+		if err := cfg.InstanceSubscriptionsProcessCron.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'instance-subscriptions-process-cron': %w", ival, err)
 		}
 	}
 
@@ -1348,6 +1359,28 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		cfg.StatusesMediaMaxFiles, err = cast.ToIntE(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> int for 'statuses-media-max-files': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["statuses-cleanup-cron"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'statuses-cleanup-cron': %w", ival, err)
+		}
+		cfg.StatusesCleanupCron = CronExpression{Expression: (*cronexpr.Expression)(nil), Expr: ""}
+		if err := cfg.StatusesCleanupCron.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'statuses-cleanup-cron': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["statuses-cleanup-remote-older-than"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'statuses-cleanup-remote-older-than': %w", ival, err)
+		}
+		cfg.StatusesCleanupRemoteOlderThan = 0x0
+		if err := cfg.StatusesCleanupRemoteOlderThan.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'statuses-cleanup-remote-older-than': %w", ival, err)
 		}
 	}
 
@@ -1951,14 +1984,6 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		}
 	}
 
-	if ival, ok := cfgmap["media-remote-cache-days"]; ok {
-		var err error
-		cfg.Media.RemoteCacheDays, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'media-remote-cache-days': %w", ival, err)
-		}
-	}
-
 	if ival, ok := cfgmap["media-emoji-local-max-size"]; ok {
 		t, err := cast.ToStringE(ival)
 		if err != nil {
@@ -2025,22 +2050,6 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		}
 	}
 
-	if ival, ok := cfgmap["media-cleanup-from"]; ok {
-		var err error
-		cfg.Media.CleanupFrom, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'media-cleanup-from': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-cleanup-every"]; ok {
-		var err error
-		cfg.Media.CleanupEvery, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'media-cleanup-every': %w", ival, err)
-		}
-	}
-
 	if ival, ok := cfgmap["media-ffmpeg-pool-size"]; ok {
 		var err error
 		cfg.Media.FfmpegPoolSize, err = cast.ToIntE(ival)
@@ -2055,6 +2064,40 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> int for 'media-thumb-max-pixels': %w", ival, err)
 		}
+	}
+
+	if ival, ok := cfgmap["media-remote-cache-duration"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'media-remote-cache-duration': %w", ival, err)
+		}
+		cfg.Media.RemoteCacheDuration = 0x0
+		if err := cfg.Media.RemoteCacheDuration.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'media-remote-cache-duration': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["media-cleanup-cron"]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for 'media-cleanup-cron': %w", ival, err)
+		}
+		cfg.Media.CleanupCron = CronExpression{Expression: (*cronexpr.Expression)(nil), Expr: ""}
+		if err := cfg.Media.CleanupCron.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for 'media-cleanup-cron': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["media-remote-cache-days"]; ok && ival != "" {
+		return errors.New("value received for deprecated field 'media-remote-cache-days', please use 'media-remote-cache-duration' instead")
+	}
+
+	if ival, ok := cfgmap["media-cleanup-from"]; ok && ival != "" {
+		return errors.New("value received for deprecated field 'media-cleanup-from', please use 'media-cleanup-cron' instead")
+	}
+
+	if ival, ok := cfgmap["media-cleanup-every"]; ok && ival != "" {
+		return errors.New("value received for deprecated field 'media-cleanup-every', please use 'media-cleanup-cron' instead")
 	}
 
 	if ival, ok := cfgmap["cache-s3-object-info"]; ok {
@@ -3509,43 +3552,64 @@ func GetInstanceLanguages() language.Languages { return global.GetInstanceLangua
 func SetInstanceLanguages(v language.Languages) { global.SetInstanceLanguages(v) }
 
 // GetInstanceSubscriptionsProcessFrom safely fetches the Configuration value for state's 'InstanceSubscriptionsProcessFrom' field
-func (st *ConfigState) GetInstanceSubscriptionsProcessFrom() (v string) {
+func (st *ConfigState) GetInstanceSubscriptionsProcessFrom() (v Deprecated) {
 	return st.config.InstanceSubscriptionsProcessFrom
 }
 
 // SetInstanceSubscriptionsProcessFrom safely sets the Configuration value for state's 'InstanceSubscriptionsProcessFrom' field
-func (st *ConfigState) SetInstanceSubscriptionsProcessFrom(v string) {
+func (st *ConfigState) SetInstanceSubscriptionsProcessFrom(v Deprecated) {
 	st.config.InstanceSubscriptionsProcessFrom = v
 	st.reloadToViper()
 }
 
 // GetInstanceSubscriptionsProcessFrom safely fetches the value for global configuration 'InstanceSubscriptionsProcessFrom' field
-func GetInstanceSubscriptionsProcessFrom() string {
+func GetInstanceSubscriptionsProcessFrom() Deprecated {
 	return global.GetInstanceSubscriptionsProcessFrom()
 }
 
 // SetInstanceSubscriptionsProcessFrom safely sets the value for global configuration 'InstanceSubscriptionsProcessFrom' field
-func SetInstanceSubscriptionsProcessFrom(v string) { global.SetInstanceSubscriptionsProcessFrom(v) }
+func SetInstanceSubscriptionsProcessFrom(v Deprecated) { global.SetInstanceSubscriptionsProcessFrom(v) }
 
 // GetInstanceSubscriptionsProcessEvery safely fetches the Configuration value for state's 'InstanceSubscriptionsProcessEvery' field
-func (st *ConfigState) GetInstanceSubscriptionsProcessEvery() (v time.Duration) {
+func (st *ConfigState) GetInstanceSubscriptionsProcessEvery() (v Deprecated) {
 	return st.config.InstanceSubscriptionsProcessEvery
 }
 
 // SetInstanceSubscriptionsProcessEvery safely sets the Configuration value for state's 'InstanceSubscriptionsProcessEvery' field
-func (st *ConfigState) SetInstanceSubscriptionsProcessEvery(v time.Duration) {
+func (st *ConfigState) SetInstanceSubscriptionsProcessEvery(v Deprecated) {
 	st.config.InstanceSubscriptionsProcessEvery = v
 	st.reloadToViper()
 }
 
 // GetInstanceSubscriptionsProcessEvery safely fetches the value for global configuration 'InstanceSubscriptionsProcessEvery' field
-func GetInstanceSubscriptionsProcessEvery() time.Duration {
+func GetInstanceSubscriptionsProcessEvery() Deprecated {
 	return global.GetInstanceSubscriptionsProcessEvery()
 }
 
 // SetInstanceSubscriptionsProcessEvery safely sets the value for global configuration 'InstanceSubscriptionsProcessEvery' field
-func SetInstanceSubscriptionsProcessEvery(v time.Duration) {
+func SetInstanceSubscriptionsProcessEvery(v Deprecated) {
 	global.SetInstanceSubscriptionsProcessEvery(v)
+}
+
+// GetInstanceSubscriptionsProcessCron safely fetches the Configuration value for state's 'InstanceSubscriptionsProcessCron' field
+func (st *ConfigState) GetInstanceSubscriptionsProcessCron() (v CronExpression) {
+	return st.config.InstanceSubscriptionsProcessCron
+}
+
+// SetInstanceSubscriptionsProcessCron safely sets the Configuration value for state's 'InstanceSubscriptionsProcessCron' field
+func (st *ConfigState) SetInstanceSubscriptionsProcessCron(v CronExpression) {
+	st.config.InstanceSubscriptionsProcessCron = v
+	st.reloadToViper()
+}
+
+// GetInstanceSubscriptionsProcessCron safely fetches the value for global configuration 'InstanceSubscriptionsProcessCron' field
+func GetInstanceSubscriptionsProcessCron() CronExpression {
+	return global.GetInstanceSubscriptionsProcessCron()
+}
+
+// SetInstanceSubscriptionsProcessCron safely sets the value for global configuration 'InstanceSubscriptionsProcessCron' field
+func SetInstanceSubscriptionsProcessCron(v CronExpression) {
+	global.SetInstanceSubscriptionsProcessCron(v)
 }
 
 // GetInstanceStatsMode safely fetches the Configuration value for state's 'InstanceStatsMode' field
@@ -3989,6 +4053,44 @@ func GetStatusesMediaMaxFiles() int { return global.GetStatusesMediaMaxFiles() }
 
 // SetStatusesMediaMaxFiles safely sets the value for global configuration 'StatusesMediaMaxFiles' field
 func SetStatusesMediaMaxFiles(v int) { global.SetStatusesMediaMaxFiles(v) }
+
+// GetStatusesCleanupCron safely fetches the Configuration value for state's 'StatusesCleanupCron' field
+func (st *ConfigState) GetStatusesCleanupCron() (v CronExpression) {
+	return st.config.StatusesCleanupCron
+}
+
+// SetStatusesCleanupCron safely sets the Configuration value for state's 'StatusesCleanupCron' field
+func (st *ConfigState) SetStatusesCleanupCron(v CronExpression) {
+	st.config.StatusesCleanupCron = v
+	st.reloadToViper()
+}
+
+// GetStatusesCleanupCron safely fetches the value for global configuration 'StatusesCleanupCron' field
+func GetStatusesCleanupCron() CronExpression { return global.GetStatusesCleanupCron() }
+
+// SetStatusesCleanupCron safely sets the value for global configuration 'StatusesCleanupCron' field
+func SetStatusesCleanupCron(v CronExpression) { global.SetStatusesCleanupCron(v) }
+
+// GetStatusesCleanupRemoteOlderThan safely fetches the Configuration value for state's 'StatusesCleanupRemoteOlderThan' field
+func (st *ConfigState) GetStatusesCleanupRemoteOlderThan() (v longdur.Duration) {
+	return st.config.StatusesCleanupRemoteOlderThan
+}
+
+// SetStatusesCleanupRemoteOlderThan safely sets the Configuration value for state's 'StatusesCleanupRemoteOlderThan' field
+func (st *ConfigState) SetStatusesCleanupRemoteOlderThan(v longdur.Duration) {
+	st.config.StatusesCleanupRemoteOlderThan = v
+	st.reloadToViper()
+}
+
+// GetStatusesCleanupRemoteOlderThan safely fetches the value for global configuration 'StatusesCleanupRemoteOlderThan' field
+func GetStatusesCleanupRemoteOlderThan() longdur.Duration {
+	return global.GetStatusesCleanupRemoteOlderThan()
+}
+
+// SetStatusesCleanupRemoteOlderThan safely sets the value for global configuration 'StatusesCleanupRemoteOlderThan' field
+func SetStatusesCleanupRemoteOlderThan(v longdur.Duration) {
+	global.SetStatusesCleanupRemoteOlderThan(v)
+}
 
 // GetScheduledStatusesMaxTotal safely fetches the Configuration value for state's 'ScheduledStatusesMaxTotal' field
 func (st *ConfigState) GetScheduledStatusesMaxTotal() (v int) {
@@ -5219,23 +5321,6 @@ func GetMediaDescriptionMaxChars() int { return global.GetMediaDescriptionMaxCha
 // SetMediaDescriptionMaxChars safely sets the value for global configuration 'Media.DescriptionMaxChars' field
 func SetMediaDescriptionMaxChars(v int) { global.SetMediaDescriptionMaxChars(v) }
 
-// GetMediaRemoteCacheDays safely fetches the Configuration value for state's 'Media.RemoteCacheDays' field
-func (st *ConfigState) GetMediaRemoteCacheDays() (v int) {
-	return st.config.Media.RemoteCacheDays
-}
-
-// SetMediaRemoteCacheDays safely sets the Configuration value for state's 'Media.RemoteCacheDays' field
-func (st *ConfigState) SetMediaRemoteCacheDays(v int) {
-	st.config.Media.RemoteCacheDays = v
-	st.reloadToViper()
-}
-
-// GetMediaRemoteCacheDays safely fetches the value for global configuration 'Media.RemoteCacheDays' field
-func GetMediaRemoteCacheDays() int { return global.GetMediaRemoteCacheDays() }
-
-// SetMediaRemoteCacheDays safely sets the value for global configuration 'Media.RemoteCacheDays' field
-func SetMediaRemoteCacheDays(v int) { global.SetMediaRemoteCacheDays(v) }
-
 // GetMediaEmojiLocalMaxSize safely fetches the Configuration value for state's 'Media.EmojiLocalMaxSize' field
 func (st *ConfigState) GetMediaEmojiLocalMaxSize() (v bytesize.Size) {
 	return st.config.Media.EmojiLocalMaxSize
@@ -5338,40 +5423,6 @@ func GetMediaRemoteMaxSize() bytesize.Size { return global.GetMediaRemoteMaxSize
 // SetMediaRemoteMaxSize safely sets the value for global configuration 'Media.RemoteMaxSize' field
 func SetMediaRemoteMaxSize(v bytesize.Size) { global.SetMediaRemoteMaxSize(v) }
 
-// GetMediaCleanupFrom safely fetches the Configuration value for state's 'Media.CleanupFrom' field
-func (st *ConfigState) GetMediaCleanupFrom() (v string) {
-	return st.config.Media.CleanupFrom
-}
-
-// SetMediaCleanupFrom safely sets the Configuration value for state's 'Media.CleanupFrom' field
-func (st *ConfigState) SetMediaCleanupFrom(v string) {
-	st.config.Media.CleanupFrom = v
-	st.reloadToViper()
-}
-
-// GetMediaCleanupFrom safely fetches the value for global configuration 'Media.CleanupFrom' field
-func GetMediaCleanupFrom() string { return global.GetMediaCleanupFrom() }
-
-// SetMediaCleanupFrom safely sets the value for global configuration 'Media.CleanupFrom' field
-func SetMediaCleanupFrom(v string) { global.SetMediaCleanupFrom(v) }
-
-// GetMediaCleanupEvery safely fetches the Configuration value for state's 'Media.CleanupEvery' field
-func (st *ConfigState) GetMediaCleanupEvery() (v time.Duration) {
-	return st.config.Media.CleanupEvery
-}
-
-// SetMediaCleanupEvery safely sets the Configuration value for state's 'Media.CleanupEvery' field
-func (st *ConfigState) SetMediaCleanupEvery(v time.Duration) {
-	st.config.Media.CleanupEvery = v
-	st.reloadToViper()
-}
-
-// GetMediaCleanupEvery safely fetches the value for global configuration 'Media.CleanupEvery' field
-func GetMediaCleanupEvery() time.Duration { return global.GetMediaCleanupEvery() }
-
-// SetMediaCleanupEvery safely sets the value for global configuration 'Media.CleanupEvery' field
-func SetMediaCleanupEvery(v time.Duration) { global.SetMediaCleanupEvery(v) }
-
 // GetMediaFfmpegPoolSize safely fetches the Configuration value for state's 'Media.FfmpegPoolSize' field
 func (st *ConfigState) GetMediaFfmpegPoolSize() (v int) {
 	return st.config.Media.FfmpegPoolSize
@@ -5405,6 +5456,91 @@ func GetMediaThumbMaxPixels() int { return global.GetMediaThumbMaxPixels() }
 
 // SetMediaThumbMaxPixels safely sets the value for global configuration 'Media.ThumbMaxPixels' field
 func SetMediaThumbMaxPixels(v int) { global.SetMediaThumbMaxPixels(v) }
+
+// GetMediaRemoteCacheDuration safely fetches the Configuration value for state's 'Media.RemoteCacheDuration' field
+func (st *ConfigState) GetMediaRemoteCacheDuration() (v longdur.Duration) {
+	return st.config.Media.RemoteCacheDuration
+}
+
+// SetMediaRemoteCacheDuration safely sets the Configuration value for state's 'Media.RemoteCacheDuration' field
+func (st *ConfigState) SetMediaRemoteCacheDuration(v longdur.Duration) {
+	st.config.Media.RemoteCacheDuration = v
+	st.reloadToViper()
+}
+
+// GetMediaRemoteCacheDuration safely fetches the value for global configuration 'Media.RemoteCacheDuration' field
+func GetMediaRemoteCacheDuration() longdur.Duration { return global.GetMediaRemoteCacheDuration() }
+
+// SetMediaRemoteCacheDuration safely sets the value for global configuration 'Media.RemoteCacheDuration' field
+func SetMediaRemoteCacheDuration(v longdur.Duration) { global.SetMediaRemoteCacheDuration(v) }
+
+// GetMediaCleanupCron safely fetches the Configuration value for state's 'Media.CleanupCron' field
+func (st *ConfigState) GetMediaCleanupCron() (v CronExpression) {
+	return st.config.Media.CleanupCron
+}
+
+// SetMediaCleanupCron safely sets the Configuration value for state's 'Media.CleanupCron' field
+func (st *ConfigState) SetMediaCleanupCron(v CronExpression) {
+	st.config.Media.CleanupCron = v
+	st.reloadToViper()
+}
+
+// GetMediaCleanupCron safely fetches the value for global configuration 'Media.CleanupCron' field
+func GetMediaCleanupCron() CronExpression { return global.GetMediaCleanupCron() }
+
+// SetMediaCleanupCron safely sets the value for global configuration 'Media.CleanupCron' field
+func SetMediaCleanupCron(v CronExpression) { global.SetMediaCleanupCron(v) }
+
+// GetMediaRemoteCacheDays safely fetches the Configuration value for state's 'Media.RemoteCacheDays' field
+func (st *ConfigState) GetMediaRemoteCacheDays() (v Deprecated) {
+	return st.config.Media.RemoteCacheDays
+}
+
+// SetMediaRemoteCacheDays safely sets the Configuration value for state's 'Media.RemoteCacheDays' field
+func (st *ConfigState) SetMediaRemoteCacheDays(v Deprecated) {
+	st.config.Media.RemoteCacheDays = v
+	st.reloadToViper()
+}
+
+// GetMediaRemoteCacheDays safely fetches the value for global configuration 'Media.RemoteCacheDays' field
+func GetMediaRemoteCacheDays() Deprecated { return global.GetMediaRemoteCacheDays() }
+
+// SetMediaRemoteCacheDays safely sets the value for global configuration 'Media.RemoteCacheDays' field
+func SetMediaRemoteCacheDays(v Deprecated) { global.SetMediaRemoteCacheDays(v) }
+
+// GetMediaCleanupFrom safely fetches the Configuration value for state's 'Media.CleanupFrom' field
+func (st *ConfigState) GetMediaCleanupFrom() (v Deprecated) {
+	return st.config.Media.CleanupFrom
+}
+
+// SetMediaCleanupFrom safely sets the Configuration value for state's 'Media.CleanupFrom' field
+func (st *ConfigState) SetMediaCleanupFrom(v Deprecated) {
+	st.config.Media.CleanupFrom = v
+	st.reloadToViper()
+}
+
+// GetMediaCleanupFrom safely fetches the value for global configuration 'Media.CleanupFrom' field
+func GetMediaCleanupFrom() Deprecated { return global.GetMediaCleanupFrom() }
+
+// SetMediaCleanupFrom safely sets the value for global configuration 'Media.CleanupFrom' field
+func SetMediaCleanupFrom(v Deprecated) { global.SetMediaCleanupFrom(v) }
+
+// GetMediaCleanupEvery safely fetches the Configuration value for state's 'Media.CleanupEvery' field
+func (st *ConfigState) GetMediaCleanupEvery() (v Deprecated) {
+	return st.config.Media.CleanupEvery
+}
+
+// SetMediaCleanupEvery safely sets the Configuration value for state's 'Media.CleanupEvery' field
+func (st *ConfigState) SetMediaCleanupEvery(v Deprecated) {
+	st.config.Media.CleanupEvery = v
+	st.reloadToViper()
+}
+
+// GetMediaCleanupEvery safely fetches the value for global configuration 'Media.CleanupEvery' field
+func GetMediaCleanupEvery() Deprecated { return global.GetMediaCleanupEvery() }
+
+// SetMediaCleanupEvery safely sets the value for global configuration 'Media.CleanupEvery' field
+func SetMediaCleanupEvery(v Deprecated) { global.SetMediaCleanupEvery(v) }
 
 // GetCacheS3ObjectInfo safely fetches the Configuration value for state's 'Cache.S3ObjectInfo' field
 func (st *ConfigState) GetCacheS3ObjectInfo() (v uint32) {
@@ -7403,17 +7539,6 @@ func flattenConfigMap(cfgmap map[string]any) {
 	}
 
 	for _, key := range [][]string{
-		{"media", "remote-cache-days"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-remote-cache-days"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
 		{"media", "emoji-local-max-size"},
 	} {
 		ival, ok := mapGet(cfgmap, key...)
@@ -7480,28 +7605,6 @@ func flattenConfigMap(cfgmap map[string]any) {
 	}
 
 	for _, key := range [][]string{
-		{"media", "cleanup-from"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-cleanup-from"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "cleanup-every"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-cleanup-every"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
 		{"media", "ffmpeg-pool-size"},
 	} {
 		ival, ok := mapGet(cfgmap, key...)
@@ -7518,6 +7621,61 @@ func flattenConfigMap(cfgmap map[string]any) {
 		ival, ok := mapGet(cfgmap, key...)
 		if ok {
 			cfgmap["media-thumb-max-pixels"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"media", "remote-cache-duration"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["media-remote-cache-duration"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"media", "cleanup-cron"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["media-cleanup-cron"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"media", "remote-cache-days"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["media-remote-cache-days"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"media", "cleanup-from"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["media-cleanup-from"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"media", "cleanup-every"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["media-cleanup-every"] = ival
 			nestedKeys[key[0]] = struct{}{}
 			break
 		}

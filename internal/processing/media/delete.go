@@ -57,11 +57,11 @@ func (p *Processor) Delete(ctx context.Context, mediaAttachmentID string) gtserr
 	}
 
 	// delete the attachment
-	if err := p.state.DB.DeleteAttachment(ctx, mediaAttachmentID); err != nil && !errors.Is(err, db.ErrNoEntries) {
+	if err := p.state.DB.DeleteAttachment(ctx, attachment); err != nil && !errors.Is(err, db.ErrNoEntries) {
 		errs = append(errs, fmt.Sprintf("remove attachment: %s", err))
 	}
 
-	if len(errs) != 0 {
+	if len(errs) > 0 {
 		return gtserror.NewErrorInternalError(fmt.Errorf("Delete: one or more errors removing attachment with id %s: %s", mediaAttachmentID, strings.Join(errs, "; ")))
 	}
 

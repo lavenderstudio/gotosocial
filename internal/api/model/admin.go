@@ -193,9 +193,9 @@ type AdminActionResponse struct {
 //
 // swagger:parameters mediaCleanup
 type MediaCleanupRequest struct {
-	// Number of days of remote media to keep.
+	// Integer number of days, or duration string, of duration of remote media to keep.
 	// If value is not specified, the value of media-remote-cache-days in the server config will be used.
-	RemoteCacheDays *int `form:"remote_cache_days" json:"remote_cache_days" xml:"remote_cache_days"`
+	RemoteCacheDays DurationOrDays `form:"remote_cache_days" json:"remote_cache_days" xml:"remote_cache_days"`
 }
 
 // MediaPurgeRequest models admin media purge parameters

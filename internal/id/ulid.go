@@ -42,8 +42,10 @@ const (
 // bigRandomRange contains randomRange as big.Int.
 var bigRandomRange = big.NewInt(randomRange)
 
-// ULID represents a Universally Unique Lexicographically Sortable Identifier of 26 characters. See https://github.com/oklog/ulid
-type ULID string
+// ULID represents the actual ULID binary type, which
+// itself can easily be converted to string or have its
+// timestamp value extracted from it.
+type ULID = ulid.ULID
 
 // newAt returns a new ulid.ULID from timestamp,
 // else panics with caller's caller information.
@@ -116,4 +118,15 @@ func ZeroULIDForTime(t time.Time) string {
 		panic(err)
 	}
 	return ulid.String()
+}
+
+// ZeroBinaryULIDForTime is the same as ZeroULIDForTime()
+// except that it returns the binary ULID representation.
+func ZeroBinaryULIDForTime(t time.Time) ULID {
+	ts := ulid.Timestamp(t)
+	var ulid ulid.ULID
+	if err := ulid.SetTime(ts); err != nil {
+		panic(err)
+	}
+	return ulid
 }

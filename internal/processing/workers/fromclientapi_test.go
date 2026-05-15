@@ -128,15 +128,7 @@ func (suite *FromClientAPITestSuite) newStatus(
 	}
 
 	if createThread {
-		newThread := &gtsmodel.Thread{
-			ID: id.NewULID(),
-		}
-
-		newStatus.ThreadID = newThread.ID
-
-		if err := state.DB.PutThread(ctx, newThread); err != nil {
-			suite.FailNow(err.Error())
-		}
+		newStatus.ThreadID = id.NewULID()
 	}
 
 	// Put the status in the db, to mimic what would
@@ -2179,12 +2171,6 @@ func (suite *FromClientAPITestSuite) TestProcessStatusDelete() {
 		streams              = suite.openStreams(ctx, testStructs.Processor, receivingAccount, nil)
 		homeStream           = streams[stream.TimelineHome]
 	)
-
-	// Delete the status from the db first, to mimic what
-	// would have already happened earlier up the flow
-	if err := testStructs.State.DB.DeleteStatus(ctx, deletedStatus); err != nil {
-		suite.FailNow(err.Error())
-	}
 
 	// Process the status delete.
 	if err := testStructs.Processor.Workers().ProcessFromClientAPI(

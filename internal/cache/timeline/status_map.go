@@ -320,7 +320,7 @@ func (s *lazyset) Add(key string) {
 }
 
 // clone is functionally similar to maps.Clone(),
-// except a nil input with return initialized out.
+// except a nil input will return initialized output.
 func clone[T any](m map[string]T) map[string]T {
 	m2 := make(map[string]T, len(m))
 	for key, val := range m {

@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"codeberg.org/gruf/go-runners"
 	"codeberg.org/gruf/go-sched"
 )
@@ -54,39 +55,16 @@ func (sch *Scheduler) Stop() bool {
 	return false
 }
 
-// AddOnce schedules the given task to run at time, registered under the given ID. Returns false if task already exists for id.
-func (sch *Scheduler) AddOnce(id string, start time.Time, fn func(context.Context, time.Time)) bool {
-	return sch.schedule(id, fn, (*sched.Once)(&start))
-}
-
-// AddRecurring schedules the given task to return at given period, starting at given time, registered under given id. Returns false if task already exists for id.
-func (sch *Scheduler) AddRecurring(id string, start time.Time, freq time.Duration, fn func(context.Context, time.Time)) bool {
-	return sch.schedule(id, fn, &sched.PeriodicAt{Once: sched.Once(start), Period: sched.Periodic(freq)})
-}
-
-// Cancel attempts to cancel a scheduled task with id, returns false if no task found.
-func (sch *Scheduler) Cancel(id string) bool {
-	// Attempt to acquire and
-	// delete task with iD.
-	sch.mu.Lock()
-	task, ok := sch.ts[id]
-	delete(sch.ts, id)
-	sch.mu.Unlock()
-
-	if !ok {
-		// none found.
-		return false
-	}
-
-	// Cancel the queued
-	// job from Scheduler.
-	task.cncl()
-	return true
-}
-
-func (sch *Scheduler) schedule(id string, fn func(context.Context, time.Time), t sched.Timing) bool {
+// Add schedules the given task to run with timing 't', registered under the given 'id'. Returns false if task already exists for 'id'.
+func (sch *Scheduler) Add(id string, fn func(context.Context, time.Time), t sched.Timing) bool {
 	if fn == nil {
 		panic("nil function")
+	}
+
+	if isEmptyCron(t) {
+		// nothing
+		// to schedule
+		return true
 	}
 
 	// Acquire lock.
@@ -119,9 +97,46 @@ func (sch *Scheduler) schedule(id string, fn func(context.Context, time.Time), t
 	return true
 }
 
+// AddOnce schedules the given task to run at time, registered under the given ID. Returns false if task already exists for id.
+func (sch *Scheduler) AddOnce(id string, start time.Time, fn func(context.Context, time.Time)) bool {
+	return sch.Add(id, fn, (*sched.Once)(&start))
+}
+
+// AddRecurring schedules the given task to return at given period, starting at given time, registered under given id. Returns false if task already exists for id.
+func (sch *Scheduler) AddRecurring(id string, start time.Time, freq time.Duration, fn func(context.Context, time.Time)) bool {
+	return sch.Add(id, fn, &sched.PeriodicAt{Once: sched.Once(start), Period: sched.Periodic(freq)})
+}
+
+// Cancel attempts to cancel a scheduled task with id, returns false if no task found.
+func (sch *Scheduler) Cancel(id string) bool {
+	// Attempt to acquire and
+	// delete task with iD.
+	sch.mu.Lock()
+	task, ok := sch.ts[id]
+	delete(sch.ts, id)
+	sch.mu.Unlock()
+
+	if !ok {
+		// none found.
+		return false
+	}
+
+	// Cancel the queued
+	// job from Scheduler.
+	task.cncl()
+	return true
+}
+
 // task simply wraps together a scheduled
 // job, and the matching cancel function.
 type task struct {
 	job  *sched.Job
 	cncl func()
+}
+
+// isEmptyCron checks whether timing is an
+// empty CronExpression{} value, i.e. unset.
+func isEmptyCron(t sched.Timing) bool {
+	expr, ok := t.(config.CronExpression)
+	return ok && expr.Expr == ""
 }

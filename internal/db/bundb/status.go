@@ -652,7 +652,10 @@ func (s *statusDB) UpdateStatus(ctx context.Context, status *gtsmodel.Status, co
 	})
 }
 
-func (s *statusDB) StubStatus(ctx context.Context, status *gtsmodel.Status) error {
+func (s *statusDB) StubStatus(ctx context.Context, status *gtsmodel.Status, includeMedia bool) error {
+	// Delete status related models before anything.
+	s.preStatusDelete(ctx, status, includeMedia)
+
 	// Take pointer to original
 	// status before changes, used
 	// for later cache invalidation.
@@ -696,9 +699,21 @@ func (s *statusDB) StubStatus(ctx context.Context, status *gtsmodel.Status) erro
 	return nil
 }
 
-func (s *statusDB) DeleteStatus(ctx context.Context, status *gtsmodel.Status) error {
-	if err := s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+func (s *statusDB) DeleteStatus(ctx context.Context, status *gtsmodel.Status, includeMedia bool) error {
+	s.preStatusDelete(ctx, status, includeMedia)
+	return s.deleteStatus(ctx, status)
+}
 
+func (s *statusDB) DeleteStatusBoost(ctx context.Context, boost *gtsmodel.Status) error {
+	if boost.BoostOfID == "" {
+		return gtserror.New("not a status boost")
+	}
+	// note: there are no related models to delete
+	return s.deleteStatus(ctx, boost)
+}
+
+func (s *statusDB) deleteStatus(ctx context.Context, status *gtsmodel.Status) error {
+	if err := s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 		// Actually delete the status.
 		if res, err := tx.NewDelete().
 			Model(status).
@@ -727,14 +742,132 @@ func (s *statusDB) DeleteStatus(ctx context.Context, status *gtsmodel.Status) er
 	return nil
 }
 
-func (s *statusDB) onStatusDelete(ctx context.Context, tx bun.Tx, status *gtsmodel.Status) error {
+// preStatusDelete performs common status deletion
+// logic, deleting related models before the actual
+// status is deleted. no error is returned as this
+// all is expected to happen in a non-error-blocking
+// manner, to ensure status itself is deleted.
+func (s *statusDB) preStatusDelete(
+	ctx context.Context,
+	status *gtsmodel.Status,
+	includeMedia bool,
+) {
+	log := log.New().
+		WithContext(ctx).
+		WithField("uri", status.URI)
+
+	// Delete all notifications referencing this status.
+	if err := s.state.DB.DeleteNotificationsForStatus(ctx,
+		status.ID); err != nil {
+		log.Errorf("db error deleting notifications: %v", err)
+	}
+
+	// Before handling media, ensure
+	// historic edits are populated.
+	if !status.EditsPopulated() {
+		var err error
+
+		// Fetch all historic edits of status from database.
+		status.Edits, err = s.state.DB.GetStatusEditsByIDs(
+			gtscontext.SetBarebones(ctx),
+			status.EditIDs,
+		)
+		if err != nil {
+			log.Errorf("db error getting status edits: %v", err)
+		}
+	}
+
+	if includeMedia {
+		// Media included, delete all attachments for this status (including edits).
+		err := s.state.DB.DeleteAttachments(ctx, status.AllAttachmentIDs()...)
+		if err != nil {
+			log.Errorf("db error deleting media: %v", err)
+		}
+	} else {
+		// Media not included, simply unattach all attachments from this status.
+		err := s.state.DB.UnattachAttachments(ctx, status.AllAttachmentIDs()...)
+		if err != nil {
+			log.Errorf("db error unattaching media: %v", err)
+		}
+	}
+
+	// Delete all historical edits of status.
+	if ids := status.EditIDs; len(ids) > 0 {
+		if err := s.state.DB.DeleteStatusEdits(ctx, ids); err != nil {
+			log.Errorf("db error deleting edits: %v", err)
+		}
+	}
+
+	// Delete any mentions attached to status.
+	if ids := status.MentionIDs; len(ids) > 0 {
+		if err := s.state.DB.DeleteMentions(ctx, ids...); err != nil {
+			log.Errorf("db error deleting mentions: %v", err)
+		}
+	}
+
+	// Delete all local bookmarks targetting this status.
+	if err := s.state.DB.DeleteStatusBookmarksForStatus(ctx,
+		status.ID); err != nil {
+		log.Errorf("db error deleting bookmarks: %v", err)
+	}
+
+	// Delete any status pin targetting this status.
+	if err := s.state.DB.DeleteStatusPin(ctx, status.ID); //
+	err != nil {
+		log.Errorf("db error deleting pin: %v", err)
+	}
+
+	// Delete all stored favourites targetting status.
+	if err := s.state.DB.DeleteStatusFavesForStatus(ctx,
+		status.ID); err != nil {
+		log.Errorf("db error deleting faves: %v", err)
+	}
+
+	if id := status.PollID; id != "" {
+		// Delete stored poll attached to this status.
+		if err := s.state.DB.DeletePollByID(ctx, id); //
+		err != nil {
+			log.Errorf("db error deleting poll %s: %v", id, err)
+		}
+	}
+
+	// Get IDs of any boosts referencing this status.
+	boostIDs, err := s.state.DB.GetStatusBoostIDs(ctx,
+		status.ID)
+	if err != nil {
+		log.Errorf("db error getting boosts: %v", err)
+	}
+
+	if len(boostIDs) > 0 {
+		// Delete all boosts with the given selected IDs.
+		if err := s.DeleteStatusBoosts(ctx, boostIDs...); //
+		err != nil {
+			log.Errorf("db error deleting boosts: %v", err)
+		}
+	}
+
+	// Delete this status from direct message conversations it's part of.
+	if err := s.state.DB.DeleteStatusFromConversations(ctx, status.ID); //
+	err != nil {
+		log.Errorf("db error deleting status from conversations: %v", err)
+	}
+}
+
+// onStatusDelete handles shared side-effects
+// on deletion (or stubbing) of a status model.
+func (s *statusDB) onStatusDelete(
+	ctx context.Context,
+	tx bun.Tx,
+	status *gtsmodel.Status,
+) error {
+
 	// delete links between this
 	// status and any emojis it uses
 	if _, err := tx.NewDelete().
 		Table("status_to_emojis").
 		Where("? = ?", bun.Ident("status_id"), status.ID).
 		Exec(ctx); err != nil {
-		return err
+		return gtserror.Newf("error deleting emoji links: %w", err)
 	}
 
 	// delete links between this
@@ -743,7 +876,7 @@ func (s *statusDB) onStatusDelete(ctx context.Context, tx bun.Tx, status *gtsmod
 		Table("status_to_tags").
 		Where("? = ?", bun.Ident("status_id"), status.ID).
 		Exec(ctx); err != nil {
-		return err
+		return gtserror.Newf("error deleting tag links: %w", err)
 	}
 
 	// decrement status author statistics.
@@ -753,7 +886,245 @@ func (s *statusDB) onStatusDelete(ctx context.Context, tx bun.Tx, status *gtsmod
 	)
 }
 
-func (s *statusDB) DeleteStatusLeafStubs(ctx context.Context, page *paging.Page) ([]*gtsmodel.Status, error) {
+func (s *statusDB) DeleteStatusBoosts(ctx context.Context, ids ...string) error {
+	deleted := make([]*gtsmodel.Status, 0, len(ids))
+
+	// Delete boosts by their ID.
+	if _, err := s.db.NewDelete().
+		Model(&deleted).
+		Where("? IN (?)", bun.Ident("id"), bun.List(ids)).
+		Where("? IS NOT NULL", bun.Ident("boost_of_id")). // to double check
+		Returning("?, ?, ?",
+			bun.Ident("id"),
+			bun.Ident("account_id"),
+			bun.Ident("thread_id"),
+		).Exec(ctx); err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return err
+	}
+
+	// Invalidate related DB caches.
+	for _, status := range deleted {
+		s.state.Caches.OnInvalidateStatus(status)
+	}
+
+	return nil
+}
+
+func (s *statusDB) DeleteOldRemoteStatuses(
+	ctx context.Context,
+	olderThan id.ULID,
+	page *paging.Page,
+) (
+	int, // count
+	*paging.Page, // next page
+	error,
+) {
+	if page == nil || page.Limit < 1 {
+		panic("paging is required")
+	}
+
+	// An example of this query:
+	// SELECT DISTINCT "statuses"."thread_id" FROM "statuses"
+	// WHERE (NOT EXISTS (SELECT 1 FROM "statuses" AS "inner"
+	// WHERE ("inner"."thread_id" = "statuses"."thread_id") AND
+	// (("inner"."flags" & 8 != 0) OR ("inner"."fetched_at" > '2020-05-16 11:06:18.023+00:00'))))
+	// AND ("statuses"."thread_id" < '01DB2QFDE7N8KMTSCX1XYQM260')
+	// ORDER BY "statuses"."thread_id" DESC LIMIT 50
+
+	// A quick type alias
+	// to make things a
+	// bit more concise.
+	type ID = bun.Ident
+
+	// Extract page params.
+	maxID := page.Max.Value
+	limit := page.Limit
+	if page.Order() != paging.OrderDescending {
+		panic("must be descending page order")
+	} else if limit <= 0 {
+		panic("a limit must be supplied")
+	}
+
+	// Extract timestamp from 'olderThan'.
+	olderThanTs := olderThan.Timestamp()
+
+	// Preallocate slice to store threads.
+	threadIDs := make([]string, 0, limit)
+
+	// Start the main query, SELECT
+	// distinct `thread_id` entries.
+	q := s.db.NewSelect()
+	q = q.Distinct()
+	q = q.Table("statuses")
+	q = q.Column("statuses.thread_id")
+
+	// Start the sub query, SELECTing
+	// a 1 return where the local flag
+	// is set OR fetched_at is recent.
+	//
+	// i.e. in the grand scheme of the
+	// query this lets us filter threads
+	// by those not fetched recently and
+	// not containing any local statuses.
+	sub := q.NewSelect()
+	sub = sub.TableExpr("? AS ?", ID("statuses"), ID("inner"))
+	sub = sub.ColumnExpr("1")
+	sub = sub.Where("? = ?", ID("inner.thread_id"), ID("statuses.thread_id"))
+	sub = sub.WhereGroup("AND", func(sub *bun.SelectQuery) *bun.SelectQuery {
+		sub = sub.Where(db.BitIsSet("inner.flags", gtsmodel.StatusFlagLocal))
+		sub = sub.WhereOr("? > ?", ID("inner.fetched_at"), olderThanTs)
+		return sub
+	})
+
+	// Apply the sub-query as a WHERE
+	// NOT EXISTS to the main query,
+	// and apply paging parameters to
+	// thread_id to given age window.
+	q = q.Where("NOT EXISTS (?)", sub)
+	q = q.Where("? < ?", ID("statuses.thread_id"), maxID)
+	q = q.OrderExpr("? DESC", ID("statuses.thread_id"))
+	q = q.Limit(limit)
+
+	// Scan query results into slice.
+	err := q.Scan(ctx, &threadIDs)
+	if err != nil {
+		return 0, nil, gtserror.Newf("error selecting remote threads: %w", err)
+	}
+
+	// Check for a return.
+	if len(threadIDs) == 0 {
+		return 0, nil, nil
+	}
+
+	// Return a copy of page
+	// with updated maxID value.
+	next := new(paging.Page)
+	(*next) = (*page)
+	next.Max.Value = threadIDs[0]
+
+	// Create an ID lookup map to store returned
+	// thread IDs that we're going to filter out.
+	withInteractions := make(idmap, len(threadIDs))
+
+	// Convert our list of threadIDs to
+	// a scannable struct with CTE tags.
+	values := toThreadIDValues(threadIDs)
+
+	// Scan database for statuses contained
+	// in each thread ID, looking for threads
+	// that contain statuses with favourites
+	// by local accounts. This query returns
+	// only threads with local favourites,
+	// i.e. the inverse of what we want.
+	q = s.db.NewSelect()
+	q = q.With("threads", q.NewValues(&values))
+	q = q.Table("threads")
+	q = q.Column("threads.thread_id")
+	q = q.Join("JOIN ? ON ? = ?", ID("statuses"), ID("statuses.thread_id"), ID("threads.thread_id"))
+	q = q.Join("JOIN ? ON ? = ?", ID("status_faves"), ID("status_faves.status_id"), ID("statuses.id"))
+	q = q.Join("JOIN ? ON ? = ?", ID("accounts"), ID("accounts.id"), ID("status_faves.account_id"))
+	q = q.Where("? IS NULL", ID("accounts.domain"))
+	if err := q.Scan(ctx, &withInteractions); err != nil {
+		return 0, nil, gtserror.Newf("error selecting threads with local faves: %w", err)
+	}
+
+	// Filter thread IDs to delete those that have been locally faved.
+	if threadIDs = slices.DeleteFunc(threadIDs, func(id string) bool {
+		_, ok := withInteractions[id]
+		return ok
+	}); len(threadIDs) == 0 {
+
+		// i.e. nothing to delete,
+		// just return next page.
+		return 0, next, nil
+	}
+
+	// Convert our remaining list of threadIDs
+	// to scannable struct type with CTE tags.
+	values = toThreadIDValues(threadIDs)
+
+	// Reset interaction map
+	// for use again below.
+	clear(withInteractions)
+
+	// Scan database for statuses contained
+	// in each thread ID, looking for threads
+	// that contain statuses with bookmarks
+	// by local accounts. This query returns
+	// only threads with local bookmarks,
+	// i.e. the inverse of what we want.
+	q = s.db.NewSelect()
+	q = q.With("threads", q.NewValues(&values))
+	q = q.Table("threads")
+	q = q.Column("threads.thread_id")
+	q = q.Join("JOIN ? ON ? = ?", ID("statuses"), ID("statuses.thread_id"), ID("threads.thread_id"))
+	q = q.Join("JOIN ? ON ? = ?", ID("status_bookmarks"), ID("status_bookmarks.status_id"), ID("statuses.id"))
+	if err := q.Scan(ctx, &withInteractions); err != nil {
+		return 0, nil, gtserror.Newf("error selecting threads with bookmarks: %w", err)
+	}
+
+	// Filter our thread IDs to delete those that have been bookmarked.
+	if threadIDs = slices.DeleteFunc(threadIDs, func(id string) bool {
+		_, ok := withInteractions[id]
+		return ok
+	}); len(threadIDs) == 0 {
+
+		// i.e. nothing to delete,
+		// just return next page.
+		return 0, next, nil
+	}
+
+	// Prepare slice to store returned deleted statuses.
+	statuses := make([]*gtsmodel.Status, 0, len(threadIDs))
+
+	// Delete statuses contained in determined threads.
+	statuses, err = s.deleteStatuses(ctx, statuses,
+		func(q *bun.SelectQuery) *bun.SelectQuery {
+			return q.Where("? IN (?)", bun.Ident("thread_id"), bun.List(threadIDs))
+		})
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return len(statuses), next, err
+}
+
+func (s *statusDB) DeleteLeafStubStatuses(ctx context.Context, page *paging.Page) (int, *paging.Page, error) {
+	return s.deleteStatusPage(ctx, "id", func(q *bun.SelectQuery) *bun.SelectQuery {
+
+		// Only select stubbed statuses.
+		q = q.Where(db.BitIsSet("flags",
+			gtsmodel.StatusFlagDeleted))
+
+		// Append WHERE clause selecting
+		// only stubbed statuses that have
+		// zero replies replies to them.
+		q = q.Where("(?) = 0",
+			q.NewRaw("SELECT COUNT(1) FROM ? AS ? WHERE ? = ?",
+				bun.Ident("statuses"),
+				bun.Ident("inner"),
+				bun.Ident("status.id"),
+				bun.Ident("inner.in_reply_to_id"),
+			))
+
+		return q
+	}, page)
+}
+
+// deleteStatusPage is a wrapper around deleteStatuses()
+// that adds paging on the given column name, returning
+// the number of deleted statuses and page for the next
+// determined page of statuses based on just deleted.
+func (s *statusDB) deleteStatusPage(
+	ctx context.Context,
+	col string,
+	where func(*bun.SelectQuery) *bun.SelectQuery,
+	page *paging.Page,
+) (
+	int, // deleted count
+	*paging.Page, // next page
+	error,
+) {
 	if page == nil || page.Limit < 1 {
 		panic("paging is required")
 	}
@@ -764,68 +1135,100 @@ func (s *statusDB) DeleteStatusLeafStubs(ctx context.Context, page *paging.Page)
 	limit := page.Limit
 	order := page.Order()
 
-	// Pprepare status slice to store stubbed.
+	// Prepare slice to store returned statuses.
 	statuses := make([]*gtsmodel.Status, 0, limit)
 
-	// Start preparing the SELECT query selecting
-	// only stubbed statuses, and returning enough
-	// details performing any cache invalidation.
-	q := s.db.NewSelect().Model(&statuses).
-		Where(db.BitIsSet("flags", gtsmodel.StatusFlagDeleted)).
-		ColumnExpr("?, ?, ?, ?, ?",
-			bun.Ident("status.in_reply_to_id"),
-			bun.Ident("status.account_id"),
-			bun.Ident("status.thread_id"),
-			bun.Ident("status.flags"),
-			bun.Ident("status.id"),
-		)
+	// Finally, delete the statuses, within page.
+	statuses, err := s.deleteStatuses(ctx, statuses,
+		func(q *bun.SelectQuery) *bun.SelectQuery {
 
-	// Append WHERE clause selecting
-	// only stubbed statuses that have
-	// zero replies replies to them.
-	q = q.Where("(?) = 0",
-		q.NewRaw("SELECT COUNT(1) FROM ? AS ? WHERE ? = ?",
-			bun.Ident("statuses"),
-			bun.Ident("sub"),
-			bun.Ident("status.id"),
-			bun.Ident("sub.in_reply_to_id"),
-		))
+			// Apply caller specific
+			// select query filtering.
+			q = where(q)
 
-	if maxID != "" {
-		// Set a maximum ID boundary if was given.
-		q = q.Where("? < ?", bun.Ident("id"), maxID)
+			if maxID != "" {
+				// Set a maximum ID boundary if was given.
+				q = q.Where("? < ?", bun.Ident(col), maxID)
+			}
+
+			if minID != "" {
+				// Set a minimum ID boundary if was given.
+				q = q.Where("? > ?", bun.Ident(col), minID)
+			}
+
+			// Set query ordering.
+			if order.Ascending() {
+				q = q.OrderExpr("? ASC", bun.Ident(col))
+			} else /* i.e. descending */ {
+				q = q.OrderExpr("? DESC", bun.Ident(col))
+			}
+
+			// A limit should always
+			// be supplied for this.
+			q = q.Limit(limit)
+
+			return q
+		})
+	if err != nil || len(statuses) == 0 {
+		return 0, nil, err
 	}
 
-	if minID != "" {
-		// Set a minimum ID boundary if was given.
-		q = q.Where("? > ?", bun.Ident("id"), minID)
-	}
-
-	// Set query ordering.
+	// Ensure statuses are
+	// in expected order.
 	if order.Ascending() {
-		q = q.OrderExpr("? ASC", bun.Ident("id"))
-	} else /* i.e. descending */ {
-		q = q.OrderExpr("? DESC", bun.Ident("id"))
+		slices.Reverse(statuses)
 	}
 
-	// A limit should always
-	// be supplied for this.
-	q = q.Limit(limit)
+	// Calculate and return the
+	// next page up for deletion.
+	lo := statuses[len(statuses)-1].ID
+	return len(statuses), page.Next(lo, ""), err
+}
+
+// deleteStatuses encapsulates common logic for
+// deleting batches of statuses and handling any
+// necessary cache eviction, returning the mostly
+// bare (except for core fields) deleted statuses.
+func (s *statusDB) deleteStatuses(
+	ctx context.Context,
+	dst []*gtsmodel.Status, // preallocated delete destination slice
+	where func(*bun.SelectQuery) *bun.SelectQuery,
+) (
+	[]*gtsmodel.Status,
+	error,
+) {
+	// Empty the
+	// input slice.
+	dst = dst[:0]
+
+	// Start preparing the SELECT query.
+	q := s.db.NewSelect().Model(&dst)
+
+	// Apply caller specific
+	// select query filtering.
+	q = where(q)
 
 	// Perform the actual database query.
 	if err := q.Scan(ctx); err != nil {
-		return nil, err
+		return dst, err
 	}
 
-	// Check for no values.
-	if len(statuses) == 0 {
-		return nil, nil
+	// Check for values.
+	if len(dst) == 0 {
+		return dst, nil
+	}
+
+	// Perform "pre-delete" hooks for status,
+	// cleaning up any associated models.
+	for _, status := range dst {
+		const media = true // include media
+		s.preStatusDelete(ctx, status, media)
 	}
 
 	// Get status IDs for the actual delete query
 	// and to later minimize cache mutex unlocks.
-	statusIDs := make([]string, 0, len(statuses))
-	statusIDs = xslices.Gather(statusIDs, statuses,
+	statusIDs := make([]string, 0, len(dst))
+	statusIDs = xslices.Gather(statusIDs, dst,
 		func(s *gtsmodel.Status) string { return s.ID })
 
 	// Now actually DELETE the statuses by their IDs! This has
@@ -835,7 +1238,7 @@ func (s *statusDB) DeleteStatusLeafStubs(ctx context.Context, page *paging.Page)
 		Table("statuses").
 		Where("? IN (?)", bun.Ident("id"), bun.List(statusIDs)).
 		Exec(ctx); err != nil && !errors.Is(err, db.ErrNoEntries) {
-		return nil, err
+		return dst, err
 	}
 
 	// Invalidate all status IDs from cache in one call.
@@ -843,17 +1246,11 @@ func (s *statusDB) DeleteStatusLeafStubs(ctx context.Context, page *paging.Page)
 
 	// Manually call invalidate hooks
 	// for statuses in case not cached.
-	for _, status := range statuses {
+	for _, status := range dst {
 		s.state.Caches.OnInvalidateStatus(status)
 	}
 
-	// We always want returned
-	// statuses to be DESC order.
-	if order.Ascending() {
-		slices.Reverse(statuses)
-	}
-
-	return statuses, nil
+	return dst, nil
 }
 
 func (s *statusDB) GetStatusesUsingEmoji(ctx context.Context, emojiID string) ([]*gtsmodel.Status, error) {
@@ -883,7 +1280,8 @@ func (s *statusDB) GetStatusParents(ctx context.Context, status *gtsmodel.Status
 		}
 
 		if parent == nil {
-			// Parent status not found (e.g. deleted)
+			// Parent status not
+			// found (e.g. deleted)
 			break
 		}
 
@@ -959,7 +1357,7 @@ func getStatusReplyIDs(ctx context.Context, bundb *bun.DB, statusID string) ([]s
 }
 
 func (s *statusDB) GetStatusBoosts(ctx context.Context, statusID string) ([]*gtsmodel.Status, error) {
-	statusIDs, err := s.getStatusBoostIDs(ctx, statusID)
+	statusIDs, err := s.GetStatusBoostIDs(ctx, statusID)
 	if err != nil {
 		return nil, err
 	}
@@ -984,7 +1382,7 @@ func (s *statusDB) CountStatusBoosts(ctx context.Context, statusID string) (int,
 	})
 }
 
-func (s *statusDB) getStatusBoostIDs(ctx context.Context, statusID string) ([]string, error) {
+func (s *statusDB) GetStatusBoostIDs(ctx context.Context, statusID string) ([]string, error) {
 	return s.state.Caches.DB.BoostOfIDs.Load(statusID, func() ([]string, error) {
 		return getStatusBoostIDs(ctx, s.db, statusID)
 	})

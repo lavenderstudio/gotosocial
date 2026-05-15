@@ -28,9 +28,11 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/internal/storage"
+	"codeberg.org/gruf/go-longdur"
 )
 
 const selectLimit = 50
+const stamp = "Jan _2 2006 15:04:05"
 
 type Cleaner struct{ state *state.State }
 
@@ -115,55 +117,29 @@ func (c *Cleaner) removeFiles(ctx context.Context, files ...string) {
 
 // ScheduleJobs schedules cleaning
 // jobs using configured parameters.
-//
-// Returns an error if `MediaCleanupFrom`
-// is not a valid format (hh:mm:ss).
 func (c *Cleaner) ScheduleJobs() error {
-	const hourMinute = "15:04"
+	var expr config.CronExpression
 
-	var (
-		now            = time.Now()
-		cleanupEvery   = config.GetMediaCleanupEvery()
-		cleanupFromStr = config.GetMediaCleanupFrom()
-	)
+	expr = config.GetMediaCleanupCron()
+	log.Infof(nil, "scheduling media cleanup: %s", expr.Expr)
 
-	// Parse cleanupFromStr as hh:mm.
-	// Resulting time will be on 1 Jan year zero.
-	//
-	// TODO: make ConfigCleanupFrom() a wrapped time.Time{}
-	// type to move parsing as a stage into the config package.
-	cleanupFrom, err := time.Parse(hourMinute, cleanupFromStr)
-	if err != nil {
-		return gtserror.Newf(
-			"error parsing '%s' in time format 'hh:mm': %w",
-			cleanupFromStr, err,
-		)
-	}
-
-	// Determine first cleanup date from now, that's in future.
-	firstCleanupAt := firstAt(now, cleanupFrom, cleanupEvery)
-
-	log.Infof(nil,
-		"scheduling media clean to run every %s, starting from %s; next clean will run at %s",
-		cleanupEvery, cleanupFromStr, firstCleanupAt,
-	)
-
-	// Schedule media cleaning at parsed schedule.
-	if !c.state.Workers.Scheduler.AddRecurring(
+	// Schedule media cleaning by expr.
+	if !c.state.Workers.Scheduler.Add(
 		"@mediacleanup",
-		firstCleanupAt,
-		cleanupEvery,
 		c.cleanMedia,
+		expr,
 	) {
 		panic("failed to schedule @mediacleanup")
 	}
 
-	// Schedule status cleaning at fixed schedule.
-	if !c.state.Workers.Scheduler.AddRecurring(
+	expr = config.GetStatusesCleanupCron()
+	log.Infof(nil, "scheduling statuses cleanup: %s", expr.Expr)
+
+	// Schedule status cleaning by expr.
+	if !c.state.Workers.Scheduler.Add(
 		"@statuscleanup",
-		firstAt(now, time.Time{}, 24*time.Hour),
-		24*time.Hour,
 		c.cleanStatuses,
+		expr,
 	) {
 		panic("failed to schedule @statuscleanup")
 	}
@@ -173,30 +149,14 @@ func (c *Cleaner) ScheduleJobs() error {
 
 func (c *Cleaner) cleanMedia(ctx context.Context, start time.Time) {
 	log.Info(ctx, "starting")
-	c.Media().All(ctx, config.GetMediaRemoteCacheDays())
-	c.Emoji().All(ctx, config.GetMediaRemoteCacheDays())
+	c.Media().All(ctx, start, config.GetMediaRemoteCacheDuration())
+	c.Emoji().All(ctx, start, config.GetMediaRemoteCacheDuration())
 	log.Infof(ctx, "finished after %s", time.Since(start))
 }
 
 func (c *Cleaner) cleanStatuses(ctx context.Context, start time.Time) {
 	log.Info(ctx, "starting")
-	c.Status().All(ctx, 7)
+	maxRemoteAge := config.GetStatusesCleanupRemoteOlderThan()
+	c.Status().All(ctx, start, 7*longdur.Day, maxRemoteAge)
 	log.Infof(ctx, "finished after %s", time.Since(start))
-}
-
-func firstAt(now, atHourMin time.Time, every time.Duration) time.Time {
-	firstAt := time.Date(
-		now.Year(),
-		now.Month(),
-		now.Day(),
-		atHourMin.Hour(),
-		atHourMin.Minute(),
-		0,
-		0,
-		now.Location(),
-	)
-	for firstAt.Before(now) {
-		firstAt = firstAt.Add(every)
-	}
-	return firstAt
 }

@@ -38,8 +38,14 @@ type Media interface {
 	// UpdateAttachment will update the given attachment in the database.
 	UpdateAttachment(ctx context.Context, media *gtsmodel.MediaAttachment, columns ...string) error
 
-	// DeleteAttachment deletes the attachment with given ID from the database.
-	DeleteAttachment(ctx context.Context, id string) error
+	// UnattachAttachments will unattach given media attachments from any status.
+	UnattachAttachments(ctx context.Context, ids ...string) error
+
+	// DeleteAttachment will delete the single given media attachment from the database.
+	DeleteAttachment(ctx context.Context, media *gtsmodel.MediaAttachment) error
+
+	// DeleteAttachments will delete the given media attachments from the database.
+	DeleteAttachments(ctx context.Context, ids ...string) error
 
 	// GetAttachments fetches media attachments, with given paging parameters.
 	GetAttachments(ctx context.Context, page *paging.Page) ([]*gtsmodel.MediaAttachment, error)

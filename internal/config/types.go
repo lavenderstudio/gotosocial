@@ -20,16 +20,56 @@ package config
 import (
 	"errors"
 	"net/netip"
+	"strings"
+
+	"github.com/hashicorp/cronexpr"
 )
+
+// Deprecated is a placeholder type
+// for use with config fields that have
+// the "deprecated-by" field tag set.
+type Deprecated string
+
+// CronExpression is a wrapper for cronexpr.Expression
+// to allow parsing by CLI "flag"-like utilities.
+type CronExpression struct {
+	*cronexpr.Expression
+	Expr string
+}
+
+func MustParseCron(expr string) (cron CronExpression) {
+	if err := cron.Set(expr); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (expr *CronExpression) Set(in string) (err error) {
+	if in == "" {
+		return
+	}
+	expr.Expr = in // set the raw expression string
+	expr.Expression, err = cronexpr.Parse(in)
+	return
+}
+
+func (expr *CronExpression) MarshalText() ([]byte, error) {
+	return []byte(expr.Expr), nil
+}
+
+func (expr *CronExpression) UnmarshalText(text []byte) error {
+	return expr.Set(string(text))
+}
+
+func (expr *CronExpression) String() string {
+	return expr.Expr
+}
 
 // IPPrefixes is a type-alias for []netip.Prefix
 // to allow parsing by CLI "flag"-like utilities.
 type IPPrefixes []netip.Prefix
 
 func (p *IPPrefixes) Set(in string) error {
-	if p == nil {
-		return errors.New("nil receiver")
-	}
 	prefix, err := netip.ParsePrefix(in)
 	if err != nil {
 		return err
@@ -39,7 +79,7 @@ func (p *IPPrefixes) Set(in string) error {
 }
 
 func (p *IPPrefixes) Strings() []string {
-	if p == nil || len(*p) == 0 {
+	if len(*p) == 0 {
 		return nil
 	}
 	strs := make([]string, len(*p))
@@ -47,14 +87,6 @@ func (p *IPPrefixes) Strings() []string {
 		strs[i] = prefix.String()
 	}
 	return strs
-}
-
-func GetHTTPClientOutgoingScheme() (schema string) {
-	if GetHTTPClientInsecureOutgoing() {
-		return "http://"
-	}
-
-	return "https://"
 }
 
 type InstanceDirectoryMode int16
@@ -67,7 +99,7 @@ const (
 )
 
 // MarshalText implements encoding.TextMarshaler{}.
-func (i *InstanceDirectoryMode) MarshalText() ([]byte, error) {
+func (i InstanceDirectoryMode) MarshalText() ([]byte, error) {
 	return []byte(i.String()), nil
 }
 
@@ -76,24 +108,8 @@ func (i *InstanceDirectoryMode) UnmarshalText(text []byte) error {
 	return i.Set(string(text))
 }
 
-func (i *InstanceDirectoryMode) String() string {
-	switch *i {
-	case InstanceDirectoryModeOff:
-		return "off"
-	case InstanceDirectoryModeWebOnly:
-		return "webonly"
-	case InstanceDirectoryModeOpen:
-		return "open"
-	default:
-		return "unknown"
-	}
-}
-
 func (i *InstanceDirectoryMode) Set(in string) error {
-	if i == nil {
-		return errors.New("nil receiver")
-	}
-	switch in {
+	switch strings.ToLower(in) {
 	case "off":
 		*i = InstanceDirectoryModeOff
 		return nil
@@ -105,5 +121,18 @@ func (i *InstanceDirectoryMode) Set(in string) error {
 		return nil
 	default:
 		return errors.New("unrecognized instance directory mode '" + in + "'")
+	}
+}
+
+func (i InstanceDirectoryMode) String() string {
+	switch i {
+	case InstanceDirectoryModeOff:
+		return "off"
+	case InstanceDirectoryModeWebOnly:
+		return "webonly"
+	case InstanceDirectoryModeOpen:
+		return "open"
+	default:
+		return "unknown"
 	}
 }

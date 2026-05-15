@@ -6,8 +6,8 @@ code.superseriousbusiness.org/go-jpeg-image-structure/v2 v2.3.0 h1:r9uq8StaSHYKJ
 code.superseriousbusiness.org/go-jpeg-image-structure/v2 v2.3.0/go.mod h1:IK1OlR6APjVB3E9tuYGvf0qXMrwP+TrzcHS5rf4wffQ=
 code.superseriousbusiness.org/go-png-image-structure/v2 v2.3.0 h1:I512jiIeXDC4//2BeSPrRM2ZS4wpBKUaPeTPxakMNGA=
 code.superseriousbusiness.org/go-png-image-structure/v2 v2.3.0/go.mod h1:SNHomXNW88o1pFfLHpD4KsCZLfcr4z5dm+xcX5SV10A=
-code.superseriousbusiness.org/gopkg v0.0.0-20260314203815-181df26aa86e h1:57ICwitbFxGPMJZG34srw20oou4RtqCGIrggy5/vazI=
-code.superseriousbusiness.org/gopkg v0.0.0-20260314203815-181df26aa86e/go.mod h1:PNtiv80R4b+z7HvnZbX69dAPmgRSDGts3SNcSC6Ti30=
+code.superseriousbusiness.org/gopkg v0.0.0-20260503204153-b9100c6c75dd h1:p6oya9zNDO8dNQeVdoUSYX3gS0dF41wxpkh7T73gKX8=
+code.superseriousbusiness.org/gopkg v0.0.0-20260503204153-b9100c6c75dd/go.mod h1:PNtiv80R4b+z7HvnZbX69dAPmgRSDGts3SNcSC6Ti30=
 code.superseriousbusiness.org/httpsig v1.5.0 h1:jw/qc//yYWSoOYytTZXHvW7yh8kceCipNIBfUeXQghA=
 code.superseriousbusiness.org/httpsig v1.5.0/go.mod h1:i2AKpj/WbA/o/UTvia9TAREzt0jP1AH3T1Uxjyhdzlw=
 code.superseriousbusiness.org/oauth2/v4 v4.5.4-0.20250812115401-3961e46a7384 h1:eJzULGUyhHGk2DdQxX/jbH9FKZOyoIF90p3dzukCfLA=
@@ -38,6 +38,8 @@ codeberg.org/gruf/go-kv/v2 v2.0.10 h1:aNIg4UzZhSorcGpSPAF2kSPlOzW4wWloNarTIoK9GE
 codeberg.org/gruf/go-kv/v2 v2.0.10/go.mod h1:diLoh5ZMJyCy5cRQuOMeYKMCxb9n/0V/6ec4z6uqtBc=
 codeberg.org/gruf/go-list v0.0.0-20240425093752-494db03d641f h1:Ss6Z+vygy+jOGhj96d/GwsYYDd22QmIcH74zM7/nQkw=
 codeberg.org/gruf/go-list v0.0.0-20240425093752-494db03d641f/go.mod h1:F9pl4h34iuVN7kucKam9fLwsItTc+9mmaKt7pNXRd/4=
+codeberg.org/gruf/go-longdur v0.1.3 h1:DLKFdNKeZKitPMu05QDGN0o/AGUx6pKpaN5imifaVro=
+codeberg.org/gruf/go-longdur v0.1.3/go.mod h1:YeKA3ci+KlRB7keMqQ26jO1XLiVMqzAGi31kx+WMOOM=
 codeberg.org/gruf/go-loosy v0.0.0-20231007123304-bb910d1ab5c4 h1:IXwfoU7f2whT6+JKIKskNl/hBlmWmnF1vZd84Eb3cyA=
 codeberg.org/gruf/go-loosy v0.0.0-20231007123304-bb910d1ab5c4/go.mod h1:fiO8HE1wjZCephcYmRRsVnNI/i0+mhy44Z5dQalS0rM=
 codeberg.org/gruf/go-mangler/v2 v2.0.9 h1:Zb4YCVQxM48bhV3bPBd4DWk3/7VwWnO79EXyMHSw3eI=
@@ -294,6 +296,8 @@ github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aN
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 h1:HWRh5R2+9EifMyIHV7ZV+MIZqgz+PMpZ14Jynv3O2Zs=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0/go.mod h1:JfhWUomR1baixubs02l85lZYYOm7LV6om4ceouMv45c=
+github.com/hashicorp/cronexpr v1.1.3 h1:rl5IkxXN2m681EfivTlccqIryzYJSXRGRNa0xeG7NA4=
+github.com/hashicorp/cronexpr v1.1.3/go.mod h1:P4wA0KBl9C5q2hABiMO7cp6jcIg96CDh1Efb3g1PWA4=
 github.com/hashicorp/golang-lru/v2 v2.0.7 h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs4luLUK2k=
 github.com/hashicorp/golang-lru/v2 v2.0.7/go.mod h1:QeFd9opnmA6QUJc5vARoKUSoFhyfM2/ZepoAG6RGpeM=
 github.com/huandu/xstrings v1.5.0 h1:2ag3IFq9ZDANvthTwTiqSSZLjDc+BedvHPAp5tJy2TI=

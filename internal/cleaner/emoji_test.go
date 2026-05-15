@@ -102,8 +102,7 @@ func (suite *CleanerTestSuite) testEmojiUncacheRemote(ctx context.Context, emoji
 	t := suite.T()
 
 	// Get max remote cache days to keep.
-	days := config.GetMediaRemoteCacheDays()
-	olderThan := time.Now().Add(-24 * time.Hour * time.Duration(days))
+	olderThan := config.GetMediaRemoteCacheOlderThanTime(time.Now())
 
 	for _, emoji := range emojis {
 		// Check whether this emoji should be uncached.

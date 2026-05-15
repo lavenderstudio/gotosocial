@@ -20,7 +20,7 @@ package main
 import (
 	"code.superseriousbusiness.org/gotosocial/cmd/gotosocial/action/admin/account"
 	"code.superseriousbusiness.org/gotosocial/cmd/gotosocial/action/admin/media"
-	"code.superseriousbusiness.org/gotosocial/cmd/gotosocial/action/admin/media/prune"
+	"code.superseriousbusiness.org/gotosocial/cmd/gotosocial/action/admin/statuses"
 	"code.superseriousbusiness.org/gotosocial/cmd/gotosocial/action/admin/trans"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"github.com/spf13/cobra"
@@ -36,13 +36,12 @@ func adminCommands() *cobra.Command {
 	   ADMIN ACCOUNT COMMANDS
 	*/
 
-	adminAccountCmd := &cobra.Command{
+	adminAccountCmd := add(adminCmd, &cobra.Command{
 		Use:   "account",
 		Short: "admin commands related to local (this instance) accounts",
-	}
-	config.AddAdminAccount(adminAccountCmd)
+	})
 
-	adminAccountCreateCmd := &cobra.Command{
+	_ = add(adminAccountCmd, &cobra.Command{
 		Use:   "create",
 		Short: "create a new local account",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -51,11 +50,11 @@ func adminCommands() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), account.Create)
 		},
-	}
-	config.AddAdminAccountCreate(adminAccountCreateCmd)
-	adminAccountCmd.AddCommand(adminAccountCreateCmd)
+	},
+		config.AddAdminAccountCreate,
+	)
 
-	adminAccountListCmd := &cobra.Command{
+	_ = add(adminAccountCmd, &cobra.Command{
 		Use:   "list",
 		Short: "list all existing local accounts",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -64,10 +63,9 @@ func adminCommands() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), account.List)
 		},
-	}
-	adminAccountCmd.AddCommand(adminAccountListCmd)
+	})
 
-	adminAccountConfirmCmd := &cobra.Command{
+	_ = add(adminAccountCmd, &cobra.Command{
 		Use:   "confirm",
 		Short: "confirm an existing local account manually, thereby skipping email confirmation",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -76,11 +74,11 @@ func adminCommands() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), account.Confirm)
 		},
-	}
-	config.AddAdminAccount(adminAccountConfirmCmd)
-	adminAccountCmd.AddCommand(adminAccountConfirmCmd)
+	},
+		config.AddAdminAccount,
+	)
 
-	adminAccountPromoteCmd := &cobra.Command{
+	_ = add(adminAccountCmd, &cobra.Command{
 		Use:   "promote",
 		Short: "promote a local account to admin",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -89,11 +87,11 @@ func adminCommands() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), account.Promote)
 		},
-	}
-	config.AddAdminAccount(adminAccountPromoteCmd)
-	adminAccountCmd.AddCommand(adminAccountPromoteCmd)
+	},
+		config.AddAdminAccount,
+	)
 
-	adminAccountDemoteCmd := &cobra.Command{
+	_ = add(adminAccountCmd, &cobra.Command{
 		Use:   "demote",
 		Short: "demote a local account from admin to normal user",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -102,11 +100,11 @@ func adminCommands() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), account.Demote)
 		},
-	}
-	config.AddAdminAccount(adminAccountDemoteCmd)
-	adminAccountCmd.AddCommand(adminAccountDemoteCmd)
+	},
+		config.AddAdminAccount,
+	)
 
-	adminAccountDisableCmd := &cobra.Command{
+	_ = add(adminAccountCmd, &cobra.Command{
 		Use:   "disable",
 		Short: "set 'disabled' to true on a local account to prevent it from signing in or posting etc, but don't delete anything",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -115,11 +113,11 @@ func adminCommands() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), account.Disable)
 		},
-	}
-	config.AddAdminAccount(adminAccountDisableCmd)
-	adminAccountCmd.AddCommand(adminAccountDisableCmd)
+	},
+		config.AddAdminAccount,
+	)
 
-	adminAccountEnableCmd := &cobra.Command{
+	_ = add(adminAccountCmd, &cobra.Command{
 		Use:   "enable",
 		Short: "undo a previous disable command by setting 'disabled' to false on a local account",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -128,11 +126,11 @@ func adminCommands() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), account.Enable)
 		},
-	}
-	config.AddAdminAccount(adminAccountEnableCmd)
-	adminAccountCmd.AddCommand(adminAccountEnableCmd)
+	},
+		config.AddAdminAccount,
+	)
 
-	adminAccountPasswordCmd := &cobra.Command{
+	_ = add(adminAccountCmd, &cobra.Command{
 		Use:   "password",
 		Short: "set a new password for the given local account",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -141,12 +139,12 @@ func adminCommands() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), account.Password)
 		},
-	}
-	config.AddAdminAccount(adminAccountPasswordCmd)
-	config.AddAdminAccountPassword(adminAccountPasswordCmd)
-	adminAccountCmd.AddCommand(adminAccountPasswordCmd)
+	},
+		config.AddAdminAccount,
+		config.AddAdminAccountPassword,
+	)
 
-	adminAccountDisable2FACmd := &cobra.Command{
+	_ = add(adminAccountCmd, &cobra.Command{
 		Use:   "disable-2fa",
 		Short: "disable 2fa for the given local account",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -155,17 +153,15 @@ func adminCommands() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), account.Disable2FA)
 		},
-	}
-	config.AddAdminAccount(adminAccountDisable2FACmd)
-	adminAccountCmd.AddCommand(adminAccountDisable2FACmd)
-
-	adminCmd.AddCommand(adminAccountCmd)
+	},
+		config.AddAdminAccount,
+	)
 
 	/*
 	   ADMIN IMPORT/EXPORT COMMANDS
 	*/
 
-	adminExportCmd := &cobra.Command{
+	_ = add(adminCmd, &cobra.Command{
 		Use:   "export",
 		Short: "export data from the database to file at the given path",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -174,11 +170,11 @@ func adminCommands() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), trans.Export)
 		},
-	}
-	config.AddAdminTrans(adminExportCmd)
-	adminCmd.AddCommand(adminExportCmd)
+	},
+		config.AddAdminTrans,
+	)
 
-	adminImportCmd := &cobra.Command{
+	_ = add(adminCmd, &cobra.Command{
 		Use:   "import",
 		Short: "import data from a file into the database",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -187,24 +183,24 @@ func adminCommands() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), trans.Import)
 		},
-	}
-	config.AddAdminTrans(adminImportCmd)
-	adminCmd.AddCommand(adminImportCmd)
+	},
+		config.AddAdminTrans,
+	)
 
 	/*
 		ADMIN MEDIA COMMANDS
 	*/
 
-	adminMediaCmd := &cobra.Command{
+	adminMediaCmd := add(adminCmd, &cobra.Command{
 		Use:   "media",
 		Short: "admin commands related to stored media / emojis",
-	}
+	})
 
 	/*
 		ADMIN MEDIA LIST COMMANDS
 	*/
 
-	adminMediaListAttachmentsCmd := &cobra.Command{
+	_ = add(adminMediaCmd, &cobra.Command{
 		Use:   "list-attachments",
 		Short: "list local, remote, or all attachments",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -213,11 +209,11 @@ func adminCommands() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), media.ListAttachments)
 		},
-	}
-	config.AddAdminMediaList(adminMediaListAttachmentsCmd)
-	adminMediaCmd.AddCommand(adminMediaListAttachmentsCmd)
+	},
+		config.AddAdminMediaList,
+	)
 
-	adminMediaListEmojisLocalCmd := &cobra.Command{
+	_ = add(adminMediaCmd, &cobra.Command{
 		Use:   "list-emojis",
 		Short: "list local, remote, or all emojis",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -226,60 +222,85 @@ func adminCommands() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), media.ListEmojis)
 		},
-	}
-	config.AddAdminMediaList(adminMediaListEmojisLocalCmd)
-	adminMediaCmd.AddCommand(adminMediaListEmojisLocalCmd)
+	},
+		config.AddAdminMediaList,
+	)
 
 	/*
 		ADMIN MEDIA PRUNE COMMANDS
 	*/
-	adminMediaPruneCmd := &cobra.Command{
+	adminMediaPruneCmd := add(adminMediaCmd, &cobra.Command{
 		Use:   "prune",
 		Short: "admin commands for pruning media from storage",
-	}
+	})
 
-	adminMediaPruneOrphanedCmd := &cobra.Command{
+	_ = add(adminMediaPruneCmd, &cobra.Command{
 		Use:   "orphaned",
 		Short: "prune orphaned media from storage",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return preRun(preRunArgs{cmd: cmd})
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(cmd.Context(), prune.Orphaned)
+			return run(cmd.Context(), media.PruneOrphaned)
 		},
-	}
-	config.AddAdminMediaPrune(adminMediaPruneOrphanedCmd)
-	adminMediaPruneCmd.AddCommand(adminMediaPruneOrphanedCmd)
+	},
+		config.AddAdminMediaPrune,
+	)
 
-	adminMediaPruneRemoteCmd := &cobra.Command{
+	_ = add(adminMediaPruneCmd, &cobra.Command{
 		Use:   "remote",
-		Short: "prune unused / stale media from storage, older than given number of days",
+		Short: "prune unused / stale media from storage, older than given duration",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return preRun(preRunArgs{cmd: cmd})
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(cmd.Context(), prune.Remote)
+			return run(cmd.Context(), media.PruneRemote)
 		},
-	}
-	config.AddAdminMediaPrune(adminMediaPruneRemoteCmd)
-	adminMediaPruneCmd.AddCommand(adminMediaPruneRemoteCmd)
+	},
+		config.AddAdminMediaPrune,
+	)
 
-	adminMediaPruneAllCmd := &cobra.Command{
+	_ = add(adminMediaPruneCmd, &cobra.Command{
 		Use:   "all",
 		Short: "perform all media and emoji prune / cleaning commands",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return preRun(preRunArgs{cmd: cmd})
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(cmd.Context(), prune.All)
+			return run(cmd.Context(), media.PruneAll)
 		},
-	}
-	config.AddAdminMediaPrune(adminMediaPruneAllCmd)
-	adminMediaPruneCmd.AddCommand(adminMediaPruneAllCmd)
+	},
+		config.AddAdminMediaPrune,
+	)
 
-	adminMediaCmd.AddCommand(adminMediaPruneCmd)
+	/*
+		ADMIN STATUS COMMANDS
+	*/
 
-	adminCmd.AddCommand(adminMediaCmd)
+	adminStatusesCmd := add(adminCmd, &cobra.Command{
+		Use:   "statuses",
+		Short: "admin commands related to stored statuses",
+	})
+
+	/*
+		ADMIN STATUS PRUNE COMMANDS
+	*/
+
+	adminStatusesPruneCmd := add(adminStatusesCmd, &cobra.Command{
+		Use:   "prune",
+		Short: "admin commands for pruning statuses from the database",
+	})
+
+	_ = add(adminStatusesPruneCmd, &cobra.Command{
+		Use:   "remote",
+		Short: "prune old, locally-not-interacted-with remote status threads from the database",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return preRun(preRunArgs{cmd: cmd})
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return run(cmd.Context(), statuses.PruneOldRemote)
+		},
+	})
 
 	return adminCmd
 }

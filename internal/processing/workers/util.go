@@ -55,7 +55,7 @@ func (u *utils) deleteBoost(
 	u.surfacer.DeleteStatusFromTimelines(ctx, boost.ID)
 
 	// Finally, delete boost wrapper status itself.
-	if err := u.state.DB.DeleteStatus(ctx, boost); //
+	if err := u.state.DB.DeleteStatusBoost(ctx, boost); //
 	err != nil {
 		return gtserror.Newf("db error deleting boost %s: %w", boost.URI, err)
 	}
@@ -99,137 +99,30 @@ func (u *utils) deleteStatus(
 		}
 	}
 
-	// Delete all notifications referencing this status.
-	if err := u.state.DB.DeleteNotificationsForStatus(ctx,
-		status.ID); err != nil {
-		log.Errorf("db error deleting notifications: %v", err)
-	}
-
-	// Before handling media, ensure
-	// historic edits are populated.
-	if !status.EditsPopulated() {
-		var err error
-
-		// Fetch all historic edits of status from database.
-		status.Edits, err = u.state.DB.GetStatusEditsByIDs(
-			gtscontext.SetBarebones(ctx),
-			status.EditIDs,
-		)
-		if err != nil {
-			log.Errorf("db error getting status edits: %v", err)
-		}
-	}
-
-	// Either delete all attachments for this status,
-	// or simply detach + clean them separately later.
-	//
-	// Reason to detach rather than delete is that
-	// the author might want to reattach them to another
-	// status immediately (in case of delete + redraft).
-	if attachments {
-		// todo:u.state.DB.DeleteAttachmentsForStatus
-		for _, id := range status.AllAttachmentIDs() {
-			if err := u.media.Delete(ctx, id); err != nil {
-				log.Errorf("db error deleting media %s: %v", id, err)
-			}
-		}
-	} else {
-		// todo:u.state.DB.UnattachAttachmentsForStatus
-		for _, id := range status.AllAttachmentIDs() {
-			if _, err := u.media.Unattach(ctx, status.Account, id); err != nil {
-				log.Errorf("error unattaching media %s: %v", id, err)
-			}
-		}
-	}
-
-	// Delete all historical edits of status.
-	if ids := status.EditIDs; len(ids) > 0 {
-		if err := u.state.DB.DeleteStatusEdits(ctx, ids); err != nil {
-			log.Errorf("db error deleting edits: %v", err)
-		}
-	}
-
-	// Delete mentions attached to status.
-	// todo:u.state.DB.DeleteMentionsForStatus
-	for _, id := range status.MentionIDs {
-		if err := u.state.DB.DeleteMentionByID(ctx, id); err != nil {
-			log.Errorf("db error deleting mention %s: %v", id, err)
-		}
-	}
-
-	// Delete all local bookmarks targetting this status.
-	if err := u.state.DB.DeleteStatusBookmarksForStatus(ctx,
-		status.ID); err != nil {
-		log.Errorf("db error deleting bookmarks: %v", err)
-	}
-
-	// Delete any status pin targetting this status.
-	if err := u.state.DB.DeleteStatusPin(ctx, status.ID); //
-	err != nil {
-		log.Errorf("db error deleting pin: %v", err)
-	}
-
-	// Delete all stored favourites targetting status.
-	if err := u.state.DB.DeleteStatusFavesForStatus(ctx,
-		status.ID); err != nil {
-		log.Errorf("db error deleting faves: %v", err)
-	}
-
-	if id := status.PollID; id != "" {
-		// Delete stored poll attached to this status.
-		if err := u.state.DB.DeletePollByID(ctx, id); //
-		err != nil {
-			log.Errorf("db error deleting poll %s: %v", id, err)
-		}
-
-		// Cancel scheduled expiry task for poll.
-		_ = u.state.Workers.Scheduler.Cancel(id)
-	}
-
-	// Get all boost of this status so that we can
-	// delete those boosts + remove from timelines.
-	//
-	// TODO: page this to prevent memory issues.
-	boosts, err := u.state.DB.GetStatusBoosts(
-
-		// We MUST set a barebones context here,
-		// as depending on where it came from the
-		// original BoostOf may already be gone.
-		gtscontext.SetBarebones(ctx),
+	// Get IDs of any boosts referencing this status.
+	boostIDs, err := u.state.DB.GetStatusBoostIDs(ctx,
 		status.ID)
 	if err != nil {
 		log.Errorf("db error getting boosts: %v", err)
 	}
 
-	for _, boost := range boosts {
-		// Delete boost wrapper targetting main status.
-		if err := u.state.DB.DeleteStatus(ctx, boost); //
-		err != nil {
-			log.Errorf("db error deleting boost %s: %v", boost.URI, err)
-		}
-
-		// Remove the status boost from any and all timelines.
-		u.surfacer.DeleteStatusFromTimelines(ctx, boost.ID)
-	}
-
-	// Delete this status from direct message conversations it's part of.
-	if err := u.state.DB.DeleteStatusFromConversations(ctx, status.ID); //
-	err != nil {
-		log.Errorf("db error deleting status from conversations: %v", err)
-	}
-
 	if wipe {
-		// Fully delete status model from database.
-		err := u.state.DB.DeleteStatus(ctx, status)
+		// Fully delete status and related models from database.
+		err := u.state.DB.DeleteStatus(ctx, status, attachments)
 		if err != nil {
 			return gtserror.Newf("db error deleting status %s: %w", status.URI, err)
 		}
 	} else {
-		// Stub out the status model to delete it.
-		err := u.state.DB.StubStatus(ctx, status)
+		// Stub out the status and related model to delete it.
+		err := u.state.DB.StubStatus(ctx, status, attachments)
 		if err != nil {
 			return gtserror.Newf("db error stubbing status %s: %w", status.URI, err)
 		}
+	}
+
+	for _, id := range boostIDs {
+		// Remove the boost from any and all timelines.
+		u.surfacer.DeleteStatusFromTimelines(ctx, id)
 	}
 
 	// Remove the status from timeline caches / streams.

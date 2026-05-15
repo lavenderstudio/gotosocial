@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"slices"
 	"strings"
+	"unsafe"
 
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/cache"
@@ -31,7 +32,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect"
-	"github.com/uptrace/bun/dialect/pgdialect"
 )
 
 // likeEscaper is a thread-safe string replacer which escapes
@@ -61,19 +61,6 @@ func likeOperator(query *bun.SelectQuery) string {
 
 	log.Panicf(nil, "db conn %s was neither pg nor sqlite", d)
 	return ""
-}
-
-// bunArrayType wraps the given type in a pgdialect.Array
-// if needed, which postgres wants for serializing arrays.
-func bunArrayType(db bun.IDB, arr any) any {
-	switch db.Dialect().Name() {
-	case dialect.SQLite:
-		return arr // return as-is
-	case dialect.PG:
-		return pgdialect.Array(arr)
-	default:
-		panic("unreachable")
-	}
 }
 
 // whereLike appends a WHERE clause to the
@@ -264,7 +251,65 @@ func parseWhere(w db.Where) (query string, args []interface{}) {
 }
 
 // accountIDValue is a convenience struct for using
-// CTE's to provide accountIDs to select statuses of.
+// CTE's to provide account IDs to a database query.
 type accountIDValue struct {
 	AccountID string `bun:"type:CHAR(26)"`
+}
+
+// toAccountIDValues converts a slice of string IDs to []accountIDValue.
+func toAccountIDValues(ids []string) []accountIDValue {
+	if unsafe.Sizeof(accountIDValue{}) != unsafe.Sizeof("") ||
+		unsafe.Offsetof(accountIDValue{}.AccountID) != 0 {
+		panic(gtserror.New("compile time assertion"))
+	}
+	ptr := (*accountIDValue)(unsafe.Pointer(&ids[0]))
+	return unsafe.Slice(ptr, len(ids))
+}
+
+// threadIDValue is a convenience struct for using
+// CTE's to provide thread IDs to a database query.
+type threadIDValue struct {
+	ThreadID string `bun:"type:CHAR(26)"`
+}
+
+// toThreadIDValues converts a slice of string IDs to []threadIDValue.
+func toThreadIDValues(ids []string) []threadIDValue {
+	if unsafe.Sizeof(threadIDValue{}) != unsafe.Sizeof("") ||
+		unsafe.Offsetof(threadIDValue{}.ThreadID) != 0 {
+		panic(gtserror.New("compile time assertion"))
+	}
+	ptr := (*threadIDValue)(unsafe.Pointer(&ids[0]))
+	return unsafe.Slice(ptr, len(ids))
+}
+
+// idmap is a useful scan target for database
+// operations that stores a selection of ID
+// results directly into a map type for lookups.
+type idmap map[string]struct{}
+
+func (m idmap) ScanRow(ctx context.Context, rows *sql.Rows) (err error) {
+	var id string
+	err = rows.Scan(&id)
+	if err != nil {
+		return
+	}
+	m[id] = struct{}{}
+	return
+}
+
+func (m idmap) ScanRows(ctx context.Context, rows *sql.Rows) (n int, err error) {
+	for rows.Next() {
+		var id string
+		err = rows.Scan(&id)
+		if err != nil {
+			return
+		}
+		m[id] = struct{}{}
+		n++
+	}
+	return
+}
+
+func (m idmap) Value() any {
+	panic("unimplemented")
 }

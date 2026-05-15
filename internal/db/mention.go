@@ -40,6 +40,6 @@ type Mention interface {
 	// PutMention will insert the given mention into the database.
 	PutMention(ctx context.Context, mention *gtsmodel.Mention) error
 
-	// DeleteMentionByID will delete mention with given ID from the database.
-	DeleteMentionByID(ctx context.Context, id string) error
+	// DeleteMentions deletes all given mentions from the database.
+	DeleteMentions(ctx context.Context, ids ...string) error
 }

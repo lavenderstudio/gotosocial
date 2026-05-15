@@ -279,14 +279,18 @@ func dropColumn(ctx context.Context, db bun.IDB, model any, fieldName string) er
 func createIndex(ctx context.Context, db bun.IDB, indexName, tableName string, cols db.BunExpr, where ...db.BunExpr) error {
 	log.Infof(ctx, "creating index '%s' on '%s'", indexName, tableName)
 
-	// Attempt to create index.
+	// Start index create query.
 	q := db.NewCreateIndex().
 		Table(tableName).
 		Index(indexName).
 		ColumnExpr(cols.Fmt, cols.Arg...)
+
+	// Apply any provided clauses.
 	for _, where := range where {
 		q = q.Where(where.Fmt, where.Arg...)
 	}
+
+	// Execute the calculated index query.
 	if _, err := q.Exec(ctx); err != nil {
 		return gtserror.Newf("error creating index '%s': %w", indexName, err)
 	}

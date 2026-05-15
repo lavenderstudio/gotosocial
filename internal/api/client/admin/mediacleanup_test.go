@@ -132,7 +132,7 @@ func (suite *MediaCleanupTestSuite) TestMediaCleanupNegative() {
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
-	suite.Equal(`{"error":"Bad Request: invalid value for remote_cache_days; value was -10, cannot be less than 0"}`, string(b))
+	suite.Equal(`{"error":"Bad Request: invalid unit"}`, string(b))
 }
 
 func TestMediaCleanupTestSuite(t *testing.T) {

@@ -15,35 +15,39 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package prune
+package media
 
 import (
 	"context"
 	"fmt"
 
 	"code.superseriousbusiness.org/gotosocial/internal/cleaner"
-	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/db/bundb"
-	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	gtsstorage "code.superseriousbusiness.org/gotosocial/internal/storage"
 )
 
 type prune struct {
-	dbService db.DB
-	storage   *gtsstorage.Driver
-	manager   *media.Manager
-	cleaner   *cleaner.Cleaner
-	state     *state.State
+	manager *media.Manager
+	cleaner *cleaner.Cleaner
+	state   *state.State
 }
 
 func setupPrune(ctx context.Context) (*prune, error) {
 	var state state.State
-
 	state.Caches.Init()
-	if err := state.Caches.Start(); err != nil {
+
+	err := state.Caches.Start()
+	if err != nil {
 		return nil, fmt.Errorf("error starting caches: %w", err)
+	}
+
+	// Set state DB connection.
+	// Don't need Actions for this.
+	state.DB, err = bundb.NewBunDBService(ctx, &state)
+	if err != nil {
+		return nil, fmt.Errorf("error starting database: %w", err)
 	}
 
 	// Scheduler is required for the
@@ -51,20 +55,11 @@ func setupPrune(ctx context.Context) (*prune, error) {
 	// are needed for this CLI action.
 	state.Workers.StartScheduler()
 
-	// Set state DB connection.
-	// Don't need Actions for this.
-	dbService, err := bundb.NewBunDBService(ctx, &state)
-	if err != nil {
-		return nil, fmt.Errorf("error creating dbservice: %w", err)
-	}
-	state.DB = dbService
-
 	//nolint:contextcheck
-	storage, err := gtsstorage.AutoConfig()
+	state.Storage, err = gtsstorage.AutoConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage backend: %w", err)
 	}
-	state.Storage = storage
 
 	//nolint:contextcheck
 	manager := media.NewManager(&state)
@@ -73,23 +68,21 @@ func setupPrune(ctx context.Context) (*prune, error) {
 	cleaner := cleaner.New(&state)
 
 	return &prune{
-		dbService: dbService,
-		storage:   storage,
-		manager:   manager,
-		cleaner:   cleaner,
-		state:     &state,
+		manager: manager,
+		cleaner: cleaner,
+		state:   &state,
 	}, nil
 }
 
 func (p *prune) shutdown() error {
-	errs := gtserror.NewMultiError(2)
+	var err error
 
-	if err := p.dbService.Close(); err != nil {
-		errs.Appendf("error stopping database: %w", err)
+	if err = p.state.DB.Close(); err != nil {
+		err = fmt.Errorf("error stopping database: %w", err)
 	}
 
 	p.state.Workers.Scheduler.Stop()
 	p.state.Caches.Stop()
 
-	return errs.Combine()
+	return err
 }

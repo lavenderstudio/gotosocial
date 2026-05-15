@@ -20,11 +20,9 @@ package bundb
 import (
 	"context"
 	"errors"
-	"slices"
 
 	"code.superseriousbusiness.org/gopkg/xslices"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
-	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
@@ -106,121 +104,69 @@ func (m *mediaDB) UpdateAttachment(ctx context.Context, media *gtsmodel.MediaAtt
 	return m.state.Caches.DB.Media.Store(media, func() error {
 		_, err := m.db.NewUpdate().
 			Model(media).
-			Where("? = ?", bun.Ident("media_attachment.id"), media.ID).
+			Where("? = ?", bun.Ident("id"), media.ID).
 			Column(columns...).
 			Exec(ctx)
 		return err
 	})
 }
 
-func (m *mediaDB) DeleteAttachment(ctx context.Context, id string) error {
-	// Gather necessary fields from
-	// deleted for cache invaliation.
-	var deleted gtsmodel.MediaAttachment
-	deleted.ID = id
+func (m *mediaDB) UnattachAttachments(ctx context.Context, ids ...string) error {
+	// Update media attachments with
+	// given IDs in the database,
+	// clearing their `status_id` col.
+	if _, err := m.db.NewUpdate().
+		Table("media_attachments").
+		Where("? IN (?)", bun.Ident("id"), bun.List(ids)).
+		Set("? = ?", bun.Ident("status_id"), "").
+		Exec(ctx); err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return err
+	}
 
-	// Delete media attachment and update related models in new transaction.
-	err := m.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+	// Invalidate all updated models with given IDs.
+	m.state.Caches.DB.Media.InvalidateIDs("ID", ids)
 
-		// Initially, delete the media model,
-		// returning the required fields we need.
-		if _, err := tx.NewDelete().
-			Model(&deleted).
-			Where("? = ?", bun.Ident("id"), id).
-			Returning("?, ?, ?, ?",
-				bun.Ident("account_id"),
-				bun.Ident("status_id"),
-				bun.Ident("avatar"),
-				bun.Ident("header"),
-			).
-			Exec(ctx); err != nil {
-			return gtserror.Newf("error deleting media: %w", err)
-		}
+	return nil
+}
 
-		// If media was attached to account,
-		// we need to remove link from account.
-		if deleted.AccountID != "" {
-			var account gtsmodel.Account
+func (m *mediaDB) DeleteAttachment(ctx context.Context, media *gtsmodel.MediaAttachment) error {
+	// Delete media attachments with
+	// given IDs from the database.
+	if _, err := m.db.NewDelete().
+		Table("media_attachments").
+		Where("? = ?", bun.Ident("id"), media.ID).
+		Exec(ctx); err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return err
+	}
 
-			// Get related account model.
-			if _, err := tx.NewSelect().
-				Model(&account).
-				Where("? = ?", bun.Ident("id"), deleted.AccountID).
-				Exec(ctx); err != nil && !errors.Is(err, db.ErrNoEntries) {
-				return gtserror.Newf("error selecting account: %w", err)
-			}
+	// Invalidate deleted media model with its ID.
+	m.state.Caches.DB.Media.Invalidate("ID", media.ID)
+	m.state.Caches.OnInvalidateMedia(media)
 
-			var set func(*bun.UpdateQuery) *bun.UpdateQuery
+	return nil
+}
 
-			switch {
-			case *deleted.Avatar && account.AvatarMediaAttachmentID == id:
-				set = func(q *bun.UpdateQuery) *bun.UpdateQuery {
-					return q.Set("? = NULL", bun.Ident("avatar_media_attachment_id"))
-				}
-			case *deleted.Header && account.HeaderMediaAttachmentID == id:
-				set = func(q *bun.UpdateQuery) *bun.UpdateQuery {
-					return q.Set("? = NULL", bun.Ident("header_media_attachment_id"))
-				}
-			}
+func (m *mediaDB) DeleteAttachments(ctx context.Context, ids ...string) error {
+	deleted := make([]*gtsmodel.MediaAttachment, 0, len(ids))
 
-			if set != nil {
-				// Note: this handles not found.
-				//
-				// Update the account model.
-				q := tx.NewUpdate().
-					Table("accounts").
-					Where("? = ?", bun.Ident("id"), account.ID)
-				if _, err := set(q).Exec(ctx); err != nil {
-					return gtserror.Newf("error updating account: %w", err)
-				}
-			}
-		}
+	// Delete media attachments with
+	// given IDs from the database.
+	if _, err := m.db.NewDelete().
+		Model(&deleted).
+		Where("? IN (?)", bun.Ident("id"), bun.List(ids)).
+		Returning("?, ?, ?", bun.Ident("id"), bun.Ident("account_id"), bun.Ident("status_id")).
+		Exec(ctx); err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return err
+	}
 
-		// If media was attached to a status,
-		// we need to remove link from status.
-		if deleted.StatusID != "" {
-			var status gtsmodel.Status
+	// Invalidate all deleted models with given IDs,
+	// calling hooks manually in case not in cache.
+	m.state.Caches.DB.Media.InvalidateIDs("ID", ids)
+	for _, deleted := range deleted {
+		m.state.Caches.OnInvalidateMedia(deleted)
+	}
 
-			// Get related status model.
-			if _, err := tx.NewSelect().
-				Model(&status).
-				Where("? = ?", bun.Ident("id"), deleted.StatusID).
-				Exec(ctx); err != nil && !errors.Is(err, db.ErrNoEntries) {
-				return gtserror.Newf("error selecting status: %w", err)
-			}
-
-			// Delete all instances of this deleted media ID from status attachments.
-			updatedIDs := slices.DeleteFunc(status.AttachmentIDs, func(s string) bool {
-				return s == id
-			})
-
-			if len(updatedIDs) != len(status.AttachmentIDs) {
-
-				// Convert to bun array for serialization.
-				arrIDs := bunArrayType(tx, updatedIDs)
-
-				// Note: this handles not found.
-				//
-				// Attachments changed, update the status.
-				if _, err := tx.NewUpdate().
-					Table("statuses").
-					Where("? = ?", bun.Ident("id"), status.ID).
-					Set("? = ?", bun.Ident("attachment_ids"), arrIDs).
-					Exec(ctx); err != nil {
-					return gtserror.Newf("error updating status: %w", err)
-				}
-			}
-		}
-
-		return nil
-	})
-
-	// Invalidate cached media with ID, manually
-	// call invalidate hook in case not in cache.
-	m.state.Caches.DB.Media.Invalidate("ID", id)
-	m.state.Caches.OnInvalidateMedia(&deleted)
-
-	return err
+	return nil
 }
 
 func (m *mediaDB) GetAttachments(ctx context.Context, page *paging.Page) ([]*gtsmodel.MediaAttachment, error) {

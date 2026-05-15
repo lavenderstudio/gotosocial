@@ -15,10 +15,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package prune
+package media
 
 import (
 	"context"
+	"time"
 
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/cmd/gotosocial/action"
@@ -27,10 +28,11 @@ import (
 )
 
 // check function conformance.
-var _ action.GTSAction = Orphaned
+var _ action.GTSAction = PruneRemote
 
-// Orphaned prunes orphaned media from storage.
-func Orphaned(ctx context.Context) error {
+// PruneRemote prunes old and/or unused remote media.
+func PruneRemote(ctx context.Context) error {
+
 	// Setup pruning utilities.
 	prune, err := setupPrune(ctx)
 	if err != nil {
@@ -49,11 +51,15 @@ func Orphaned(ctx context.Context) error {
 		ctx = gtscontext.SetDryRun(ctx)
 	}
 
+	// Get media remote cache duration as an "olderThan" time.
+	olderThan := config.GetMediaRemoteCacheOlderThanTime(time.Now())
+
 	// Perform the actual pruning with logging.
-	prune.cleaner.Media().LogPruneOrphaned(ctx)
+	prune.cleaner.Media().LogPruneUnused(ctx)
+	prune.cleaner.Media().LogUncacheRemote(ctx, olderThan)
 
 	// Perform a cleanup of storage (for removed local dirs).
-	if err := prune.storage.Storage.Clean(ctx); err != nil {
+	if err := prune.state.Storage.Storage.Clean(ctx); err != nil {
 		log.Error(ctx, "error cleaning storage: %v", err)
 	}
 

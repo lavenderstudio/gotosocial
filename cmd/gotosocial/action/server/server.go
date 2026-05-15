@@ -606,12 +606,10 @@ func Start(ctx context.Context) error {
 		return fmt.Errorf("error filling worker queues: %w", err)
 	}
 
-	// catch shutdown signals from the operating system
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	sig := <-sigs // block until signal received
-	log.Infof(ctx, "received signal %s, shutting down", sig)
-
+	// Block until
+	// signal given.
+	<-ctx.Done()
+	log.Info(ctx, "received signal, shutting down")
 	return nil
 }
 

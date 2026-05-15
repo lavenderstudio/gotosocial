@@ -33,6 +33,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 	"code.superseriousbusiness.org/gotosocial/internal/regexes"
 	"code.superseriousbusiness.org/gotosocial/internal/uris"
+	"codeberg.org/gruf/go-longdur"
 )
 
 // Media encompasses a set of
@@ -41,9 +42,10 @@ type Media struct{ Cleaner }
 
 // All will execute all cleaner.Media utilities synchronously, including output logging.
 // Context will be checked for `gtscontext.DryRun()` in order to actually perform the action.
-func (m *Media) All(ctx context.Context, maxRemoteDays int) {
-	t := time.Now().Add(-24 * time.Hour * time.Duration(maxRemoteDays))
-	m.LogUncacheRemote(ctx, t)
+func (m *Media) All(ctx context.Context, now time.Time, maxRemoteAge longdur.Duration) {
+	if _, dur := maxRemoteAge.Duration(); dur > 0 {
+		m.LogUncacheRemote(ctx, now.Add(-dur))
+	}
 	m.LogPruneOrphaned(ctx)
 	m.LogPruneUnused(ctx)
 	_ = m.state.Storage.Storage.Clean(ctx)
@@ -51,14 +53,14 @@ func (m *Media) All(ctx context.Context, maxRemoteDays int) {
 
 // AllAndFix calls LogFixCacheStates(), followed by All(), it
 // is done this way round so Storage.Clean() is performed last.
-func (m *Media) AllAndFix(ctx context.Context, maxRemoteDays int) {
+func (m *Media) AllAndFix(ctx context.Context, now time.Time, maxRemoteAge longdur.Duration) {
 	m.LogFixCacheStates(ctx)
-	m.All(ctx, maxRemoteDays)
+	m.All(ctx, now, maxRemoteAge)
 }
 
 // LogUncacheRemote performs Media.UncacheRemote(...), logging the start and outcome.
 func (m *Media) LogUncacheRemote(ctx context.Context, olderThan time.Time) {
-	log.Infof(ctx, "start older than: %s", olderThan.Format(time.Stamp))
+	log.Infof(ctx, "start older than: %s", olderThan.Format(stamp))
 	if n, err := m.UncacheRemote(ctx, olderThan); err != nil {
 		log.Error(ctx, err)
 	} else {
@@ -501,6 +503,7 @@ func (m *Media) pruneUnused(ctx context.Context, media *gtsmodel.MediaAttachment
 	account, missing, err := m.getOwningAccount(ctx, media)
 	if err != nil {
 		return false, err
+
 	} else if missing {
 		l.Debug("deleting due to missing account")
 		return true, m.delete(ctx, media)
@@ -520,6 +523,7 @@ func (m *Media) pruneUnused(ctx context.Context, media *gtsmodel.MediaAttachment
 	status, missing, err := m.getRelatedStatus(ctx, media)
 	if err != nil {
 		return false, err
+
 	} else if missing {
 		l.Debug("deleting due to missing status")
 		return true, m.delete(ctx, media)
@@ -539,6 +543,7 @@ func (m *Media) pruneUnused(ctx context.Context, media *gtsmodel.MediaAttachment
 	scheduledStatus, missing, err := m.getRelatedScheduledStatus(ctx, media)
 	if err != nil {
 		return false, err
+
 	} else if missing {
 		l.Debug("deleting due to missing scheduled status")
 		return true, m.delete(ctx, media)
@@ -776,7 +781,7 @@ func (m *Media) delete(ctx context.Context, media *gtsmodel.MediaAttachment) err
 
 	// Delete media attachment entirely from the database.
 	log.Debugf(ctx, "deleting media attachment: %s", media.ID)
-	if err := m.state.DB.DeleteAttachment(ctx, media.ID); err != nil {
+	if err := m.state.DB.DeleteAttachment(ctx, media); err != nil {
 		return gtserror.Newf("error deleting media: %w", err)
 	}
 

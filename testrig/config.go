@@ -103,11 +103,10 @@ func testDefaults() config.Configuration {
 				TagStr: "en-gb",
 			},
 		},
-		InstanceSubscriptionsProcessFrom:  "23:00",        // 11pm,
-		InstanceSubscriptionsProcessEvery: 24 * time.Hour, // 1/day.
-		InstanceAllowBackdatingStatuses:   true,
-		InstanceDirectoryMode:             config.InstanceDirectoryModeOpen,
-		InstanceRobotsAllowIndexing:       true,
+		InstanceSubscriptionsProcessCron: config.Defaults.InstanceSubscriptionsProcessCron, // daily at 11pm
+		InstanceAllowBackdatingStatuses:  true,
+		InstanceDirectoryMode:            config.InstanceDirectoryModeOpen,
+		InstanceRobotsAllowIndexing:      true,
 
 		AccountsRegistrationOpen:         true,
 		AccountsReasonRequired:           true,
@@ -120,14 +119,13 @@ func testDefaults() config.Configuration {
 		Media: config.MediaConfiguration{
 			DescriptionMinChars: 0,
 			DescriptionMaxChars: 500,
-			RemoteCacheDays:     7,
 			LocalMaxSize:        40 * bytesize.MiB,
 			RemoteMaxSize:       40 * bytesize.MiB,
-			EmojiLocalMaxSize:   51200,          // 50KiB
-			EmojiRemoteMaxSize:  102400,         // 100KiB
-			CleanupFrom:         "00:00",        // midnight.
-			CleanupEvery:        24 * time.Hour, // 1/day.
+			EmojiLocalMaxSize:   51200,  // 50KiB
+			EmojiRemoteMaxSize:  102400, // 100KiB
 			ThumbMaxPixels:      512,
+			RemoteCacheDuration: config.Defaults.Media.RemoteCacheDuration, // i.e. 7 days
+			CleanupCron:         config.Defaults.Media.CleanupCron,         // i.e. daily at 0am
 		},
 
 		// the testrig uses in-memory storage by default, so we can
@@ -146,10 +144,12 @@ func testDefaults() config.Configuration {
 		StorageS3Proxy:        envBool("GTS_STORAGE_S3_PROXY", false),
 		StorageS3RedirectURL:  envStr("GTS_STORAGE_S3_REDIRECT_URL", ""),
 
-		StatusesMaxChars:           5000,
-		StatusesPollMaxOptions:     6,
-		StatusesPollOptionMaxChars: 50,
-		StatusesMediaMaxFiles:      6,
+		StatusesMaxChars:               5000,
+		StatusesPollMaxOptions:         6,
+		StatusesPollOptionMaxChars:     50,
+		StatusesMediaMaxFiles:          6,
+		StatusesCleanupCron:            config.Defaults.StatusesCleanupCron,            // i.e. daily at 1am
+		StatusesCleanupRemoteOlderThan: config.Defaults.StatusesCleanupRemoteOlderThan, // i.e. disabled
 
 		ScheduledStatusesMaxTotal: 300,
 		ScheduledStatusesMaxDaily: 25,

@@ -18,10 +18,13 @@
 package main
 
 import (
-	"log"
+	"context"
+	"fmt"
 	"os"
+	"os/signal"
 	godebug "runtime/debug"
 	"strings"
+	"syscall"
 
 	_ "code.superseriousbusiness.org/gotosocial/docs"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
@@ -62,18 +65,33 @@ func main() {
 	if testrigCmd := testrigCommands(); testrigCmd != nil {
 		rootCmd.AddCommand(testrigCmd)
 	} else if len(os.Args) > 1 && os.Args[1] == "testrig" {
-		log.Fatal("gotosocial must be built and run with the DEBUG enviroment variable set to enable and access testrig")
+		panic("gotosocial must be built and run with the DEBUG enviroment variable set to enable and access testrig")
 	}
 
-	// Run the prepared root command.
-	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("error executing command: %s", err)
+	// Start with background ctx.
+	ctx := context.Background()
+
+	// Setup context to cancel on signal.
+	ctx, cncl := signal.NotifyContext(ctx,
+		syscall.SIGTERM,
+		syscall.SIGKILL,
+		syscall.SIGINT,
+	)
+
+	// Cancel ctx
+	// on return.
+	defer cncl()
+
+	// Run the prepared root command with notify context.
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
+		panic(fmt.Sprintf("error executing command: %v", err))
 	}
 }
 
 // version will build a version string from binary's stored build information.
 // It is SemVer-compatible so long as Version is SemVer-compatible.
 func version() string {
+
 	// Read build information from binary
 	build, ok := godebug.ReadBuildInfo()
 	if !ok {

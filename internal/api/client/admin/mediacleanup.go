@@ -18,7 +18,6 @@
 package admin
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -107,23 +106,17 @@ func (m *Module) MediaCleanupPOSTHandler(c *gin.Context) {
 		return
 	}
 
-	// Normalize remoteCacheDays.
-	var remoteCacheDays int
-	if form.RemoteCacheDays == nil {
-		remoteCacheDays = config.GetMediaRemoteCacheDays()
-	} else if remoteCacheDays = *form.RemoteCacheDays; remoteCacheDays < 0 {
-		text := fmt.Sprintf("invalid value for remote_cache_days; value was %d, cannot be less than 0", remoteCacheDays)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(errors.New(text), text), m.processor.InstanceGetV1)
-		return
+	if form.RemoteCacheDays.Duration == 0 {
+		form.RemoteCacheDays.Duration = config.GetMediaRemoteCacheDuration()
 	}
 
 	if errWithCode := m.processor.Admin().MediaPrune(
 		c.Request.Context(),
-		remoteCacheDays,
+		form.RemoteCacheDays.Duration,
 	); errWithCode != nil {
 		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, remoteCacheDays)
+	apiutil.JSON(c, http.StatusOK, form.RemoteCacheDays)
 }

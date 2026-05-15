@@ -92,7 +92,7 @@ func main() {
 	generateGetSetters(output, fields)
 	generateMapFlattener(output, fields)
 	must(output.Close())
-	must(exec.Command("gofumpt", "-w", out).Run())
+	must(exec.Command("goimports", "-w", out).Run())
 }
 
 type ConfigField struct {
@@ -118,6 +118,10 @@ type ConfigField struct {
 	// Whether to generate
 	// CLI flag registering.
 	RegisterCLI bool
+
+	// i.e. is this a deprecated field we don't
+	// want being used, point to this field instead.
+	DeprecatedBy string
 }
 
 // Flag returns the combined "prefixes-name" CLI flag for config field.
@@ -176,7 +180,14 @@ func loadConfigFields(pathPrefixes, flagPrefixes []string, t reflect.Type) []Con
 			continue
 		}
 
-		if ft := field.Type; ft.Kind() == reflect.Struct {
+		// Get field's tagged usage.
+		usage := field.Tag.Get("usage")
+
+		// Look for name that deprecates this one.
+		depBy := field.Tag.Get("deprecated-by")
+
+		if ft := field.Type; ft.Kind() == reflect.Struct &&
+			depBy == "" && usage == "" {
 			// This is a nested struct, load nested fields.
 			pathPrefixes := append(pathPrefixes, field.Name)
 			flagPrefixes := append(flagPrefixes, name)
@@ -189,12 +200,13 @@ func loadConfigFields(pathPrefixes, flagPrefixes []string, t reflect.Type) []Con
 
 		// Append prepared ConfigField.
 		out = append(out, ConfigField{
-			Prefixes:    flagPrefixes,
-			Name:        name,
-			Path:        fieldPath,
-			Type:        field.Type,
-			Usage:       field.Tag.Get("usage"),
-			RegisterCLI: field.Tag.Get("nocli") != "yes",
+			Prefixes:     flagPrefixes,
+			Name:         name,
+			Path:         fieldPath,
+			Type:         field.Type,
+			Usage:        usage,
+			RegisterCLI:  field.Tag.Get("nocli") != "yes",
+			DeprecatedBy: depBy,
 		})
 	}
 	return out
@@ -215,6 +227,12 @@ func generateFlagRegistering(out io.Writer, fields []ConfigField) {
 		if !field.RegisterCLI {
 			// Skip registering flags
 			// unpermitted in env / cli.
+			continue
+		}
+
+		if field.DeprecatedBy != "" {
+			// Skip registering
+			// deprecated flags.
 			continue
 		}
 
@@ -283,6 +301,12 @@ func generateMapMarshaler(out io.Writer, fields []ConfigField) {
 	fprintf(out, "func (cfg *Configuration) MarshalMap() map[string]any {\n")
 	fprintf(out, "\tcfgmap := make(map[string]any, %d)\n", len(fields))
 	for _, field := range fields {
+		// Deprecated fields don't need
+		// including in marshaled map.
+		if field.DeprecatedBy != "" {
+			continue
+		}
+
 		// Check for easy cases of just regular primitive types.
 		if field.Type.Kind().String() == field.Type.String() {
 			fprintf(out, "\tcfgmap[\"%s\"] = cfg.%s\n", field.Flag(), field.Path)
@@ -343,12 +367,18 @@ func generateMapMarshaler(out io.Writer, fields []ConfigField) {
 
 func generateMapUnmarshaler(out io.Writer, fields []ConfigField) {
 	fprintf(out, "func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {\n")
-	fprintf(out, "// VERY IMPORTANT FIRST STEP!\n")
-	fprintf(out, "// flatten to normalize map to\n")
-	fprintf(out, "// entirely un-nested key values\n")
-	fprintf(out, "flattenConfigMap(cfgmap)\n")
+	fprintf(out, "\t// VERY IMPORTANT FIRST STEP!\n")
+	fprintf(out, "\t// flatten to normalize map to\n")
+	fprintf(out, "\t// entirely un-nested key values\n")
+	fprintf(out, "\tflattenConfigMap(cfgmap)\n")
 	fprintf(out, "\n")
 	for _, field := range fields {
+		// Check for case of deprecated.
+		if field.DeprecatedBy != "" {
+			generateUnmarshalerDeprecated(out, field)
+			continue
+		}
+
 		// Check for easy cases of just regular primitive types.
 		if field.Type.Kind().String() == field.Type.String() {
 			generateUnmarshalerPrimitive(out, field)
@@ -391,8 +421,15 @@ func generateMapUnmarshaler(out io.Writer, fields []ConfigField) {
 	fprintf(out, "}\n\n")
 }
 
+func generateUnmarshalerDeprecated(out io.Writer, field ConfigField) {
+	fprintf(out, "\tif ival, ok := cfgmap[\"%s\"]; ok && ival != \"\" {\n", field.Flag())
+	fprintf(out, "\t\treturn errors.New(\"value received for deprecated field '%s', please use '%s' instead\")\n", field.Flag(), field.DeprecatedBy)
+	fprintf(out, "\t}\n")
+	fprintf(out, "\n")
+}
+
 func generateUnmarshalerPrimitive(out io.Writer, field ConfigField) {
-	fprintf(out, "\t\tif ival, ok := cfgmap[\"%s\"]; ok {\n", field.Flag())
+	fprintf(out, "\tif ival, ok := cfgmap[\"%s\"]; ok {\n", field.Flag())
 	if field.Type.Kind() == reflect.Slice {
 		elem := field.Type.Elem()
 		typeName := elem.String()
@@ -400,23 +437,23 @@ func generateUnmarshalerPrimitive(out io.Writer, field ConfigField) {
 			typeName = typeName[i+1:]
 		}
 		typeName = strings.ToUpper(typeName[:1]) + typeName[1:]
-		fprintf(out, "\t\t\tvar err error\n")
+		fprintf(out, "\t\tvar err error\n")
 		// note we specifically handle slice types ourselves to split by comma
-		fprintf(out, "\t\t\tcfg.%s, err = to%sSlice(ival)\n", field.Path, typeName)
-		fprintf(out, "\t\t\tif err != nil {\n")
-		fprintf(out, "\t\t\t\treturn fmt.Errorf(\"error casting %%#v -> []%s for '%s': %%w\", ival, err)\n", elem.String(), field.Flag())
-		fprintf(out, "\t\t\t}\n")
+		fprintf(out, "\t\tcfg.%s, err = to%sSlice(ival)\n", field.Path, typeName)
+		fprintf(out, "\t\tif err != nil {\n")
+		fprintf(out, "\t\t\treturn fmt.Errorf(\"error casting %%#v -> []%s for '%s': %%w\", ival, err)\n", elem.String(), field.Flag())
+		fprintf(out, "\t\t}\n")
 	} else {
 		typeName := field.Type.String()
 		if i := strings.IndexRune(typeName, '.'); i >= 0 {
 			typeName = typeName[i+1:]
 		}
 		typeName = strings.ToUpper(typeName[:1]) + typeName[1:]
-		fprintf(out, "\t\t\tvar err error\n")
-		fprintf(out, "\t\t\tcfg.%s, err = cast.To%sE(ival)\n", field.Path, typeName)
-		fprintf(out, "\t\t\tif err != nil {\n")
-		fprintf(out, "\t\t\t\treturn fmt.Errorf(\"error casting %%#v -> %s for '%s': %%w\", ival, err)\n", field.Type.String(), field.Flag())
-		fprintf(out, "\t\t\t}\n")
+		fprintf(out, "\t\tvar err error\n")
+		fprintf(out, "\t\tcfg.%s, err = cast.To%sE(ival)\n", field.Path, typeName)
+		fprintf(out, "\t\tif err != nil {\n")
+		fprintf(out, "\t\t\treturn fmt.Errorf(\"error casting %%#v -> %s for '%s': %%w\", ival, err)\n", field.Type.String(), field.Flag())
+		fprintf(out, "\t\t}\n")
 	}
 	fprintf(out, "\t}\n")
 	fprintf(out, "\n")
@@ -441,13 +478,17 @@ func generateUnmarshalerFlagType(out io.Writer, field ConfigField) {
 		fprintf(out, "\t\tif err != nil {\n")
 		fprintf(out, "\t\t\treturn fmt.Errorf(\"error casting %%#v -> string for '%s': %%w\", ival, err)\n", field.Flag())
 		fprintf(out, "\t\t}\n")
-		fprintf(out, "\t\tcfg.%s = %#v\n", field.Path, reflect.New(field.Type).Elem().Interface())
+		fprintf(out, "\t\tcfg.%s = %s\n", field.Path, strings.TrimPrefix(zeroValueStr(field.Type), "config."))
 		fprintf(out, "\t\tif err := cfg.%s.Set(t); err != nil {\n", field.Path)
 		fprintf(out, "\t\t\treturn fmt.Errorf(\"error parsing %%#v for '%s': %%w\", ival, err)\n", field.Flag())
 		fprintf(out, "\t\t}\n")
 	}
 	fprintf(out, "\t}\n")
 	fprintf(out, "\n")
+}
+
+func zeroValueStr(t reflect.Type) string {
+	return fmt.Sprintf("%#v", reflect.New(t).Elem().Interface())
 }
 
 func generateGetSetters(out io.Writer, fields []ConfigField) {

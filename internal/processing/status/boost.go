@@ -25,6 +25,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
+	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/messages"
@@ -181,8 +182,7 @@ func (p *Processor) BoostRemove(
 	targetID string,
 ) (*apimodel.Status, gtserror.WithCode) {
 	// Get target status and ensure it's not a boost.
-	target, errWithCode := p.c.GetVisibleTargetStatus(
-		ctx,
+	target, errWithCode := p.c.GetVisibleTargetStatus(ctx,
 		requester,
 		targetID,
 		nil, // default freshness
@@ -191,8 +191,7 @@ func (p *Processor) BoostRemove(
 		return nil, errWithCode
 	}
 
-	target, errWithCode = p.c.UnwrapIfBoost(
-		ctx,
+	target, errWithCode = p.c.UnwrapIfBoost(ctx,
 		requester,
 		target,
 	)
@@ -227,7 +226,7 @@ func (p *Processor) BoostRemove(
 	}
 
 	// Delete boost wrapper from the database.
-	err = p.state.DB.DeleteStatus(ctx, boost)
+	err = p.state.DB.DeleteStatusBoost(ctx, boost)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		err := gtserror.Newf("db error deleting status: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
@@ -277,25 +276,30 @@ func (p *Processor) StatusBoostedBy(ctx context.Context, requestingAccount *gtsm
 		err = fmt.Errorf("BoostedBy: error seeing if status %s is visible: %s", targetStatus.ID, err)
 		return nil, gtserror.NewErrorNotFound(err)
 	}
+
 	if !visible {
 		err = errors.New("BoostedBy: status is not visible")
 		return nil, gtserror.NewErrorNotFound(err)
 	}
 
-	statusBoosts, err := p.state.DB.GetStatusBoosts(ctx, targetStatus.ID)
+	boosts, err := p.state.DB.GetStatusBoosts(
+		gtscontext.SetBarebones(ctx),
+		targetStatus.ID,
+	)
 	if err != nil {
 		err = fmt.Errorf("BoostedBy: error seeing who boosted status: %s", err)
 		return nil, gtserror.NewErrorNotFound(err)
 	}
 
 	// filter account IDs so the user doesn't see accounts they blocked or which blocked them
-	accountIDs := make([]string, 0, len(statusBoosts))
-	for _, s := range statusBoosts {
+	accountIDs := make([]string, 0, len(boosts))
+	for _, s := range boosts {
 		blocked, err := p.state.DB.IsEitherBlocked(ctx, requestingAccount.ID, s.AccountID)
 		if err != nil {
 			err = fmt.Errorf("BoostedBy: error checking blocks: %s", err)
 			return nil, gtserror.NewErrorNotFound(err)
 		}
+
 		if !blocked {
 			accountIDs = append(accountIDs, s.AccountID)
 		}

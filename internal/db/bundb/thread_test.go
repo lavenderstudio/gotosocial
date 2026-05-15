@@ -28,17 +28,6 @@ type ThreadTestSuite struct {
 	BunDBStandardTestSuite
 }
 
-func (suite *ThreadTestSuite) TestPutThread() {
-	suite.NoError(
-		suite.db.PutThread(
-			suite.T().Context(),
-			&gtsmodel.Thread{
-				ID: "01HCWK4HVQ4VGSS1G4VQP3AXZF",
-			},
-		),
-	)
-}
-
 func (suite *ThreadTestSuite) TestMuteUnmuteThread() {
 	var (
 		threadID   = suite.testThreads["local_account_1_status_1"].ID

@@ -299,7 +299,7 @@ func (d *Dereferencer) enrichAndStoreStatusSafely(
 	// Gone (410) definitely indicates deletion.
 	// Remove status if it was an existing one.
 	case code == http.StatusGone && !isNew:
-		if err := d.state.DB.StubStatus(ctx, status); err != nil {
+		if err := d.state.DB.StubStatus(ctx, status, true); err != nil {
 			log.Error(ctx, "error deleting gone status %s: %v", uriStr, err)
 		}
 

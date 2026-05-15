@@ -11,7 +11,7 @@ replace github.com/gin-gonic/gin => codeberg.org/superseriousbusiness/gin v1.11.
 require (
 	code.superseriousbusiness.org/activity v1.19.0
 	code.superseriousbusiness.org/exif-terminator v0.11.2
-	code.superseriousbusiness.org/gopkg v0.0.0-20260314203815-181df26aa86e
+	code.superseriousbusiness.org/gopkg v0.0.0-20260503204153-b9100c6c75dd
 	code.superseriousbusiness.org/httpsig v1.5.0
 	code.superseriousbusiness.org/oauth2/v4 v4.5.4-0.20250812115401-3961e46a7384
 	codeberg.org/gruf/go-bytesize v1.0.4
@@ -26,6 +26,7 @@ require (
 	codeberg.org/gruf/go-iotools v0.0.0-20240710125620-934ae9c654cf
 	codeberg.org/gruf/go-kv/v2 v2.0.10
 	codeberg.org/gruf/go-list v0.0.0-20240425093752-494db03d641f
+	codeberg.org/gruf/go-longdur v0.1.3
 	codeberg.org/gruf/go-mempool v0.0.0-20251205182607-a05549c9a993
 	codeberg.org/gruf/go-mmap v0.0.0-20251111184116-345a42dab154
 	codeberg.org/gruf/go-mutexes v1.5.9
@@ -49,6 +50,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/feeds v1.2.0
 	github.com/gorilla/websocket v1.5.3
+	github.com/hashicorp/cronexpr v1.1.3
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/k3a/html2text v1.4.0
 	github.com/klauspost/compress v1.18.4

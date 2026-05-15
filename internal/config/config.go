@@ -23,7 +23,9 @@ import (
 	"time"
 
 	"code.superseriousbusiness.org/gotosocial/internal/language"
+
 	"codeberg.org/gruf/go-bytesize"
+	"codeberg.org/gruf/go-longdur"
 )
 
 // cfgtype is the reflected type information of Configuration{}.
@@ -51,8 +53,8 @@ func fieldtag(field, tag string) string {
 // will need to regenerate the global Getter/Setter helpers by running:
 // `go run ./internal/config/gen/ -out ./internal/config/helpers.gen.go`.
 //
-// You will need to have gofumpt installed in order for this to work:
-// https://github.com/mvdan/gofumpt.
+// You will need to have goimports installed in order for this to work:
+// golang.org/x/tools/cmd/goimports.
 type Configuration struct {
 	LogLevel           string `name:"log-level" usage:"Log level to run at: [trace, debug, info, warn, fatal]"`
 	LogFormat          string `name:"log-format" usage:"Log output format: [logfmt, json]"`
@@ -102,8 +104,9 @@ type Configuration struct {
 	InstanceDeliverToSharedInboxes    bool                  `name:"instance-deliver-to-shared-inboxes" usage:"Deliver federated messages to shared inboxes, if they're available."`
 	InstanceInjectMastodonVersion     bool                  `name:"instance-inject-mastodon-version" usage:"This injects a Mastodon compatible version in /api/v1/instance to help Mastodon clients that use that version for feature detection"`
 	InstanceLanguages                 language.Languages    `name:"instance-languages" usage:"BCP47 language tags for the instance. Used to indicate the preferred languages of instance residents (in order from most-preferred to least-preferred)."`
-	InstanceSubscriptionsProcessFrom  string                `name:"instance-subscriptions-process-from" usage:"Time of day from which to start running instance subscriptions processing jobs. Should be in the format 'hh:mm:ss', eg., '15:04:05'."`
-	InstanceSubscriptionsProcessEvery time.Duration         `name:"instance-subscriptions-process-every" usage:"Period to elapse between instance subscriptions processing jobs, starting from instance-subscriptions-process-from."`
+	InstanceSubscriptionsProcessFrom  Deprecated            `name:"instance-subscriptions-process-from" deprecated-by:"instance-subscriptions-process-cron"`
+	InstanceSubscriptionsProcessEvery Deprecated            `name:"instance-subscriptions-process-every" deprecated-by:"instance-subscriptions-process-cron"`
+	InstanceSubscriptionsProcessCron  CronExpression        `name:"instance-subscriptions-process-cron" usage:"Cron expression defining instance subscription processing job scheduling"`
 	InstanceStatsMode                 string                `name:"instance-stats-mode" usage:"Allows you to customize the way stats are served to crawlers: one of '', 'serve', 'zero', 'baffle'. Home page stats remain unchanged."`
 	InstanceAllowBackdatingStatuses   bool                  `name:"instance-allow-backdating-statuses" usage:"Allow local accounts to backdate statuses using the scheduled_at param to /api/v1/statuses"`
 	InstanceRobotsAllowIndexing       bool                  `name:"instance-robots-allow-indexing" usage:"Return robots headers and meta tags that allow search engine indexing of instance home page, directory (if enabled), and accounts that have opted in to being discoverable."`
@@ -129,10 +132,12 @@ type Configuration struct {
 	StorageS3KeyPrefix    string `name:"storage-s3-key-prefix" usage:"Prefix to use for S3 keys. This is useful for separating multiple instances sharing the same S3 bucket."`
 	StorageS3Region       string `name:"storage-s3-region" usage:"Region to use for S3."`
 
-	StatusesMaxChars           int `name:"statuses-max-chars" usage:"Max permitted characters for posted statuses, including content warning"`
-	StatusesPollMaxOptions     int `name:"statuses-poll-max-options" usage:"Max amount of options permitted on a poll"`
-	StatusesPollOptionMaxChars int `name:"statuses-poll-option-max-chars" usage:"Max amount of characters for a poll option"`
-	StatusesMediaMaxFiles      int `name:"statuses-media-max-files" usage:"Maximum number of media files/attachments per status"`
+	StatusesMaxChars               int              `name:"statuses-max-chars" usage:"Max permitted characters for posted statuses, including content warning"`
+	StatusesPollMaxOptions         int              `name:"statuses-poll-max-options" usage:"Max amount of options permitted on a poll"`
+	StatusesPollOptionMaxChars     int              `name:"statuses-poll-option-max-chars" usage:"Max amount of characters for a poll option"`
+	StatusesMediaMaxFiles          int              `name:"statuses-media-max-files" usage:"Maximum number of media files/attachments per status"`
+	StatusesCleanupCron            CronExpression   `name:"statuses-cleanup-cron" usage:"Cron expression defining statuses cleanup task scheduling"`
+	StatusesCleanupRemoteOlderThan longdur.Duration `name:"statuses-cleanup-remote-older-than" usage:"Duration defining status age beyond which to clean"`
 
 	ScheduledStatusesMaxTotal int `name:"scheduled-statuses-max-total" usage:"Maximum number of scheduled statuses per user"`
 	ScheduledStatusesMaxDaily int `name:"scheduled-statuses-max-daily" usage:"Maximum number of scheduled statuses per user for a single day"`
@@ -242,19 +247,22 @@ type HTTPClientConfiguration struct {
 }
 
 type MediaConfiguration struct {
-	DescriptionMinChars int           `name:"description-min-chars" usage:"Min required chars for an image description"`
-	DescriptionMaxChars int           `name:"description-max-chars" usage:"Max permitted chars for an image description"`
-	RemoteCacheDays     int           `name:"remote-cache-days" usage:"Number of days to locally cache media from remote instances. If set to 0, remote media will be kept indefinitely."`
-	EmojiLocalMaxSize   bytesize.Size `name:"emoji-local-max-size" usage:"Max size in bytes of emojis uploaded to this instance via the admin API."`
-	EmojiRemoteMaxSize  bytesize.Size `name:"emoji-remote-max-size" usage:"Max size in bytes of emojis to download from other instances."`
-	ImageSizeHint       bytesize.Size `name:"image-size-hint" usage:"Size in bytes of max image size referred to on /api/v_/instance endpoints (else, local max size)"`
-	VideoSizeHint       bytesize.Size `name:"video-size-hint" usage:"Size in bytes of max video size referred to on /api/v_/instance endpoints (else, local max size)"`
-	LocalMaxSize        bytesize.Size `name:"local-max-size" usage:"Max size in bytes of media uploaded to this instance via API"`
-	RemoteMaxSize       bytesize.Size `name:"remote-max-size" usage:"Max size in bytes of media to download from other instances"`
-	CleanupFrom         string        `name:"cleanup-from" usage:"Time of day from which to start running media cleanup/prune jobs. Should be in the format 'hh:mm:ss', eg., '15:04:05'."`
-	CleanupEvery        time.Duration `name:"cleanup-every" usage:"Period to elapse between cleanups, starting from media-cleanup-at."`
-	FfmpegPoolSize      int           `name:"ffmpeg-pool-size" usage:"Number of concurrent running instances of ffmpeg to permit. 0 or less uses GOMAXPROCS."`
-	ThumbMaxPixels      int           `name:"thumb-max-pixels" usage:"Max size in pixels of any one dimension of a thumbnail (as input media ratio is preserved)."`
+	DescriptionMinChars int              `name:"description-min-chars" usage:"Min required chars for an image description"`
+	DescriptionMaxChars int              `name:"description-max-chars" usage:"Max permitted chars for an image description"`
+	EmojiLocalMaxSize   bytesize.Size    `name:"emoji-local-max-size" usage:"Max size in bytes of emojis uploaded to this instance via the admin API."`
+	EmojiRemoteMaxSize  bytesize.Size    `name:"emoji-remote-max-size" usage:"Max size in bytes of emojis to download from other instances."`
+	ImageSizeHint       bytesize.Size    `name:"image-size-hint" usage:"Size in bytes of max image size referred to on /api/v_/instance endpoints (else, local max size)"`
+	VideoSizeHint       bytesize.Size    `name:"video-size-hint" usage:"Size in bytes of max video size referred to on /api/v_/instance endpoints (else, local max size)"`
+	LocalMaxSize        bytesize.Size    `name:"local-max-size" usage:"Max size in bytes of media uploaded to this instance via API"`
+	RemoteMaxSize       bytesize.Size    `name:"remote-max-size" usage:"Max size in bytes of media to download from other instances"`
+	FfmpegPoolSize      int              `name:"ffmpeg-pool-size" usage:"Number of instances of the embedded ffmpeg WASM binary to add to the media processing pool. 0 or less uses GOMAXPROCS."`
+	ThumbMaxPixels      int              `name:"thumb-max-pixels" usage:"Max size in pixels of any one dimension of a thumbnail (as input media ratio is preserved)."`
+	RemoteCacheDuration longdur.Duration `name:"remote-cache-duration" usage:"Duration defining how long to locally cache media from remote instances. (zero keeps indefinitely)"`
+	CleanupCron         CronExpression   `name:"cleanup-cron" usage:"Cron expression defining media cleanup task scheduling"`
+
+	RemoteCacheDays Deprecated `name:"remote-cache-days" deprecated-by:"media-remote-cache-duration"`
+	CleanupFrom     Deprecated `name:"cleanup-from" deprecated-by:"media-cleanup-cron"`
+	CleanupEvery    Deprecated `name:"cleanup-every" deprecated-by:"media-cleanup-cron"`
 }
 
 type CacheConfiguration struct {

@@ -29,6 +29,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
+	"codeberg.org/gruf/go-longdur"
 )
 
 // Emoji encompasses a set of
@@ -37,9 +38,10 @@ type Emoji struct{ Cleaner }
 
 // All will execute all cleaner.Emoji utilities synchronously, including output logging.
 // Context will be checked for `gtscontext.DryRun()` in order to actually perform the action.
-func (e *Emoji) All(ctx context.Context, maxRemoteDays int) {
-	t := time.Now().Add(-24 * time.Hour * time.Duration(maxRemoteDays))
-	e.LogUncacheRemote(ctx, t)
+func (e *Emoji) All(ctx context.Context, now time.Time, maxRemoteAge longdur.Duration) {
+	if _, dur := maxRemoteAge.Duration(); dur > 0 {
+		e.LogUncacheRemote(ctx, now.Add(-dur))
+	}
 	e.LogFixBroken(ctx)
 	e.LogPruneUnused(ctx)
 	_ = e.state.Storage.Storage.Clean(ctx)
@@ -47,14 +49,14 @@ func (e *Emoji) All(ctx context.Context, maxRemoteDays int) {
 
 // AllAndFix calls LogFixCacheStates(), followed by All(), it
 // is done this way round so Storage.Clean() is performed last.
-func (e *Emoji) AllAndFix(ctx context.Context, maxRemoteDays int) {
+func (e *Emoji) AllAndFix(ctx context.Context, now time.Time, maxRemoteAge longdur.Duration) {
 	e.LogFixCacheStates(ctx)
-	e.All(ctx, maxRemoteDays)
+	e.All(ctx, now, maxRemoteAge)
 }
 
 // LogUncacheRemote performs Emoji.UncacheRemote(...), logging the start and outcome.
 func (e *Emoji) LogUncacheRemote(ctx context.Context, olderThan time.Time) {
-	log.Infof(ctx, "start older than: %s", olderThan.Format(time.Stamp))
+	log.Infof(ctx, "start older than: %s", olderThan.Format(stamp))
 	if n, err := e.UncacheRemote(ctx, olderThan); err != nil {
 		log.Error(ctx, err)
 	} else {
