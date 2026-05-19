@@ -178,14 +178,41 @@ func (d *Dereferencer) dereferenceStatusAncestors(
 				"", // account ID
 			)
 
-		// An error was returned for a status during
+		// If an error was returned for a status during
 		// an attempted NEW dereference, return here.
 		//
 		// NOTE: this will catch all cases of a nil
 		// parent, all cases below can safely assume
 		// a non-nil parent in their code logic.
 		case err != nil && parent == nil:
-			return gtserror.Newf("error dereferencing new %s: %w", current.InReplyToURI, err)
+			// Check what kind of error
+			// was actually returned.
+			switch {
+			case gtserror.IsUnretrievable(err):
+				// Destination is likely blocked by us
+				// or not available for some other reason.
+				//
+				// Bail here since we can't dereference
+				// back any further, but leave the reference
+				// to the parent URI on the current status.
+				l.Debugf("unretrievable remote status %s: %v", current.InReplyToURI, err)
+				return nil
+
+			case gtserror.IsMalformed(err):
+				// Returned status was malformed, maybe
+				// interesting for admins to know about.
+				//
+				// Bail here since we can't dereference
+				// back any further, but leave the reference
+				// to the parent URI on the current status.
+				l.Warnf("malformed remote status %s: %v", current.InReplyToURI, err)
+				return nil
+
+			default:
+				// Something else went wrong,
+				// return a proper error.
+				return gtserror.Newf("error dereferencing %s: %w", current.InReplyToURI, err)
+			}
 
 		// An error was returned for an existing parent,
 		// we simply treat this as a temporary situation.
@@ -360,7 +387,31 @@ stackLoop:
 				//   - remote domain is blocked (will return unretrievable)
 				//   - any http type error for a new status returns unretrievable
 				status, statusable, isNew, err := d.getStatusByURI(ctx, username, itemIRI)
-				if err != nil {
+				switch {
+				case err == nil:
+					// No problem!
+
+				case gtserror.IsUnretrievable(err):
+					// Destination is likely blocked by us
+					// or not available for some other reason.
+					//
+					// We can't dereference this (sub)thread
+					// any further so just continue the loop.
+					l.Debugf("unretrievable remote status %s: %v", itemIRI, err)
+					continue itemLoop
+
+				case gtserror.IsMalformed(err):
+					// Returned status was malformed, maybe
+					// interesting for admins to know about.
+					//
+					// We can't dereference this (sub)thread
+					// any further so just continue the loop.
+					l.Warnf("malformed remote status %s: %v", itemIRI, err)
+					continue itemLoop
+
+				default:
+					// Something else went wrong,
+					// log this at error level.
 					l.Errorf("error dereferencing remote status %s: %v", itemIRI, err)
 					continue itemLoop
 				}

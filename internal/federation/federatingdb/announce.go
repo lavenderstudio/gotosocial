@@ -57,10 +57,14 @@ func (f *DB) Announce(ctx context.Context, announce vocab.ActivityStreamsAnnounc
 	if !slices.ContainsFunc(actorIRIs, func(actorIRI *url.URL) bool {
 		return actorIRI.String() == requesting.URI
 	}) {
-		return gtserror.Newf(
-			"requestingAccount %s was not among Announce Actors",
+		// Just return nil (status 202) here and
+		// not error, as it's not really an error
+		// per se, just something we don't support.
+		log.Debugf(ctx,
+			"requestingAccount %s was not among Announce Actors, dropping Announce forward",
 			requesting.URI,
 		)
+		return nil
 	}
 
 	// Convert boost to internal gtsmodel representattion.
