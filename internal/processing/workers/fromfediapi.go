@@ -239,6 +239,7 @@ func (p *Processor) ProcessFromFediAPI(ctx context.Context, fMsg *messages.FromF
 // It is also capable of handling impolite reply requests to local + remote statuses,
 // ie., replies sent directly without doing the ReplyRequest process first.
 func (p *fediAPI) CreateStatus(ctx context.Context, fMsg *messages.FromFediAPI) error {
+
 	// If we received this status via our instance account,
 	// it must originate from a relay actor we subscribe to.
 	if fMsg.Receiving.IsInstance() {
@@ -273,17 +274,16 @@ func (p *fediAPI) CreateStatus(ctx context.Context, fMsg *messages.FromFediAPI) 
 		// Call RefreshStatus() to parse and process the provided
 		// statusable model, which it will use to further flesh out
 		// the bare bones model and insert it into the database.
+		//
+		// NOTE: dereferencer hook will handle surfacing logic.
 		status, statusable, err = p.federate.RefreshStatus(ctx,
 			fMsg.Receiving.Username,
 			bareStatus,
 			statusable,
+
 			// Force refresh
 			// within 5min window.
-			dereferencing.Fresh,
-			// Pass callback to insert
-			// other statuses in thread
-			// into timelines (as appropriate).
-			p.surfacer.TimelineAndNotifyStatus,
+			&dereferencing.Fresh,
 		)
 		if err != nil {
 			return gtserror.Newf("error processing new status %s: %w", bareStatus.URI, err)
@@ -292,13 +292,11 @@ func (p *fediAPI) CreateStatus(ctx context.Context, fMsg *messages.FromFediAPI) 
 	case fMsg.APIRI != nil:
 		// Model was not set, deref with IRI (this is a forward).
 		// This will also cause the status to be inserted into the db.
-		status, statusable, _, err = p.federate.GetStatusByURI(ctx,
+		//
+		// NOTE: dereferencer hook will handle surfacing logic.
+		status, statusable, err = p.federate.GetStatusByURI(ctx,
 			fMsg.Receiving.Username,
 			fMsg.APIRI,
-			// Pass callback to insert
-			// other statuses in thread
-			// into timelines (as appropriate).
-			p.surfacer.TimelineAndNotifyStatus,
 		)
 		if err != nil {
 			return gtserror.Newf("error dereferencing forwarded status %s: %w", fMsg.APIRI, err)
@@ -393,12 +391,11 @@ func (p *fediAPI) CreateStatus(ctx context.Context, fMsg *messages.FromFediAPI) 
 			return gtserror.Newf("error federating pre-approval of reply: %w", err)
 		}
 
-		// Don't return, just continue
-		// side effects as normal.
-	}
-
-	if err := p.surfacer.TimelineAndNotifyStatus(ctx, status); err != nil {
-		log.Errorf(ctx, "error timelining and notifying status: %v", err)
+		// Timeline and notify the status, since the missing ApprovedByURI during
+		// status dereferencer stage will cause it to skip typical surfacing logic.
+		if err := p.surfacer.TimelineAndNotifyStatus(ctx, status); err != nil {
+			log.Errorf(ctx, "error timelining and notifying status: %v", err)
+		}
 	}
 
 	return nil
@@ -411,10 +408,6 @@ func (p *fediAPI) createStatusFromRelay(ctx context.Context, fMsg *messages.From
 		fMsg.Receiving,  // Our instance account.
 		fMsg.Requesting, // Relaying account.
 		fMsg.APIRI,      // Relayed status ID/URI.
-		// Pass callback to insert
-		// other statuses in thread
-		// into timelines (as appropriate).
-		p.surfacer.TimelineAndNotifyStatus,
 	)
 
 	uriStr := fMsg.APIRI.String()
@@ -451,12 +444,6 @@ func (p *fediAPI) createStatusFromRelay(ctx context.Context, fMsg *messages.From
 		return nil
 	}
 
-	// Status was in the db already or was
-	// inserted into the db, do side effects.
-	if err := p.surfacer.TimelineAndNotifyStatus(ctx, status); err != nil {
-		l.Errorf("error timelining and notifying status: %v", err)
-	}
-
 	return nil
 }
 
@@ -482,12 +469,7 @@ func (p *fediAPI) CreateReplyRequest(ctx context.Context, fMsg *messages.FromFed
 
 		// Force refresh
 		// within 5min window.
-		dereferencing.Fresh,
-
-		// Don't pass callback;
-		// we're only interested
-		// in enriching the reply.
-		nil,
+		&dereferencing.Fresh,
 	)
 
 	switch {
@@ -570,7 +552,8 @@ func (p *fediAPI) CreateReplyRequest(ctx context.Context, fMsg *messages.FromFed
 		log.Errorf(ctx, "error federating accept: %v", err)
 	}
 
-	// Timeline the reply + notify recipient(s).
+	// Timeline and notify the status, since the missing ApprovedByURI during
+	// status dereferencer stage will cause it to skip typical surfacing logic.
 	if err := p.surfacer.TimelineAndNotifyStatus(ctx, reply); err != nil {
 		log.Errorf(ctx, "error timelining and notifying status: %v", err)
 	}
@@ -988,18 +971,9 @@ func (p *fediAPI) CreateAnnounce(ctx context.Context, fMsg *messages.FromFediAPI
 	// Note: this will handle storing the boost in
 	// the db, and dereferencing the target status
 	// ancestors / descendants where appropriate.
-	var (
-		targetIsNew bool
-		err         error
-	)
-	boost, targetIsNew, err = p.federate.EnrichAnnounce(
-		ctx,
+	boost, err := p.federate.EnrichAnnounce(ctx,
 		boost,
 		fMsg.Receiving.Username,
-		// Pass callback to insert
-		// other statuses in thread
-		// into timelines (as appropriate).
-		p.surfacer.TimelineAndNotifyStatus,
 	)
 	if err != nil {
 		if gtserror.IsUnretrievable(err) ||
@@ -1090,31 +1064,11 @@ func (p *fediAPI) CreateAnnounce(ctx context.Context, fMsg *messages.FromFediAPI
 			return gtserror.Newf("error federating pre-approval of boost: %w", err)
 		}
 
-		// Don't return, just continue
-		// side effects as normal.
-	}
-
-	// Timeline the target of the announce (if appropriate).
-	//
-	// This is done to avoid cases where we follow both the announcer
-	// of a status and the original creator of that status, and we
-	// receive the Announce of a status *before* we receive the Create
-	// of that status (say because the creator has a big queue of
-	// followers to deliver to, and someone gets it before us and
-	// boosts it to us), and we end up not timelining the original
-	// status, or notifying it, etc.
-	if targetIsNew {
-		if err := p.surfacer.TimelineAndNotifyStatus(ctx, boost.BoostOf); err != nil {
-			log.Errorf(ctx, "error timelining and notifying boosted status: %v", err)
+		// Timeline and notify the status, since the missing ApprovedByURI during
+		// status dereferencer stage will cause it to skip typical surfacing logic.
+		if err := p.surfacer.TimelineAndNotifyStatus(ctx, boost); err != nil {
+			log.Errorf(ctx, "error timelining and notifying status: %v", err)
 		}
-	}
-
-	// Timeline and notify the announce itself.
-	//
-	// This is specifically done *after* timelining the original
-	// status, so that boost depth can be taken into account.
-	if err := p.surfacer.TimelineAndNotifyStatus(ctx, boost); err != nil {
-		log.Errorf(ctx, "error timelining and notifying boost: %v", err)
 	}
 
 	if err := p.surfacer.NotifyAnnounce(ctx, boost); err != nil {
@@ -1140,10 +1094,6 @@ func (p *fediAPI) createAnnounceFromRelay(ctx context.Context, fMsg *messages.Fr
 		fMsg.Receiving,  // Our instance account.
 		fMsg.Requesting, // Relaying account.
 		boost,           // Boost wrapper status.
-		// Pass callback to insert
-		// other statuses in thread
-		// into timelines (as appropriate).
-		p.surfacer.TimelineAndNotifyStatus,
 	)
 
 	uriStr := boost.BoostOfURIStr
@@ -1180,12 +1130,6 @@ func (p *fediAPI) createAnnounceFromRelay(ctx context.Context, fMsg *messages.Fr
 		return nil
 	}
 
-	// Status was in the db already or was
-	// inserted into the db, do side effects.
-	if err := p.surfacer.TimelineAndNotifyStatus(ctx, status); err != nil {
-		l.Errorf("error timelining and notifying status: %v", err)
-	}
-
 	return nil
 }
 
@@ -1200,14 +1144,9 @@ func (p *fediAPI) CreateAnnounceRequest(ctx context.Context, fMsg *messages.From
 	//
 	// We can check permissions for the announce *and*
 	// put it in the db (if acceptable) by doing Enrich.
-	boost, targetIsNew, err := p.federate.EnrichAnnounce(
-		ctx,
+	boost, err := p.federate.EnrichAnnounce(ctx,
 		req.Announce,
 		fMsg.Receiving.Username,
-		// Don't pass callback;
-		// we're only interested
-		// in enriching the announce.
-		nil,
 	)
 
 	switch {
@@ -1225,7 +1164,7 @@ func (p *fediAPI) CreateAnnounceRequest(ctx context.Context, fMsg *messages.From
 		return nil
 
 	default:
-		// There's some real error.
+		// There's a real error.
 		return gtserror.Newf(
 			"error processing AnnounceRequest with instrument %s: %w",
 			req.Announce.URI, err,
@@ -1283,24 +1222,10 @@ func (p *fediAPI) CreateAnnounceRequest(ctx context.Context, fMsg *messages.From
 		log.Errorf(ctx, "error federating accept: %v", err)
 	}
 
-	// Timeline the target of the announce (if appropriate).
-	//
-	// This is done to avoid cases where we follow both the announcer
-	// of a status and the original creator of that status, and we
-	// receive the Announce of a status *before* we receive the Create
-	// of that status (say because the creator has a big queue of
-	// followers to deliver to, and someone gets it before us and
-	// boosts it to us), and we end up not timelining the original
-	// status, or notifying it, etc.
-	if targetIsNew {
-		if err := p.surfacer.TimelineAndNotifyStatus(ctx, boost.BoostOf); err != nil {
-			log.Errorf(ctx, "error timelining and notifying boosted status: %v", err)
-		}
-	}
-
-	// Timeline the boost + notify recipient(s).
+	// Timeline and notify the boost, since the missing ApprovedByURI during
+	// status dereferencer stage will cause it to skip typical surfacing logic.
 	if err := p.surfacer.TimelineAndNotifyStatus(ctx, boost); err != nil {
-		log.Errorf(ctx, "error timelining and notifying boost: %v", err)
+		log.Errorf(ctx, "error timelining and notifying status: %v", err)
 	}
 
 	return nil
@@ -1398,12 +1323,12 @@ func (p *fediAPI) UpdateAccount(ctx context.Context, fMsg *messages.FromFediAPI)
 		account,
 		apubAcc,
 
-		// Force refresh within 5s window.
+		// Force refresh.
 		//
 		// Missing account updates could be
 		// detrimental to federation if they
 		// include public key changes.
-		dereferencing.Freshest,
+		&dereferencing.Freshest,
 	)
 	if err != nil {
 		log.Errorf(ctx, "error refreshing account: %v", err)
@@ -1467,23 +1392,14 @@ func (p *fediAPI) AcceptRemoteStatus(ctx context.Context, fMsg *messages.FromFed
 	//
 	// This will also check whether the given approvedByURI
 	// actually grants permission for this status.
-	reply, _, err := p.federate.RefreshStatus(ctx,
+	_, _, err := p.federate.RefreshStatus(ctx,
 		fMsg.Receiving.Username,
 		bareStatus,
-		nil, nil,
-		// Pass callback to insert
-		// other statuses in thread
-		// into timelines (as appropriate).
-		p.surfacer.TimelineAndNotifyStatus,
+		nil,
+		nil,
 	)
 	if err != nil {
 		return gtserror.Newf("error processing accepted status %s: %w", bareStatus.URI, err)
-	}
-
-	// No error means it was indeed a remote status, and the
-	// given approvedByURI permitted it. Timeline and notify it.
-	if err := p.surfacer.TimelineAndNotifyStatus(ctx, reply); err != nil {
-		log.Errorf(ctx, "error timelining and notifying status: %v", err)
 	}
 
 	return nil
@@ -1565,28 +1481,19 @@ func (p *fediAPI) UpdateStatus(ctx context.Context, fMsg *messages.FromFediAPI) 
 		// If an AP object was provided, we
 		// allow very fast refreshes that likely
 		// indicate a status edit after post.
-		freshness = dereferencing.Freshest
+		freshness = &dereferencing.Freshest
 	}
 
-	// Fetch up-to-date attach status attachments, etc.
-	status, _, err := p.federate.RefreshStatus(
-		ctx,
+	// Fetch up-to-date attach status attachments.
+	// NOTE: dereferencer hook handles surfacing.
+	_, _, err := p.federate.RefreshStatus(ctx,
 		fMsg.Receiving.Username,
 		existing,
 		apStatus,
 		freshness,
-		// Pass callback to insert
-		// other statuses in thread
-		// into timelines (as appropriate).
-		p.surfacer.TimelineAndNotifyStatus,
 	)
 	if err != nil {
 		log.Errorf(ctx, "error refreshing status: %v", err)
-	}
-
-	// Stream and notify relevant local users that the status has been edited.
-	if err := p.surfacer.TimelineAndNotifyStatusUpdate(ctx, status); err != nil {
-		log.Errorf(ctx, "error streaming status edit: %v", err)
 	}
 
 	return nil

@@ -867,8 +867,8 @@ func (f *DB) acceptPoliteReplyRequest(
 	partial.intReq.AcceptedAt = time.Now()
 	partial.intReq.AuthorizationURI = authURIStr
 	partial.intReq.ResponseURI = acceptID.String()
-	if err := f.state.DB.UpdateInteractionRequest(
-		ctx, partial.intReq,
+	if err := f.state.DB.UpdateInteractionRequest(ctx,
+		partial.intReq,
 		"accepted_at",
 		"authorization_uri",
 		"response_uri",
@@ -878,8 +878,8 @@ func (f *DB) acceptPoliteReplyRequest(
 
 	reply.ApprovedByURI = authURIStr
 	reply.Flags.SetPendingApproval(false)
-	if err := f.state.DB.UpdateStatus(
-		ctx, reply,
+	if err := f.state.DB.UpdateStatus(ctx,
+		reply,
 		"approved_by_uri",
 		"flags",
 	); err != nil {

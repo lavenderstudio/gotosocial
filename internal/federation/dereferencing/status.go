@@ -38,28 +38,26 @@ import (
 // first checking the database. In the case of a newly-met
 // remote model, or a remote model whose 'last_fetched' date
 // is beyond a certain interval, the status will be dereferenced.
+// Upon dereferencing the status model, (and any subsequent models
+// discovered during thread iteration), will be passed to the
+// OnStatusDereference() hook to handle timelining, streaming and
+// notification events. THOUGH DO NOTE THAT THIS WILL BE SKIPPED
+// IF THE STATUS IS STILL PENDING APPROVAL.
 //
 // A returned AP statusable indicates the status was dereferenced.
-// The returned bool indicates whether the status was new (to us).
 //
-// In the case of dereferencing, some low-priority status info
-// will be enqueued for asynchronous fetching, e.g. dereferencing
-// the status thread.
-//
-// If newThreadEntryCallback is set, it will be called for each
-// newly-discovered status in the thread other than the requested
-// status itself.
+// In the case of dereferencing, some low-priority status info will be
+// enqueued for asynchronous fetching, e.g. dereferencing status thread.
 func (d *Dereferencer) GetStatusByURI(
 	ctx context.Context,
 	requestUser string,
 	uri *url.URL,
-	newThreadEntryCallback func(context.Context, *gtsmodel.Status) error,
 ) (
 	status *gtsmodel.Status,
 	statusable ap.Statusable,
-	isNew bool,
 	err error,
 ) {
+	var isNew bool
 
 	// Fetch and dereference / update status if necessary.
 	status, statusable, isNew, err = d.getStatusByURI(ctx,
@@ -71,7 +69,7 @@ func (d *Dereferencer) GetStatusByURI(
 		if status == nil {
 			// err with no existing
 			// status for fallback.
-			return nil, nil, false, err
+			return nil, nil, err
 		}
 
 		log.Errorf(ctx, "error updating status %s: %v", uri, err)
@@ -85,11 +83,10 @@ func (d *Dereferencer) GetStatusByURI(
 			status,
 			statusable,
 			isNew,
-			newThreadEntryCallback,
 		)
 	}
 
-	return status, statusable, isNew, nil
+	return status, statusable, nil
 }
 
 // RefreshStatus is functionally equivalent to GetStatusByURI(),
@@ -98,17 +95,12 @@ func (d *Dereferencer) GetStatusByURI(
 //
 // A returned AP statusable indicates the status was dereferenced.
 // The returned bool indicates whether the status was new (to us).
-//
-// If newThreadEntryCallback is set, it will be called for each
-// newly-discovered status in the thread other than the requested
-// status itself.
 func (d *Dereferencer) RefreshStatus(
 	ctx context.Context,
 	requestUser string,
 	status *gtsmodel.Status,
 	statusable ap.Statusable,
 	window *FreshnessWindow,
-	newThreadEntryCallback func(context.Context, *gtsmodel.Status) error,
 ) (
 	latest *gtsmodel.Status,
 	latestStatusable ap.Statusable,
@@ -127,9 +119,9 @@ func (d *Dereferencer) RefreshStatus(
 		return nil, nil, gtserror.Newf("invalid status uri %q: %w", status.URI, err)
 	}
 
-	// Try to update + dereference
-	// the passed status model.
 	var isNew bool
+
+	// Try to update and dereference the passed status model.
 	latest, latestStatusable, isNew, err = d.enrichAndStoreStatusSafely(ctx,
 		requestUser,
 		uri,
@@ -145,11 +137,64 @@ func (d *Dereferencer) RefreshStatus(
 			latest,
 			latestStatusable,
 			isNew,
-			newThreadEntryCallback,
 		)
 	}
 
 	return latest, latestStatusable, err
+}
+
+// RefreshStatusAsync is functionally equivalent to callling RefreshStatus()
+// yourself within a dereferencer worker function, except that it performs an
+// optimized hand-off operation by performing freshness and validity checks
+// synchronously beforehand. This prevents handing spurious tasks to the worker.
+func (d *Dereferencer) RefreshStatusAsync(
+	ctx context.Context,
+	requestUser string,
+	status *gtsmodel.Status,
+	statusable ap.Statusable,
+	window *FreshnessWindow,
+) {
+	// If no incoming data is provided,
+	// check whether status needs update.
+	if statusable == nil &&
+		statusFresh(status, window) {
+		return
+	}
+
+	// Parse the URI from status.
+	uri, err := url.Parse(status.URI)
+	if err != nil {
+		log.Errorf(ctx, "invalid status uri %q: %v", status.URI, err)
+		return
+	}
+
+	// Enqueue a worker function to enrich this status model async.
+	d.state.Workers.Dereference.Queue.Push(func(ctx context.Context) {
+		var isNew bool
+
+		// Try to update and dereference the passed status model.
+		latest, statusable, isNew, err := d.enrichAndStoreStatusSafely(ctx,
+			requestUser,
+			uri,
+			status,
+			statusable,
+		)
+		if err != nil {
+			log.Errorf(ctx, "error enriching remote status: %v", err)
+			return
+		}
+
+		if statusable != nil {
+			// Deref parents + children.
+			d.dereferenceThread(ctx,
+				requestUser,
+				uri,
+				latest,
+				statusable,
+				isNew,
+			)
+		}
+	})
 }
 
 /*
@@ -179,7 +224,7 @@ func statusFresh(
 	if window == nil {
 		// If no window given, fallback
 		// to default status freshness.
-		window = DefaultStatusFreshness
+		window = &DefaultStatusFreshness
 	}
 
 	// Moment when the status is
@@ -227,7 +272,7 @@ func (d *Dereferencer) getStatusByURI(
 			&gtsmodel.Status{URI: uriStr}, nil)
 	}
 
-	if statusFresh(status, DefaultStatusFreshness) {
+	if statusFresh(status, &DefaultStatusFreshness) {
 		// This is an existing status that is up-to-date,
 		// before returning ensure it is fully populated.
 		if err := d.state.DB.PopulateStatus(ctx, status); err != nil {
@@ -257,7 +302,12 @@ func (d *Dereferencer) enrichAndStoreStatusSafely(
 	uri *url.URL,
 	status *gtsmodel.Status,
 	statusable ap.Statusable,
-) (*gtsmodel.Status, ap.Statusable, bool, error) {
+) (
+	*gtsmodel.Status,
+	ap.Statusable,
+	bool,
+	error,
+) {
 	uriStr := status.URI
 
 	// Acquire per-URI deref lock, wraping unlock
@@ -268,6 +318,8 @@ func (d *Dereferencer) enrichAndStoreStatusSafely(
 	defer unlock()
 
 	if status.ID != "" {
+		var err error
+
 		// If ID was set it means we've stored this status before.
 		//
 		// We reload the existing status, just to ensure we have the
@@ -275,7 +327,6 @@ func (d *Dereferencer) enrichAndStoreStatusSafely(
 		// just input a change but we still have an old status copy.
 		//
 		// Note: returned status will be fully populated, required below.
-		var err error
 		status, err = d.state.DB.GetStatusByID(ctx, status.ID)
 		if err != nil {
 			return nil, nil, false, gtserror.Newf("error getting up-to-date existing status: %w", err)
@@ -333,7 +384,12 @@ func (d *Dereferencer) enrichAndStoreStatusSafely(
 	// we're done.
 	unlock()
 
-	if errors.Is(err, db.ErrAlreadyExists) {
+	switch {
+	case err == nil:
+		// Pass status to its dereferencer hook.
+		d.onStatusDereference(ctx, latest, isNew)
+
+	case errors.Is(err, db.ErrAlreadyExists):
 		// We leave 'isNew' set so that caller
 		// still dereferences parents, otherwise
 		// the version we pass back may not have
@@ -455,7 +511,7 @@ func (d *Dereferencer) enrichAndStoreStatus(
 	//
 	// If a remote has in the meantime retracted its approval,
 	// the next call to 'isPermittedStatus' will catch that.
-	if latestStatus.ApprovedByURI == "" && status.ApprovedByURI != "" {
+	if latestStatus.ApprovedByURI == "" {
 		latestStatus.ApprovedByURI = status.ApprovedByURI
 	}
 

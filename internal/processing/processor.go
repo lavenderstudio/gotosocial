@@ -227,7 +227,7 @@ func NewProcessor(
 		parseMentionFunc: parseMentionFunc,
 	}
 
-	// Instantiate sub processors used by other sub-processors.
+	// Instantiate common sub-processors used by others.
 	processor.stream = stream.New(state, oauthServer)
 	processor.conversations = conversations.New(state, converter, visFilter, muteFilter, statusFilter)
 	surfacer := surfacing.New(state, converter, federator, &processor.stream, visFilter, muteFilter, statusFilter, emailSender, webPushSender, &processor.conversations)

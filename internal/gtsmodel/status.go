@@ -110,8 +110,12 @@ type Status struct {
 	// IDs of status edits for this status, ordered from
 	// smallest (oldest) -> largest (newest) ID. Edits of
 	// this status, ordered from oldest -> newest edit.
+	//
+	// Edited in particular is an ephemeral field
+	// only set on statuses that were just edited.
 	EditIDs []string      `bun:"edits,array"`
 	Edits   []*StatusEdit `bun:"-"`
+	Edited  bool          `bun:"-"`
 
 	// ID of the poll attached to this status,
 	// and the Poll that corresponds to pollID.

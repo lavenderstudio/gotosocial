@@ -342,7 +342,7 @@ func (p *fediAPI) MoveAccount(ctx context.Context, fMsg *messages.FromFediAPI) e
 			fMsg.Receiving.Username,
 			targetAcct,
 			targetAcctable,
-			dereferencing.Freshest,
+			&dereferencing.Freshest,
 		)
 		if err != nil {
 			return gtserror.Newf(

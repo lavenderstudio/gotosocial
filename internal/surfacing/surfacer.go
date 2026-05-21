@@ -18,11 +18,15 @@
 package surfacing
 
 import (
+	"context"
+
 	"code.superseriousbusiness.org/gotosocial/internal/email"
 	"code.superseriousbusiness.org/gotosocial/internal/federation"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/mutes"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/status"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
+	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
+	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/conversations"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/stream"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
@@ -63,7 +67,7 @@ func New(
 	webPushSender webpush.Sender,
 	conversations *conversations.Processor,
 ) *Surfacer {
-	return &Surfacer{
+	s := &Surfacer{
 		state:         state,
 		converter:     converter,
 		federator:     federator,
@@ -75,4 +79,47 @@ func New(
 		webPushSender: webPushSender,
 		conversations: conversations,
 	}
+
+	// Status status dereferencer hook using surfacer.
+	federator.Dereferencer.OnStatusDereference = func(ctx context.Context, status *gtsmodel.Status, isNew bool) error {
+		if status.Flags.PendingApproval() {
+			// Status hasn't yet been
+			// approved, it needs further
+			// processing elsewhere.
+			return nil
+		}
+
+		if isNew {
+			return s.TimelineAndNotifyStatus(ctx, status)
+		} else { //nolint
+			return s.TimelineAndNotifyStatusUpdate(ctx, status)
+		}
+	}
+
+	// Set media dereferencer hook using surfacer.
+	federator.Dereferencer.OnMediaDereference = func(ctx context.Context, media *gtsmodel.MediaAttachment) error {
+		if media.StatusID == "" {
+			// we only handle this
+			// for statuses for now.
+			return nil
+		}
+
+		// Get the original status model that media is attached to.
+		status, err := state.DB.GetStatusByID(ctx, media.StatusID)
+		if err != nil {
+			return gtserror.Newf("db error getting status: %w", err)
+		}
+
+		if status.Flags.PendingApproval() {
+			// Status hasn't yet been
+			// approved, it needs further
+			// processing elsewhere.
+			return nil
+		}
+
+		// Stream a status update event with updated media.
+		return s.TimelineAndNotifyStatusUpdate(ctx, status)
+	}
+
+	return s
 }

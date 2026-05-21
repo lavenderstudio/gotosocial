@@ -34,18 +34,17 @@ import (
 // The wrapper is then returned to the caller.
 //
 // The provided boost wrapper status must have BoostOfURI set.
-//
-// The returned boolean indicates whether the target of the boost
-// is new (to us), ie., it has not been dereferenced or seen before.
 func (d *Dereferencer) EnrichAnnounce(
 	ctx context.Context,
 	boost *gtsmodel.Status,
 	requestUser string,
-	newThreadEntryCallback func(context.Context, *gtsmodel.Status) error,
-) (*gtsmodel.Status, bool, error) {
+) (
+	*gtsmodel.Status,
+	error,
+) {
 	if boost.BoostOfURIStr == "" {
 		// We can't do anything.
-		return nil, false, gtserror.Newf("no URI to dereference")
+		return nil, gtserror.Newf("no URI to dereference")
 	}
 
 	// Take relevant URIs.
@@ -56,20 +55,15 @@ func (d *Dereferencer) EnrichAnnounce(
 	//
 	// GetStatusByURI accounts for domain blocks and local
 	// statuses, and also updates targetURI in case of redirects.
-	target, _, targetIsNew, err := d.GetStatusByURI(
-		ctx,
-		requestUser,
-		targetURI,
-		newThreadEntryCallback,
-	)
+	target, _, err := d.GetStatusByURI(ctx, requestUser, targetURI)
 	if err != nil {
-		return nil, false, gtserror.Newf("error fetching boost target %s: %w", targetURIStr, err)
+		return nil, gtserror.Newf("error fetching boost target %s: %w", targetURIStr, err)
 	}
 
 	if target.BoostOfID != "" {
 		// Ensure that the target is not a boost (should not be possible).
 		err := gtserror.Newf("target status %s is a boost", targetURIStr)
-		return nil, false, err
+		return nil, err
 	}
 
 	// Set boost of URIs again in case the
@@ -92,15 +86,16 @@ func (d *Dereferencer) EnrichAnnounce(
 	boost.Flags.SetFederated(target.Flags.Federated())
 
 	// Ensure this Announce is permitted by the Announcee.
-	permit, err := d.isPermittedStatus(ctx, requestUser, nil, boost, true)
+	permit, err := d.isPermittedStatus(ctx, requestUser,
+		nil, boost, true)
 	if err != nil {
-		return nil, false, gtserror.Newf("error checking permitted status %s: %w", boost.URI, err)
+		return nil, gtserror.Newf("error checking permitted status %s: %w", boost.URI, err)
 	}
 
 	if !permit {
 		// Return a checkable error type that can be ignored.
 		err := gtserror.Newf("dropping unpermitted status: %s", boost.URI)
-		return nil, false, gtserror.SetNotPermitted(err)
+		return nil, gtserror.SetNotPermitted(err)
 	}
 
 	// Generate an ID for the boost wrapper status.
@@ -118,15 +113,18 @@ func (d *Dereferencer) EnrichAnnounce(
 		// in a call to db.Put(Status). Look again in DB by URI.
 		boost, err = d.state.DB.GetStatusByURI(ctx, uri)
 		if err != nil {
-			return nil, false, gtserror.Newf(
+			return nil, gtserror.Newf(
 				"error getting boost wrapper status %s from database after race: %w",
 				uri, err,
 			)
 		}
 
 	default: // Proper database error.
-		return nil, false, gtserror.Newf("db error inserting status: %w", err)
+		return nil, gtserror.Newf("db error inserting status: %w", err)
 	}
 
-	return boost, targetIsNew, err
+	// Pass status to its dereferencer hook.
+	d.onStatusDereference(ctx, boost, true)
+
+	return boost, err
 }

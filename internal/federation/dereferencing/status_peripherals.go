@@ -171,14 +171,11 @@ func (d *Dereferencer) fetchStatusMentions(
 	status.MentionIDs = make([]string, len(status.Mentions))
 
 	for i := range status.Mentions {
-		var (
-			mention       = status.Mentions[i]
-			alreadyExists bool
-		)
+		mention := status.Mentions[i]
 
 		// Search existing status + db for a mention already stored,
 		// else ensure new mention's target account is populated.
-		mention, alreadyExists, err = d.newOrExistingMention(ctx,
+		mention, alreadyExists, err := d.newOrExistingMention(ctx,
 			requestUser,
 			existing,
 			mention,
@@ -728,6 +725,10 @@ func (d *Dereferencer) handleStatusEdit(
 
 		// Add edit to list of cols.
 		cols = append(cols, "edits")
+
+		// Mark the status as edited for
+		// appropriate handling in hooks.
+		status.Edited = true
 	}
 
 	if !existing.EditedAt.Equal(status.EditedAt) {

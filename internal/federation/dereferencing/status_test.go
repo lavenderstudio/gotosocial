@@ -43,7 +43,7 @@ func (suite *StatusTestSuite) TestDereferenceSimpleStatus() {
 	fetchingAccount := suite.testAccounts["local_account_1"]
 
 	statusURL := testrig.URLMustParse("https://unknown-instance.com/users/brand_new_person/statuses/01FE4NTHKWW7THT67EF10EB839")
-	status, _, _, err := suite.dereferencer.GetStatusByURI(suite.T().Context(), fetchingAccount.Username, statusURL, nil)
+	status, _, err := suite.dereferencer.GetStatusByURI(suite.T().Context(), fetchingAccount.Username, statusURL)
 	suite.NoError(err)
 	suite.NotNil(status)
 
@@ -81,7 +81,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithMention() {
 	fetchingAccount := suite.testAccounts["local_account_1"]
 
 	statusURL := testrig.URLMustParse("https://unknown-instance.com/users/brand_new_person/statuses/01FE5Y30E3W4P7TRE0R98KAYQV")
-	status, _, _, err := suite.dereferencer.GetStatusByURI(suite.T().Context(), fetchingAccount.Username, statusURL, nil)
+	status, _, err := suite.dereferencer.GetStatusByURI(suite.T().Context(), fetchingAccount.Username, statusURL)
 	suite.NoError(err)
 	suite.NotNil(status)
 
@@ -130,7 +130,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithTag() {
 	fetchingAccount := suite.testAccounts["local_account_1"]
 
 	statusURL := testrig.URLMustParse("https://unknown-instance.com/users/brand_new_person/statuses/01H641QSRS3TCXSVC10X4GPKW7")
-	status, _, _, err := suite.dereferencer.GetStatusByURI(suite.T().Context(), fetchingAccount.Username, statusURL, nil)
+	status, _, err := suite.dereferencer.GetStatusByURI(suite.T().Context(), fetchingAccount.Username, statusURL)
 	suite.NoError(err)
 	suite.NotNil(status)
 
@@ -178,7 +178,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithImageAndNoContent() {
 	fetchingAccount := suite.testAccounts["local_account_1"]
 
 	statusURL := testrig.URLMustParse("https://turnip.farm/users/turniplover6969/statuses/70c53e54-3146-42d5-a630-83c8b6c7c042")
-	status, _, _, err := suite.dereferencer.GetStatusByURI(suite.T().Context(), fetchingAccount.Username, statusURL, nil)
+	status, _, err := suite.dereferencer.GetStatusByURI(suite.T().Context(), fetchingAccount.Username, statusURL)
 	suite.NoError(err)
 	suite.NotNil(status)
 
@@ -231,11 +231,10 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithNonMatchingURI() {
 	suite.client.TestRemoteStatuses[remoteAltURI] = remoteStatus
 
 	// Attempt to fetch account at alternative URI, it should fail!
-	fetchedStatus, _, _, err := suite.dereferencer.GetStatusByURI(
+	fetchedStatus, _, err := suite.dereferencer.GetStatusByURI(
 		suite.T().Context(),
 		fetchingAccount.Username,
 		testrig.URLMustParse(remoteAltURI),
-		nil,
 	)
 	expectErrStr := fmt.Sprintf(
 		"retrieveStatusable: http URI %s does not match dereferenced statusable id or url(s) [%s %s]",
@@ -257,10 +256,9 @@ func (suite *StatusTestSuite) TestDereferencerRefreshStatusUpdated() {
 	testStatusable := suite.client.TestRemoteStatuses[testURIStr]
 
 	// Fetch the remote status first to load it into instance.
-	testStatus, statusable, _, err := suite.dereferencer.GetStatusByURI(ctx,
+	testStatus, statusable, err := suite.dereferencer.GetStatusByURI(ctx,
 		fetchingAccount.Username,
 		testURI,
-		nil,
 	)
 	suite.NotNil(statusable)
 	suite.NoError(err)
@@ -309,7 +307,6 @@ func (suite *StatusTestSuite) TestDereferencerRefreshStatusUpdated() {
 			testStatus,
 			nil, // NOTE: can provide testStatusable here to test as being received (not deref'd)
 			instantFreshness,
-			nil,
 		)
 		suite.NotNil(statusable)
 		suite.NoError(err)
@@ -364,10 +361,9 @@ func (suite *StatusTestSuite) TestDereferencerRefreshStatusRace() {
 	testStatusable := suite.client.TestRemoteStatuses[testURIStr]
 
 	// Fetch the remote status first to load it into instance.
-	testStatus, statusable, _, err := suite.dereferencer.GetStatusByURI(ctx,
+	testStatus, statusable, err := suite.dereferencer.GetStatusByURI(ctx,
 		fetchingAccount.Username,
 		testURI,
-		nil,
 	)
 	suite.NotNil(statusable)
 	suite.NoError(err)
@@ -394,7 +390,6 @@ func (suite *StatusTestSuite) TestDereferencerRefreshStatusRace() {
 		testStatus,
 		testStatusable,
 		instantFreshness,
-		nil,
 	)
 	suite.NotNil(statusable)
 	suite.NoError(err)
@@ -444,7 +439,6 @@ func (suite *StatusTestSuite) TestDereferencerRefreshStatusRace() {
 		beforeEdit,
 		testStatusable,
 		instantFreshness,
-		nil,
 	)
 	suite.NotNil(statusable)
 	suite.NoError(err)

@@ -169,43 +169,45 @@ func (s *Surfacer) TimelineAndNotifyStatusUpdate(ctx context.Context, status *gt
 	// event. ONLY set if an edit was received AND we
 	// successfully populated them from the database.
 	var notifyAccount func(*gtsmodel.Account)
+	if status.Edited {
 
-	// Ensure edits are fully populated for this status before anything.
-	if err := s.state.DB.PopulateStatusEdits(ctx, status); err != nil {
+		// Ensure edits are fully populated for this status before anything.
+		if err := s.state.DB.PopulateStatusEdits(ctx, status); err != nil {
 
-		// we can still continue from here, just without
-		// notifying local followers for it below here.
-		log.Error(ctx, "error populating updated status edits: %v")
+			// we can still continue from here, just without
+			// notifying local followers for it below here.
+			log.Error(ctx, "error populating updated status edits: %v")
 
-	} else if len(status.Edits) > 0 {
-		// Track accounts we've already notified this
-		// status for, as we can notify for both those
-		// having interacted with status, AND those
-		// that follow account with 'notify' flag set.
-		notified := make(map[string]struct{})
+		} else if len(status.Edits) > 0 {
+			// Track accounts we've already notified this
+			// status for, as we can notify for both those
+			// having interacted with status, AND those
+			// that follow account with 'notify' flag set.
+			notified := make(map[string]struct{})
 
-		// Don't ever notify the status author.
-		notified[status.AccountID] = struct{}{}
+			// Don't ever notify the status author.
+			notified[status.AccountID] = struct{}{}
 
-		// Get latest edit and notify for passed account.
-		latestEdit := status.Edits[len(status.Edits)-1]
-		notifyAccount = func(account *gtsmodel.Account) {
-			if _, ok := notified[account.ID]; ok {
-				return
-			}
+			// Get latest edit and notify for passed account.
+			latestEdit := status.Edits[len(status.Edits)-1]
+			notifyAccount = func(account *gtsmodel.Account) {
+				if _, ok := notified[account.ID]; ok {
+					return
+				}
 
-			// Mark account has already notified.
-			notified[account.ID] = struct{}{}
+				// Mark account has already notified.
+				notified[account.ID] = struct{}{}
 
-			// Send notif for account.
-			if err := s.Notify(ctx,
-				gtsmodel.NotificationUpdate,
-				account,
-				status.Account,
-				status,
-				latestEdit,
-			); err != nil {
-				log.Errorf(ctx, "error notifying edit for account %s: %v", account.URI, err)
+				// Send notif for account.
+				if err := s.Notify(ctx,
+					gtsmodel.NotificationUpdate,
+					account,
+					status.Account,
+					status,
+					latestEdit,
+				); err != nil {
+					log.Errorf(ctx, "error notifying edit for account %s: %v", account.URI, err)
+				}
 			}
 		}
 	}
@@ -252,6 +254,13 @@ func (s *Surfacer) TimelineAndNotifyStatusUpdate(ctx context.Context, status *gt
 		// account function
 		notifyAccount,
 	)
+
+	// If the status wasn't edited,
+	// it was just refreshed, we have
+	// nothing more to be done here.
+	if !status.Edited {
+		return nil
+	}
 
 	// Notify any *new* mentions added by editor.
 	for _, mention := range status.Mentions {

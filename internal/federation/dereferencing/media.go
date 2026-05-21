@@ -333,10 +333,13 @@ func (d *Dereferencer) processMediaSafely(
 			}
 
 			// Perform media load operation.
-			_, err = processing.Load(ctx)
+			attach, err = processing.Load(ctx)
 			if err != nil {
 				log.Errorf(ctx, "error loading media %s: %v", remoteURL, err)
 			}
+
+			// Pass to its dereferencer hook.
+			d.onMediaDereference(ctx, attach)
 		})
 	} else {
 		if !existing {
@@ -359,6 +362,9 @@ func (d *Dereferencer) processMediaSafely(
 			// which can determine if loading error should allow remaining placeholder.
 			err = gtserror.Newf("error loading media %s: %w", remoteURL, err)
 		}
+
+		// Pass to its dereferencer hook.
+		d.onMediaDereference(ctx, attach)
 	}
 
 	return

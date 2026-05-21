@@ -334,6 +334,11 @@ func (p *Processor) Edit(
 		status.Poll = nil
 	}
 
+	// Set ephemeral edited flag
+	// so appropriate surfacing
+	// logic is followed for edit.
+	status.Edited = true
+
 	// Finally update the existing status model in the database.
 	if err := p.state.DB.UpdateStatus(ctx, status, cols...); err != nil {
 		err := gtserror.Newf("error updating status in db: %w", err)

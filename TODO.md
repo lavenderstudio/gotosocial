@@ -13,6 +13,7 @@ things noted down by the maintainers that could do with being done!
 - [performance] add multi-delete queries for mentions, statuses (+boosts), etc
 
 ## miscellaneous
+- [chore] move dereferencer hooks to Ingester{} type that handles calling appropriate hooks for any ingested model
 - [chore] finish code commenting where missing (search for '// (\w+\b)?...')
 - [chore] move away from using Gin, they're all-in on "AI", blegh
 - [chore] deinterface the database somehow (where possible given dependency cycling 😭), have a single DB type so all bundb/*.go can access all other internal funcs

@@ -379,10 +379,13 @@ func (d *Dereferencer) processEmojiSafely(
 			}
 
 			// Perform emoji load operation.
-			_, err = processing.Load(ctx)
+			emoji, err = processing.Load(ctx)
 			if err != nil {
 				log.Errorf(ctx, "error loading emoji %s: %v", shortcodeDomain, err)
 			}
+
+			// Pass to its dereferencer hook.
+			d.onEmojiDereference(ctx, emoji)
 		})
 	} else {
 		if !existing {
@@ -405,6 +408,9 @@ func (d *Dereferencer) processEmojiSafely(
 			// which can determine if loading error should allow remaining placeholder.
 			err = gtserror.Newf("error loading emoji %s: %w", shortcodeDomain, err)
 		}
+
+		// Pass to its dereferencer hook.
+		d.onEmojiDereference(ctx, emoji)
 	}
 
 	return

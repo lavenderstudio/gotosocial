@@ -86,6 +86,7 @@ func (m *Module) Route(attachHandler func(method string, path string, f ...gin.H
 	// create / get / edit / delete status
 	attachHandler(http.MethodPost, BasePath, m.StatusCreatePOSTHandler)
 	attachHandler(http.MethodGet, BasePathWithID, m.StatusGETHandler)
+	attachHandler(http.MethodGet, BasePath, m.StatusesGETHandler)
 	attachHandler(http.MethodPut, BasePathWithID, m.StatusEditPUTHandler)
 	attachHandler(http.MethodDelete, BasePathWithID, m.StatusDELETEHandler)
 

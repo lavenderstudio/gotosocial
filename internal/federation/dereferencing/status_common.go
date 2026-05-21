@@ -39,16 +39,15 @@ func (d *Dereferencer) getStatusDBOnly(
 	ctx context.Context,
 	uriStr string,
 ) (*gtsmodel.Status, error) {
-	// Request a barebones object:
-	// status may be in the db but with
-	// related models not yet dereffed.
-	ctxBb := gtscontext.SetBarebones(ctx)
+	// For both queries request a barebones
+	// object, as it will be later populated
+	// in the enrichAndStoreSafely() function.
+	ctx = gtscontext.SetBarebones(ctx)
 
-	// Search the database for existing by URI.
-	status, err := d.state.DB.GetStatusByURI(ctxBb, uriStr)
+	// Search the database for existing status by URI.
+	status, err := d.state.DB.GetStatusByURI(ctx, uriStr)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
-		err := gtserror.Newf("error checking database for status %s by uri: %w", uriStr, err)
-		return nil, err
+		return nil, gtserror.Newf("error checking database for status %s by uri: %w", uriStr, err)
 	}
 
 	if status != nil {
@@ -57,11 +56,10 @@ func (d *Dereferencer) getStatusDBOnly(
 		return status, nil
 	}
 
-	// Else, search database for existing by URL.
-	status, err = d.state.DB.GetStatusByURL(ctxBb, uriStr)
+	// Else, search database for existing status by URL.
+	status, err = d.state.DB.GetStatusByURL(ctx, uriStr)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
-		err := gtserror.Newf("error checking database for status %s by url: %w", uriStr, err)
-		return nil, err
+		return nil, gtserror.Newf("error checking database for status %s by url: %w", uriStr, err)
 	}
 
 	// Return maybe status.
@@ -155,9 +153,8 @@ func (d *Dereferencer) retrieveStatusable(
 		// There's not a match, so the remote is doing
 		// something weird. Gather URI strings we would
 		// have accepted into nice slice for logging.
-		var okURIStrs []string
-		okURIStrs = xslices.Gather(
-			okURIStrs,
+		okURIStrs := xslices.Gather(
+			nil,
 			okURIs,
 			func(u *url.URL) string {
 				return u.String()

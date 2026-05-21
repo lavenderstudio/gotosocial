@@ -54,10 +54,6 @@ func accountFresh(
 	account *gtsmodel.Account,
 	window *FreshnessWindow,
 ) bool {
-	if window == nil {
-		window = DefaultAccountFreshness
-	}
-
 	if account.IsLocal() {
 		// Can't refresh
 		// local accounts.
@@ -77,12 +73,17 @@ func accountFresh(
 		return true
 	}
 
+	if window == nil {
+		// If no window given, fallback
+		// to default account freshness.
+		window = &DefaultAccountFreshness
+	}
+
 	// Moment when the account is
 	// considered stale according to
 	// desired freshness window.
 	staleAt := account.FetchedAt.Add(
-		time.Duration(*window),
-	)
+		time.Duration(*window))
 
 	// It's still fresh if the time now
 	// is not past the point of staleness.
@@ -143,15 +144,11 @@ func (d *Dereferencer) getAccountByURI(
 	uri *url.URL,
 	tryURL bool,
 ) (*gtsmodel.Account, ap.Accountable, error) {
-	var (
-		account *gtsmodel.Account
-		uriStr  = uri.String()
-		err     error
-	)
+	var uriStr = uri.String()
 
 	// Search the database for existing account with URI.
 	// URI is unique so if we get a hit it's that account for sure.
-	account, err = d.state.DB.GetAccountByURI(
+	account, err := d.state.DB.GetAccountByURI(
 		gtscontext.SetBarebones(ctx),
 		uriStr,
 	)
@@ -459,9 +456,9 @@ func (d *Dereferencer) enrichAccountSafely(
 	// By default use account.URI
 	// as the per-URI deref lock.
 	var uriStr string
-	if account.URI != "" {
-		uriStr = account.URI
-	} else {
+	uriStr = account.URI
+	if uriStr == "" {
+
 		// No URI is set yet, instead generate a faux-one from user+domain.
 		uriStr = "https://" + account.Domain + "/users/" + account.Username
 	}
@@ -506,7 +503,12 @@ func (d *Dereferencer) enrichAccountSafely(
 	// we're done.
 	unlock()
 
-	if errors.Is(err, db.ErrAlreadyExists) {
+	switch {
+	case err == nil:
+		// Pass account to dereferencer hook.
+		d.onAccountDereference(ctx, latest)
+
+	case errors.Is(err, db.ErrAlreadyExists):
 		// Ensure AP model isn't set,
 		// otherwise this indicates WE
 		// enriched the account.

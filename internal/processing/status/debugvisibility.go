@@ -57,10 +57,9 @@ func (p *Processor) DebugVisibilityGet(ctx context.Context, requester *gtsmodel.
 	}
 
 	// Now we know we've been provided a valid URI, try fetch status.
-	status, _, _, err := p.federator.Dereferencer.GetStatusByURI(ctx,
+	status, _, err := p.federator.Dereferencer.GetStatusByURI(ctx,
 		requester.Username,
 		uri,
-		nil,
 	)
 	if err != nil {
 		log.Errorf(ctx, "error fetching status %s: %v", uri, err)

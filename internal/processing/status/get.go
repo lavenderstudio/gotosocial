@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 
+	"code.superseriousbusiness.org/gopkg/xslices"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
@@ -38,6 +39,41 @@ func (p *Processor) Get(ctx context.Context, requester *gtsmodel.Account, status
 		return nil, errWithCode
 	}
 	return p.c.GetAPIStatus(ctx, requester, target)
+}
+
+// GetMultiple gets the given statuses with the same semantics as Get. Missing or invisible statuses are omitted.
+func (p *Processor) GetMultiple(ctx context.Context, requester *gtsmodel.Account, statusIDs []string) ([]apimodel.Status, gtserror.WithCode) {
+
+	// Without auth, just
+	// return equivalent of
+	// 404 not found for all.
+	if requester == nil {
+		return nil, nil
+	}
+
+	// Ensure we've only got unique statuses.
+	statusIDs = xslices.Deduplicate(statusIDs)
+
+	// Fetch the requested statues by IDs from the database.
+	statuses, err := p.state.DB.GetStatusesByIDs(ctx, statusIDs)
+	if err != nil {
+		err := gtserror.Newf("db error getting status(es): %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	// Check for empty return.
+	if len(statuses) == 0 {
+		return nil, nil
+	}
+
+	// Enqueue refresh of all statuses.
+	for _, status := range statuses {
+		p.federator.Dereferencer.RefreshStatusAsync(ctx,
+			requester.Username, status, nil, nil)
+	}
+
+	// Perform visibility checks and return appropriate API models.
+	return p.c.GetVisibleAPIStatuses(ctx, requester, statuses, 0), nil
 }
 
 // SourceGet returns the *apimodel.StatusSource version of the targetStatusID.

@@ -153,7 +153,7 @@ func (p *Processor) MoveSelf(
 			originAcct.Username,
 			targetAcct,
 			targetAcctable,
-			dereferencing.Freshest,
+			&dereferencing.Freshest,
 		)
 		if err != nil {
 			const text = "error dereferencing moved_to_uri"

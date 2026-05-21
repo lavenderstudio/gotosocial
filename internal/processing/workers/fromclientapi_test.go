@@ -2109,6 +2109,7 @@ func (suite *FromClientAPITestSuite) TestProcessUpdateStatusInteractedWith() {
 	// it would be for real.
 	testStatus.EditIDs = []string{edit.ID}
 	testStatus.Edits = []*gtsmodel.StatusEdit{edit}
+	testStatus.Edited = true
 
 	// Update the status.
 	if err := testStructs.Processor.Workers().ProcessFromClientAPI(
@@ -2127,8 +2128,7 @@ func (suite *FromClientAPITestSuite) TestProcessUpdateStatusInteractedWith() {
 	var notif *gtsmodel.Notification
 	if !testrig.WaitFor(func() bool {
 		var err error
-		notif, err = testStructs.State.DB.GetNotification(
-			ctx,
+		notif, err = testStructs.State.DB.GetNotification(ctx,
 			gtsmodel.NotificationUpdate,
 			receivingAccount.ID,
 			postingAccount.ID,

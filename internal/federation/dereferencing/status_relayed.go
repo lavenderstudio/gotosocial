@@ -56,7 +56,6 @@ func (d *Dereferencer) GetRelayedStatus(
 	instanceAcct *gtsmodel.Account,
 	relayAcct *gtsmodel.Account,
 	uri *url.URL,
-	newThreadEntryCallback func(context.Context, *gtsmodel.Status) error,
 ) (*gtsmodel.Status, error) {
 	// Check whether this status URI is a blocked domain / subdomain.
 	if blocked, err := d.state.DB.IsDomainBlocked(ctx, uri.Host); err != nil {
@@ -166,7 +165,6 @@ func (d *Dereferencer) GetRelayedStatus(
 		status,
 		statusable,
 		true, // isNew = true
-		newThreadEntryCallback,
 	)
 
 	return status, nil
@@ -177,7 +175,6 @@ func (d *Dereferencer) GetRelayedAnnounce(
 	instanceAcct *gtsmodel.Account,
 	relayAcct *gtsmodel.Account,
 	boostWrapper *gtsmodel.Status,
-	newThreadEntryCallback func(context.Context, *gtsmodel.Status) error,
 ) (*gtsmodel.Status, error) {
 	// Check whether boosted status URI
 	// is a blocked domain / subdomain.
@@ -315,7 +312,6 @@ func (d *Dereferencer) GetRelayedAnnounce(
 		status,
 		statusable,
 		true, // isNew = true
-		newThreadEntryCallback,
 	)
 
 	return status, nil

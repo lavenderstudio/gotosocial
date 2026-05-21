@@ -1582,6 +1582,9 @@ func (c *Caches) initStatus() {
 		s2.CreatedWithApplication = nil
 		s2.Edits = nil
 
+		// Zero non-db fields.
+		s2.Edited = false
+
 		return s2
 	}
 

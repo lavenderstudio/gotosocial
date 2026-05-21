@@ -589,7 +589,7 @@ func (c *Converter) StatusToAS(ctx context.Context, s *gtsmodel.Status) (ap.Stat
 		tagProp.AppendTootHashtag(asHashtag)
 	}
 
-	// Append built `tag` property.
+	// Append built `tag` property
 	if tagProp.Len() != 0 {
 		statusable.SetActivityStreamsTag(tagProp)
 	}

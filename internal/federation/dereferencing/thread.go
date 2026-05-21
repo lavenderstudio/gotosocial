@@ -33,7 +33,7 @@ import (
 
 // maxIter defines how many iterations of descendants or
 // ancesters we are willing to follow before returning error.
-const maxIter = 512
+const maxIter = 1024
 
 // dereferenceThread handles dereferencing status thread after
 // fetch. Passing off appropriate parts to be enqueued for async
@@ -48,30 +48,29 @@ func (d *Dereferencer) dereferenceThread(
 	status *gtsmodel.Status,
 	statusable ap.Statusable,
 	isNew bool,
-	newThreadEntryCallback func(context.Context, *gtsmodel.Status) error,
 ) {
 	if isNew {
 		// This is a new status that we need the ancestors of in
 		// order to determine visibility. Perform the initial part
 		// of thread dereferencing, i.e. parents, synchronously.
-		err := d.dereferenceStatusAncestors(ctx, requestUser, status, newThreadEntryCallback)
+		err := d.dereferenceStatusAncestors(ctx, requestUser, status)
 		if err != nil {
 			log.Error(ctx, err)
 		}
 
 		// Enqueue dereferencing remaining status thread, (children), asychronously .
 		d.state.Workers.Dereference.Queue.Push(func(ctx context.Context) {
-			if err := d.dereferenceStatusDescendants(ctx, requestUser, uri, statusable, newThreadEntryCallback); err != nil {
+			if err := d.dereferenceStatusDescendants(ctx, requestUser, uri, statusable); err != nil {
 				log.Error(ctx, err)
 			}
 		})
 	} else {
 		// This is an existing status, dereference the WHOLE thread asynchronously.
 		d.state.Workers.Dereference.Queue.Push(func(ctx context.Context) {
-			if err := d.dereferenceStatusAncestors(ctx, requestUser, status, newThreadEntryCallback); err != nil {
+			if err := d.dereferenceStatusAncestors(ctx, requestUser, status); err != nil {
 				log.Error(ctx, err)
 			}
-			if err := d.dereferenceStatusDescendants(ctx, requestUser, uri, statusable, newThreadEntryCallback); err != nil {
+			if err := d.dereferenceStatusDescendants(ctx, requestUser, uri, statusable); err != nil {
 				log.Error(ctx, err)
 			}
 		})
@@ -88,7 +87,6 @@ func (d *Dereferencer) dereferenceStatusAncestors(
 	ctx context.Context,
 	username string,
 	status *gtsmodel.Status,
-	newThreadEntryCallback func(context.Context, *gtsmodel.Status) error,
 ) error {
 	// Start log entry with fields
 	l := log.WithContext(ctx).
@@ -134,7 +132,7 @@ func (d *Dereferencer) dereferenceStatusAncestors(
 
 		// Fetch parent status by current's reply URI, this handles
 		// case of existing (updating if necessary) or a new status.
-		parent, _, isNew, err := d.getStatusByURI(ctx, username, uri)
+		parent, _, _, err := d.getStatusByURI(ctx, username, uri)
 
 		// Check for a returned HTTP code via error.
 		switch code := gtserror.StatusCode(err); {
@@ -251,14 +249,6 @@ func (d *Dereferencer) dereferenceStatusAncestors(
 			}
 		}
 
-		// If parent is a brand new status (to us) and
-		// newThreadEntryCallback is defined, call it.
-		if isNew && newThreadEntryCallback != nil {
-			if err := newThreadEntryCallback(ctx, parent); err != nil {
-				l.Errorf("error during newThreadEntryCallback for status %s: %v", parent.URI, err)
-			}
-		}
-
 		// Set next parent to use.
 		current.InReplyTo = parent
 		current = current.InReplyTo
@@ -278,7 +268,6 @@ func (d *Dereferencer) dereferenceStatusDescendants(
 	username string,
 	statusIRI *url.URL,
 	parent ap.Statusable,
-	newThreadEntryCallback func(context.Context, *gtsmodel.Status) error,
 ) error {
 	statusIRIStr := statusIRI.String()
 
@@ -386,7 +375,7 @@ stackLoop:
 				//   - refetching recently fetched statuses (recursion!)
 				//   - remote domain is blocked (will return unretrievable)
 				//   - any http type error for a new status returns unretrievable
-				status, statusable, isNew, err := d.getStatusByURI(ctx, username, itemIRI)
+				_, statusable, _, err := d.getStatusByURI(ctx, username, itemIRI)
 				switch {
 				case err == nil:
 					// No problem!
@@ -410,8 +399,7 @@ stackLoop:
 					continue itemLoop
 
 				default:
-					// Something else went wrong,
-					// log this at error level.
+					// Something else went wrong, log this at error level.
 					l.Errorf("error dereferencing remote status %s: %v", itemIRI, err)
 					continue itemLoop
 				}
@@ -423,14 +411,6 @@ stackLoop:
 					// dereferenced recently (so no
 					// need to go through descendents).
 					continue itemLoop
-				}
-
-				// If child is a brand new status (to us) and
-				// newThreadEntryCallback is defined, call it.
-				if isNew && newThreadEntryCallback != nil {
-					if err := newThreadEntryCallback(ctx, status); err != nil {
-						l.Errorf("error during newThreadEntryCallback for status %s: %v", itemIRI, err)
-					}
 				}
 
 				// Extract any attached collection + ID URI from status.

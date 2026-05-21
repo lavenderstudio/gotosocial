@@ -244,11 +244,6 @@ func (p *Processor) getTargetStatusBy(
 			target,
 			nil,
 			window,
-
-			// Pass callback to insert
-			// other statuses in thread
-			// into timelines (as appropriate).
-			p.surfacer.TimelineAndNotifyStatus,
 		)
 		if err != nil {
 			log.Errorf(ctx, "error refreshing target %s: %v", target.URI, err)
@@ -322,30 +317,35 @@ func (p *Processor) GetVisibleAPIStatuses(
 			continue
 		}
 
-		// Check whether this status is muted by requesting account.
-		muted, err := p.muteFilter.StatusMuted(ctx, requester, status)
-		if err != nil {
-			log.Errorf(ctx, "error checking mute: %v", err)
-			continue
-		}
+		var filtered []apimodel.FilterResult
+		if filterCtx != 0 {
+			var hide bool
 
-		if muted {
-			continue
-		}
+			// Check whether this status is muted by requesting account.
+			muted, err := p.muteFilter.StatusMuted(ctx, requester, status)
+			if err != nil {
+				log.Errorf(ctx, "error checking mute: %v", err)
+				continue
+			}
 
-		// Check whether status is filtered in context by requesting account.
-		filtered, hide, err := p.statusFilter.StatusFilterResultsInContext(ctx,
-			requester,
-			status,
-			filterCtx,
-		)
-		if err != nil {
-			l.Errorf("error filtering: %v", err)
-			continue
-		}
+			if muted {
+				continue
+			}
 
-		if hide {
-			continue
+			// Check whether status is filtered in context by requesting account.
+			filtered, hide, err = p.statusFilter.StatusFilterResultsInContext(ctx,
+				requester,
+				status,
+				filterCtx,
+			)
+			if err != nil {
+				l.Errorf("error filtering: %v", err)
+				continue
+			}
+
+			if hide {
+				continue
+			}
 		}
 
 		// Not muted or "hide" filtered. Convert to API status.

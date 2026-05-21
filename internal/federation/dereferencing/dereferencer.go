@@ -18,18 +18,20 @@
 package dereferencing
 
 import (
+	"context"
 	"net/url"
 	"sync"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/interaction"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/relay"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
+	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/internal/transport"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
 // FreshnessWindow represents a duration in which a
@@ -42,20 +44,20 @@ import (
 // according to DefaultAccountFreshness, but not according
 // to Fresh, which would indicate that the Account requires
 // refreshing from remote.
-type FreshnessWindow time.Duration
+type FreshnessWindow = time.Duration
 
 var (
 	// 6 hours.
 	//
 	// Default window for doing a
 	// fresh dereference of an Account.
-	DefaultAccountFreshness = util.Ptr(FreshnessWindow(6 * time.Hour))
+	DefaultAccountFreshness = 6 * time.Hour
 
 	// 2 hours.
 	//
 	// Default window for doing a
 	// fresh dereference of a Status.
-	DefaultStatusFreshness = util.Ptr(FreshnessWindow(2 * time.Hour))
+	DefaultStatusFreshness = 2 * time.Hour
 
 	// 5 minutes.
 	//
@@ -65,17 +67,16 @@ var (
 	//
 	// This is tuned to be quite fresh without
 	// causing loads of dereferencing calls.
-	Fresh = util.Ptr(FreshnessWindow(5 * time.Minute))
+	Fresh = 5 * time.Minute
 
-	// 5 seconds.
+	// Immediate.
 	//
-	// Freshest is useful when you want an
-	// immediately up to date model of something
-	// that's even fresher than Fresh.
-	//
-	// Be careful using this one; it can cause
-	// lots of unnecessary traffic if used unwisely.
-	Freshest = util.Ptr(FreshnessWindow(5 * time.Second))
+	// This essentially always allows a refresh,
+	// and should only be used if a model update
+	// was pushed (federated) to the server,
+	// i.e. no model dereference is required.
+	// Otherwise it could DoS the model's host.
+	Freshest = time.Nanosecond
 )
 
 // Dereferencer wraps logic and functionality for doing dereferencing
@@ -88,6 +89,29 @@ type Dereferencer struct {
 	visFilter           *visibility.Filter
 	intFilter           *interaction.Filter
 	relayFilter         *relay.Filter
+
+	// OnAccountDereference is a hook that gets called on dereference of an account model.
+	// It is plumbed-in to the dereferencer but unused. In time it would be nice to add a
+	// new websocket API message type "update.account" that sends account model updates.
+	OnAccountDereference func(ctx context.Context, account *gtsmodel.Account) error
+
+	// OnStatusDereference is a hook that gets called on dereference of a status
+	// model, also indicating whether it was new to us at the time of dereference.
+	// This can be used to handle streaming and notifying of status create / update events.
+	//
+	// see: ./internal/surfacing/surfacing.go
+	OnStatusDereference func(ctx context.Context, status *gtsmodel.Status, isNew bool) error
+
+	// OnMediaDereference is a hook that gets called on dereference of a media attachment.
+	// This can be used to handle streaming of updated status models when media finishes processing.
+	//
+	// see: ./internal/surfacing/surfacing.go
+	OnMediaDereference func(ctx context.Context, media *gtsmodel.MediaAttachment) error
+
+	// OnEmojiDereference is a hook that gets called on dereference of an emoji attachment.
+	// It is plumbed-in to the dereferencer but unused. In time it would be nice to add a
+	// new websocket API message type "update.emoji" that sends emoji updates when finished processing.
+	OnEmojiDereference func(ctx context.Context, emoji *gtsmodel.Emoji) error
 
 	// in-progress dereferencing media / emoji
 	derefMedia    keyedList[*media.ProcessingMedia]
@@ -126,5 +150,37 @@ func NewDereferencer(
 		intFilter:           intFilter,
 		relayFilter:         relayFilter,
 		handshakes:          make(map[string][]*url.URL),
+	}
+}
+
+func (d *Dereferencer) onAccountDereference(ctx context.Context, account *gtsmodel.Account) {
+	if d.OnAccountDereference != nil {
+		if err := d.OnAccountDereference(ctx, account); err != nil {
+			log.Errorf(ctx, "error dereferencing account: %w", err)
+		}
+	}
+}
+
+func (d *Dereferencer) onStatusDereference(ctx context.Context, status *gtsmodel.Status, isNew bool) {
+	if d.OnStatusDereference != nil {
+		if err := d.OnStatusDereference(ctx, status, isNew); err != nil {
+			log.Errorf(ctx, "error dereferencing status: %w", err)
+		}
+	}
+}
+
+func (d *Dereferencer) onMediaDereference(ctx context.Context, media *gtsmodel.MediaAttachment) {
+	if d.OnMediaDereference != nil {
+		if err := d.OnMediaDereference(ctx, media); err != nil {
+			log.Errorf(ctx, "error dereferencing media: %w", err)
+		}
+	}
+}
+
+func (d *Dereferencer) onEmojiDereference(ctx context.Context, emoji *gtsmodel.Emoji) {
+	if d.OnEmojiDereference != nil {
+		if err := d.OnEmojiDereference(ctx, emoji); err != nil {
+			log.Errorf(ctx, "error dereferencing emoji: %w", err)
+		}
 	}
 }
