@@ -395,6 +395,14 @@ func (s *Status) UpdatedAt() time.Time {
 	return s.EditedAt
 }
 
+// ToOrCcPublic returns true if the visibility
+// of this status is either to or cc public
+// (ie., public or unlisted/unlocked status).
+func (s *Status) ToOrCcPublic() bool {
+	return s.Visibility == VisibilityPublic ||
+		s.Visibility == VisibilityUnlocked
+}
+
 // Stub will return a status with unset fields,
 // maintaining only those necessary for it to be
 // dealt with as a placeholder status in a thread.

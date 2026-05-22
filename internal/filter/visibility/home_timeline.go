@@ -233,8 +233,7 @@ func (f *Filter) isVisibleConversation(
 		return false, true, nil
 	}
 
-	if status.Visibility == gtsmodel.VisibilityUnlocked ||
-		status.Visibility == gtsmodel.VisibilityPublic {
+	if status.ToOrCcPublic() {
 		// NOTE: there is no need to check in the case of
 		// direct / follow-only / mutual-only visibility statuses
 		// as the above visibility check already handles this.

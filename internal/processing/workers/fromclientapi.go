@@ -278,6 +278,7 @@ func (p *clientAPI) CreateStatus(ctx context.Context, cMsg *messages.FromClientA
 		log.Errorf(ctx, "error timelining and notifying status: %v", err)
 	}
 
+	// Send the status out to followers / mentioned accounts / relays.
 	if err := p.federate.CreateStatus(ctx, status); err != nil {
 		log.Errorf(ctx, "error federating status: %v", err)
 	}

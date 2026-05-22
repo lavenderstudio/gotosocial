@@ -19,6 +19,7 @@ package workers
 
 import (
 	"code.superseriousbusiness.org/gotosocial/internal/federation"
+	"code.superseriousbusiness.org/gotosocial/internal/filter/relay"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/account"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/media"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
@@ -44,9 +45,10 @@ func New(
 	// Init federate logic
 	// wrapper struct.
 	federate := &federate{
-		Federator: federator,
-		state:     state,
-		converter: converter,
+		Federator:   federator,
+		relayFilter: relay.NewFilter(state),
+		state:       state,
+		converter:   converter,
 	}
 
 	// Init shared util funcs.

@@ -63,19 +63,31 @@ func (c *Converter) WrapAccountableInUpdate(accountable ap.Accountable) (vocab.A
 	return update, nil
 }
 
-func WrapStatusableInCreate(status ap.Statusable, iriOnly bool) vocab.ActivityStreamsCreate {
+func WrapStatusableInCreate(status ap.Statusable) vocab.ActivityStreamsCreate {
 	create := streams.NewActivityStreamsCreate()
-	wrapStatusableInActivity(create, status, iriOnly)
+	wrapStatusableInActivity(create, status, false)
 	return create
 }
 
-func WrapStatusableInUpdate(status ap.Statusable, iriOnly bool) vocab.ActivityStreamsUpdate {
+func WrapStatusableInCreateIRIOnly(status ap.Statusable) vocab.ActivityStreamsCreate {
+	create := streams.NewActivityStreamsCreate()
+	wrapStatusableInActivity(create, status, true)
+	return create
+}
+
+func WrapStatusableInUpdate(status ap.Statusable) vocab.ActivityStreamsUpdate {
 	update := streams.NewActivityStreamsUpdate()
-	wrapStatusableInActivity(update, status, iriOnly)
+	wrapStatusableInActivity(update, status, false)
 	return update
 }
 
-// wrapStatusableInActivity adds the required ap.Statusable data to the given ap.Activityable.
+func WrapStatusableInDelete(status ap.Statusable) vocab.ActivityStreamsDelete {
+	delete := streams.NewActivityStreamsDelete()
+	wrapStatusableInActivity(delete, status, true)
+	return delete
+}
+
+// wrapStatusableInActivity wraps the given ap.Statusable data in the given ap.Activityable.
 func wrapStatusableInActivity(activity ap.Activityable, status ap.Statusable, iriOnly bool) {
 	idIRI := ap.GetJSONLDId(status) // activity ID formatted as {$statusIRI}/activity#{$typeName}
 	ap.MustSet(ap.SetJSONLDIdStr, ap.WithJSONLDId(activity), idIRI.String()+"/activity#"+activity.GetTypeName())

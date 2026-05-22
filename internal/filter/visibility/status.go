@@ -132,8 +132,7 @@ func (f *Filter) isStatusVisible(
 		return false, nil
 	}
 
-	if status.Visibility == gtsmodel.VisibilityPublic ||
-		status.Visibility == gtsmodel.VisibilityUnlocked {
+	if status.ToOrCcPublic() {
 		// This status is visible to all auth'd accounts
 		// (pending blocks, which we already checked above).
 		return true, nil

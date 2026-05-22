@@ -167,7 +167,7 @@ func (p *Processor) OutboxGet(
 			}
 
 			// Derive create from statusable, using the IRI only.
-			create := typeutils.WrapStatusableInCreate(statusable, true)
+			create := typeutils.WrapStatusableInCreateIRIOnly(statusable)
 
 			// Add to item property.
 			itemsProp.AppendActivityStreamsCreate(create)

@@ -20,6 +20,7 @@ package relay
 import (
 	"context"
 	"errors"
+	"net/url"
 
 	"code.superseriousbusiness.org/gopkg/xslices"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
@@ -89,6 +90,72 @@ func (f *Filter) MatchedBySubscription(
 	return nil, nil
 }
 
+// FilteredPushActorURIs returns a deduplicated slice of relay actor URIs
+// that this status should be pushed to, after checking each push
+// connection owned by status author for a match with the given status.
+//
+// If status author has no relay push connections, or no relay
+// push connections match the given status, this will return nil.
+func (f *Filter) FilteredPushActorURIs(
+	ctx context.Context,
+	status *gtsmodel.Status,
+) ([]*url.URL, error) {
+	// Get all push connections owned by this account.
+	pushes, err := f.state.DB.GetRelayPushesForAccountID(ctx, status.AccountID)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return nil, gtserror.Newf("db error checking relay pushes: %w", err)
+	}
+
+	l := len(pushes)
+	if l == 0 {
+		// No pushes for this account,
+		// so definitely no actor URIs.
+		return nil, nil
+	}
+
+	// Convert text to filterable
+	// fields once outside the loop.
+	fields := filter.GetFilterableFields(status)
+
+	var inReplyToAccountURI string
+	if status.InReplyToAccount != nil {
+		inReplyToAccountURI = status.InReplyToAccount.URI
+	}
+
+	// Prepare map to deduplicate actor URIs.
+	pushActorURIStrs := make(map[string]struct{}, l)
+
+	// Slice for returning parsed URIs.
+	pushActorURIs := make([]*url.URL, 0, l)
+
+	// Check each push for a match.
+	for _, push := range pushes {
+		if _, ok := pushActorURIStrs[push.RelayActorURI]; ok {
+			// Already pushing
+			// to this actor.
+			continue
+		}
+
+		if matchedByConnection(
+			status,
+			inReplyToAccountURI,
+			push,
+			fields,
+		) {
+			// It's a match, store this actor URI.
+			pushActorURIStrs[push.RelayActorURI] = struct{}{}
+			pushActorURI, err := url.Parse(push.RelayActorURI)
+			if err != nil {
+				err := gtserror.Newf("error parsing push actor URI: %w", err)
+				return nil, err
+			}
+			pushActorURIs = append(pushActorURIs, pushActorURI)
+		}
+	}
+
+	return pushActorURIs, nil
+}
+
 func matchedByConnection(
 	status *gtsmodel.Status,
 	inReplyToAccountURI string,
@@ -97,17 +164,26 @@ func matchedByConnection(
 ) bool {
 	// Check against various flags.
 	flags := rc.GetFlags()
-	vis := status.Visibility
 
-	if vis == gtsmodel.VisibilityPublic && !flags.Public() {
-		// Public status but public not
-		// included in this subscription.
-		return false
-	}
-
-	if vis == gtsmodel.VisibilityUnlocked && !flags.Unlisted() {
-		// Unlisted status but unlisted not
-		// included in this subscription.
+	// Ensure valid visibility.
+	switch vis := status.Visibility; vis {
+	case gtsmodel.VisibilityPublic:
+		if !flags.Public() {
+			// Public status, but
+			// public not included
+			// in this subscription.
+			return false
+		}
+	case gtsmodel.VisibilityUnlocked:
+		if !flags.Unlisted() {
+			// Unlisted status, but
+			// unlisted not included
+			// in this subscription.
+			return false
+		}
+	default:
+		// Only public and unlisted
+		// statuses can be relayed.
 		return false
 	}
 

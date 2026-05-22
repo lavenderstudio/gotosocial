@@ -22,8 +22,12 @@ import (
 	"net/url"
 
 	"code.superseriousbusiness.org/activity/streams"
+	"code.superseriousbusiness.org/gopkg/log"
+	"code.superseriousbusiness.org/gopkg/xslices"
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/federation"
+	"code.superseriousbusiness.org/gotosocial/internal/filter/relay"
+	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
@@ -37,8 +41,9 @@ type federate struct {
 	// Embed federator to give access
 	// to send and retrieve functions.
 	*federation.Federator
-	state     *state.State
-	converter *typeutils.Converter
+	state       *state.State
+	relayFilter *relay.Filter
+	converter   *typeutils.Converter
 }
 
 // parseURI is a cheeky little
@@ -65,6 +70,81 @@ func parseURI(s string) (*url.URL, error) {
 	}
 
 	return uri, err
+}
+
+// RelayForwarding checks the given status to see if the author
+// has configured any relay push connections that the status
+// should be pushed to. If so, it will use the instance account
+// to forward the activity to relevant relay actors' inboxes.
+func (f *federate) RelayForwarding(
+	ctx context.Context,
+	status *gtsmodel.Status,
+	activity ap.Activityable,
+) error {
+	// Check if we need to forward the status to any relay pushes.
+	pushActorURIs, err := f.relayFilter.FilteredPushActorURIs(ctx, status)
+	if err != nil {
+		return gtserror.Newf("error filtering relay push actor URIs: %w", err)
+	}
+
+	// If there's no push actor URIs we
+	// don't need to forward anywhere.
+	l := len(pushActorURIs)
+	if l == 0 {
+		return nil
+	}
+
+	// Prepare list of (shared) inboxes
+	// to forward this status to using
+	// our instance service account.
+	inboxes := make([]*url.URL, 0, l)
+	for _, pushActorURI := range pushActorURIs {
+		// Use the federatingDB to derive the
+		// inbox URI for this push actor ID/URI.
+		fdb := f.FederatingDB()
+		inbox, err := fdb.InboxesForIRI(ctx, pushActorURI)
+		if err != nil {
+			log.Errorf(ctx, "error getting inbox for %s: %v", pushActorURI, err)
+			continue
+		}
+		inboxes = append(inboxes, inbox...)
+	}
+
+	// Deduplicate inboxes to account for
+	// any shared inboxes (multiple actors
+	// on the same instance for example).
+	inboxes = xslices.Deduplicate(inboxes)
+
+	// Forwarding to relays is done using the instance account,
+	// which is also the account we use to subscribe to relays.
+	instanceAcct, err := f.state.DB.GetInstanceAccount(
+		gtscontext.SetBarebones(ctx), "",
+	)
+	if err != nil {
+		return gtserror.Newf("db error getting instance account: %w", err)
+	}
+
+	// Fetch transport to do deliveries.
+	tsport, err := f.TransportController().NewTransport(
+		instanceAcct.PublicKeyURI,
+		instanceAcct.PrivateKey,
+	)
+	if err != nil {
+		return gtserror.Newf("couldn't create transport: %w", err)
+	}
+
+	// Serialize the activity once.
+	m, err := ap.Serialize(activity)
+	if err != nil {
+		return gtserror.Newf("error serializing %T: %w", activity, err)
+	}
+
+	// Prepare requests and add them to delivery queues.
+	if err := tsport.BatchDeliver(ctx, m, inboxes); err != nil {
+		return gtserror.Newf("error preparing delivery: %w", err)
+	}
+
+	return nil
 }
 
 func (f *federate) DeleteAccount(ctx context.Context, account *gtsmodel.Account) error {
@@ -161,11 +241,33 @@ func (f *federate) CreateStatus(ctx context.Context, status *gtsmodel.Status) er
 		return err
 	}
 
-	// Send a Create activity with Statusable via the Actor's outbox.
-	create := typeutils.WrapStatusableInCreate(statusable, false)
-	if _, err := f.FederatingActor().Send(ctx, outboxIRI, create); err != nil {
-		return gtserror.Newf("error sending Create activity via outbox %s: %w", outboxIRI, err)
+	// Wrap status in Create activity.
+	create := typeutils.WrapStatusableInCreate(statusable)
+
+	// Send the Create via the Actor's outbox.
+	if _, err := f.FederatingActor().Send(
+		ctx, outboxIRI, create,
+	); err != nil {
+		return gtserror.Newf(
+			"error sending Create activity via outbox %s: %w",
+			outboxIRI, err,
+		)
 	}
+
+	// If this is a status of relayable visibility
+	// (ie., public or unlisted), forward Create to
+	// push relays configured by the status author.
+	if status.ToOrCcPublic() {
+		if err := f.RelayForwarding(
+			ctx, status, create,
+		); err != nil {
+			return gtserror.Newf(
+				"error relaying activity %T: %w",
+				create, err,
+			)
+		}
+	}
+
 	return nil
 }
 
@@ -223,17 +325,25 @@ func (f *federate) DeleteStatus(ctx context.Context, status *gtsmodel.Status) er
 		return nil
 	}
 
+	// Ensure the status model is fully populated.
+	if err := f.state.DB.PopulateStatus(ctx, status); err != nil {
+		return gtserror.Newf("error populating status: %w", err)
+	}
+
+	// Convert status to ActivityStreams Statusable implementing type.
+	statusable, err := f.converter.StatusToAS(ctx, status)
+	if err != nil {
+		return gtserror.Newf("error converting status to Statusable: %w", err)
+	}
+
 	// Parse the outbox URI of the status author.
 	outboxIRI, err := parseURI(status.Account.OutboxURI)
 	if err != nil {
 		return err
 	}
 
-	// Wrap the status URI in a Delete activity.
-	delete, err := f.converter.StatusToASDelete(ctx, status)
-	if err != nil {
-		return gtserror.Newf("error creating Delete: %w", err)
-	}
+	// Wrap status in Delete activity.
+	delete := typeutils.WrapStatusableInDelete(statusable)
 
 	// Send the Delete via the Actor's outbox.
 	if _, err := f.FederatingActor().Send(
@@ -243,6 +353,20 @@ func (f *federate) DeleteStatus(ctx context.Context, status *gtsmodel.Status) er
 			"error sending activity %T via outbox %s: %w",
 			delete, outboxIRI, err,
 		)
+	}
+
+	// If this is a status of relayable visibility
+	// (ie., public or unlisted), forward Delete to
+	// push relays configured by the status author.
+	if status.ToOrCcPublic() {
+		if err := f.RelayForwarding(
+			ctx, status, delete,
+		); err != nil {
+			return gtserror.Newf(
+				"error relaying activity %T: %w",
+				delete, err,
+			)
+		}
 	}
 
 	return nil
@@ -266,22 +390,43 @@ func (f *federate) UpdateStatus(ctx context.Context, status *gtsmodel.Status) er
 		return gtserror.Newf("error populating status: %w", err)
 	}
 
-	// Parse the outbox URI of the status author.
-	outboxIRI, err := parseURI(status.Account.OutboxURI)
-	if err != nil {
-		return err
-	}
-
 	// Convert status to ActivityStreams Statusable implementing type.
 	statusable, err := f.converter.StatusToAS(ctx, status)
 	if err != nil {
 		return gtserror.Newf("error converting status to Statusable: %w", err)
 	}
 
-	// Send an Update activity with Statusable via the Actor's outbox.
-	update := typeutils.WrapStatusableInUpdate(statusable, false)
-	if _, err := f.FederatingActor().Send(ctx, outboxIRI, update); err != nil {
-		return gtserror.Newf("error sending Update activity via outbox %s: %w", outboxIRI, err)
+	// Parse the outbox URI of the status author.
+	outboxIRI, err := parseURI(status.Account.OutboxURI)
+	if err != nil {
+		return err
+	}
+
+	// Wrap status in Update activity.
+	update := typeutils.WrapStatusableInUpdate(statusable)
+
+	// Send the Update via the Actor's outbox.
+	if _, err := f.FederatingActor().Send(
+		ctx, outboxIRI, update,
+	); err != nil {
+		return gtserror.Newf(
+			"error sending Update activity via outbox %s: %w",
+			outboxIRI, err,
+		)
+	}
+
+	// If this is a status of relayable visibility
+	// (ie., public or unlisted), forward Update to
+	// push relays configured by the status author.
+	if status.ToOrCcPublic() {
+		if err := f.RelayForwarding(
+			ctx, status, update,
+		); err != nil {
+			return gtserror.Newf(
+				"error relaying activity %T: %w",
+				update, err,
+			)
+		}
 	}
 
 	return nil

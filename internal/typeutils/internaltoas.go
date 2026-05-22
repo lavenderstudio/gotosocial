@@ -786,140 +786,6 @@ func (c *Converter) addPollToAS(poll *gtsmodel.Poll, dst ap.Pollable) error {
 	return nil
 }
 
-// StatusToASDelete converts a gts model status into a Delete of that status, using just the
-// URI of the status as object, and addressing the Delete appropriately.
-func (c *Converter) StatusToASDelete(ctx context.Context, s *gtsmodel.Status) (vocab.ActivityStreamsDelete, error) {
-	// Parse / fetch some information
-	// we need to create the Delete.
-
-	if s.Account == nil {
-		var err error
-		s.Account, err = c.state.DB.GetAccountByID(ctx, s.AccountID)
-		if err != nil {
-			return nil, fmt.Errorf("StatusToASDelete: error retrieving author account from db: %w", err)
-		}
-	}
-
-	actorIRI, err := url.Parse(s.AccountURI)
-	if err != nil {
-		return nil, fmt.Errorf("StatusToASDelete: error parsing actorIRI %s: %w", s.AccountURI, err)
-	}
-
-	statusIRI, err := url.Parse(s.URI)
-	if err != nil {
-		return nil, fmt.Errorf("StatusToASDelete: error parsing statusIRI %s: %w", s.URI, err)
-	}
-
-	// Create a Delete.
-	delete := streams.NewActivityStreamsDelete()
-
-	// Set appropriate actor for the Delete.
-	deleteActor := streams.NewActivityStreamsActorProperty()
-	deleteActor.AppendIRI(actorIRI)
-	delete.SetActivityStreamsActor(deleteActor)
-
-	// Set the status IRI as the 'object' property.
-	// We should avoid serializing the whole status
-	// when doing a delete because it's wasteful and
-	// could accidentally leak the now-deleted status.
-	deleteObject := streams.NewActivityStreamsObjectProperty()
-	deleteObject.AppendIRI(statusIRI)
-	delete.SetActivityStreamsObject(deleteObject)
-
-	// Address the Delete appropriately.
-	toProp := streams.NewActivityStreamsToProperty()
-	ccProp := streams.NewActivityStreamsCcProperty()
-
-	// Unless the status was a direct message, we can
-	// address the Delete To the ActivityPub Public URI.
-	// This ensures that the Delete will have as wide an
-	// audience as possible.
-	//
-	// Because we're using just the status URI, not the
-	// whole status, it won't leak any sensitive info.
-	// At worst, a remote instance becomes aware of the
-	// URI for a status which is now deleted anyway.
-	if s.Visibility != gtsmodel.VisibilityDirect {
-		publicURI := ap.PublicIRI()
-		toProp.AppendIRI(publicURI)
-
-		actorFollowersURI, err := url.Parse(s.Account.FollowersURI)
-		if err != nil {
-			return nil, fmt.Errorf("StatusToASDelete: error parsing url %s: %w", s.Account.FollowersURI, err)
-		}
-		ccProp.AppendIRI(actorFollowersURI)
-	}
-
-	// Always include the replied-to account and any
-	// mentioned accounts as addressees as well.
-	//
-	// Worst case scenario here is that a replied account
-	// who wasn't mentioned (and perhaps didn't see the
-	// message), sees that someone has now deleted a status
-	// in which they were replied to but not mentioned. In
-	// other words, they *might* see that someone subtooted
-	// about them, but they won't know what was said.
-
-	// Ensure mentions are populated.
-	mentions := s.Mentions
-	if len(s.MentionIDs) > len(mentions) {
-		mentions, err = c.state.DB.GetMentions(ctx, s.MentionIDs)
-		if err != nil {
-			return nil, fmt.Errorf("StatusToASDelete: error getting mentions: %w", err)
-		}
-	}
-
-	// Remember which accounts were mentioned
-	// here to avoid duplicating them later.
-	mentionedAccountIDs := make(map[string]interface{}, len(mentions))
-
-	// For direct messages, add URI
-	// to To, else just add to CC.
-	var f func(*url.URL)
-	if s.Visibility == gtsmodel.VisibilityDirect {
-		f = toProp.AppendIRI
-	} else {
-		f = ccProp.AppendIRI
-	}
-
-	for _, m := range mentions {
-		mentionedAccountIDs[m.TargetAccountID] = nil // Remember this ID.
-
-		iri, err := url.Parse(m.TargetAccount.URI)
-		if err != nil {
-			return nil, fmt.Errorf("StatusToAS: error parsing uri %s: %s", m.TargetAccount.URI, err)
-		}
-
-		f(iri)
-	}
-
-	if s.InReplyToAccountID != "" {
-		if _, ok := mentionedAccountIDs[s.InReplyToAccountID]; !ok {
-			// Only address to this account if it
-			// wasn't already included as a mention.
-			if s.InReplyToAccount == nil {
-				s.InReplyToAccount, err = c.state.DB.GetAccountByID(ctx, s.InReplyToAccountID)
-				if err != nil && !errors.Is(err, db.ErrNoEntries) {
-					return nil, fmt.Errorf("StatusToASDelete: db error getting account %s: %w", s.InReplyToAccountID, err)
-				}
-			}
-
-			if s.InReplyToAccount != nil {
-				inReplyToAccountURI, err := url.Parse(s.InReplyToAccount.URI)
-				if err != nil {
-					return nil, fmt.Errorf("StatusToASDelete: error parsing url %s: %w", s.InReplyToAccount.URI, err)
-				}
-				ccProp.AppendIRI(inReplyToAccountURI)
-			}
-		}
-	}
-
-	delete.SetActivityStreamsTo(toProp)
-	delete.SetActivityStreamsCc(ccProp)
-
-	return delete, nil
-}
-
 // FollowToASFollow converts a gts model Follow into an activity streams Follow, suitable for federation
 func (c *Converter) FollowToAS(ctx context.Context, f *gtsmodel.Follow) (vocab.ActivityStreamsFollow, error) {
 	if err := c.state.DB.PopulateFollow(ctx, f); err != nil {
@@ -1320,8 +1186,7 @@ func (c *Converter) BoostToAS(ctx context.Context, bw *gtsmodel.Status) (vocab.A
 
 	// `cc` should include public if
 	// this is a public or unlocked boost.
-	switch bw.BoostOf.Visibility {
-	case gtsmodel.VisibilityPublic, gtsmodel.VisibilityUnlocked:
+	if bw.BoostOf.ToOrCcPublic() {
 		ap.AppendCc(announce, ap.PublicIRI())
 	}
 
@@ -1609,7 +1474,7 @@ func (c *Converter) StatusesToASOutboxPage(ctx context.Context, outboxID string,
 			return nil, err
 		}
 
-		activity := WrapStatusableInCreate(note, true)
+		activity := WrapStatusableInCreateIRIOnly(note)
 		itemsProp.AppendActivityStreamsCreate(activity)
 
 		if highest == "" || s.ID > highest {

@@ -319,8 +319,7 @@ func (f *Filter) StatusBoostable(
 	// Status is from an instance that does not use
 	// or does not care about canAnnounce sub-policy.
 	// We can boost it if it's unlisted or public.
-	case status.Visibility == gtsmodel.VisibilityPublic ||
-		status.Visibility == gtsmodel.VisibilityUnlocked:
+	case status.ToOrCcPublic():
 		return &gtsmodel.PolicyCheckResult{
 			Permission: gtsmodel.PolicyPermissionAutomaticApproval,
 		}, nil
