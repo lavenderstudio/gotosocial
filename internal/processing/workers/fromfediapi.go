@@ -736,7 +736,7 @@ func (p *fediAPI) CreateFollowReq(ctx context.Context, fMsg *messages.FromFediAP
 		// Reconstruct + reject the follow.
 		follow := typeutils.FollowRequestToFollow(followReq)
 		if err := p.federate.RejectFollow(ctx, follow); err != nil {
-			log.Errorf(ctx, "error federating follow reject: %w", err)
+			log.Errorf(ctx, "error federating follow reject: %v", err)
 		}
 
 		// That's it, no need to

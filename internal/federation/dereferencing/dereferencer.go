@@ -156,7 +156,7 @@ func NewDereferencer(
 func (d *Dereferencer) onAccountDereference(ctx context.Context, account *gtsmodel.Account) {
 	if d.OnAccountDereference != nil {
 		if err := d.OnAccountDereference(ctx, account); err != nil {
-			log.Errorf(ctx, "error dereferencing account: %w", err)
+			log.Errorf(ctx, "error dereferencing account: %v", err)
 		}
 	}
 }
@@ -164,7 +164,7 @@ func (d *Dereferencer) onAccountDereference(ctx context.Context, account *gtsmod
 func (d *Dereferencer) onStatusDereference(ctx context.Context, status *gtsmodel.Status, isNew bool) {
 	if d.OnStatusDereference != nil {
 		if err := d.OnStatusDereference(ctx, status, isNew); err != nil {
-			log.Errorf(ctx, "error dereferencing status: %w", err)
+			log.Errorf(ctx, "error dereferencing status: %v", err)
 		}
 	}
 }
@@ -172,7 +172,7 @@ func (d *Dereferencer) onStatusDereference(ctx context.Context, status *gtsmodel
 func (d *Dereferencer) onMediaDereference(ctx context.Context, media *gtsmodel.MediaAttachment) {
 	if d.OnMediaDereference != nil {
 		if err := d.OnMediaDereference(ctx, media); err != nil {
-			log.Errorf(ctx, "error dereferencing media: %w", err)
+			log.Errorf(ctx, "error dereferencing media: %v", err)
 		}
 	}
 }
@@ -180,7 +180,7 @@ func (d *Dereferencer) onMediaDereference(ctx context.Context, media *gtsmodel.M
 func (d *Dereferencer) onEmojiDereference(ctx context.Context, emoji *gtsmodel.Emoji) {
 	if d.OnEmojiDereference != nil {
 		if err := d.OnEmojiDereference(ctx, emoji); err != nil {
-			log.Errorf(ctx, "error dereferencing emoji: %w", err)
+			log.Errorf(ctx, "error dereferencing emoji: %v", err)
 		}
 	}
 }

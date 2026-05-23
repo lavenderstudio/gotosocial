@@ -454,7 +454,8 @@ func (f *Federator) derefPubKey(
 
 // callForPubKey handles the nitty gritty of actually
 // making a request for the given pubKeyID with a
-// transport created on behalf of requestedUser.
+// transport created on behalf of requestedUser,
+// and handling any http errors received in response.
 func (f *Federator) callForPubKey(
 	ctx context.Context,
 	requestedUser string,
@@ -477,6 +478,7 @@ func (f *Federator) callForPubKey(
 	rsp, err := trans.Dereference(ctx, pubKeyID)
 
 	if err == nil {
+		// Got a response from remote.
 		// Read the response body data.
 		b, err := io.ReadAll(rsp.Body)
 		_ = rsp.Body.Close() // done
@@ -486,15 +488,27 @@ func (f *Federator) callForPubKey(
 			return nil, gtserror.NewErrorInternalError(err)
 		}
 
+		// Return
+		// key bytes.
 		return b, nil
 	}
 
-	if gtserror.StatusCode(err) == http.StatusGone {
+	// There's been an error.
+	// Reassemble pubKeyURIStr once.
+	pubKeyIDStr := pubKeyID.String()
+
+	// Prepare a safe error string that can
+	// be serialized back to the remote host
+	// that's calling us and thereby caused
+	// this deref attempt in the first place.
+	var safe string
+
+	// Check error code (if present).
+	switch code := gtserror.StatusCode(err); {
+	case code == http.StatusGone:
 		// 410 indicates remote public key no longer exists
-		// (account deleted, moved, etc). Add a tombstone
-		// to our database so that we can avoid trying to
-		// dereference it in future.
-		pubKeyIDStr := pubKeyID.String()
+		// (account deleted, moved, etc). Add a tombstone to
+		// the db so we can avoid trying to deref it again.
 		tombstone := &gtsmodel.Tombstone{
 			ID:     id.NewULID(),
 			Domain: pubKeyID.Host,
@@ -505,15 +519,29 @@ func (f *Federator) callForPubKey(
 			return nil, gtserror.NewErrorInternalError(err)
 		}
 
+		safe = "account with public key " + pubKeyIDStr + " is gone"
+		err = gtserror.Newf("%s: %w", safe, err)
+
 		// Wrap the error to preserve the 410 Gone status code.
-		err := gtserror.Newf("account with public key %s is gone: %w", pubKeyID, err)
 		err = gtserror.WithStatusCode(err, http.StatusGone)
-		return nil, gtserror.NewErrorUnauthorized(err)
+
+	case code != 0:
+		// Other non-zero codes could be
+		// due to some kind of temporary
+		// error so don't insert tombstone.
+		safe = fmt.Sprintf(
+			"error dereferencing public key %s: received HTTP code %d from remote",
+			pubKeyIDStr, code,
+		)
+		err = gtserror.Newf("%s: %w", safe, err)
+
+	default:
+		// Some other kind of error.
+		safe = "error dereferencing public key " + pubKeyIDStr
+		err = gtserror.Newf("%s: %w", safe, err)
 	}
 
-	// Fall back to generic error.
-	err = gtserror.Newf("error dereferencing public key %s: %w", pubKeyID, err)
-	return nil, gtserror.NewErrorInternalError(err)
+	return nil, gtserror.NewErrorUnauthorized(err, safe)
 }
 
 // fetchAccountInstance ensures that an instance model exists in
