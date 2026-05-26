@@ -37,6 +37,7 @@ import InstanceInfo from "./instance";
 import RelayPushesOverview from "./relay-pushes";
 import RelayPushNew from "./relay-pushes/new";
 import RelayPushDetail from "./relay-pushes/detail";
+import TokenDetail from "./tokens/detail";
 
 /**
  * - /settings/user/profile
@@ -64,10 +65,10 @@ export default function UserRouter() {
 					<Route path="/posts" component={PostSettings} />
 					<Route path="/migration" component={Migration} />
 					<Route path="/export-import" component={ExportImport} />
-					<Route path="/tokens" component={Tokens} />
 					<Route path="/instance-info" component={InstanceInfo} />
 				</Switch>
 				<InteractionRequestsRouter />
+				<TokensRouter />
 				<ApplicationsRouter />
 				<RelayPushesRouter />
 			</Router>
@@ -92,6 +93,30 @@ function InteractionRequestsRouter() {
 						<Route path="/search" component={InteractionRequests} />
 						<Route path="/:reqId" component={InteractionRequestDetail} />
 						<Route><Redirect to="/search"/></Route>
+					</Switch>
+				</ErrorBoundary>
+			</Router>
+		</BaseUrlContext.Provider>
+	);
+}
+
+/**
+ * - /settings/user/tokens
+ * - /settings/user/tokens/{tokenId}
+ */
+function TokensRouter() {
+	const parentUrl = useBaseUrl();
+	const thisBase = "/tokens";
+	const absBase = parentUrl + thisBase;
+
+	return (
+		<BaseUrlContext.Provider value={absBase}>
+			<Router base={thisBase}>
+				<ErrorBoundary>
+					<Switch>
+						<Route path="/" component={Tokens} />
+						<Route path="/:tokenId" component={TokenDetail} />
+						<Route><Redirect to="/"/></Route>
 					</Switch>
 				</ErrorBoundary>
 			</Router>

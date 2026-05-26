@@ -37,6 +37,7 @@ import UsernameLozenge from "../../../components/username-lozenge";
 import { useBaseUrl } from "../../../lib/navigation/util";
 import BackButton from "../../../components/back-button";
 import MutationButton from "../../../components/form/mutation-button";
+import { DateTimeMinute } from "../../../components/datetime";
 
 const testString = `/* To test this properly, set "flavor" to "Golang", as that's the language GoToSocial uses for regular expressions */
 
@@ -118,8 +119,6 @@ function PermDeets({
 	} else if (perm === undefined) {
 		throw "perm undefined";
 	}
-
-	const created = new Date(perm.created_at).toDateString();	
 	
 	// Create parameters to link to regex101
 	// with this regular expression prepopulated.
@@ -139,7 +138,7 @@ function PermDeets({
 				</div>
 				<div className="info-list-entry">
 					<dt>Created</dt>
-					<dd><time dateTime={perm.created_at}>{created}</time></dd>
+					<dd>{DateTimeMinute(perm.created_at)}</dd>
 				</div>
 				<div className="info-list-entry">
 					<dt>Created By</dt>

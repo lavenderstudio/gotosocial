@@ -136,6 +136,7 @@ func (p *Processor) deleteUserAndTokensForAccount(
 	tokens, err := p.state.DB.GetAccessTokens(ctx,
 		user.ID,
 		nil, // i.e. all
+		gtsmodel.TokensOrderByCreated,
 	)
 	if err != nil {
 		log.Errorf("error getting user access tokens: %v", err)

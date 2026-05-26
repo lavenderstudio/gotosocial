@@ -21,6 +21,7 @@ import { Links } from "parse-link-header";
 
 export interface TokenInfo {
 	id: string;
+	name?: string;
 	created_at: string;
 	last_used?: string;
 	scope: string;
@@ -59,4 +60,8 @@ export interface SearchTokenInfoParams {
 export interface SearchTokenInfoResp {
 	tokens: TokenInfo[];
 	links: Links | null;
+}
+
+export interface TokenInfoUpdateParams {
+	name: string;
 }

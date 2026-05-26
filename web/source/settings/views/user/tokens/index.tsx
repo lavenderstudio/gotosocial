@@ -28,7 +28,9 @@ export default function Tokens() {
 				<p>
 					On this page you can search through access tokens owned by applications that you have authorized to
 					access your account and/or perform actions on your behalf. You can invalidate a token by clicking on
-					the invalidate button under a token. This will remove the token from the database.
+					the invalidate button under a token. This will remove the token from the database. You can set a name
+					for a token by clicking on the token and filling in the form on the next screen. You can use this to
+					help you remember which token is being used by which browser, etc.
 					<br/><br/>
 					<strong>
 						If you see any tokens from applications that you do not recognize, or do not remember authorizing to access

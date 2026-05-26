@@ -26,6 +26,7 @@ import { useLocation, useParams } from "wouter";
 import { useBaseUrl } from "../../../../lib/navigation/util";
 import BackButton from "../../../../components/back-button";
 import MutationButton from "../../../../components/form/mutation-button";
+import { DateTimeMinute, DateTimeSecond } from "../../../../components/datetime";
 
 export default function InstanceDetail() {
 	const params: { instanceID: string } = useParams();
@@ -47,8 +48,6 @@ export default function InstanceDetail() {
 function InstanceDetailForm({ data: instance }: { data: AdminInstance }) {
 	const domain = instance.domain;
 	const software = instance.software ?? "unknown";
-	const firstSeen = new Date(instance.first_seen).toLocaleString();
-	const latestSuccessfulDelivery = instance.latest_successful_delivery && new Date(instance.latest_successful_delivery).toLocaleString();
 
 	return (
 		<>
@@ -73,18 +72,11 @@ function InstanceDetailForm({ data: instance }: { data: AdminInstance }) {
 
 				<div className="info-list-entry">
 					<dt>First seen:</dt>
-					<dd>
-						<time dateTime={instance.first_seen}>{firstSeen}</time>
-					</dd>
+					<dd>{DateTimeMinute(instance.first_seen)}</dd>
 				</div>
 				<div className="info-list-entry">
 					<dt>Latest successful delivery:</dt>
-					<dd>
-						{ latestSuccessfulDelivery
-							? <time dateTime={instance.latest_successful_delivery}>{latestSuccessfulDelivery}</time>
-							: "unknown/never"
-						}
-					</dd>
+					<dd>{DateTimeMinute(instance.latest_successful_delivery)}</dd>
 				</div>
 			</dl>
 			<InstanceDeliveryErrors data={instance} />
@@ -130,7 +122,7 @@ function InstanceDeliveryErrors({ data: instance }: { data: AdminInstance }): Re
 				{ instance.delivery_errors.map((err, i) => {
 					return (
 						<div className="info-list-entry" key={i}>
-							<dt><time dateTime={err.time}>{new Date(err.time).toLocaleString()}</time></dt>
+							<dt>{DateTimeSecond(err.time)}</dt>
 							<dd>{err.error}</dd>
 						</div>
 					);

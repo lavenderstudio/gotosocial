@@ -17,7 +17,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import React, { ReactNode, useEffect, useMemo, useState } from "react";
+import React, { ReactNode, useEffect, useState } from "react";
 import { TextInput } from "../../../components/form/inputs";
 import MutationButton from "../../../components/form/mutation-button";
 import useFormSubmit from "../../../lib/form/submit";
@@ -33,6 +33,7 @@ import { Error } from "../../../components/error";
 import { HighlightedCode } from "../../../components/highlightedcode";
 import { useDispatch } from "react-redux";
 import { gtsApi } from "../../../lib/query/gts-api";
+import { DateTimeMinute } from "../../../components/datetime";
 
 interface TwoFactorProps {
 	twoFactorEnabledAt?: string,
@@ -251,12 +252,7 @@ function Secret() {
 	);
 }
 
-function DisableForm({ twoFactorEnabledAt }: { twoFactorEnabledAt: string }) {
-	const enabledAt = useMemo(() => {
-		const enabledAt = new Date(twoFactorEnabledAt);
-		return <time dateTime={twoFactorEnabledAt}>{enabledAt.toDateString()}</time>;
-	}, [twoFactorEnabledAt]);
-	
+function DisableForm({ twoFactorEnabledAt }: { twoFactorEnabledAt: string }) {	
 	const form = {
 		password: useTextInput("password"),
 	};
@@ -267,7 +263,7 @@ function DisableForm({ twoFactorEnabledAt }: { twoFactorEnabledAt: string }) {
 			<TwoFactorHeader
 				blurb={
 					<p>
-						Two-factor auth is enabled for your account, since <b>{enabledAt}</b>.
+						Two-factor auth is enabled for your account, since <b>{DateTimeMinute(twoFactorEnabledAt)}</b>.
 						<br/>To disable 2FA, supply your password for verification and click "Disable 2FA".
 					</p>
 				}

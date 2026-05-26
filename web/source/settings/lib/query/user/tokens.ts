@@ -21,6 +21,7 @@ import {
 	SearchTokenInfoParams,
 	SearchTokenInfoResp,
 	TokenInfo,
+	TokenInfoUpdateParams,
 } from "../../types/tokeninfo";
 import { gtsApi } from "../gts-api";
 import parse from "parse-link-header";
@@ -54,6 +55,34 @@ const extended = gtsApi.injectEndpoints({
 			},
 			providesTags: [{ type: "TokenInfo", id: "TRANSFORMED" }]
 		}),
+		getToken: build.query<TokenInfo, string>({
+			query: (id) => ({
+				url: `/api/v1/tokens/${id}`,
+			}),
+			providesTags: (_result, _error, id) => [
+				{ type: "TokenInfo", id }
+			],
+		}),
+		updateToken: build.mutation<TokenInfo, {id: string} & TokenInfoUpdateParams>({
+			query: ({ id, ...formData}) => {
+				return {
+					method: "PUT",
+					url: `/api/v1/tokens/${id}`,
+					asForm: true,
+					body: formData,
+					// Don't discardEmpty when updating, as we
+					// want to be able to set name to empty string.
+					discardEmpty: false,
+				};
+			},
+			invalidatesTags: (res) =>
+				res
+					? [
+						{ type: "TokenInfo", id: "TRANSFORMED" },
+						{ type: "TokenInfo", id: res.id },
+					]
+					: [{ type: "TokenInfo", id: "TRANSFORMED" }]
+		}),
 		invalidateToken: build.mutation<any, string>({
 			query: (id) => ({
 				method: "POST",
@@ -61,7 +90,10 @@ const extended = gtsApi.injectEndpoints({
 			}),
 			invalidatesTags: (res) =>
 				res
-					? [{ type: "TokenInfo", id: "TRANSFORMED" }, { type: "InteractionRequest", id: res.id }]
+					? [
+						{ type: "TokenInfo", id: "TRANSFORMED" },
+						{ type: "TokenInfo", id: res.id },
+					]
 					: [{ type: "TokenInfo", id: "TRANSFORMED" }]
 		}),
 	})
@@ -70,4 +102,6 @@ const extended = gtsApi.injectEndpoints({
 export const {
 	useLazySearchTokenInfoQuery,
 	useInvalidateTokenMutation,
+	useGetTokenQuery,
+	useUpdateTokenMutation,
 } = extended;

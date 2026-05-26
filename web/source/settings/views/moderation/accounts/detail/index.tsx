@@ -28,6 +28,7 @@ import { useParams } from "wouter";
 import { useBaseUrl } from "../../../../lib/navigation/util";
 import BackButton from "../../../../components/back-button";
 import { UseOurInstanceAccount, yesOrNo } from "../../../../lib/util";
+import { DateTimeMinute } from "../../../../components/datetime";
 
 export default function AccountDetail() {
 	const params: { accountID: string } = useParams();
@@ -91,13 +92,6 @@ function AccountDetailForm({ data: adminAcct, backLocation }: AccountDetailFormP
 
 function GeneralAccountDetails({ adminAcct } : { adminAcct: AdminAccount }) {
 	const local = !adminAcct.domain;
-	const created = new Date(adminAcct.created_at).toDateString();
-	
-	let lastPosted = "never";
-	if (adminAcct.account.last_status_at) {
-		lastPosted = new Date(adminAcct.account.last_status_at).toDateString();
-	}
-
 	return (
 		<>
 			<h3>General Account Details</h3>
@@ -127,11 +121,11 @@ function GeneralAccountDetails({ adminAcct } : { adminAcct: AdminAccount }) {
 				</div>
 				<div className="info-list-entry">
 					<dt>Created</dt>
-					<dd><time dateTime={adminAcct.created_at}>{created}</time></dd>
+					<dd>{DateTimeMinute(adminAcct.created_at)}</dd>
 				</div>
 				<div className="info-list-entry">
 					<dt>Last posted</dt>
-					<dd>{lastPosted}</dd>
+					<dd>{DateTimeMinute(adminAcct.account.last_status_at)}</dd>
 				</div>
 				<div className="info-list-entry">
 					<dt>Suspended</dt>

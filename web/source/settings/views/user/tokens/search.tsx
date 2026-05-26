@@ -26,6 +26,8 @@ import { useLocation, useSearch } from "wouter";
 import { Select } from "../../../components/form/inputs";
 import { useInvalidateTokenMutation, useLazySearchTokenInfoQuery } from "../../../lib/query/user/tokens";
 import { TokenInfo } from "../../../lib/types/tokeninfo";
+import WebsiteLink from "../../../components/website";
+import { DateTimeMinute } from "../../../components/datetime";
 
 export default function TokensSearchForm() {
 	const [ location, setLocation ] = useLocation();
@@ -36,7 +38,8 @@ export default function TokensSearchForm() {
 	// Populate search form using values from
 	// urlQueryParams, to allow paging.
 	const form = {
-		limit: useTextInput("limit", { defaultValue: urlQueryParams.get("limit") ?? "25" })
+		limit: useTextInput("limit", { defaultValue: urlQueryParams.get("limit") ?? "25" }),
+		order: useTextInput("order", { defaultValue: urlQueryParams.get("order") ?? "last_used"})
 	};
 
 	// On mount, trigger search.
@@ -89,6 +92,16 @@ export default function TokensSearchForm() {
 				autoComplete="off"
 			>
 				<Select
+					field={form.order}
+					label="Order results by last used (latest -> oldest), or creation time (newest -> oldest)"
+					options={
+						<>
+							<option value="last_used">Last used</option>
+							<option value="created">Creation time</option>
+						</>
+					}
+				></Select>
+				<Select
 					field={form.limit}
 					label="Items per page"
 					options={
@@ -126,59 +139,53 @@ interface TokenInfoListEntryProps {
 }
 
 function TokenInfoListEntry({ tokenInfo }: TokenInfoListEntryProps) {
-	const appWebsite = useMemo(() => {
-		if (!tokenInfo.application.website) {
-			return "";
-		}
-
-		try {
-			// Try to parse nicely and return link.
-			const websiteURL = new URL(tokenInfo.application.website);
-			const websiteURLStr = websiteURL.toString();
-			return (
-				<a
-					href={websiteURLStr}
-					target="_blank"
-					rel="nofollow noreferrer noopener"
-				>{websiteURLStr}</a>
-			);
-		} catch {
-			// Fall back to returning string.
-			return tokenInfo.application.website;
-		}
-	}, [tokenInfo.application.website]);
+	const [ location, setLocation ] = useLocation();
 	
-	const created = useMemo(() => {
-		const createdAt = new Date(tokenInfo.created_at);
-		return <time dateTime={tokenInfo.created_at}>{createdAt.toDateString()}</time>;
-	}, [tokenInfo.created_at]);
-
-	const lastUsed = useMemo(() => {
-		if (!tokenInfo.last_used) {
-			return "unknown/never";
-		}
-
-		const lastUsed = new Date(tokenInfo.last_used);
-		return <time dateTime={tokenInfo.last_used}>{lastUsed.toDateString()}</time>;
-	}, [tokenInfo.last_used]);
+	const onClick = (e) => {
+		e.preventDefault();
+		// When clicking on a token,
+		// go to the detail view for it.
+		setLocation(`/${tokenInfo.id}`, {
+			// Store the back location in
+			// history so the detail view
+			// can use it to return here.
+			state: { backLocation: location }
+		});
+	};
 
 	const [ invalidate, invalidateResult ] = useInvalidateTokenMutation();
 
 	return (
 		<span
-			className={`token-info entry`}
+			className={"pseudolink token-info entry"}
 			aria-label={`${tokenInfo.application.name}, scope: ${tokenInfo.scope}`}
 			title={`${tokenInfo.application.name}, scope: ${tokenInfo.scope}`}
+			onClick={onClick}
+			onKeyDown={(e) => {
+				if (e.key === "Enter") {
+					e.preventDefault();
+					onClick(e);
+				}
+			}}
+			role="link"
+			tabIndex={0}
+			key={tokenInfo.id}
 		>
 			<dl className="info-list">
+				{ tokenInfo.name && <>
+					<div className="info-list-entry">
+						<dt>Token name:</dt>
+						<dd className="text-cutoff">{tokenInfo.name}</dd>
+					</div>
+				</>}
 				<div className="info-list-entry">
 					<dt>App name:</dt>
 					<dd className="text-cutoff">{tokenInfo.application.name}</dd>
 				</div>
-				{ appWebsite && 
+				{ tokenInfo.application.website && 
 					<div className="info-list-entry">
 						<dt>App website:</dt>
-						<dd className="text-cutoff">{appWebsite}</dd>
+						<dd className="text-cutoff">{WebsiteLink(tokenInfo.application.website)}</dd>
 					</div>
 				}
 				<div className="info-list-entry">
@@ -186,12 +193,12 @@ function TokenInfoListEntry({ tokenInfo }: TokenInfoListEntryProps) {
 					<dd className="text-cutoff monospace">{tokenInfo.scope}</dd>
 				</div>
 				<div className="info-list-entry">
-					<dt>Created:</dt>
-					<dd className="text-cutoff">{created}</dd>
+					<dt>Last used:</dt>
+					<dd className="text-cutoff">{DateTimeMinute(tokenInfo.last_used)}</dd>
 				</div>
 				<div className="info-list-entry">
-					<dt>Last used:</dt>
-					<dd className="text-cutoff">{lastUsed}</dd>
+					<dt>Created:</dt>
+					<dd className="text-cutoff">{DateTimeMinute(tokenInfo.created_at)}</dd>
 				</div>
 			</dl>
 			<div className="action-buttons">

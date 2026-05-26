@@ -44,7 +44,7 @@ type Application interface {
 	GetAllTokens(ctx context.Context) ([]*gtsmodel.Token, error)
 
 	// GetAccessTokens allows paging through a user's access (ie., user-level) tokens.
-	GetAccessTokens(ctx context.Context, userID string, page *paging.Page) ([]*gtsmodel.Token, error)
+	GetAccessTokens(ctx context.Context, userID string, page *paging.Page, orderBy gtsmodel.TokensOrderBy) ([]*gtsmodel.Token, error)
 
 	// GetTokenByID fetches the client oauth token from database with ID.
 	GetTokenByID(ctx context.Context, id string) (*gtsmodel.Token, error)

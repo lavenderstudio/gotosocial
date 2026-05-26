@@ -2940,6 +2940,7 @@ func (c *Converter) TokenToAPITokenInfo(ctx context.Context, token *gtsmodel.Tok
 
 	return &apimodel.TokenInfo{
 		ID:          token.ID,
+		Name:        token.Name,
 		CreatedAt:   util.FormatISO8601(createdAt),
 		LastUsed:    lastUsed,
 		Scope:       token.Scope,

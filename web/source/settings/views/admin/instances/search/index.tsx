@@ -26,6 +26,7 @@ import { Checkbox, Select, TextInput } from "../../../../components/form/inputs"
 import MutationButton from "../../../../components/form/mutation-button";
 import { useLocation, useSearch } from "wouter";
 import { AdminInstance } from "../../../../lib/types/instance";
+import { DateTimeMinute } from "../../../../components/datetime";
 
 export function InstancesSearchForm() {
 	const [ location, setLocation ] = useLocation();
@@ -160,8 +161,6 @@ function InstanceListEntry({ instance, linkTo, backLocation }: InstanceEntryProp
 	
 	const domain = instance.domain;
 	const software = instance.software ?? "unknown";
-	const firstSeen = new Date(instance.first_seen).toLocaleString();
-	const latestSuccessfulDelivery = instance.latest_successful_delivery && new Date(instance.latest_successful_delivery).toLocaleString();
 	const deliveryErrors = instance.delivery_errors;
 
 	const onClick = (e) => {
@@ -200,19 +199,12 @@ function InstanceListEntry({ instance, linkTo, backLocation }: InstanceEntryProp
 
 				<div className="info-list-entry">
 					<dt>First seen:</dt>
-					<dd className="text-cutoff">
-						<time dateTime={instance.first_seen}>{firstSeen}</time>
-					</dd>
+					<dd className="text-cutoff">{DateTimeMinute(instance.first_seen)}</dd>
 				</div>
 
 				<div className="info-list-entry">
 					<dt>Latest successful delivery:</dt>
-					<dd className="text-cutoff">
-						{ latestSuccessfulDelivery
-							? <time dateTime={instance.latest_successful_delivery}>{latestSuccessfulDelivery}</time>
-							: "unknown/never"
-						}
-					</dd>
+					<dd className="text-cutoff">{DateTimeMinute(instance.latest_successful_delivery)}</dd>
 				</div>
 
 				{ deliveryErrors &&

@@ -26,7 +26,8 @@ import { useLocation, useSearch } from "wouter";
 import { Select } from "../../../components/form/inputs";
 import { useLazySearchAppQuery } from "../../../lib/query/user/applications";
 import { App } from "../../../lib/types/application";
-import { useAppWebsite, useCreated, useRedirectURIs } from "./common";
+import { useAppWebsite, useRedirectURIs } from "./common";
+import { DateTimeMinute } from "../../../components/datetime";
 
 export default function ApplicationsSearchForm() {
 	const [ location, setLocation ] = useLocation();
@@ -136,7 +137,6 @@ interface ApplicationListEntryProps {
 function ApplicationListEntry({ app, linkTo, backLocation }: ApplicationListEntryProps) {
 	const [ _location, setLocation ] = useLocation();
 	const appWebsite = useAppWebsite(app);
-	const created = useCreated(app);
 	const redirectURIs = useRedirectURIs(app);
 
 	const onClick = (e) => {
@@ -181,7 +181,7 @@ function ApplicationListEntry({ app, linkTo, backLocation }: ApplicationListEntr
 
 				<div className="info-list-entry">
 					<dt>Created:</dt>
-					<dd className="text-cutoff">{created}</dd>
+					<dd className="text-cutoff">{DateTimeMinute(app.created_at)}</dd>
 				</div>
 
 				<div className="info-list-entry">

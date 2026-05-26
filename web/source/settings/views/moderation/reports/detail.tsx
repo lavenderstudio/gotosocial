@@ -31,6 +31,7 @@ import { useBaseUrl } from "../../../lib/navigation/util";
 import { AdminReport } from "../../../lib/types/report";
 import { yesOrNo } from "../../../lib/util";
 import { Status } from "../../../components/status";
+import { DateTimeMinute } from "../../../components/datetime";
 
 export default function ReportDetail({ }) {
 	const params: { reportId: string } = useParams();
@@ -92,7 +93,6 @@ function ReportBasicInfo({ report, baseUrl, location }: ReportSectionProps) {
 	const target = report.target_account;
 	const comment = report.comment;
 	const status = report.action_taken ? "Resolved" : "Unresolved";
-	const created = new Date(report.created_at).toLocaleString();
 
 	return (
 		<dl className="info-list overview">
@@ -140,9 +140,7 @@ function ReportBasicInfo({ report, baseUrl, location }: ReportSectionProps) {
 
 			<div className="info-list-entry">
 				<dt>Created</dt>
-				<dd>
-					<time dateTime={report.created_at}>{created}</time>
-				</dd>
+				<dd>{DateTimeMinute(report.created_at)}</dd>
 			</div>
 
 			<div className="info-list-entry">
@@ -163,9 +161,7 @@ function ReportHistory({ report, baseUrl, location }: ReportSectionProps) {
 	if (!handled_by) {
 		throw "report handled by action_taken_by_account undefined";
 	}
-	
-	const handled = report.action_taken_at ? new Date(report.action_taken_at).toLocaleString() : "never";
-	
+
 	return (
 		<>
 			<h3>Moderation History</h3>
@@ -183,9 +179,7 @@ function ReportHistory({ report, baseUrl, location }: ReportSectionProps) {
 
 				<div className="info-list-entry">
 					<dt>Handled</dt>
-					<dd>
-						<time dateTime={report.action_taken_at}>{handled}</time>
-					</dd>
+					<dd>{DateTimeMinute(report.action_taken_at)}</dd>
 				</div>
 
 				<div className="info-list-entry">

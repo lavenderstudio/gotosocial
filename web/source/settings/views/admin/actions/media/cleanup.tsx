@@ -25,25 +25,28 @@ import MutationButton from "../../../../components/form/mutation-button";
 import { useMediaCleanupMutation } from "../../../../lib/query/admin/actions";
 
 export default function Cleanup({}) {
-	const daysField = useTextInput("days", { defaultValue: "7" });
+	const remote_cache_days = useTextInput("remote_cache_days", { defaultValue: "1 day" });
 
 	const [mediaCleanup, mediaCleanupResult] = useMediaCleanupMutation();
 
 	function submitCleanup(e) {
 		e.preventDefault();
-		mediaCleanup(daysField.value);
+		mediaCleanup(remote_cache_days.value);
 	}
-    
 	return (
 		<form onSubmit={submitCleanup}>
 			<div className="form-section-docs">
 				<h2>Cleanup</h2>
 				<p>
-					Clean up remote media older than the specified number of days.
+					Cleanup (by removing from storage) remote media, headers, avatars, and emojis
+					older than the given duration string (<code>1 second</code>, <code>1 day</code>,
+					<code>1 week</code>, etc) or number of days (<code>1</code>, <code>7</code>, <code>30</code> etc).
 					<br/>
-					If the remote instance is still online they will be refetched when needed.
+					If you specify <code>0</code> here, then the value of your config
+					variable <code>media-remote-cache-duration</code> will be used instead.
 					<br/>
-					Also cleans up unused headers and avatars from the media cache.
+					If the remote instance is still online, any media removed
+					from storage in this way will be recached when needed.
 				</p>
 				<a
 					href="https://docs.gotosocial.org/en/stable/admin/media_caching/"
@@ -55,15 +58,13 @@ export default function Cleanup({}) {
 				</a>
 			</div>
 			<TextInput
-				field={daysField}
-				label="Days"
-				type="number"
-				min="0"
-				placeholder="30"
+				field={remote_cache_days}
+				label="Duration"
+				placeholder="1 day"
 			/>
 			<MutationButton
-				disabled={!daysField.value}
-				label="Remove old media"
+				disabled={!remote_cache_days.value}
+				label="Cleanup"
 				result={mediaCleanupResult}
 			/>
 		</form>

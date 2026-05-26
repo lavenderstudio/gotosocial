@@ -24,11 +24,12 @@ import BackButton from "../../../components/back-button";
 import { useBaseUrl } from "../../../lib/navigation/util";
 import { useDeleteAppMutation, useGetAppQuery, useGetOOBAuthCodeMutation } from "../../../lib/query/user/applications";
 import { App } from "../../../lib/types/application";
-import { useAppWebsite, useCallbackURL, useCreated, useRedirectURIs } from "./common";
+import { useAppWebsite, useCallbackURL, useRedirectURIs } from "./common";
 import MutationButton from "../../../components/form/mutation-button";
 import { useTextInput } from "../../../lib/form";
 import { TextInput } from "../../../components/form/inputs";
 import { useScopesPermittedBy, useScopesValidator } from "../../../lib/util/formvalidators";
+import { DateTimeMinute } from "../../../components/datetime";
 
 export default function AppDetail({ }) {
 	const params: { appId: string } = useParams();
@@ -60,7 +61,6 @@ function AppDetailForm({ data: app, backLocation }: { data: App, backLocation: s
 
 function AppBasicInfo({ app }: { app: App }) {
 	const appWebsite = useAppWebsite(app);
-	const created = useCreated(app);
 	const redirectURIs = useRedirectURIs(app);
 	const [ showClient, setShowClient ] = useState(false);
 	const [ showSecret, setShowSecret ] = useState(false);
@@ -81,7 +81,7 @@ function AppBasicInfo({ app }: { app: App }) {
 
 			<div className="info-list-entry">
 				<dt>Created:</dt>
-				<dd>{created}</dd>
+				<dd>{DateTimeMinute(app.created_at)}</dd>
 			</div>
 
 			<div className="info-list-entry">

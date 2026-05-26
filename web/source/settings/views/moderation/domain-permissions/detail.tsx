@@ -53,6 +53,7 @@ import { formDomainValidator } from "../../../lib/util/formvalidators";
 import UsernameLozenge from "../../../components/username-lozenge";
 import { FormSubmitEvent } from "../../../lib/form/types";
 import { useDomainFromParams } from "../../../lib/util/domain";
+import { DateTimeMinute } from "../../../components/datetime";
 
 export default function DomainPermView() {
 	const baseUrl = useBaseUrl();
@@ -135,19 +136,12 @@ function DomainPermDetails({
 }: DomainPermDetailsProps) {
 	const baseUrl = useBaseUrl();
 	const [ location ] = useLocation();
-	
-	const created = useMemo(() => {
-		if (perm.created_at) {
-			return new Date(perm.created_at).toDateString();
-		}
-		return "unknown";
-	}, [perm.created_at]);
 
 	return (
 		<dl className="info-list">
 			<div className="info-list-entry">
 				<dt>Created</dt>
-				<dd><time dateTime={perm.created_at}>{created}</time></dd>
+				<dd>{DateTimeMinute(perm.created_at)}</dd>
 			</div>
 			<div className="info-list-entry">
 				<dt>Created By</dt>

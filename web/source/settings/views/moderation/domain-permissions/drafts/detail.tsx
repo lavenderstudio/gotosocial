@@ -33,6 +33,7 @@ import MutationButton from "../../../../components/form/mutation-button";
 import { useBoolInput, useTextInput } from "../../../../lib/form";
 import { Checkbox, Select } from "../../../../components/form/inputs";
 import { DomainPermissionType } from "../../../../lib/types/domain";
+import { DateTimeMinute } from "../../../../components/datetime";
 
 export default function DomainPermissionDraftDetail() {
 	const baseUrl = useBaseUrl();
@@ -60,7 +61,6 @@ export default function DomainPermissionDraftDetail() {
 		return <ErrorC error={new Error("permission draft was undefined")} />;
 	}
 
-	const created = permDraft.created_at ? new Date(permDraft.created_at).toDateString(): "unknown";
 	const domain = permDraft.domain;
 	const permType = permDraft.permission_type;
 	if (!permType) {
@@ -76,7 +76,7 @@ export default function DomainPermissionDraftDetail() {
 			<dl className="info-list">
 				<div className="info-list-entry">
 					<dt>Created</dt>
-					<dd><time dateTime={permDraft.created_at}>{created}</time></dd>
+					<dd>{DateTimeMinute(permDraft.created_at)}</dd>
 				</div>
 				<div className="info-list-entry">
 					<dt>Created By</dt>

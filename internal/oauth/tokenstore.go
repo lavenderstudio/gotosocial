@@ -202,9 +202,9 @@ func (ts *tokenStore) getUpdateToken(
 	}
 
 	// If token was last used more than
-	// an hour ago, update this in the db.
+	// a minute ago, update this in the db.
 	wasLastUsed := token.LastUsed
-	if now := time.Now(); now.Sub(wasLastUsed) > 1*time.Hour {
+	if now := time.Now(); now.Sub(wasLastUsed) > 1*time.Minute {
 		token.LastUsed = now
 		if err := ts.state.DB.UpdateToken(ctx, token, "last_used"); err != nil {
 			// Unlock on error.

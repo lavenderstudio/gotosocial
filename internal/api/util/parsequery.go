@@ -269,6 +269,20 @@ func ParseInstancesOrder(value string, defaultValue gtsmodel.InstanceOrderBy) (g
 	}
 }
 
+func ParseTokensOrder(value string, defaultValue gtsmodel.TokensOrderBy) (gtsmodel.TokensOrderBy, gtserror.WithCode) {
+	switch strings.ToLower(value) {
+	case "":
+		return defaultValue, nil
+	case "last_used":
+		return gtsmodel.TokensOrderByLastUsed, nil
+	case "created":
+		return gtsmodel.TokensOrderByCreated, nil
+	default:
+		const errText = "invalid value for order, valid values are '', 'last_used' (default), or 'created'"
+		return gtsmodel.TokensOrderByUnknown, gtserror.NewErrorBadRequest(errors.New(errText), errText)
+	}
+}
+
 /*
 	Parse functions for *REQUIRED* parameters.
 */

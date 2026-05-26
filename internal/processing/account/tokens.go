@@ -20,11 +20,14 @@ package account
 import (
 	"context"
 	"errors"
+	"net/url"
 
 	"code.superseriousbusiness.org/gopkg/log"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
+	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 )
 
@@ -32,8 +35,9 @@ func (p *Processor) TokensGet(
 	ctx context.Context,
 	userID string,
 	page *paging.Page,
+	orderBy gtsmodel.TokensOrderBy,
 ) (*apimodel.PageableResponse, gtserror.WithCode) {
-	tokens, err := p.state.DB.GetAccessTokens(ctx, userID, page)
+	tokens, err := p.state.DB.GetAccessTokens(ctx, userID, page, orderBy)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		err := gtserror.Newf("db error getting tokens: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
@@ -70,6 +74,9 @@ func (p *Processor) TokensGet(
 		Path:  "/api/v1/tokens",
 		Next:  page.Next(lo, hi),
 		Prev:  page.Prev(lo, hi),
+		Query: url.Values{
+			apiutil.OrderKey: []string{orderBy.String()},
+		},
 	}), nil
 }
 
@@ -115,6 +122,43 @@ func (p *Processor) TokenInvalidate(
 
 	if err := p.state.DB.DeleteTokenByID(ctx, tokenID); err != nil {
 		err := gtserror.Newf("db error deleting token %s: %w", tokenID, err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	return tokenInfo, nil
+}
+
+func (p *Processor) TokenUpdate(
+	ctx context.Context,
+	userID string,
+	tokenID string,
+	name string,
+) (*apimodel.TokenInfo, gtserror.WithCode) {
+	token, err := p.state.DB.GetTokenByID(ctx, tokenID)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		err := gtserror.Newf("db error getting token %s: %w", tokenID, err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	if token == nil {
+		err := gtserror.Newf("token %s not found in the db", tokenID)
+		return nil, gtserror.NewErrorNotFound(err)
+	}
+
+	if token.UserID != userID {
+		err := gtserror.Newf("token %s does not belong to user %s", tokenID, userID)
+		return nil, gtserror.NewErrorNotFound(err)
+	}
+
+	token.Name = name
+	if err := p.state.DB.UpdateToken(ctx, token, "name"); err != nil {
+		err := gtserror.Newf("db error updating token: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	tokenInfo, err := p.converter.TokenToAPITokenInfo(ctx, token)
+	if err != nil {
+		err := gtserror.Newf("error converting token to api token info: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 

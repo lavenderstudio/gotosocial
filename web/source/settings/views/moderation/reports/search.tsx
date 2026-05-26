@@ -27,6 +27,7 @@ import MutationButton from "../../../components/form/mutation-button";
 import { useLocation, useSearch } from "wouter";
 import UsernameLozenge from "../../../components/username-lozenge";
 import { AdminReport } from "../../../lib/types/report";
+import { DateTimeMinute } from "../../../components/datetime";
 
 export default function ReportsSearch() {
 	return (
@@ -191,8 +192,7 @@ function ReportListEntry({ report, linkTo, backLocation }: ReportEntryProps) {
 	const target = report.target_account;
 	const comment = report.comment;
 	const status = report.action_taken ? "Resolved" : "Unresolved";
-	const created = new Date(report.created_at).toLocaleString();
-	const title = `${status}. @${target.account.acct} was reported by @${from.account.acct} on ${created}. Reason: "${comment}"`;
+	const title = `${status}. @${target.account.acct} was reported by @${from.account.acct}. Reason: "${comment}"`;
 
 	const onClick = (e) => {
 		e.preventDefault();
@@ -261,9 +261,7 @@ function ReportListEntry({ report, linkTo, backLocation }: ReportEntryProps) {
 
 				<div className="info-list-entry">
 					<dt>Created:</dt>
-					<dd className="text-cutoff">
-						<time dateTime={report.created_at}>{created}</time>
-					</dd>
+					<dd className="text-cutoff">{DateTimeMinute(report.created_at)}</dd>
 				</div>
 			</dl>
 		</span>

@@ -21,6 +21,7 @@ import (
 	"net/http"
 
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 	"github.com/gin-gonic/gin"
 )
@@ -29,7 +30,9 @@ import (
 //
 // See info about tokens created for/by your account.
 //
-// The items will be returned in descending chronological order (newest first), with sequential IDs (bigger = newer).
+// By default, the items will be returned in descending chronological order of latest used time (latest -> oldest).
+//
+// If the "order" parameter is set to "created", then items will be returned in descending chronological order of creation time (newest -> oldest), with sequential IDs (bigger = newer).
 //
 // The returned Link header can be used to generate the previous and next queries when paging up or down.
 //
@@ -48,10 +51,17 @@ import (
 //
 //	parameters:
 //	-
+//		name: order
+//		type: string
+//		description: Order results by "last_used" (latest to oldest), or "created" (newest to oldest).
+//		in: query
+//		default: last_used
+//		required: false
+//	-
 //		name: max_id
 //		type: string
 //		description: >-
-//			Return only items *OLDER* than the given max item ID.
+//			Return only items after the given max item ID.
 //			The item with the specified ID will not be included in the response.
 //		in: query
 //		required: false
@@ -59,14 +69,14 @@ import (
 //		name: since_id
 //		type: string
 //		description: >-
-//			Return only items *newer* than the given since item ID.
+//			Return only items before the given item ID.
 //			The item with the specified ID will not be included in the response.
 //		in: query
 //	-
 //		name: min_id
 //		type: string
 //		description: >-
-//			Return only items *immediately newer* than the given since item ID.
+//			Return only items *immediately before* the given since item ID.
 //			The item with the specified ID will not be included in the response.
 //		in: query
 //		required: false
@@ -129,10 +139,20 @@ func (m *Module) TokensInfoGETHandler(c *gin.Context) {
 		return
 	}
 
+	orderBy, errWithCode := apiutil.ParseTokensOrder(
+		c.Query(apiutil.OrderKey),
+		gtsmodel.TokensOrderByLastUsed,
+	)
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		return
+	}
+
 	resp, errWithCode := m.processor.Account().TokensGet(
 		c.Request.Context(),
 		authed.User.ID,
 		page,
+		orderBy,
 	)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)

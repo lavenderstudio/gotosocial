@@ -31,6 +31,7 @@ import useFormSubmit from "../../../../lib/form/submit";
 import UsernameLozenge from "../../../../components/username-lozenge";
 import { urlValidator } from "../../../../lib/util/formvalidators";
 import { PageableList } from "../../../../components/pageable-list";
+import { DateTimeMinute, DateTimeSecond } from "../../../../components/datetime";
 
 export default function DomainPermissionSubscriptionDetail() {
 	const params = useParams();
@@ -71,17 +72,6 @@ function DomainPermSubDetails({ permSub }: { permSub: DomainPermissionSubscripti
 	if (!permType) {
 		throw "permission_type was undefined";
 	}
-
-	const created = new Date(permSub.created_at).toDateString();
-	let fetchedAtStr = "never";
-	if (permSub.fetched_at) {
-		fetchedAtStr = new Date(permSub.fetched_at).toDateString();
-	}
-
-	let successfullyFetchedAtStr = "never";
-	if (permSub.successfully_fetched_at) {
-		successfullyFetchedAtStr = new Date(permSub.successfully_fetched_at).toDateString();
-	}
 	
 	return (
 		<dl className="info-list">
@@ -101,7 +91,7 @@ function DomainPermSubDetails({ permSub }: { permSub: DomainPermissionSubscripti
 			</div>
 			<div className="info-list-entry">
 				<dt>Created</dt>
-				<dd><time dateTime={permSub.created_at}>{created}</time></dd>
+				<dd>{DateTimeMinute(permSub.created_at)}</dd>
 			</div>
 			<div className="info-list-entry">
 				<dt>Created By</dt>
@@ -115,11 +105,11 @@ function DomainPermSubDetails({ permSub }: { permSub: DomainPermissionSubscripti
 			</div>
 			<div className="info-list-entry">
 				<dt>Last fetch attempt:</dt>
-				<dd>{fetchedAtStr}</dd>
+				<dd>{DateTimeSecond(permSub.fetched_at)}</dd>
 			</div>
 			<div className="info-list-entry">
 				<dt>Last successful fetch:</dt>
-				<dd>{successfullyFetchedAtStr}</dd>
+				<dd>{DateTimeSecond(permSub.successfully_fetched_at)}</dd>
 			</div>
 			<div className="info-list-entry">
 				<dt>Discovered {permSub.permission_type}s:</dt>

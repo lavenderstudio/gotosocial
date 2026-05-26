@@ -38,6 +38,7 @@ import { FormSubmitEvent } from "../../../lib/form/types";
 import useFormSubmit from "../../../lib/form/submit";
 import { RadioGroup, TextArea, TextInput } from "../../../components/form/inputs";
 import MutationButton from "../../../components/form/mutation-button";
+import { DateTimeMinute } from "../../../components/datetime";
 
 export default function DomainLimitView() {
 	const baseUrl = useBaseUrl();
@@ -98,18 +99,11 @@ function DomainLimitDetails({ limit }: { limit: DomainLimit }) {
 	const baseUrl = useBaseUrl();
 	const [ location ] = useLocation();
 
-	const created = useMemo(() => {
-		if (limit.created_at) {
-			return new Date(limit.created_at).toDateString();
-		}
-		return "unknown";
-	}, [limit.created_at]);
-
 	return (
 		<dl className="info-list">
 			<div className="info-list-entry">
 				<dt>Created</dt>
-				<dd><time dateTime={limit.created_at}>{created}</time></dd>
+				<dd>{DateTimeMinute(limit.created_at)}</dd>
 			</div>
 			<div className="info-list-entry">
 				<dt>Created By</dt>

@@ -28,6 +28,7 @@ import { useBoolInput, useTextInput, useValue } from "../lib/form";
 import { Checkbox, TextInput } from "./form/inputs";
 import useFormSubmit from "../lib/form/submit";
 import RelayFlags from "./relayflags";
+import { DateTimeMinute } from "./datetime";
 
 interface RelayDetailFormProps {
 	data: RelayConnection,
@@ -48,7 +49,6 @@ export default function RelayDetailForm({
 }: RelayDetailFormProps) {
 	const [ _location, setLocation ] = useLocation();
 	const baseUrl = useBaseUrl();
-	const createdAt = new Date(conn.created_at).toLocaleString();
 	const form = {
 		id: useValue("id", conn.id),
 		public: useBoolInput("public", { source: conn }),
@@ -70,7 +70,7 @@ export default function RelayDetailForm({
 				</div>
 				<div className="info-list-entry">
 					<dt>Created at:</dt>
-					<dd><time dateTime={conn.created_at}>{createdAt}</time></dd>
+					<dd>{DateTimeMinute(conn.created_at)}</dd>
 				</div>
 				{
 					conn.account_id &&

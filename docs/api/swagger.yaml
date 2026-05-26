@@ -3982,6 +3982,11 @@ definitions:
                 example: "2021-07-30T09:20:25+00:00"
                 type: string
                 x-go-name: LastUsed
+            name:
+                description: User-set name for this token,
+                example: firefox mobile
+                type: string
+                x-go-name: Name
             scope:
                 description: OAuth scopes granted by the token, space-separated.
                 example: read write admin
@@ -16472,7 +16477,9 @@ paths:
     /api/v1/tokens:
         get:
             description: |-
-                The items will be returned in descending chronological order (newest first), with sequential IDs (bigger = newer).
+                By default, the items will be returned in descending chronological order of latest used time (latest -> oldest).
+
+                If the "order" parameter is set to "created", then items will be returned in descending chronological order of creation time (newest -> oldest), with sequential IDs (bigger = newer).
 
                 The returned Link header can be used to generate the previous and next queries when paging up or down.
 
@@ -16483,15 +16490,20 @@ paths:
                 ````
             operationId: tokensInfoGet
             parameters:
-                - description: Return only items *OLDER* than the given max item ID. The item with the specified ID will not be included in the response.
+                - default: last_used
+                  description: Order results by "last_used" (latest to oldest), or "created" (newest to oldest).
+                  in: query
+                  name: order
+                  type: string
+                - description: Return only items after the given max item ID. The item with the specified ID will not be included in the response.
                   in: query
                   name: max_id
                   type: string
-                - description: Return only items *newer* than the given since item ID. The item with the specified ID will not be included in the response.
+                - description: Return only items before the given item ID. The item with the specified ID will not be included in the response.
                   in: query
                   name: since_id
                   type: string
-                - description: Return only items *immediately newer* than the given since item ID. The item with the specified ID will not be included in the response.
+                - description: Return only items *immediately before* the given since item ID. The item with the specified ID will not be included in the response.
                   in: query
                   name: min_id
                   type: string
@@ -16567,6 +16579,47 @@ paths:
                 - OAuth2 Bearer:
                     - read:accounts
             summary: Get information about a single token.
+            tags:
+                - tokens
+        put:
+            operationId: tokenUpdatePut
+            parameters:
+                - description: The id of the target token.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Info about the updated token.
+                    schema:
+                        $ref: '#/definitions/tokenInfo'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - write:accounts
+            summary: Update the given token to set / unset the "name" property.
             tags:
                 - tokens
     /api/v1/tokens/{id}/invalidate:

@@ -76,26 +76,3 @@ type Token struct {
 	// Refresh expires at -- null means the refresh token never expires.
 	RefreshExpiresAt time.Time `bun:"type:timestamptz,nullzero"`
 }
-
-// TokenOrderBy is for doing db
-// queries for admin view of tokens
-type TokensOrderBy enumType
-
-const (
-	TokensOrderByUnknown TokensOrderBy = iota
-	// Order by last use (latest -> oldest).
-	TokensOrderByLastUsed
-	// Order by creation date (newest -> oldest).
-	TokensOrderByCreated
-)
-
-func (d TokensOrderBy) String() string {
-	switch d {
-	case TokensOrderByLastUsed:
-		return "last_used"
-	case TokensOrderByCreated:
-		return "created"
-	default:
-		return "unknown"
-	}
-}

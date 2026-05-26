@@ -26,6 +26,7 @@ import { Error as ErrorC } from "../../../../components/error";
 import UsernameLozenge from "../../../../components/username-lozenge";
 import { useDeleteDomainPermissionExcludeMutation, useGetDomainPermissionExcludeQuery } from "../../../../lib/query/admin/domain-permissions/excludes";
 import MutationButton from "../../../../components/form/mutation-button";
+import { DateTimeMinute } from "../../../../components/datetime";
 
 export default function DomainPermissionExcludeDetail() {
 	const baseUrl = useBaseUrl();
@@ -53,7 +54,6 @@ export default function DomainPermissionExcludeDetail() {
 		return <ErrorC error={new Error("permission exclude was undefined")} />;
 	}
 
-	const created = permExclude.created_at ? new Date(permExclude.created_at).toDateString(): "unknown";
 	const domain = permExclude.domain;
 	const privateComment = permExclude.private_comment ?? "[none]";
 
@@ -63,7 +63,7 @@ export default function DomainPermissionExcludeDetail() {
 			<dl className="info-list">
 				<div className="info-list-entry">
 					<dt>Created</dt>
-					<dd><time dateTime={permExclude.created_at}>{created}</time></dd>
+					<dd>{DateTimeMinute(permExclude.created_at)}</dd>
 				</div>
 				<div className="info-list-entry">
 					<dt>Created By</dt>

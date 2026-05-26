@@ -44,18 +44,18 @@ func (suite *TokensGetTestSuite) TestTokensGet() {
 	suite.Equal(http.StatusOK, code)
 	suite.Equal(`[
   {
-    "id": "01JN0X2D9GJTZQ5KYPYFWN16QW",
-    "created_at": "2025-02-26T10:33:04.560Z",
-    "scope": "push",
+    "id": "01F8MGTQW4DKTDF8SW5CT9HYGA",
+    "created_at": "2021-06-20T10:53:00.164Z",
+    "scope": "read write push",
     "application": {
       "name": "really cool gts application",
       "website": "https://reallycool.app"
     }
   },
   {
-    "id": "01F8MGTQW4DKTDF8SW5CT9HYGA",
-    "created_at": "2021-06-20T10:53:00.164Z",
-    "scope": "read write push",
+    "id": "01JN0X2D9GJTZQ5KYPYFWN16QW",
+    "created_at": "2025-02-26T10:33:04.560Z",
+    "scope": "push",
     "application": {
       "name": "really cool gts application",
       "website": "https://reallycool.app"

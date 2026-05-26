@@ -42,6 +42,9 @@ type TokenInfo struct {
 	// Database ID of this token.
 	// example: 01JMW7QBAZYZ8T8H73PCEX12XG
 	ID string `json:"id"`
+	// User-set name for this token,
+	// example: firefox mobile
+	Name string `json:"name,omitempty"`
 	// When the token was created (ISO 8601 Datetime).
 	// example: 2021-07-30T09:20:25+00:00
 	CreatedAt string `json:"created_at"`
@@ -54,4 +57,11 @@ type TokenInfo struct {
 	Scope string `json:"scope"`
 	// Application used to create this token.
 	Application *Application `json:"application"`
+}
+
+// Form to update token info.
+//
+// swagger:ignore
+type TokenInfoUpdateRequest struct {
+	Name string `json:"name" form:"name"`
 }

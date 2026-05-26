@@ -1554,6 +1554,12 @@ button.tab-button {
 	}
 }
 
+.token-detail {
+	.info-list {
+		margin-top: 1rem;
+	}
+}
+
 .access-token-receive-form {
 	> .access-token-frame {
 		background-color: $gray2;

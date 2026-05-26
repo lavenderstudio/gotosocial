@@ -180,7 +180,18 @@ func (d *Dereferencer) fetchStatusMentions(
 			existing,
 			mention,
 		)
-		if err != nil {
+		switch {
+		case err == nil:
+			// No problem.
+
+		case gtserror.IsUnretrievable(err):
+			// Unretrievable means the remote is
+			// probably blocked or webfinger wasn't working.
+			log.Debugf(ctx, "unretrievable mention: %v", err)
+			continue
+
+		default:
+			// Some kind of actual error.
 			log.Errorf(ctx, "failed to derive mention: %v", err)
 			continue
 		}

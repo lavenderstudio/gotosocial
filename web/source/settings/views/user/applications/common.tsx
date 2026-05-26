@@ -46,13 +46,6 @@ export const useAppWebsite = (app: App) => {
 	}, [app.website]);
 };
 
-export const useCreated = (app: App) => {
-	return useMemo(() => {
-		const createdAt = new Date(app.created_at);
-		return <time dateTime={app.created_at}>{createdAt.toDateString()}</time>;
-	}, [app.created_at]);
-};
-
 export const useRedirectURIs= (app: App) => {
 	return useMemo(() => {
 		const length = app.redirect_uris.length;

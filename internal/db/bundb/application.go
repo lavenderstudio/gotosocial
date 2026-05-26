@@ -244,6 +244,7 @@ func (a *applicationDB) GetAccessTokens(
 	ctx context.Context,
 	userID string,
 	page *paging.Page,
+	orderBy gtsmodel.TokensOrderBy,
 ) ([]*gtsmodel.Token, error) {
 	var (
 		// Get paging params.
@@ -268,12 +269,46 @@ func (a *applicationDB) GetAccessTokens(
 		Where("? = ?", bun.Ident("token.user_id"), userID).
 		Where("? != ?", bun.Ident("token.access"), "")
 
-	if maxID != "" {
+	// Page with maxID
+	// if necessary.
+	switch {
+	case maxID == "":
+		// No max ID paging specified.
+
+	case orderBy == gtsmodel.TokensOrderByLastUsed:
+		// Get token with maxID.
+		maxIDToken, err := a.GetTokenByID(ctx, maxID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Return only tokens with a last-used time
+		// LESSER than ie., *older* than token with maxID.
+		q = q.Where("? < ?", bun.Ident("token.last_used"), maxIDToken.LastUsed)
+
+	case orderBy == gtsmodel.TokensOrderByCreated:
 		// Return only tokens LOWER (ie., older) than maxID.
 		q = q.Where("? < ?", bun.Ident("token.id"), maxID)
 	}
 
-	if minID != "" {
+	// Page with minID
+	// if necessary.
+	switch {
+	case minID == "":
+		// No min ID paging specified.
+
+	case orderBy == gtsmodel.TokensOrderByLastUsed:
+		// Get token with minID.
+		minIDToken, err := a.GetTokenByID(ctx, minID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Return only tokens with a last-used time
+		// GREATER than ie., *newer* than token with minID.
+		q = q.Where("? > ?", bun.Ident("token.last_used"), minIDToken.LastUsed)
+
+	case orderBy == gtsmodel.TokensOrderByCreated:
 		// Return only tokens HIGHER (ie., newer) than minID.
 		q = q.Where("? > ?", bun.Ident("token.id"), minID)
 	}
@@ -282,11 +317,18 @@ func (a *applicationDB) GetAccessTokens(
 		q = q.Limit(limit)
 	}
 
-	if order == paging.OrderAscending {
-		// Page up.
+	switch {
+	case orderBy == gtsmodel.TokensOrderByLastUsed && order == paging.OrderAscending:
+		// Page up by last used.
+		q = q.Order("token.last_used ASC")
+	case orderBy == gtsmodel.TokensOrderByLastUsed && order == paging.OrderDescending:
+		// Page down by last used.
+		q = q.Order("token.last_used DESC")
+	case orderBy == gtsmodel.TokensOrderByCreated && order == paging.OrderAscending:
+		// Page up by ID.
 		q = q.Order("token.id ASC")
-	} else {
-		// Page down.
+	case orderBy == gtsmodel.TokensOrderByCreated && order == paging.OrderDescending:
+		// Page down by ID.
 		q = q.Order("token.id DESC")
 	}
 
@@ -299,8 +341,7 @@ func (a *applicationDB) GetAccessTokens(
 	}
 
 	// If we're paging up, we still want tokens
-	// to be sorted by ID desc (ie., newest to
-	// oldest), so reverse ids slice.
+	// to be sorted desc, so reverse ids slice.
 	if order == paging.OrderAscending {
 		slices.Reverse(tokenIDs)
 	}
@@ -308,13 +349,13 @@ func (a *applicationDB) GetAccessTokens(
 	return a.getTokensByIDs(ctx, tokenIDs)
 }
 
-func (a *applicationDB) GetTokenByID(ctx context.Context, code string) (*gtsmodel.Token, error) {
+func (a *applicationDB) GetTokenByID(ctx context.Context, id string) (*gtsmodel.Token, error) {
 	return a.getTokenBy(
 		"ID",
 		func(t *gtsmodel.Token) error {
-			return a.db.NewSelect().Model(t).Where("? = ?", bun.Ident("id"), code).Scan(ctx)
+			return a.db.NewSelect().Model(t).Where("? = ?", bun.Ident("id"), id).Scan(ctx)
 		},
-		code,
+		id,
 	)
 }
 
