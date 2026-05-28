@@ -12,39 +12,65 @@ Regardless of whether you choose to run GoToSocial with SQLite or Postgres, you 
 
 ## SQLite
 
-To do manual SQLite maintenance, you should first install the SQLite command line tool `sqlite3` on the same machine that your GoToSocial sqlite.db file is stored on. See [here](https://sqlite.org/cli.html) for details about `sqlite3`.
-
-### Analyze / Optimize
-
-Following [SQLite best practice](https://sqlite.org/lang_analyze.html#recommended_usage_pattern), GoToSocial runs the `optimize` SQLite pragma with `analysis_limit=1000` on closing database connections to keep index information up to date.
-
-After each set of database migrations (eg., when starting a newer version of GoToSocial), GoToSocial will run `ANALYZE` to ensure that any indexes added or removed by migrations are taken into account correctly by the query planner.
-
-The `ANALYZE` command may take ~10 minutes depending on your hardware and the size of your database file.
-
-Because of the above automated steps, in normal circumstances you should not need to run manual `ANALYZE` commands against your SQLite database file.
-
-However, if you interrupted a previous `ANALYZE` command, and you notice that queries are running remarkably slowly, it could be the case that the index metadata stored in SQLite's internal tables has been removed or undesirably altered.
-
-If this is the case, you can try manually running a full `ANALYZE` command, by doing the following:
-
-1. Stop GoToSocial.
-2. While connected to your GoToSocial database file in the `sqlite3` shell, run `PRAGMA analysis_limit=0; ANALYZE;` (this may take quite a few minutes).
-3. Start GoToSocial.
-
-[See here](https://sqlite.org/lang_analyze.html#approximate_analyze_for_large_databases) for more info.
-
 ### Vacuum
 
-GoToSocial does not currently enable auto-vacuum for SQLite. To repack the database file to an optimal size you may want to run a `VACUUM` command on your SQLite database periodically (eg., every few months).
+To minimize fragmentation, GoToSocial does not currently enable auto-vacuum for SQLite. To defragment the database file and repack it to an optimal size you may want to run a `VACUUM` command on your SQLite database periodically (eg., every few months).
 
 You can see lots of information about the `VACUUM` command [here](https://sqlite.org/lang_vacuum.html).
 
-The basic steps are:
+To vacuum your GoToSocial database file, you must meet the following requirements:
+
+- The SQLite command line tool `sqlite3` must be installed on the same machine that your GoToSocial `sqlite.db` file is stored on. For more details, see the [`sqlite3` cli docs](https://sqlite.org/cli.html).
+- You must have free disk space roughly equivalent to 2x the size of your `sqlite.db` file. Eg., if you have a 10GB database file, you should make sure you have ~20GB of free space. This space is used during the vacuum to create a temporary copy of your database file, and to populate a wal file.
+
+Once you've met these requirements, do the following:
 
 1. Stop GoToSocial.
-2. While connected to your GoToSocial database file in the `sqlite3` shell, run `VACUUM;` (this may take quite a few minutes).
-3. Start GoToSocial.
+2. In the same directory as your GoToSocial `sqlite.db` file, run the command: `sqlite3 sqlite.db "VACUUM;"`
+  This may take quite a few minutes depending on the size of your database. DO NOT INTERRUPT IT.
+3. When the command has finished running, start GoToSocial again.
+
+### Analyze / Optimize
+
+GoToSocial runs a [full analyze command](https://sqlite.org/lang_analyze.html) after each set of database migrations (eg., when starting an updated version of GoToSocial), to ensure that any indexes added or removed by migrations are taken into account correctly by the query planner.
+
+Following SQLite best practice, GoToSocial also runs the [`optimize` SQLite pragma](https://sqlite.org/pragma.html#pragma_optimize) when closing database connections, to help keep index information up to date. The `optimize` pragma runs `analyze` only if it's deemed to be beneficial, given the queries that the closed database connection handled.
+
+Because of the above automated steps, in normal circumstances you should not need to run a manual `analyze` against your SQLite database file.
+
+However, if you notice that queries are running very slowly, it could be the case that the index metadata stored in SQLite's internal tables has become out of date, or has been removed or otherwise undesirably altered, leading the query planner to make poor choices.
+
+This is particularly prone to happening if a large cleanup operation has just occured, eg., you've just [cleaned up a lot of old statuses](../configuration/statuses.md).
+
+If you notice lots of timeouts, for example when trying to view your timelines or profile page, you can use the GoToSocial binary to manually run a full `analyze`.
+
+!!! important "Use the GoToSocial binary to run `analyze`!"
+    It's very important that when doing an analyze, you use the GoToSocial binary, and **not** the `sqlite3` command line tool.
+    
+    This is because the version of SQLite used in the GoToSocial binary has the compile-time flag `SQLITE_ENABLE_STAT4` enabled, which leads to much more thorough analysis and better query plans.
+    
+    If you run `analyze` using the `sqlite3` command line tool, you risk severely degrading performance for certain timeline and profile page queries!
+
+    For more info on `SQLITE_ENABLE_STAT4`, see [the SQLite compilation flag docs](https://sqlite.org/compile.html#enable_stat4).
+
+For a **binary** install, run the following command to do an `analyze` using the GoToSocial binary, replacing `/path/to/config.yaml` with the actual path to your `config.yaml` file:
+
+```sh
+./gotosocial --config-path /path/to/config.yaml \
+    database sqlite analyze
+```
+
+When running GoToSocial from a **container**, you'll need to execute the above command inside the container instead. How to do this varies based on your container runtime, but for Docker it should look like:
+
+```sh
+docker exec -it CONTAINER_NAME_OR_ID \
+    /gotosocial/gotosocial \
+    database sqlite analyze
+```
+
+The command may take up to 15 minutes to finish running, depending on the size of your database file, and the specs of your machine. **DO NOT INTERRUPT IT**.
+
+You will likely notice degraded performance of GoToSocial while the `analyze` is running, this is normal. If you prefer, you can stop GoToSocial before running the command, and start it again after running the command.
 
 ### Replication
 
