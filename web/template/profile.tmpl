@@ -17,11 +17,32 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */ -}}
 
+{{- define "webVisibility" -}}
+{{- with .account.WebVisibility -}}
+{{- if eq . "public" -}}
+public
+{{- else if eq . "unlisted" -}}
+public and unlisted
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
 {{- with . }}
 <main class="profile h-card">
     {{- with . }}
     {{- include "profile_header.tmpl" . | indent 1 }}
     {{- end }}
+    {{- if eq .account.WebVisibility "none" }}
+    {{- with . }}
+    {{- include "profile_about_user.tmpl" . | indent 1 }}
+    <section data-nosnippet class="nothinghere" aria-labelledby="postsby">
+        <h3 id="postsby">Posts by <b>{{ .account.Username }}</b></h3>
+        <p><b>{{ .account.Username }}</b> does not show posts on the World Wide Web.</p>
+        <p>To see posts by <b>{{ .account.Username }}</b>, try pasting this profile URL into your fedi client of choice:</p>
+        <pre class="language-url"><code class="language-url">{{- .account.URL -}}</code></pre>
+    </section>
+    {{- end }}
+    {{- else }}
     <div class="column-split">
         {{- with . }}
         {{- include "profile_about_user.tmpl" . | indent 2 }}
@@ -30,7 +51,7 @@
             {{- if .pinned_statuses }}
             <section class="pinned statuses h-feed" aria-labelledby="pinned">
                 <div class="col-header">
-                    <h3 class="p-name" id="pinned">Pinned posts</h3>
+                    <h3 class="p-name" id="pinned">Pinned {{ template "webVisibility" . }} posts</h3>
                     <a href="#recent">jump to recent</a>
                 </div>
                 <div class="thread">
@@ -47,7 +68,7 @@
             {{- end }}
             <section class="recent statuses h-feed" aria-labelledby="recent">
                 <div class="col-header wrapping">
-                    <h3 class="p-name" id="recent">Recent posts</h3>
+                    <h3 class="p-name" id="recent">Recent {{ template "webVisibility" . }} posts</h3>
                     {{- if .excludeBoostsLink }}
                     <a href="{{- .excludeBoostsLink -}}#recent">exclude boosts</a>
                     {{- else if .includeBoostsLink }}
@@ -63,9 +84,9 @@
                     {{- if not .statuses }}
                     <div data-nosnippet class="nothinghere">
                         {{- if .show_back_to_top }}
-                            Reached the end of visible posts!
+                            Reached the end of visible {{ template "webVisibility" . }} posts!
                         {{- else }}
-                            Nothing to see here! {{ .account.Username }} has either not written any public posts yet, or has opted not to make posts visible via the World Wide Web.
+                            Nothing to see here! {{ .account.Username }} has probably not written any visible {{ template "webVisibility" . }} posts yet.
                         {{- end }}
                     </div>
                     {{- else }}
@@ -108,5 +129,6 @@
             </section>
         </div>
     </div>
+    {{- end }}
 </main>
 {{- end }}

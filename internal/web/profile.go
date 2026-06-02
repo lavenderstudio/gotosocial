@@ -308,6 +308,12 @@ func (m *Module) profileMicroblog(c *gin.Context, p *profile) {
 		}...,
 	)
 
+	// If no posts are shown on the web,
+	// show stats wide in single-column view.
+	if p.account.WebVisibility == apimodel.VisibilityNone {
+		stylesheets = append(stylesheets, cssProfileWideStats)
+	}
+
 	// User-selected theme if set.
 	if theme := p.account.Theme; theme != "" {
 		stylesheets = append(
@@ -387,6 +393,9 @@ func (m *Module) profileGallery(c *gin.Context, p *profile) {
 		[]string{
 			cssFA,
 			cssProfileGallery,
+			// Show stats wide
+			// in single-column.
+			cssProfileWideStats,
 		}...)
 
 	// User-selected theme if set.

@@ -280,6 +280,21 @@
 }
 
 /*
+	If account doesn't show posts on the web,
+	a little "there's nothing here" section will
+	be rendered just below the fields.
+*/
+.profile > .nothinghere {
+	background: $profile-bg;
+	border-radius: $br;
+	padding: 0.75rem;
+	margin-top: 1rem;
+	& > h3 {
+		margin-top: 0;
+	}
+}
+
+/*
 	RSS icon isn't really part of the profile header exactly,
 	but also it sort of is, and we want it styled the same for
 	both microblog and gallery view anyway, so include it here.

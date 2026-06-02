@@ -102,6 +102,23 @@ func (c *Converter) UserToAPIUser(ctx context.Context, u *gtsmodel.User) *apimod
 	return user
 }
 
+// accountWebVisibility returns web visibility for a local account's statuses.
+func accountWebVisibility(a *gtsmodel.Account) apimodel.Visibility {
+	switch {
+	case *a.HidesToPublicFromUnauthedWeb:
+		// Hides all.
+		return apimodel.VisibilityNone
+
+	case !*a.HidesCcPublicFromUnauthedWeb:
+		// Shows unlisted + public (Masto default).
+		return apimodel.VisibilityUnlisted
+
+	default:
+		// Shows public only (GtS default).
+		return apimodel.VisibilityPublic
+	}
+}
+
 // AccountToAPIAccountSensitive takes a db model account as a param, and returns a populated apitype account, or an error
 // if something goes wrong. The returned account should be ready to serialize on an API level, and may have sensitive fields
 // (such as user settings and follow requests count), so serve it only to an authorized user who should have permission to see it.
@@ -134,26 +151,9 @@ func (c *Converter) AccountToAPIAccountSensitive(ctx context.Context, a *gtsmode
 		statusContentType = a.Settings.StatusContentType
 	}
 
-	// Derive web visibility for
-	// this local account's statuses.
-	var webVisibility apimodel.Visibility
-	switch {
-	case *a.HidesToPublicFromUnauthedWeb:
-		// Hides all.
-		webVisibility = apimodel.VisibilityNone
-
-	case !*a.HidesCcPublicFromUnauthedWeb:
-		// Shows unlisted + public (Masto default).
-		webVisibility = apimodel.VisibilityUnlisted
-
-	default:
-		// Shows public only (GtS default).
-		webVisibility = apimodel.VisibilityPublic
-	}
-
 	apiAccount.Source = &apimodel.Source{
 		Privacy:             VisToAPIVis(a.Settings.Privacy),
-		WebVisibility:       webVisibility,
+		WebVisibility:       accountWebVisibility(a),
 		WebLayout:           a.Settings.WebLayout.String(),
 		WebIncludeBoosts:    *a.Settings.WebIncludeBoosts,
 		Sensitive:           *a.Settings.Sensitive,
@@ -240,6 +240,7 @@ func (c *Converter) AccountToWebAccount(
 	// settings struct.
 	if account.Settings != nil {
 		webAccount.WebLayout = account.Settings.WebLayout.String()
+		webAccount.WebVisibility = accountWebVisibility(account)
 	}
 
 	return webAccount, nil

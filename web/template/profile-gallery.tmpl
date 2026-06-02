@@ -17,6 +17,16 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */ -}}
 
+{{- define "webVisibility" -}}
+{{- with .account.WebVisibility -}}
+{{- if eq . "public" -}}
+public
+{{- else if eq . "unlisted" -}}
+public and unlisted
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
 {{- with . }}
 <main class="profile h-card">
     {{- with . }}
@@ -25,6 +35,14 @@
     {{- with . }}
     {{- include "profile_about_user.tmpl" . | indent 1 }}
     {{- end }}
+    {{- if eq .account.WebVisibility "none" }}
+    <section data-nosnippet class="nothinghere" aria-labelledby="mediaby">
+        <h3 id="mediaby">Media by <b>{{ .account.Username }}</b></h3>
+        <p><b>{{ .account.Username }}</b> does not show media on the World Wide Web.</p>
+        <p>To see media by <b>{{ .account.Username }}</b>, try pasting this profile URL into your fedi client of choice:</p>
+        <pre class="language-url"><code class="language-url">{{- .account.URL -}}</code></pre>
+    </section>
+    {{- else }}
     <div
         class="media-galleries-wrapper"
         role="region"
@@ -33,7 +51,7 @@
         {{- if .pinned_statuses }}
         <section class="pinned h-feed" aria-labelledby="pinned">
             <div class="col-header">
-                <h3 class="p-name" id="pinned">Pinned media</h3>
+                <h3 class="p-name" id="pinned">Pinned {{ template "webVisibility" . }} media</h3>
                 <a href="#recent">jump to recent</a>
             </div>
             <div
@@ -48,7 +66,7 @@
         {{- end }}
         <section class="recent h-feed" aria-labelledby="recent">
             <div class="col-header wrapping">
-                <h3 class="p-name" id="recent">Recent media</h3>
+                <h3 class="p-name" id="recent">Recent {{ template "webVisibility" . }} media</h3>
                 {{- if .excludeBoostsLink }}
                 <a href="{{- .excludeBoostsLink -}}#recent">exclude boosts</a>
                 {{- else if .includeBoostsLink }}
@@ -65,7 +83,7 @@
                 {{- if .show_back_to_top }}
                     Reached the end of visible media!
                 {{- else }}
-                    Nothing to see here! {{ .account.Username }} has either not posted any public media yet, or has opted not to make posts visible via the World Wide Web.
+                    Nothing to see here! {{ .account.Username }} has probably not posted any visible {{ template "webVisibility" . }} media yet.
                 {{- end }}
             </div>
             {{- else }}
@@ -88,5 +106,6 @@
             </nav>
         </section>
     </div>
+    {{- end }}
 </main>
 {{- end }}

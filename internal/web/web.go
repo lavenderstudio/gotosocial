@@ -57,17 +57,18 @@ const (
 	eTagHeader            = "ETag"              // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
 	lastModifiedHeader    = "Last-Modified"     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified
 
-	cssFA             = assetsPathPrefix + "/Fork-Awesome/css/fork-awesome.min.css"
-	cssAbout          = distPathPrefix + "/about.css"
-	cssIndex          = distPathPrefix + "/index.css"
-	cssLoginInfo      = distPathPrefix + "/login-info.css"
-	cssStatus         = distPathPrefix + "/status.css"
-	cssThread         = distPathPrefix + "/thread.css"
-	cssProfile        = distPathPrefix + "/profile.css"
-	cssProfileGallery = distPathPrefix + "/profile-gallery.css"
-	cssSettings       = distPathPrefix + "/settings-style.css"
-	cssTag            = distPathPrefix + "/tag.css"
-	cssDirectory      = distPathPrefix + "/directory.css"
+	cssFA               = assetsPathPrefix + "/Fork-Awesome/css/fork-awesome.min.css"
+	cssAbout            = distPathPrefix + "/about.css"
+	cssIndex            = distPathPrefix + "/index.css"
+	cssLoginInfo        = distPathPrefix + "/login-info.css"
+	cssStatus           = distPathPrefix + "/status.css"
+	cssThread           = distPathPrefix + "/thread.css"
+	cssProfile          = distPathPrefix + "/profile.css"
+	cssProfileWideStats = distPathPrefix + "/_profile-header-wide-stats.css"
+	cssProfileGallery   = distPathPrefix + "/profile-gallery.css"
+	cssSettings         = distPathPrefix + "/settings-style.css"
+	cssTag              = distPathPrefix + "/tag.css"
+	cssDirectory        = distPathPrefix + "/directory.css"
 
 	jsFrontend          = distPathPrefix + "/frontend.js"           // Progressive enhancement frontend JS.
 	jsFrontendPrerender = distPathPrefix + "/frontend_prerender.js" // Frontend JS that should run before page renders.
