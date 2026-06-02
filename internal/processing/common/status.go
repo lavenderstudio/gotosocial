@@ -81,6 +81,9 @@ func (p *Processor) GetVisibleTargetStatusBy(
 		requester,
 		getTargetFromDB,
 		window,
+
+		// don't allow deleted
+		// status stubs.
 		false,
 	)
 }
@@ -153,7 +156,7 @@ func (p *Processor) getVisibleTargetStatusBy(
 	requester *gtsmodel.Account,
 	getTargetFromDB func() (*gtsmodel.Status, error),
 	window *dereferencing.FreshnessWindow,
-	deleted bool,
+	allowDeleted bool,
 ) (
 	status *gtsmodel.Status,
 	errWithCode gtserror.WithCode,
@@ -163,19 +166,28 @@ func (p *Processor) getVisibleTargetStatusBy(
 		requester,
 		getTargetFromDB,
 		window,
-		deleted,
+		allowDeleted,
 	)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
 	if !visible {
-		// Target should not be seen by requester.
-		const text = "target status not found"
-		return nil, gtserror.NewErrorNotFound(
-			errors.New(text),
-			text,
-		)
+		// Wrap generic error in NotVisible so intermediate
+		// functions can know this error was returned as a
+		// result of status not being visible to requester,
+		// not because the status wasn't found in the db.
+		const text = "target status not visible"
+		err := errors.New(text)
+		err = gtserror.SetNotVisible(err)
+
+		if requester == nil {
+			// Not visible unauthed, return 401.
+			return nil, gtserror.NewErrorUnauthorized(err, text)
+		} else { // nolint
+			// Not visible to authed requester, return 404.
+			return nil, gtserror.NewErrorNotFound(err, text)
+		}
 	}
 
 	return target, nil
@@ -189,14 +201,14 @@ func (p *Processor) getVisibleTargetStatusBy(
 // 'window' can be used to force refresh of the target if it's
 // deemed to be stale. Falls back to default window if nil.
 //
-// 'deleted' indicates whether to permit returning deleted
+// 'allowDeleted' determines whether to permit returning deleted
 // stubs left remaining of statuses, useful for threading.
 func (p *Processor) getTargetStatusBy(
 	ctx context.Context,
 	requester *gtsmodel.Account,
 	getTargetFromDB func() (*gtsmodel.Status, error),
 	window *dereferencing.FreshnessWindow,
-	deleted bool,
+	allowDeleted bool,
 ) (
 	status *gtsmodel.Status,
 	visible bool,
@@ -218,14 +230,29 @@ func (p *Processor) getTargetStatusBy(
 		)
 	}
 
-	// If status deleted (left stubbed), unless specifically
-	// requested and authenticated, handle it as as non-existent.
-	if (requester == nil || !deleted) && target.Flags.Deleted() {
-		const text = "target status not found"
-		return nil, false, gtserror.NewErrorNotFound(
-			errors.New(text),
-			text,
-		)
+	// Return error on deleted status unless
+	// specifically requested and authenticated.
+	if (requester == nil || !allowDeleted) && target.Flags.Deleted() {
+		// Wrap generic error in Deleted so intermediate
+		// functions can know this error was returned as
+		// a result of status being deleted/stubbed, not
+		// because the status wasn't found in the db.
+		const text = "status has been deleted"
+		err := errors.New(text)
+		err = gtserror.SetDeleted(err)
+
+		if target.Account.IsLocal() {
+			// We can return 410 gone for our own
+			// status as we can confidently say it
+			// won't exist again with this ID.
+			//
+			// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/410
+			return nil, false, gtserror.NewErrorGone(err, text)
+		} else { // nolint
+			// For remote statuses just return 404
+			// as it's not our place to return 410.
+			return nil, false, gtserror.NewErrorNotFound(err, text)
+		}
 	}
 
 	// Check whether target status is visible to requesting account.

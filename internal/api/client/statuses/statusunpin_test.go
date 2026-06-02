@@ -103,11 +103,11 @@ func (suite *StatusUnpinTestSuite) TestUnpinStatusOK() {
 	suite.False(resp.Pinned)
 }
 
-func (suite *StatusUnpinTestSuite) TestUnpinStatusNotFound() {
+func (suite *StatusUnpinTestSuite) TestUnpinStatusNotVisible() {
 	// Unpin a pinned followers-only status owned by another account.
 	targetStatus := suite.testStatuses["local_account_2_status_7"]
 
-	if _, err := suite.createUnpin(http.StatusNotFound, `{"error":"Not Found: target status not found"}`, targetStatus.ID); err != nil {
+	if _, err := suite.createUnpin(http.StatusNotFound, `{"error":"Not Found: target status not visible"}`, targetStatus.ID); err != nil {
 		suite.FailNow(err.Error())
 	}
 }

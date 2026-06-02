@@ -42,6 +42,7 @@ func (p *Processor) StatusGet(
 	statusID string,
 ) (any, gtserror.WithCode) {
 	// Authenticate incoming request, getting related accounts.
+	// This also ensures that requestedUser is local.
 	auth, errWithCode := p.authenticate(ctx, requestedUser)
 	if errWithCode != nil {
 		return nil, errWithCode
@@ -64,8 +65,6 @@ func (p *Processor) StatusGet(
 	}
 
 	if status == nil {
-		// TODO: Update this to serve "gone"
-		// when a status has been deleted.
 		err := gtserror.Newf("status %s not found in the db", statusID)
 		return nil, gtserror.NewErrorNotFound(err)
 	}
@@ -88,6 +87,15 @@ func (p *Processor) StatusGet(
 	if !visible {
 		const text = "status not visible to requesting account"
 		return nil, gtserror.NewErrorNotFound(errors.New(text))
+	}
+
+	// If the status has been
+	// deleted, return 410 Gone.
+	if status.Flags.Deleted() {
+		const text = "status has been deleted"
+		err = errors.New(text)
+		err = gtserror.SetDeleted(err)
+		return nil, gtserror.NewErrorGone(err, text)
 	}
 
 	statusable, err := p.converter.StatusToAS(ctx, status)

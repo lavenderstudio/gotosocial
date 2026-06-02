@@ -30,41 +30,64 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// TODO: add more templated html pages here for different error types
-
-// NotFoundHandler serves a 404 html page through the provided gin context,
-// if accept is 'text/html', or just returns a json error if 'accept' is empty
-// or application/json.
+// notVisibleHandler serves an html page explaining that
+// the given item is not visible to the requester.
 //
-// When serving html, NotFoundHandler calls the provided InstanceGet function
-// to fetch the apimodel representation of the instance, for serving in the
-// 404 header and footer.
+// The HTTP status code will be whatever is set on errWithCode.
 //
 // If an error is returned by InstanceGet, the function will panic.
-func NotFoundHandler(c *gin.Context, instanceGet func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode), accept string, errWithCode gtserror.WithCode) {
-	switch accept {
-	case TextHTML:
-		ctx := c.Request.Context()
-		instance, err := instanceGet(ctx)
-		if err != nil {
-			panic(err)
-		}
-
-		template404Page(c,
-			instance,
-			gtscontext.RequestID(ctx),
-		)
-	default:
-		JSON(c, http.StatusNotFound, apimodel.Error{
-			Error: errWithCode.Safe(),
-		})
+func notVisibleHandler(
+	c *gin.Context,
+	instanceGet func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode),
+	errWithCode gtserror.WithCode,
+) {
+	ctx := c.Request.Context()
+	instance, err := instanceGet(ctx)
+	if err != nil {
+		panic(err)
 	}
+
+	templateNotVisiblePage(c,
+		instance,
+		gtscontext.RequestID(ctx),
+		errWithCode.Code(),
+	)
 }
 
-// genericErrorHandler is a more general version of the NotFoundHandler, which can
-// be used for serving either generic error pages with some rendered help text,
-// or just some error json if the caller prefers (or has no preference).
-func genericErrorHandler(c *gin.Context, instanceGet func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode), accept string, errWithCode gtserror.WithCode) {
+// notVisibleHandler serves an html page
+// explaining that the given item has been deleted.
+//
+// The HTTP status code will be whatever is set on errWithCode.
+//
+// If an error is returned by InstanceGet, the function will panic.
+func deletedHandler(
+	c *gin.Context,
+	instanceGet func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode),
+	errWithCode gtserror.WithCode,
+) {
+	ctx := c.Request.Context()
+	instance, err := instanceGet(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	templateDeletedPage(c,
+		instance,
+		gtscontext.RequestID(ctx),
+		errWithCode.Code(),
+	)
+}
+
+// genericErrorHandler serves either an
+// error page with the errWithCode.Safe(),
+// or just some error json if the caller
+// prefers (or has no preference).
+func genericErrorHandler(
+	c *gin.Context,
+	instanceGet func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode),
+	accept string,
+	errWithCode gtserror.WithCode,
+) {
 	switch accept {
 	case TextHTML:
 		ctx := c.Request.Context()
@@ -144,10 +167,16 @@ func ErrorHandler(
 	// Prefer provided offers, fall back to JSON or HTML.
 	accept, _ := NegotiateAccept(c, append(offers, JSONOrHTMLAcceptHeaders...)...)
 
-	if errWithCode.Code() == http.StatusNotFound {
-		// Use our special not found handler with useful status text.
-		NotFoundHandler(c, instanceGet, accept, errWithCode)
-	} else {
+	switch {
+	case accept == TextHTML && gtserror.IsNotVisible(errWithCode):
+		// Use "item not visible" renderer with useful text.
+		notVisibleHandler(c, instanceGet, errWithCode)
+
+	case accept == TextHTML && gtserror.Deleted(errWithCode):
+		// Use "item deleted" renderer with useful text.
+		deletedHandler(c, instanceGet, errWithCode)
+
+	default:
 		genericErrorHandler(c, instanceGet, accept, errWithCode)
 	}
 }

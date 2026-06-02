@@ -266,21 +266,52 @@ func templateErrorPage(
 	templatePage(c, errorTmpl, code, obj)
 }
 
-// template404Page renders
-// a standard 404 page.
-func template404Page(
+// templateNotVisiblePage renders a page
+// explaining that the item at the requested
+// URL is not visible on the web.
+func templateNotVisiblePage(
 	c *gin.Context,
 	instance *apimodel.InstanceV1,
 	requestID string,
+	code int,
 ) {
-	const notFoundTmpl = "404.tmpl"
+	const notVisibleTmpl = "item_not_visible.tmpl"
+
+	obj := map[string]any{
+		"instance":  instance,
+		"requestID": requestID,
+		"url":       config.GetProtocol() + "://" + config.GetHost() + c.Request.URL.String(),
+		// Include frontend JS so
+		// the url can be copy-pasted.
+		"javascript": []JavascriptEntry{
+			{
+				Src:   "/assets/dist/frontend.js",
+				Async: true,
+				Defer: true,
+			},
+		},
+	}
+
+	templatePage(c, notVisibleTmpl, code, obj)
+}
+
+// templateDeletedPage renders a page
+// explaining that the item at the
+// requested URL has been deleted.
+func templateDeletedPage(
+	c *gin.Context,
+	instance *apimodel.InstanceV1,
+	requestID string,
+	code int,
+) {
+	const deletedTmpl = "item_deleted.tmpl"
 
 	obj := map[string]any{
 		"instance":  instance,
 		"requestID": requestID,
 	}
 
-	templatePage(c, notFoundTmpl, http.StatusNotFound, obj)
+	templatePage(c, deletedTmpl, code, obj)
 }
 
 // render the given template inside

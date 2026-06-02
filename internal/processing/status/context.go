@@ -36,6 +36,10 @@ func (p *Processor) ContextGet(
 	targetStatusID string,
 ) (*apimodel.ThreadContext, gtserror.WithCode) {
 	// Retrieve the full thread context.
+	//
+	// This handles basic visibility checks for the
+	// target status as well, and returns a NotVisible
+	// wrapped in a 404 if it's not visible on the web.
 	threadContext, errWithCode := p.contextGet(ctx,
 		requester,
 		targetStatusID,
@@ -74,6 +78,10 @@ func (p *Processor) WebContextGet(
 	targetStatusID string,
 ) (*apimodel.WebThreadContext, gtserror.WithCode) {
 	// Retrieve the internal thread context.
+	//
+	// This handles basic visibility checks for the
+	// target status as well, and returns a NotVisible
+	// wrapped in a 404 if it's not visible on the web.
 	iCtx, errWithCode := p.contextGet(ctx,
 
 		nil, // No authed requester.
@@ -168,7 +176,7 @@ func (p *Processor) WebContextGet(
 			// If this is the main status whose
 			// context we're looking for, and it's
 			// not visible for whatever reason, we
-			// should just return a 404 here, as we
+			// should just return a 401 here, as we
 			// can't meaningfully render the thread.
 			if status.ID == targetStatusID {
 				var thisErr error
@@ -185,7 +193,10 @@ func (p *Processor) WebContextGet(
 					thisErr = gtserror.New(errText)
 				}
 
-				return nil, gtserror.NewErrorNotFound(thisErr)
+				// Wrap error in not visible so
+				// caller can do something with it.
+				thisErr = gtserror.SetNotVisible(thisErr)
+				return nil, gtserror.NewErrorUnauthorized(thisErr)
 			}
 
 			// This isn't the main status whose

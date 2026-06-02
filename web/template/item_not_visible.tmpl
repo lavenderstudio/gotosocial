@@ -20,21 +20,25 @@
 {{- with . }}
 <main>
     <section>
-        <h1>404: Not Found</h1>
+        <h1>Not Visible</h1>
         <p>
-            GoToSocial only serves Public statuses via the web.
+            There's something at this URL but it's not visible to unauthenticated web visitors.
+            This could be for a variety of reasons:
         </p>
+        <ul>
+            <li>It's a followers-only or direct post.</li>
+            <li>It's a public or unlisted post but the author doesn't show these on the web.</li>
+            <li>It's a reply to a post that is itself not visible.</li>
+        </ul>
         <p>
-            If you reached this page by clicking on a status link,
-            it's likely that the status is not Public. You can try
-            entering the status URL in your client's search bar,
-            to view the status from your account. If that doesn't
-            work, it's possible that the status has been deleted by
-            the author, you don't have permission to view it, or it
-            doesn't exist at all.
+            To try viewing it anyway, search the following URL in your fedi
+            client of choice, and see if your fedi server will show it to you:
         </p>
+        <div class="prism-highlighted">
+            <pre class="language-url"><code class="language-url">{{- .url -}}</code></pre>
+        </div>
         <p>
-            If you believe this 404 was an error, you can contact
+            If you believe this was an error, you can contact
             the instance admin. Provide them with the following
             request ID: <code>{{- .requestID -}}</code>.
         </p>

@@ -41,6 +41,8 @@ const (
 	notRelevantKey
 	spamKey
 	notPermittedKey
+	deletedKey
+	notVisibleKey
 	limitReachedKey
 	logFieldKey
 )
@@ -117,6 +119,33 @@ func IsNotPermitted(err error) bool {
 // flag, returning wrapped error. See NotPermitted() for example use-cases.
 func SetNotPermitted(err error) error {
 	return errors.WithValue(err, notPermittedKey, struct{}{})
+}
+
+// IsNotVisible indicates that an item did not pass visibility checks and
+// should not be shown to the requester, for example a followers-only
+// status when the requester is unauthed or not a follower.
+func IsNotVisible(err error) bool {
+	_, ok := errors.Value(err, notVisibleKey).(struct{})
+	return ok
+}
+
+// SetNotVisible will wrap the given error to store a "not visible"
+// flag, returning wrapped error. See NotVisible() for example use-cases.
+func SetNotVisible(err error) error {
+	return errors.WithValue(err, notVisibleKey, struct{}{})
+}
+
+// Deleted indicates that an item should not be
+// shown to the requester because it has been deleted.
+func Deleted(err error) bool {
+	_, ok := errors.Value(err, deletedKey).(struct{})
+	return ok
+}
+
+// SetDeleted will wrap the given error to store a "deleted" flag,
+// returning wrapped error. See Deleted() for example use-cases.
+func SetDeleted(err error) error {
+	return errors.WithValue(err, deletedKey, struct{}{})
 }
 
 // IsWrongType checks error for a stored "wrong type" flag.

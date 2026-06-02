@@ -461,7 +461,7 @@ func (suite *StatusBoostTestSuite) TestPostNotVisible() {
 
 	// We should have a helpful message.
 	suite.Equal(`{
-  "error": "Not Found: target status not found"
+  "error": "Not Found: target status not visible"
 }`, out)
 }
 
