@@ -22,7 +22,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
-	"strings"
+	"slices"
 
 	"code.superseriousbusiness.org/activity/pub"
 	"code.superseriousbusiness.org/activity/streams"
@@ -37,38 +37,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/uris"
 	"codeberg.org/gruf/go-kv/v2"
 )
-
-type errOtherIRIBlocked struct {
-	account     string
-	domainBlock bool
-	iriStrs     []string
-}
-
-func (e *errOtherIRIBlocked) Error() string {
-	iriStrsNice := "[" + strings.Join(e.iriStrs, ", ") + "]"
-	if e.domainBlock {
-		return "domain block exists for one or more of " + iriStrsNice
-	}
-	return "block exists between " + e.account + " and one or more of " + iriStrsNice
-}
-
-func newErrOtherIRIBlocked(
-	account string,
-	domainBlock bool,
-	otherIRIs []*url.URL,
-) error {
-	e := errOtherIRIBlocked{
-		account:     account,
-		domainBlock: domainBlock,
-		iriStrs:     make([]string, 0, len(otherIRIs)),
-	}
-
-	for _, iri := range otherIRIs {
-		e.iriStrs = append(e.iriStrs, iri.String())
-	}
-
-	return &e
-}
 
 /*
 	GO FED FEDERATING PROTOCOL INTERFACE
@@ -291,11 +259,15 @@ func (f *Federator) Blocked(ctx context.Context, actorIRIs []*url.URL) (bool, er
 		return false, err
 	}
 
-	otherIRIs := gtscontext.OtherIRIs(ctx)
-	if otherIRIs == nil {
-		err := gtserror.New("couldn't determine blocks (otherIRIs not set on request context)")
-		return false, err
-	}
+	// This is a forwarded message if the actor
+	// IRIs don't include the requesting account
+	// (ie., the account doing the delivery).
+	forwarded := !slices.ContainsFunc(
+		actorIRIs,
+		func(actorIRI *url.URL) bool {
+			return actorIRI.String() == requestingAccount.URI
+		},
+	)
 
 	l := log.
 		WithContext(ctx).
@@ -303,33 +275,54 @@ func (f *Federator) Blocked(ctx context.Context, actorIRIs []*url.URL) (bool, er
 			{"actorIRIs", actorIRIs},
 			{"receivingAccount", receivingAccount.URI},
 			{"requestingAccount", requestingAccount.URI},
-			{"otherIRIs", otherIRIs},
+			{"forwarded", forwarded},
 		}...)
 	l.Trace("checking blocks")
 
-	// Start broad by checking domain-level blocks first for
-	// the given actor IRIs; if any of them are domain blocked
-	// then we can save some work.
-	blocked, err := f.db.AreURIsBlocked(ctx, actorIRIs)
-	if err != nil {
-		err := gtserror.Newf("error checking domain blocks of actorIRIs: %w", err)
+	// First ensure receiver does
+	// not user-level block requester.
+	if blocked, err := f.db.IsBlocked(ctx,
+		receivingAccount.ID,
+		requestingAccount.ID,
+	); err != nil {
+		err := gtserror.Newf("db error checking block between receiver and requester: %w", err)
 		return false, err
-	}
-
-	if blocked {
-		l.Trace("one or more actorIRIs are domain blocked")
+	} else if blocked {
+		l.Debug("receiving account blocks requesting account")
 		return blocked, nil
 	}
 
-	// Now user level blocks. Receiver should not block requester.
-	blocked, err = f.db.IsBlocked(ctx, receivingAccount.ID, requestingAccount.ID)
-	if err != nil {
-		err := gtserror.Newf("db error checking block between receiver and requester: %w", err)
+	// Check domain-level blocks for given actor IRIs;
+	// if any of them are domain blocked then return.
+	switch blocked, err := f.db.AreURIsBlocked(ctx, actorIRIs); {
+	case err != nil:
+		err := gtserror.Newf("db error checking domain blocks of actorIRIs: %w", err)
 		return false, err
-	}
 
-	if blocked {
-		l.Trace("receiving account blocks requesting account")
+	case blocked && forwarded:
+		// If this is a forwarded message then it's likely
+		// an account from a Mastodon instance sending a
+		// thread reply along to us. Eg., user@instance1
+		// is replied to by user@instance2, forwards the
+		// reply to us because we follow user@instance1.
+		//
+		// We don't want to return 403 to user@instance1
+		// just because we block instance2, so just send
+		// back a NotRelevant error the caller can check.
+		const text = "forwarded activity actor domain blocked"
+		l.Debug(text)
+		err := gtserror.SetNotRelevant(errors.New(text))
+		return false, err
+
+	case blocked && !forwarded:
+		// If one or more actors in the activity are domain
+		// blocked and this isn't a forwarded message, 403.
+		//
+		// Actually we shouldn't reach this point because we
+		// know the requesting account is one of the actors,
+		// and domain blocks of requesting accounts should be
+		// caught by signature check, but check to be safe.
+		l.Debug("one or more actorIRIs are domain blocked")
 		return blocked, nil
 	}
 
@@ -341,29 +334,29 @@ func (f *Federator) Blocked(ctx context.Context, actorIRIs []*url.URL) (bool, er
 	// If one or more of these other IRIs is domain blocked, or
 	// blocked by the receiving account, this shouldn't return
 	// blocked=true to send a 403, since that would be rather
-	// silly behavior. Instead, we should indicate to the caller
-	// that we should stop processing the activity and just write
-	// 202 Accepted instead.
-	//
-	// For this, we can use the errOtherIRIBlocked type, which
-	// will be checked for
+	// silly behavior. Instead, we return a NotRelevant error
+	// that the caller can check to just return 202 Accepted.
+	otherIRIs := gtscontext.OtherIRIs(ctx)
+	if otherIRIs == nil {
+		err := gtserror.New("couldn't determine blocks (otherIRIs not set on request context)")
+		return false, err
+	}
+	l = l.WithField("otherIRIs", otherIRIs)
 
-	// Check high-level domain blocks first.
-	blocked, err = f.db.AreURIsBlocked(ctx, otherIRIs)
-	if err != nil {
+	// Check domain blocks of each otherIRI entry first.
+	if blocked, err := f.db.AreURIsBlocked(ctx, otherIRIs); err != nil {
 		err := gtserror.Newf("error checking domain block of otherIRIs: %w", err)
 		return false, err
-	}
-
-	if blocked {
-		err := newErrOtherIRIBlocked(receivingAccount.URI, true, otherIRIs)
-		l.Trace(err.Error())
+	} else if blocked {
+		const text = "one or more otherIRIs are domain blocked"
+		l.Debug(text)
+		err := gtserror.SetNotRelevant(errors.New(text))
 		return false, err
 	}
 
-	// For each other IRI, check whether the IRI points to an
-	// account or a status, and try to get (an) accountID(s)
-	// from it to do further checks on.
+	// For each otherIRI entry, check whether the IRI
+	// points to an account or a status, and try to get
+	// (an) accountID(s) from it to do further checks on.
 	//
 	// We use a map for this instead of a slice in order to
 	// deduplicate entries and avoid doing the same check twice.
@@ -379,8 +372,7 @@ func (f *Federator) Blocked(ctx context.Context, actorIRIs []*url.URL) (bool, er
 			iriStr,
 		)
 		if err != nil && !errors.Is(err, db.ErrNoEntries) {
-			// Real db error.
-			err := gtserror.Newf("db error trying to get %s as account: %w", iriStr, err)
+			err := gtserror.Newf("db error getting account %s: %w", iriStr, err)
 			return false, err
 		} else if err == nil {
 			// IRI is for an account.
@@ -394,8 +386,7 @@ func (f *Federator) Blocked(ctx context.Context, actorIRIs []*url.URL) (bool, er
 			iriStr,
 		)
 		if err != nil && !errors.Is(err, db.ErrNoEntries) {
-			// Real db error.
-			err := gtserror.Newf("db error trying to get %s as status: %w", iriStr, err)
+			err := gtserror.Newf("db error getting status %s: %w", iriStr, err)
 			return false, err
 		} else if err == nil {
 			// IRI is for a status.
@@ -404,7 +395,8 @@ func (f *Federator) Blocked(ctx context.Context, actorIRIs []*url.URL) (bool, er
 		}
 	}
 
-	// Get our own host value just once outside the loop.
+	// Get our own host value
+	// once outside the loop.
 	ourHost := config.GetHost()
 
 	for accountID, iriHost := range accountIDs {
@@ -417,15 +409,13 @@ func (f *Federator) Blocked(ctx context.Context, actorIRIs []*url.URL) (bool, er
 		// account they have blocked. In this case, it's v. unlikely
 		// they care to see the boost in their timeline, so there's
 		// no point in us processing it.
-		blocked, err := f.db.IsBlocked(ctx, receivingAccount.ID, accountID)
-		if err != nil {
-			err := gtserror.Newf("db error checking block between receiver and other account: %w", err)
+		if blocked, err := f.db.IsBlocked(ctx, receivingAccount.ID, accountID); err != nil {
+			err := gtserror.Newf("db error checking block: %w", err)
 			return false, err
-		}
-
-		if blocked {
-			l.Trace("receiving account blocks one or more otherIRIs")
-			err := newErrOtherIRIBlocked(receivingAccount.URI, false, otherIRIs)
+		} else if blocked {
+			const text = "receiving account blocks one or more otherIRIs"
+			l.Debug(text)
+			err := gtserror.SetNotRelevant(errors.New(text))
 			return false, err
 		}
 
@@ -440,15 +430,13 @@ func (f *Federator) Blocked(ctx context.Context, actorIRIs []*url.URL) (bool, er
 		// accounts are gossiping about + trying to tag a third account
 		// who has one or the other of them blocked.
 		if iriHost == ourHost {
-			blocked, err := f.db.IsBlocked(ctx, accountID, requestingAccount.ID)
-			if err != nil {
-				err := gtserror.Newf("db error checking block between other account and requester: %w", err)
+			if blocked, err := f.db.IsBlocked(ctx, accountID, requestingAccount.ID); err != nil {
+				err := gtserror.Newf("db error checking block: %w", err)
 				return false, err
-			}
-
-			if blocked {
-				l.Trace("one or more otherIRIs belonging to us blocks requesting account")
-				err := newErrOtherIRIBlocked(requestingAccount.URI, false, otherIRIs)
+			} else if blocked {
+				const text = "one or more otherIRIs belonging to us blocks requesting account"
+				l.Debug(text)
+				err := gtserror.SetNotRelevant(errors.New(text))
 				return false, err
 			}
 		}

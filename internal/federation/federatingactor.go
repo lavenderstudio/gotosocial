@@ -195,8 +195,9 @@ func (f *federatingActor) PostInboxScheme(ctx context.Context, w http.ResponseWr
 
 	case requester.DeletedSelf():
 		// Looks like pub key owner deleted their own account.
-		// Likely their instance is still sending out deletes,
+		// Likely their instance is still sending out Deletes,
 		// but we'll have already deleted everything of theirs.
+		//
 		// Don't do any further processing of the request.
 		log.Debugf(ctx,
 			"requesting account %s self deleted, ignoring inbox post",
@@ -208,7 +209,7 @@ func (f *federatingActor) PostInboxScheme(ctx context.Context, w http.ResponseWr
 		// Likely suspended by an admin or
 		// defed action on *this* instance.
 		const text = "requesting account suspended"
-		return false, gtserror.NewErrorForbidden(errors.New(text), text)
+		return false, gtserror.NewErrorForbidden(errors.New(text))
 	}
 
 	/*
@@ -235,29 +236,29 @@ func (f *federatingActor) PostInboxScheme(ctx context.Context, w http.ResponseWr
 
 	// Check authorization of the activity; this will include blocks.
 	authorized, err := f.sideEffectActor.AuthorizePostInbox(ctx, w, activity)
-	if err != nil {
-		if errorsv2.AsV2[*errOtherIRIBlocked](err) != nil {
-			// There's no direct block between requester(s) and
-			// receiver. However, one or more of the other IRIs
-			// involved in the request (account replied to, note
-			// boosted, etc) is blocked either at domain level or
-			// by the receiver. We don't need to return 403 here,
-			// instead, just return 202 accepted but don't do any
-			// further processing of the activity.
-			return true, nil //nolint
-		}
+	switch {
+	case err != nil && gtserror.IsNotRelevant(err):
+		// There's no direct block against requester.
+		//
+		// However, one or more of the other IRIs involved
+		// in the activity (eg., account replied to / boosted)
+		// is blocked at domain level, or by the receiver.
+		//
+		// We don't need to return 403 here, just return
+		// 202 Accepted and don't process the delivery.
+		return true, nil
 
+	case err != nil:
 		// Real error has occurred.
 		err := gtserror.Newf("error authorizing post inbox: %w", err)
 		return false, gtserror.NewErrorInternalError(err)
-	}
 
-	if !authorized {
+	case !authorized:
 		// Block exists either from this instance against
 		// one or more directly involved actors, or between
 		// receiving account and one of those actors.
 		const text = "blocked"
-		return false, gtserror.NewErrorForbidden(errors.New(text), text)
+		return false, gtserror.NewErrorForbidden(errors.New(text))
 	}
 
 	// Copy existing URL + add

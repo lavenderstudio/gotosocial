@@ -537,7 +537,7 @@ func (suite *InboxPostTestSuite) TestPostFromBlockedAccount() {
 		requestingAccount,
 		targetAccount,
 		http.StatusForbidden,
-		`{"error":"Forbidden: blocked"}`,
+		`{"error":"Forbidden"}`,
 		suite.signatureCheck,
 	)
 }

@@ -442,7 +442,7 @@ func (suite *FederatingProtocolTestSuite) TestBlockedCCd() {
 		actorIRIs,
 	)
 
-	suite.EqualError(err, "block exists between http://localhost:8080/users/the_mighty_zork and one or more of [http://example.org/users/Some_User]")
+	suite.EqualError(err, "receiving account blocks one or more otherIRIs")
 	suite.False(blocked)
 }
 
@@ -469,7 +469,7 @@ func (suite *FederatingProtocolTestSuite) TestBlockedRepliedStatus() {
 		actorIRIs,
 	)
 
-	suite.EqualError(err, "block exists between http://fossbros-anonymous.io/users/foss_satan and one or more of [http://localhost:8080/users/1happyturtle/statuses/01F8MHBQCBTDKN6X5VHGMMN4MA]")
+	suite.EqualError(err, "one or more otherIRIs belonging to us blocks requesting account")
 	suite.False(blocked)
 }
 
