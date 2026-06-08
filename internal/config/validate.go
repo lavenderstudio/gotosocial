@@ -56,7 +56,7 @@ func Validate() error {
 			SetAccountDomain(GetHost())
 		} else if !dns.IsSubDomain(ad, host) {
 			errf("%s %s is not a valid subdomain of %s %s",
-				AccountDomainFlag, ad, HostFlag, host)
+				HostFlag, host, AccountDomainFlag, ad)
 		}
 	}
 
