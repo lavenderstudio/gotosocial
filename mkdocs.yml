@@ -148,6 +148,7 @@ nav:
       - "admin/cli.md"
       - "admin/backup_and_restore.md"
       - "admin/media_caching.md"
+      - "admin/post_caching.md"
       - "admin/spam.md"
       - "admin/database_maintenance.md"
       - "admin/themes.md"

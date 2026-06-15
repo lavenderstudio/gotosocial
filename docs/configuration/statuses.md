@@ -44,7 +44,7 @@ statuses-cleanup-cron: "0 1 * * 0"
 
 # Integer duration.
 # 
-# Examples: ["7 days", "1 week", "1 month"]
+# Examples: ["6 months", "1 year", "2 years"]
 # Default: "0" (i.e. disabled)
 statuses-cleanup-remote-older-than: "0"
 

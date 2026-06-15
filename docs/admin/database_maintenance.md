@@ -12,7 +12,7 @@ Regardless of whether you choose to run GoToSocial with SQLite or Postgres, you 
 
 ## SQLite
 
-### Vacuum
+### SQLite Vacuum
 
 To minimize fragmentation, GoToSocial does not currently enable auto-vacuum for SQLite. To defragment the database file and repack it to an optimal size you may want to run a `VACUUM` command on your SQLite database periodically (eg., every few months).
 
@@ -30,7 +30,7 @@ Once you've met these requirements, do the following:
   This may take quite a few minutes depending on the size of your database. DO NOT INTERRUPT IT.
 3. When the command has finished running, start GoToSocial again.
 
-### Analyze / Optimize
+### SQLite Analyze / Optimize
 
 GoToSocial runs a [full analyze command](https://sqlite.org/lang_analyze.html) after each set of database migrations (eg., when starting an updated version of GoToSocial), to ensure that any indexes added or removed by migrations are taken into account correctly by the query planner.
 
@@ -40,7 +40,7 @@ Because of the above automated steps, in normal circumstances you should not nee
 
 However, if you notice that queries are running very slowly, it could be the case that the index metadata stored in SQLite's internal tables has become out of date, or has been removed or otherwise undesirably altered, leading the query planner to make poor choices.
 
-This is particularly prone to happening if a large cleanup operation has just occured, eg., you've just [cleaned up a lot of old statuses](../configuration/statuses.md).
+This is particularly prone to happening if a large cleanup operation has just occured, eg., you've just [cleaned up a lot of old statuses](./post_caching.md).
 
 If you notice lots of timeouts, for example when trying to view your timelines or profile page, you can use the GoToSocial binary to manually run a full `analyze`.
 
@@ -72,10 +72,43 @@ The command may take up to 15 minutes to finish running, depending on the size o
 
 You will likely notice degraded performance of GoToSocial while the `analyze` is running, this is normal. If you prefer, you can stop GoToSocial before running the command, and start it again after running the command.
 
-### Replication
+### SQLite Replication
 
 It's a common practice to set up safeguards for your database like replication. SQLite can be replicated using external software. The basic steps are described on the [Replicating SQLite](../advanced/replicating-sqlite.md) page.
 
 ## Postgres
 
-TODO: Maintenance recommendations for Postgres. 
+The commands in this section rely on having the Postgres [`psql` command line tool](https://www.postgresql.org/docs/current/app-psql.html) installed either on the same machine that is running Postgres, or inside the Postgres docker container.
+
+### Postgres Vacuum
+
+By default, [autovacuum is enabled for Postgres](https://www.postgresql.org/docs/current/runtime-config-vacuum.html#GUC-AUTOVACUUM). This means that unless you've configured your Postgres deployment differently from the default, you should not need to run a manual vacuum operation on your Postgres GoToSocial database. 
+
+However, if you have autovacuum disabled, or have recently [removed a lot of entries from the database](./post_caching.md), you may wish to run a vacuum manually.
+
+1. Ensure you have some spare disk space, about 1.5x the size of the GoToSocial database.
+2. Stop GoToSocial.
+3. With `psql` connected to the GoToSocial database, run the command `VACUUM FULL;`.
+  This may take quite a few minutes depending on the size of your database. DO NOT INTERRUPT IT. If you want more feedback you can run `VACUUM FULL VERBOSE;` instead.
+4. When the command has finished running, start GoToSocial again.
+
+For more info, see the [Postgres docs for the `VACUUM` command](https://www.postgresql.org/docs/current/sql-vacuum.html).
+
+### Postgres Analyze
+
+If you notice degradation in the performance of GoToSocial on your Postgres database, it is possible that you need to use `psql` to force Postgres to rebuild statistics that the query planner uses to make decisions on which indexes to use.
+
+To do this:
+
+1. Ensure you have some spare disk space, about 1.5x the size of the GoToSocial database.
+2. Stop GoToSocial.
+3. With `psql` connected to the GoToSocial database, run the command `VACUUM FULL ANALYZE;`.
+  This may take quite a few minutes depending on the size of your database. DO NOT INTERRUPT IT.
+4. DO NOT SKIP THIS STEP: When the previous command has finished running, run the command `VACUUM (DISABLE_PAGE_SKIPPING ON);` to force Postgres to rebuild its [visibility map](https://www.postgresql.org/docs/current/routine-vacuuming.html#VACUUM-FOR-VISIBILITY-MAP).
+  This may take quite a few minutes depending on the size of your database. DO NOT INTERRUPT IT.
+5. When the second command has finished running, start GoToSocial again.
+
+For more info on this process, see [this issue about Postgres performance](https://codeberg.org/superseriousbusiness/gotosocial/issues/4757#issuecomment-17348090).
+
+!!! tip "Verbose"
+    If you want more feedback when running either of the above commands, you can use [the `VERBOSE` option](https://www.postgresql.org/docs/current/sql-vacuum.html).

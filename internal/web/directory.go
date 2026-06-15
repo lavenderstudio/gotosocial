@@ -117,7 +117,6 @@ func (m *Module) directoryGETHandler(c *gin.Context) {
 		OGMeta:      apiutil.OGBase(instance),
 		Stylesheets: []string{cssFA, cssDirectory},
 		Extra: map[string]any{
-			"showStrap":     true,
 			"accounts":      resp.Items,
 			"accounts_next": resp.NextLink,
 			"accounts_prev": accountsPrev,

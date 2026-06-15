@@ -18,16 +18,6 @@
 */
 
 main.directory {
-	& > h3#directory {
-		margin-top: 0;
-	}
-
-	padding: 2rem;
-	background: $bg-accent;
-	box-shadow: $boxshadow;
-	border: $boxshadow-border;
-	border-radius: $br;
-
 	.backnextlinks {
 		margin-top: 1rem;
 		display: flex;

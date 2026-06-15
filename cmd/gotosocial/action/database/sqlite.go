@@ -30,7 +30,8 @@ import (
 
 // check function conformance.
 var _ action.GTSAction = SQLiteAnalyze
-var _ action.GTSAction = SQLiteVacuum
+
+// var _ action.GTSAction = SQLiteVacuum
 
 func SQLiteAnalyze(ctx context.Context) error {
 	return do(ctx, func(db *bun.DB) error {
@@ -42,12 +43,12 @@ func SQLiteAnalyze(ctx context.Context) error {
 	})
 }
 
-func SQLiteVacuum(ctx context.Context) error {
-	return do(ctx, func(db *bun.DB) error {
-		if db.Dialect().Name() != dialect.SQLite {
-			return errors.New("cannot perform sqlite vacuum on non-sqlite db")
-		}
-		_, err := db.ExecContext(ctx, "vacuum;")
-		return err
-	})
-}
+// func SQLiteVacuum(ctx context.Context) error {
+// 	return do(ctx, func(db *bun.DB) error {
+// 		if db.Dialect().Name() != dialect.SQLite {
+// 			return errors.New("cannot perform sqlite vacuum on non-sqlite db")
+// 		}
+// 		_, err := db.ExecContext(ctx, "vacuum;")
+// 		return err
+// 	})
+// }

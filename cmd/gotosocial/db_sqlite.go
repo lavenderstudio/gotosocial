@@ -31,17 +31,17 @@ func sqliteCommands() *cobra.Command {
 		Short: "sqlite-specific tasks",
 	}
 
-	sqliteCmd.AddCommand(&cobra.Command{
-		Use: "vacuum",
-		Short: "performs an sqlite \"vacuum\" operation; " +
-			"please note this requires AT LEAST db size free disk-space",
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return preRun(preRunArgs{cmd: cmd})
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(cmd.Context(), database.SQLiteVacuum)
-		},
-	})
+	// sqliteCmd.AddCommand(&cobra.Command{
+	// 	Use: "vacuum",
+	// 	Short: "performs an sqlite \"vacuum\" operation; " +
+	// 		"please note this requires AT LEAST db size free disk-space",
+	// 	PreRunE: func(cmd *cobra.Command, args []string) error {
+	// 		return preRun(preRunArgs{cmd: cmd})
+	// 	},
+	// 	RunE: func(cmd *cobra.Command, args []string) error {
+	// 		return run(cmd.Context(), database.SQLiteVacuum)
+	// 	},
+	// })
 
 	sqliteCmd.AddCommand(&cobra.Command{
 		Use:   "analyze",
