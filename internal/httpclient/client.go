@@ -26,7 +26,6 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -82,9 +81,6 @@ type Config struct {
 	// MaxIdleConnsPerHost: see http.Transport{}.MaxIdleConnsPerHost.
 	MaxIdleConnsPerHost int
 
-	// MaxConnsPerHost: see http.Transport{}.MaxOpenConnsPerHost.
-	MaxOpenConnsPerHost int
-
 	// MaxConnsPerHost: see http.Transport{}.MaxConnsPerHost.
 	MaxConnsPerHost int
 
@@ -133,17 +129,6 @@ func New(cfg Config) *Client {
 		Resolver:  &net.Resolver{},
 	}
 
-	if cfg.MaxOpenConnsPerHost <= 0 {
-		// By default base on on GOMAXPROCS.
-		maxprocs := runtime.GOMAXPROCS(0)
-		cfg.MaxOpenConnsPerHost = maxprocs * 20
-	}
-
-	if cfg.MaxIdleConns <= 0 {
-		// By default base this value on MaxOpenConns.
-		cfg.MaxIdleConns = cfg.MaxOpenConnsPerHost * 10
-	}
-
 	// Protect the dialer
 	// with IP range sanitizer.
 	d.Control = (&Sanitizer{
@@ -172,6 +157,7 @@ func New(cfg Config) *Client {
 		ForceAttemptHTTP2:     true,
 		DialContext:           d.DialContext,
 		TLSClientConfig:       tlsClientConfig,
+		DisableKeepAlives:     cfg.DisableKeepAlives,
 		MaxIdleConns:          cfg.MaxIdleConns,
 		MaxIdleConnsPerHost:   cfg.MaxIdleConnsPerHost,
 		MaxConnsPerHost:       cfg.MaxConnsPerHost,

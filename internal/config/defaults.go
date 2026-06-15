@@ -297,13 +297,11 @@ var Defaults = Configuration{
 		Timeout:               time.Minute,
 		TLSInsecureSkipVerify: false,
 		InsecureOutgoing:      false,
-
+		MaxConnsPerHost:       6,
+		IdleConnTimeout:       5 * time.Minute,
 		DisableKeepAlives:     false, // default
 		MaxIdleConns:          0,     // default
 		MaxIdleConnsPerHost:   0,     // default
-		MaxOpenConnsPerHost:   0,     // default
-		MaxConnsPerHost:       0,     // default
-		IdleConnTimeout:       0,     // default
 		TLSHandshakeTimeout:   0,     // default
 		ResponseHeaderTimeout: 0,     // default
 		ReadBufferSize:        0,     // default

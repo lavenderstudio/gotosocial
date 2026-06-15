@@ -237,7 +237,6 @@ type HTTPClientConfiguration struct {
 	DisableKeepAlives     bool          `name:"disable-keep-alives"`
 	MaxIdleConns          int           `name:"max-idle-conns"`
 	MaxIdleConnsPerHost   int           `name:"max-idle-conns-per-host"`
-	MaxOpenConnsPerHost   int           `name:"max-open-conns-per-host"`
 	MaxConnsPerHost       int           `name:"max-conns-per-host"`
 	IdleConnTimeout       time.Duration `name:"idle-conn-timeout"`
 	TLSHandshakeTimeout   time.Duration `name:"tls-handshake-timeout"`

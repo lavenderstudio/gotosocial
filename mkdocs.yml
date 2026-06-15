@@ -113,6 +113,7 @@ nav:
       - "configuration/smtp.md"
       - "configuration/syslog.md"
       - "configuration/httpclient.md"
+      - "configuration/httpserver.md"
       - "configuration/advanced.md"
       - "configuration/observability_and_metrics.md"
   - "Advanced":

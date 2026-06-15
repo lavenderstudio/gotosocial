@@ -1226,8 +1226,8 @@ http-client:
   # is exceeded, the connection to the remote server will be dropped.
   # A value of 0s indicates no timeout: this is not advised!
   # Examples: ["5s", "30s", "0s"]
-  # Default: "30s"
-  timeout: "30s"
+  # Default: "1m"
+  timeout: "1m"
 
   ########################################
   #### RESERVED IP RANGE EXCEPTIONS ######
@@ -1284,63 +1284,207 @@ http-client:
   #
   # Default: false
   insecure-outgoing: false
+  
+  ##########################################################################
+  ##### Options passed directly to the HTTP client's http.Transport{}: #####
+  ##########################################################################
 
   # NOTE: all of the below are internal HTTP client configuration flags,
-  # you should not tweak these unless you know what you're doing!
+  # you should not uncomment + tweak these unless you know what you're doing!
   #
-  # The default value for any of these options is to leave it unset.
-  # if you must know what the default value actually is, please look
-  # in the appropriate Go library referenced by its type below.
+  # The commented-out values are set to the sensible values GtS uses by default.
+
+  # DisableKeepAlives, if true, disables HTTP keep-alives and will only use the
+  # connection to the server for a single HTTP request.
   #
-  # Options passed directly to the HTTP client's http.Transport{}:
+  # This is unrelated to the similarly named TCP keep-alives.
+  #
+  # Default: false
   #disable-keep-alives: false
-  #max-idle-conns: 10
-  #max-idle-conns-per-host: 10
-  #max-open-conns-per-host: 10
-  #max-conns-per-host: 10
-  #idle-conn-timeout: "30s"
-  #tls-handshake-timeout: "30s"
-  #response-header-timeout: "30s"
-  #read-buffer-size: "16KiB"
-  #write-buffer-size: "16KiB"
+
+  # MaxConnsPerHost optionally limits the total number of connections per host,
+  # including connections in the dialing, active, and idle states. On limit
+  # violation, dials will block.
+  #
+  # Default: 6
+  #max-conns-per-host: 6
+
+  # MaxIdleConns controls the maximum number of idle (keep-alive) connections across
+  # all hosts. Zero means no limit.
+  #
+  # Default: 0 (no limit)
+  #max-idle-conns: 0
+  
+  # MaxIdleConnsPerHost, if non-zero, controls the maximum idle (keep-alive)
+  # connections to keep per-host. If zero, DefaultMaxIdleConnsPerHost (2) is used.
+  #
+  # Default: 0 (use built-in default 2)
+  #max-idle-conns-per-host: 0
+  
+  # IdleConnTimeout is the maximum amount of time an idle (keep-alive) connection
+  # will remain idle before closing itself. Zero means no limit.
+  #
+  # Default: 5 minutes
+  #idle-conn-timeout: "5 minutes"
+  
+  # TLSHandshakeTimeout specifies the maximum amount of time to wait for a TLS
+  # handshake. Zero means no timeout.
+  #
+  # Default: 0 (no limit)
+  #tls-handshake-timeout: "0"
+  
+  # ResponseHeaderTimeout, if non-zero, specifies the amount of time to wait for a
+  # server's response headers after fully writing the request (including its body, if any).
+  # This time does not include the time to read the response body.
+  #
+  # Default: 0 (no limit)
+  #response-header-timeout: "0"
+  
+  # ReadBufferSize specifies the size of the read buffer used when reading from the transport.
+  # If zero, a default (currently 4KB) is used.
+  #
+  # Default: 0 (use built-in default 4KB)
+  #read-buffer-size: "0"
+  
+  # WriteBufferSize specifies the size of the write buffer used when writing to the transport.
+  # If zero, a default (currently 4KB) is used.
+  #
+  # Default: 0 (use built-in default 4KB)
+  #write-buffer-size: "0"
 
 ################################
 ##### HTTP SERVER SETTINGS #####
 ################################
 
-# Settings for INCOMING http server
-# connections received by GoToSocial.
+# Settings for INCOMING http server connections received by GoToSocial.
+#
+# WARNING: all of the below are internal HTTP server configuration flags,
+# you should not uncomment + tweak these unless you know what you're doing!
+# They are set to sensible defaults and you shouldn't need to change them.
 http-server:
 
-  # NOTE: all of the below are internal HTTP server configuration flags,
-  # you should not tweak these unless you know what you're doing!
-  #
-  # The default value for any of these options is to leave it unset.
-  # if you must know what the default value actually is, please look
-  # in the appropriate Go library referenced by its type below.
-  #
-  # Options passed directly to our HTTP router's gin.Enginer{}:
-  #max-multipart-memory: "40MiB"
-  #use-h2c: false
-  #
-  # Options passed directly to our base http.Server{} instance:
-  #read-timeout: "5m"
-  #read-header-timeout: "30s"
-  #write-timeout: "10m"
-  #idle-timeout: "1m"
-  #max-header-bytes: "16KiB"
-  #
-  # Options passed directly to our HTTP server's http.HTTP2Config{}:
-  #max-concurrent-streams: 30
-  #max-decoder-header-table-size: "1MiB"
-  #max-encoder-header-table-size: "1MiB"
-  #max-read-frame-size: "1MiB"
-  #max-receive-buffer-per-connection: "30MiB"
-  #max-receive-buffer-per-stream: "30MiB"
-  #send-ping-timeout: "60s"
-  #ping-timeout: "60s"
-  #write-byte-timeout: "60s"
+  #######################################################################
+  ##### Options passed directly to our HTTP router's gin.Engine{}: #####
+  #######################################################################
 
+  # MaxMultipartMemory value of 'maxMemory' param that is given to
+  # http.Request's ParseMultipartForm method call.
+  #
+  # Default: 40MiB
+  #max-multipart-memory: "40MiB"
+
+  # Enable h2c (http2 without TLS).
+  #
+  # May be useful if your reverse proxy supports connecting to GoToSocial via HTTP2.
+  #
+  # Default: false
+  #use-h2c: false
+
+  #######################################################################
+  ##### Options passed directly to our base http.Server{} instance: #####
+  #######################################################################
+
+  # ReadTimeout is the maximum duration for reading the entire request,
+  # including the body. A zero or negative value means there will be no timeout.
+  #
+  # Because ReadTimeout does not let Handlers make per-request decisions on
+  # each request body's acceptable deadline or upload rate, most users will prefer
+  # to use ReadHeaderTimeout. It is valid to use them both.
+  #
+  # Default: 60s
+  #read-timeout: "60s"
+
+  # ReadHeaderTimeout is the amount of time allowed to read request headers.
+  # The connection's read deadline is reset after reading the headers and the
+  # Handler can decide what is considered too slow for the body. If zero, the
+  # value of ReadTimeout is used. If negative, or if zero and ReadTimeout is
+  # zero or negative, there is no timeout.
+  #
+  # Default: 0 (use read-timeout duration).
+  #read-header-timeout: "0"
+
+  # WriteTimeout is the maximum duration before timing out writes of the response.
+  # It is reset whenever a new request's header is read. Like ReadTimeout, it does
+  # not let Handlers make decisions on a per-request basis. A zero or negative value
+  # means there will be no timeout.
+  #
+  # Default: 30s
+  #write-timeout: "30s"
+
+  # IdleTimeout is the maximum amount of time to wait for the next request when
+  # keep-alives are enabled. If zero, the value of ReadTimeout is used. If negative,
+  # or if zero and ReadTimeout is zero or negative, there is no timeout.
+  #
+  # Default: 30s
+  #idle-timeout: "30s"
+
+  # MaxHeaderBytes controls the maximum number of bytes the server will read parsing
+  # the request header's keys and values, including the request line. It does not limit
+  # the size of the request body. If zero, DefaultMaxHeaderBytes is used.
+  #
+  # Default: 0 (use built-in default 1048576, ie., 1 mebibyte)
+  #max-header-bytes: "0"
+
+  ############################################################################
+  ##### Options passed directly to our HTTP server's http.HTTP2Config{}: #####
+  ############################################################################
+
+  # MaxConcurrentStreams optionally specifies the number of concurrent streams that a
+  # peer may have open at a time. If zero, MaxConcurrentStreams defaults to at least 100.
+  #
+  # Default: 0 (at least 100)
+  #max-concurrent-streams: "0"
+
+  # MaxDecoderHeaderTableSize optionally specifies an upper limit for the size of the header
+  # compression table used for decoding headers sent by the peer. A valid value is less than
+  # 4MiB. If zero or invalid, a default value is used.
+  #
+  # Default: 0 (use built-in default 4096, ie., 4 kibibytes)
+  #max-decoder-header-table-size: "0"
+
+  # MaxEncoderHeaderTableSize optionally specifies an upper limit for the header compression
+  # table used for sending headers to the peer. A valid value is less than 4MiB. If zero or
+  # invalid, a default value is used.
+  #
+  # Default: 0 (use built-in default 4096, ie., 4 kibibytes)
+  #max-encoder-header-table-size: "0"
+
+  # MaxReadFrameSize optionally specifies the largest frame this endpoint is willing to read.
+  # A valid value is between 16KiB and 16MiB, inclusive. If zero or invalid, a default value is used.
+  #
+  # Default: 0 (use built-in default 1048576, ie., 1 mebibyte)
+  #max-read-frame-size: "0"
+
+  # MaxReceiveBufferPerConnection is the maximum size of the flow control window for data received
+  # on a connection. A valid value is at least 64KiB and less than 4MiB. If invalid, a default value
+  # is used.
+  #
+  # Default: 0 (use built-in default 1048576, ie., 1 mebibyte)
+  #max-receive-buffer-per-connection: "0"
+
+  # MaxReceiveBufferPerStream is the maximum size of the flow control window for data received on a
+  # stream (request). A valid value is less than 4MiB. If zero or invalid, a default value is used.
+  #
+  # Default: 0 (use built-in default 1048576, ie., 1 mebibyte)
+  #max-receive-buffer-per-stream: "0"
+
+  # SendPingTimeout is the timeout after which a health check using a ping frame will be carried out
+  # if no frame is received on a connection. If zero, no health check is performed.
+  #
+  # Default: 0
+  #send-ping-timeout: "0"
+
+  # PingTimeout is the timeout after which a connection will be closed if a response to a ping is not
+  # received. If zero, a default of 15 seconds is used.
+  #
+  # Default: 0 (use built-in default 15s)
+  #ping-timeout: "0"
+
+  # WriteByteTimeout is the timeout after which a connection will be closed if no data can be written to it.
+  # The timeout begins when data is available to write, and is extended whenever any bytes are written.
+  #
+  # Default: 0
+  #write-byte-timeout: "0"
 
 #############################
 ##### ADVANCED SETTINGS #####

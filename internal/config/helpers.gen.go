@@ -170,7 +170,6 @@ const (
 	HTTPClientDisableKeepAlivesFlag               = "http-client-disable-keep-alives"
 	HTTPClientMaxIdleConnsFlag                    = "http-client-max-idle-conns"
 	HTTPClientMaxIdleConnsPerHostFlag             = "http-client-max-idle-conns-per-host"
-	HTTPClientMaxOpenConnsPerHostFlag             = "http-client-max-open-conns-per-host"
 	HTTPClientMaxConnsPerHostFlag                 = "http-client-max-conns-per-host"
 	HTTPClientIdleConnTimeoutFlag                 = "http-client-idle-conn-timeout"
 	HTTPClientTLSHandshakeTimeoutFlag             = "http-client-tls-handshake-timeout"
@@ -416,7 +415,6 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Bool("http-client-disable-keep-alives", cfg.HTTPClient.DisableKeepAlives, "")
 	flags.Int("http-client-max-idle-conns", cfg.HTTPClient.MaxIdleConns, "")
 	flags.Int("http-client-max-idle-conns-per-host", cfg.HTTPClient.MaxIdleConnsPerHost, "")
-	flags.Int("http-client-max-open-conns-per-host", cfg.HTTPClient.MaxOpenConnsPerHost, "")
 	flags.Int("http-client-max-conns-per-host", cfg.HTTPClient.MaxConnsPerHost, "")
 	flags.Duration("http-client-idle-conn-timeout", cfg.HTTPClient.IdleConnTimeout, "")
 	flags.Duration("http-client-tls-handshake-timeout", cfg.HTTPClient.TLSHandshakeTimeout, "")
@@ -514,7 +512,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 }
 
 func (cfg *Configuration) MarshalMap() map[string]any {
-	cfgmap := make(map[string]any, 245)
+	cfgmap := make(map[string]any, 244)
 	cfgmap["log-level"] = cfg.LogLevel
 	cfgmap["log-format"] = cfg.LogFormat
 	cfgmap["log-timestamp-format"] = cfg.LogTimestampFormat
@@ -651,7 +649,6 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["http-client-disable-keep-alives"] = cfg.HTTPClient.DisableKeepAlives
 	cfgmap["http-client-max-idle-conns"] = cfg.HTTPClient.MaxIdleConns
 	cfgmap["http-client-max-idle-conns-per-host"] = cfg.HTTPClient.MaxIdleConnsPerHost
-	cfgmap["http-client-max-open-conns-per-host"] = cfg.HTTPClient.MaxOpenConnsPerHost
 	cfgmap["http-client-max-conns-per-host"] = cfg.HTTPClient.MaxConnsPerHost
 	cfgmap["http-client-idle-conn-timeout"] = cfg.HTTPClient.IdleConnTimeout
 	cfgmap["http-client-tls-handshake-timeout"] = cfg.HTTPClient.TLSHandshakeTimeout
@@ -1903,14 +1900,6 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		cfg.HTTPClient.MaxIdleConnsPerHost, err = cast.ToIntE(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> int for 'http-client-max-idle-conns-per-host': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-max-open-conns-per-host"]; ok {
-		var err error
-		cfg.HTTPClient.MaxOpenConnsPerHost, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'http-client-max-open-conns-per-host': %w", ival, err)
 		}
 	}
 
@@ -5162,23 +5151,6 @@ func GetHTTPClientMaxIdleConnsPerHost() int { return global.GetHTTPClientMaxIdle
 // SetHTTPClientMaxIdleConnsPerHost safely sets the value for global configuration 'HTTPClient.MaxIdleConnsPerHost' field
 func SetHTTPClientMaxIdleConnsPerHost(v int) { global.SetHTTPClientMaxIdleConnsPerHost(v) }
 
-// GetHTTPClientMaxOpenConnsPerHost safely fetches the Configuration value for state's 'HTTPClient.MaxOpenConnsPerHost' field
-func (st *ConfigState) GetHTTPClientMaxOpenConnsPerHost() (v int) {
-	return st.config.HTTPClient.MaxOpenConnsPerHost
-}
-
-// SetHTTPClientMaxOpenConnsPerHost safely sets the Configuration value for state's 'HTTPClient.MaxOpenConnsPerHost' field
-func (st *ConfigState) SetHTTPClientMaxOpenConnsPerHost(v int) {
-	st.config.HTTPClient.MaxOpenConnsPerHost = v
-	st.reloadToViper()
-}
-
-// GetHTTPClientMaxOpenConnsPerHost safely fetches the value for global configuration 'HTTPClient.MaxOpenConnsPerHost' field
-func GetHTTPClientMaxOpenConnsPerHost() int { return global.GetHTTPClientMaxOpenConnsPerHost() }
-
-// SetHTTPClientMaxOpenConnsPerHost safely sets the value for global configuration 'HTTPClient.MaxOpenConnsPerHost' field
-func SetHTTPClientMaxOpenConnsPerHost(v int) { global.SetHTTPClientMaxOpenConnsPerHost(v) }
-
 // GetHTTPClientMaxConnsPerHost safely fetches the Configuration value for state's 'HTTPClient.MaxConnsPerHost' field
 func (st *ConfigState) GetHTTPClientMaxConnsPerHost() (v int) {
 	return st.config.HTTPClient.MaxConnsPerHost
@@ -7434,17 +7406,6 @@ func flattenConfigMap(cfgmap map[string]any) {
 		ival, ok := mapGet(cfgmap, key...)
 		if ok {
 			cfgmap["http-client-max-idle-conns-per-host"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "max-open-conns-per-host"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-max-open-conns-per-host"] = ival
 			nestedKeys[key[0]] = struct{}{}
 			break
 		}

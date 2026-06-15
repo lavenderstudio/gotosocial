@@ -253,7 +253,6 @@ func Start(ctx context.Context) error {
 		DisableKeepAlives:     config.GetHTTPClientDisableKeepAlives(),
 		MaxIdleConns:          config.GetHTTPClientMaxIdleConns(),
 		MaxIdleConnsPerHost:   config.GetHTTPClientMaxIdleConnsPerHost(),
-		MaxOpenConnsPerHost:   config.GetHTTPClientMaxOpenConnsPerHost(),
 		MaxConnsPerHost:       config.GetHTTPClientMaxConnsPerHost(),
 		IdleConnTimeout:       config.GetHTTPClientIdleConnTimeout(),
 		TLSHandshakeTimeout:   config.GetHTTPClientTLSHandshakeTimeout(),
