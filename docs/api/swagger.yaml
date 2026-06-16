@@ -2098,10 +2098,7 @@ definitions:
     instanceV1:
         properties:
             account_domain:
-                description: |-
-                    The domain of accounts on this instance.
-                    This will not necessarily be the same as
-                    simply the Host part of the URI.
+                description: The domain to be used for accounts on this instance.
                 example: example.org
                 type: string
                 x-go-name: AccountDomain
@@ -2232,8 +2229,8 @@ definitions:
                 type: string
                 x-go-name: Title
             uri:
-                description: The URI of the instance.
-                example: https://gts.example.org
+                description: The domain of the instance.
+                example: gts.example.org
                 type: string
                 x-go-name: URI
             urls:
@@ -2286,10 +2283,7 @@ definitions:
     instanceV2:
         properties:
             account_domain:
-                description: |-
-                    The domain of accounts on this instance.
-                    This will not necessarily be the same as
-                    domain.
+                description: The domain to be used for accounts on this instance.
                 example: example.org
                 type: string
                 x-go-name: AccountDomain

@@ -24,9 +24,7 @@ type InstanceV2 struct {
 	// The domain of the instance.
 	// example: gts.example.org
 	Domain string `json:"domain"`
-	// The domain of accounts on this instance.
-	// This will not necessarily be the same as
-	// domain.
+	// The domain to be used for accounts on this instance.
 	// example: example.org
 	AccountDomain string `json:"account_domain"`
 	// The title of the instance.

@@ -21,12 +21,10 @@ package model
 //
 // swagger:model instanceV1
 type InstanceV1 struct {
-	// The URI of the instance.
-	// example: https://gts.example.org
+	// The domain of the instance.
+	// example: gts.example.org
 	URI string `json:"uri,omitempty"`
-	// The domain of accounts on this instance.
-	// This will not necessarily be the same as
-	// simply the Host part of the URI.
+	// The domain to be used for accounts on this instance.
 	// example: example.org
 	AccountDomain string `json:"account_domain,omitempty"`
 	// The title of the instance.

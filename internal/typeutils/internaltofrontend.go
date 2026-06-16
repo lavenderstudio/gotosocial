@@ -1622,15 +1622,14 @@ func (c *Converter) InstanceSettingsToAPIV1Instance(
 	ctx context.Context,
 	settings *gtsmodel.InstanceSettings,
 ) (*apimodel.InstanceV1, error) {
-	domain := config.GetHost()
-	accDomain := config.GetAccountDomain()
-	if accDomain != "" {
-		domain = accDomain
-	}
+	var (
+		host       = config.GetHost()
+		acctDomain = cmp.Or(config.GetAccountDomain(), host)
+	)
 
 	instance := &apimodel.InstanceV1{
-		URI:                  domain,
-		AccountDomain:        accDomain,
+		URI:                  host,
+		AccountDomain:        acctDomain,
 		Title:                settings.Title,
 		Description:          settings.Description,
 		DescriptionText:      settings.DescriptionText,
@@ -1692,7 +1691,7 @@ func (c *Converter) InstanceSettingsToAPIV1Instance(
 	instance.Configuration.OIDCEnabled = config.GetOIDCEnabled()
 
 	// URLs
-	instance.URLs.StreamingAPI = "wss://" + domain
+	instance.URLs.StreamingAPI = "wss://" + host
 
 	// Populate instance statistics.
 	stats := make(map[string]*int, 3)
@@ -1745,7 +1744,7 @@ func (c *Converter) InstanceSettingsToAPIV1Instance(
 		instance.ThumbnailDescription = iAccount.AvatarMediaAttachment.Description
 	} else {
 		// Fall back to default thumbnail.
-		instance.Thumbnail = config.GetProtocol() + "://" + domain + "/assets/logo.webp"
+		instance.Thumbnail = config.GetProtocol() + "://" + host + "/assets/logo.webp"
 	}
 
 	// Contact account, if set.
@@ -1774,15 +1773,14 @@ func (c *Converter) InstanceSettingsToAPIV2Instance(
 	ctx context.Context,
 	settings *gtsmodel.InstanceSettings,
 ) (*apimodel.InstanceV2, error) {
-	domain := config.GetHost()
-	accDomain := config.GetAccountDomain()
-	if accDomain != "" {
-		domain = accDomain
-	}
+	var (
+		host       = config.GetHost()
+		acctDomain = cmp.Or(config.GetAccountDomain(), host)
+	)
 
 	instance := &apimodel.InstanceV2{
-		Domain:          domain,
-		AccountDomain:   accDomain,
+		Domain:          host,
+		AccountDomain:   acctDomain,
 		Title:           settings.Title,
 		Version:         config.GetSoftwareVersion(),
 		SourceURL:       instanceSourceURL,
@@ -1835,14 +1833,14 @@ func (c *Converter) InstanceSettingsToAPIV2Instance(
 		instance.Thumbnail.Blurhash = iAccount.AvatarMediaAttachment.Blurhash
 	} else {
 		// Fall back to default thumbnail.
-		instance.Thumbnail.URL = config.GetProtocol() + "://" + domain + "/assets/logo.webp"
+		instance.Thumbnail.URL = config.GetProtocol() + "://" + host + "/assets/logo.webp"
 	}
 
-	termsOfService := config.GetProtocol() + "://" + domain + "/about#rules"
+	termsOfService := config.GetProtocol() + "://" + host + "/about#rules"
 
 	// Instance configuration.
-	instance.Configuration.URLs.Streaming = "wss://" + domain
-	instance.Configuration.URLs.About = config.GetProtocol() + "://" + domain + "/about"
+	instance.Configuration.URLs.Streaming = "wss://" + host
+	instance.Configuration.URLs.About = config.GetProtocol() + "://" + host + "/about"
 	instance.Configuration.URLs.TermsOfService = &termsOfService
 	instance.Configuration.Statuses.MaxCharacters = config.GetStatusesMaxChars()
 	instance.Configuration.Statuses.MaxMediaAttachments = config.GetStatusesMediaMaxFiles()
