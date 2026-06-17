@@ -112,3 +112,6 @@ For more info on this process, see [this issue about Postgres performance](https
 
 !!! tip "Verbose"
     If you want more feedback when running either of the above commands, you can use [the `VERBOSE` option](https://www.postgresql.org/docs/current/sql-vacuum.html).
+
+!!! warning "Postgres in Docker"
+    If you're running Postgres in Docker and, while running the `VACUUM` command, you get a warning like `could not resize shared memory segment "/PostgreSQL.3206998826" to 67128672 bytes: No space left on device`, then you will need to increase the Docker parameter `shm-size` to a larger amount than the default. Try something like `--shm-size=128M` for example.

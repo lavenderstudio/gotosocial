@@ -22,6 +22,7 @@ import (
 	"errors"
 	"net/url"
 	"slices"
+	"time"
 
 	"code.superseriousbusiness.org/activity/streams/vocab"
 	"code.superseriousbusiness.org/gopkg/log"
@@ -67,18 +68,6 @@ func (f *DB) Announce(ctx context.Context, announce vocab.ActivityStreamsAnnounc
 		return nil
 	}
 
-	// Convert boost to internal gtsmodel representattion.
-	boost, isNew, err := f.converter.ASAnnounceToStatus(ctx, announce)
-	if err != nil {
-		return gtserror.Newf("error converting announce to boost: %w", err)
-	}
-
-	if !isNew {
-		// We've already seen this boost;
-		// nothing else to do here.
-		return nil
-	}
-
 	// Check if the announce originates from an actor
 	// we target with at least one relay subscription.
 	relaySubscriptions, err := f.state.DB.GetRelaySubscriptionsByActorURI(ctx, requesting.URI)
@@ -95,6 +84,23 @@ func (f *DB) Announce(ctx context.Context, announce vocab.ActivityStreamsAnnounc
 		if !receiving.IsInstance() {
 			log.Debugf(ctx, "dropping delivery from %s (relay actor delivering to non-instance-actor inbox)", requesting.URI)
 			return nil
+		}
+
+		// Some relay software doesn't set published
+		// prop on the Announce. If this is so, just set
+		// time.Now() and let the typeconverter use that.
+		published := ap.GetPublished(announce)
+		if published.IsZero() {
+			ap.SetPublished(announce, time.Now())
+		}
+
+		// Convert boost to gtsmodel.
+		//
+		// We don't store boosts wrappers from
+		// relays so don't bother checking here.
+		boost, _, err := f.converter.ASAnnounceToStatus(ctx, announce)
+		if err != nil {
+			return gtserror.Newf("error converting announce to boost: %w", err)
 		}
 
 		// From relay actors we don't care about
@@ -121,6 +127,19 @@ func (f *DB) Announce(ctx context.Context, announce vocab.ActivityStreamsAnnounc
 
 		// Allow processing of the
 		// relay announce to continue.
+	}
+
+	// Convert boost to gtsmodel.
+	boost, isNew, err := f.converter.ASAnnounceToStatus(ctx, announce)
+	if err != nil {
+		return gtserror.Newf("error converting announce to boost: %w", err)
+	}
+
+	if !isNew {
+		// We've already seen
+		// and stored this boost;
+		// nothing else to do here.
+		return nil
 	}
 
 	// This is a new boost. Process side effects asynchronously.
