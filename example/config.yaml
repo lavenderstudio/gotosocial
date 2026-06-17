@@ -952,8 +952,8 @@ statuses-cleanup-cron: "0 1 * * 0"
 # Integer duration.
 # 
 # Examples: ["6 months", "1 year", "2 years"]
-# Default: "0" (i.e. disabled)
-statuses-cleanup-remote-older-than: "0"
+# Default: "0s" (i.e. disabled)
+statuses-cleanup-remote-older-than: "0s"
 
 # Int. Maximum number of statuses a user can schedule at time.
 # Examples: [300]

@@ -736,16 +736,16 @@ func (d *Dereferencer) handleStatusEdit(
 
 		// Add edit to list of cols.
 		cols = append(cols, "edits")
-
-		// Mark the status as edited for
-		// appropriate handling in hooks.
-		status.Edited = true
 	}
 
 	if !existing.EditedAt.Equal(status.EditedAt) {
 		// Whether status edited or not,
 		// edited_at column has changed.
 		cols = append(cols, "edited_at")
+
+		// Mark the status as edited for
+		// appropriate handling in hooks.
+		status.Edited = true
 	}
 
 	return cols, nil

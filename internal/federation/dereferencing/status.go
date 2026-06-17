@@ -532,7 +532,10 @@ func (d *Dereferencer) enrichAndStoreStatus(
 	// Handle all peripheral changes / new stuff
 	// for this status: polls, mentions, media, etc.
 	changes, err := d.handleStatusPeripherals(ctx,
-		requestUser, uri, status, latestStatus,
+		requestUser,
+		uri,
+		status,
+		latestStatus,
 	)
 	if err != nil {
 		return nil, nil, isNew, err

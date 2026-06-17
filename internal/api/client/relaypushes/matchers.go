@@ -19,7 +19,6 @@ package relaypushes
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
@@ -118,12 +117,6 @@ func (m *Module) RelayPushMatcherPOSTHandler(c *gin.Context) {
 	)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
-		return
-	}
-
-	if !*authed.User.Admin {
-		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
 		return
 	}
 
@@ -236,12 +229,6 @@ func (m *Module) RelayPushMatcherDELETEHandler(c *gin.Context) {
 	)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
-		return
-	}
-
-	if !*authed.User.Admin {
-		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
 		return
 	}
 
@@ -378,12 +365,6 @@ func (m *Module) RelayPushMatcherPUTHandler(c *gin.Context) {
 	)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
-		return
-	}
-
-	if !*authed.User.Admin {
-		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
 		return
 	}
 

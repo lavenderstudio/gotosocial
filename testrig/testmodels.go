@@ -3495,6 +3495,7 @@ func NewTestActivities(accounts map[string]*gtsmodel.Account) map[string]Activit
 			ID:           URLMustParse("http://example.org/users/Some_User/statuses/01HE7XJ1CG84TBKH5V9XKBVGF5"),
 			URL:          URLMustParse("http://example.org/@Some_User/statuses/01HE7XJ1CG84TBKH5V9XKBVGF5"),
 			CreatedAt:    TimeMustParse("2023-11-02T12:44:25+02:00"),
+			UpdatedAt:    TimeMustParse("2023-11-02T12:46:45+02:00"),
 			Content:      `<p>hi <span class="h-card"><a href="http://localhost:8080/@admin" class="u-url mention" rel="nofollow noreferrer noopener" target="_blank">@<span>admin</span></a></span> here's some media for ya, <span class="h-card"><a href="http://localhost:8080/@the_mighty_zork" class="u-url mention" rel="nofollow noreferrer noopener" target="_blank">@<span>the_mighty_zork</span></a></span> you might like this too</p>`,
 			Summary:      "<p>some unknown media included</p>",
 			AttributedTo: URLMustParse("http://example.org/users/Some_User"),
@@ -5118,6 +5119,7 @@ type NewAPNoteParams struct {
 	ID                 *url.URL
 	URL                *url.URL
 	CreatedAt          time.Time
+	UpdatedAt          time.Time
 	Content            string
 	Summary            string
 	AttributedTo       *url.URL
@@ -5150,6 +5152,10 @@ func NewAPNote(p *NewAPNoteParams) vocab.ActivityStreamsNote {
 
 	// Set published.
 	ap.SetPublished(note, p.CreatedAt)
+
+	if !p.UpdatedAt.IsZero() {
+		ap.SetUpdated(note, p.UpdatedAt)
+	}
 
 	// Set content.
 	if p.Content != "" {

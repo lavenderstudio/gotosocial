@@ -132,16 +132,20 @@ func (c *Cleaner) ScheduleJobs() error {
 		panic("failed to schedule @mediacleanup")
 	}
 
-	expr = config.GetStatusesCleanupCron()
-	log.Infof(nil, "scheduling statuses cleanup: %s", expr.Expr)
+	if _, dur := config.GetStatusesCleanupRemoteOlderThan().Duration(); dur > 0 {
+		expr = config.GetStatusesCleanupCron()
+		log.Infof(nil, "scheduling statuses cleanup: %s", expr.Expr)
 
-	// Schedule status cleaning by expr.
-	if !c.state.Workers.Scheduler.Add(
-		"@statuscleanup",
-		c.cleanStatuses,
-		expr,
-	) {
-		panic("failed to schedule @statuscleanup")
+		// Schedule status cleaning by expr.
+		if !c.state.Workers.Scheduler.Add(
+			"@statuscleanup",
+			c.cleanStatuses,
+			expr,
+		) {
+			panic("failed to schedule @statuscleanup")
+		}
+	} else {
+		log.Infof(nil, "skipping statuses cleanup scheduling, as statuses-cleanup-remote-older-than <= 0")
 	}
 
 	return nil
