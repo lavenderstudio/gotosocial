@@ -154,7 +154,6 @@ func New(cfg Config) *Client {
 
 	// Set wrapped HTTP client roundtripper with compression and signing.
 	c.client.Transport = gzhttp.Transport(&signingtransport{http.Transport{
-		ForceAttemptHTTP2:     true,
 		DialContext:           d.DialContext,
 		TLSClientConfig:       tlsClientConfig,
 		DisableKeepAlives:     cfg.DisableKeepAlives,
@@ -166,6 +165,11 @@ func New(cfg Config) *Client {
 		ResponseHeaderTimeout: cfg.ResponseHeaderTimeout,
 		ReadBufferSize:        cfg.ReadBufferSize,
 		WriteBufferSize:       cfg.WriteBufferSize,
+
+		// We have provided a dialcontext function, which by
+		// default disables HTTP/2. we *don't* want to enable
+		// it until httpsig library is fully HTTP/2 compatible.
+		ForceAttemptHTTP2: false,
 
 		// Don't automatically set "Accept-Encoding: gzip",
 		// as we want to handle this ourselves and use the

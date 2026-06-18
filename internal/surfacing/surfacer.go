@@ -19,7 +19,9 @@ package surfacing
 
 import (
 	"context"
+	"errors"
 
+	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/email"
 	"code.superseriousbusiness.org/gotosocial/internal/federation"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/mutes"
@@ -105,20 +107,39 @@ func New(
 		}
 
 		// Get the original status model that media is attached to.
+		// If we can get it, it means it finished processing already
+		// and the media finished after. If we can't get it (yet)
+		// it means it hasn't finished processing and been stored.
 		status, err := state.DB.GetStatusByID(ctx, media.StatusID)
-		if err != nil {
+		if err != nil && !errors.Is(err, db.ErrNoEntries) {
 			return gtserror.Newf("db error getting status: %w", err)
 		}
 
-		if status.Flags.PendingApproval() {
-			// Status hasn't yet been
-			// approved, it needs further
-			// processing elsewhere.
+		switch {
+		case status == nil:
+			// Status wasn't stored yet. This means the media finished
+			// processing before the status did, which means that when
+			// the status is streamed to the timeline, it will be the
+			// complete version with this media attachment in place.
+			// In other words, we don't need to do side effects here.
 			return nil
-		}
 
-		// Stream a status update event with updated media.
-		return s.TimelineAndNotifyStatusUpdate(ctx, status)
+		case status.Flags.PendingApproval():
+			// Status was stored but hasn't yet been approved, and
+			// therefore hasn't been timelined; it needs further
+			// processing elsewhere. So just return regardless.
+			return nil
+
+		default:
+			// Status was stored and is not pending approval,
+			// and this media finished processing *afterwards*.
+			// This means a version of the status probably already
+			// exists in timelines with the media set to "still
+			// processing". Since it's now finished, we can stream
+			// an update to the status to show the complete status
+			// (with this fully dereffed media) in timelines.
+			return s.TimelineAndNotifyStatusUpdate(ctx, status)
+		}
 	}
 
 	return s
