@@ -143,7 +143,6 @@ func (p *Processor) RelayPushCreate(
 	// Fetch relay actor.
 	relayActor, errWithCode := p.c.DereferenceRelayActorURI(
 		ctx,
-		auth.Account.Username,
 		relayActorURI,
 	)
 	if errWithCode != nil {
@@ -252,6 +251,19 @@ func (p *Processor) RelayPushDelete(
 	// Delete relay push.
 	if err := p.state.DB.DeleteRelayPush(ctx, relayPush); err != nil {
 		err := gtserror.Newf("db error deleting relay push: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	// Get push target relay actor from the db.
+	relayActor, err := p.state.DB.GetAccountByURI(ctx, relayPush.RelayActorURI)
+	if err != nil {
+		err := gtserror.Newf("db error getting relay actor: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	// Unfollow the relay actor if no connections remain in the db.
+	if err := p.c.UnfollowRelayActorIfNoConnections(ctx, relayActor); err != nil {
+		err := gtserror.Newf("error unfollowing relay actor: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 

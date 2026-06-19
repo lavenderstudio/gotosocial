@@ -22,10 +22,12 @@ import (
 	"errors"
 
 	"code.superseriousbusiness.org/gopkg/log"
+	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/messages"
 )
 
 // GetTargetAccountBy fetches the target account with db load function, given the authorized (or, nil) requester's
@@ -267,4 +269,98 @@ func (p *Processor) getVisibleAPIAccounts(
 	}
 
 	return accounts
+}
+
+// Unfollow removes any follows and follow requests
+// from the db where requester targets targetAcc.
+//
+// If `sideEffects` is true, then federation side effects
+// (Undo Follow) will also be queued in the client worker.
+func (p *Processor) Unfollow(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	targetAcc *gtsmodel.Account,
+	sideEffects bool,
+) error {
+	// Get follow from requesting account to target account.
+	follow, err := p.state.DB.GetFollow(ctx, requester.ID, targetAcc.ID)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return gtserror.Newf(
+			"db error getting follow from %s targeting %s: %w",
+			requester.ID, targetAcc.ID, err,
+		)
+	}
+
+	if follow != nil {
+		// Delete known follow from database with ID.
+		err := p.state.DB.DeleteFollowByID(ctx, follow.ID)
+
+		// If err == db.ErrNoEntries here then it indicates
+		// a race condition with another unfollow for the same
+		// requester->target, but we should still process side
+		// effects to be on the safe side.
+		if err != nil && !errors.Is(err, db.ErrNoEntries) {
+			return gtserror.Newf(
+				"db error deleting follow from %s targeting %s: %w",
+				requester.ID, targetAcc.ID, err,
+			)
+		}
+
+		if sideEffects {
+			// Queue unfollow side effects.
+			p.state.Workers.Client.Queue.Push(&messages.FromClientAPI{
+				APObjectType:   ap.ActivityFollow,
+				APActivityType: ap.ActivityUndo,
+				GTSModel:       follow,
+				Origin:         requester,
+				Target:         targetAcc,
+			})
+		}
+	}
+
+	// Get follow request from requesting account to target account.
+	followReq, err := p.state.DB.GetFollowRequest(ctx, requester.ID, targetAcc.ID)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return gtserror.Newf(
+			"error getting follow request from %s targeting %s: %w",
+			requester.ID, targetAcc.ID, err,
+		)
+	}
+
+	if followReq != nil {
+		// Delete known follow request from database with ID.
+		err := p.state.DB.DeleteFollowRequestByID(ctx, followReq.ID)
+
+		// If err == db.ErrNoEntries here then it indicates
+		// a race condition with another unfollow for the same
+		// requester->target, but we should still process side
+		// effects to be on the safe side.
+		if err != nil && !errors.Is(err, db.ErrNoEntries) {
+			return gtserror.Newf(
+				"db error deleting follow request from %s targeting %s: %w",
+				requester.ID, targetAcc.ID, err,
+			)
+		}
+
+		if sideEffects {
+			// Queue unfollow-req side effects.
+			p.state.Workers.Client.Queue.Push(&messages.FromClientAPI{
+				APObjectType:   ap.ActivityFollow,
+				APActivityType: ap.ActivityUndo,
+				// Dummy out a follow to undo,
+				// based on the follow request.
+				GTSModel: &gtsmodel.Follow{
+					AccountID:       requester.ID,
+					Account:         requester,
+					TargetAccountID: targetAcc.ID,
+					TargetAccount:   targetAcc,
+					URI:             followReq.URI,
+				},
+				Origin: requester,
+				Target: targetAcc,
+			})
+		}
+	}
+
+	return nil
 }

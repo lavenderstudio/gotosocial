@@ -1117,6 +1117,12 @@ func (p *fediAPI) createAnnounceFromRelay(ctx context.Context, fMsg *messages.Fr
 		l.Debugf("status malformed: %v", err)
 		return nil
 
+	case gtserror.IsWrongType(err):
+		// Probably Announce of Announce
+		// or something, we ignore these.
+		l.Debugf("wrong type: %v", err)
+		return nil
+
 	default:
 		// Actual error (db error, transport error, etc).
 		return gtserror.Newf("error dereferencing %s: %w", uriStr, err)

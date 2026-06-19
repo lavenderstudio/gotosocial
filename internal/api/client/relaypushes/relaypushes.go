@@ -489,7 +489,7 @@ func (m *Module) RelayPushPUTHandler(c *gin.Context) {
 	}
 
 	// Parse form.
-	form := new(apimodel.RelayConnectionCreateRequest)
+	form := new(apimodel.RelayConnectionUpdateRequest)
 	if err := c.ShouldBind(form); err != nil {
 		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
 		return

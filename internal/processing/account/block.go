@@ -69,30 +69,34 @@ func (p *Processor) BlockCreate(ctx context.Context, requestingAccount *gtsmodel
 	// effects from requesting account -> target
 	// account, since requesting account is ours,
 	// and target account might not be.
-	msgs, err := p.unfollow(ctx, requestingAccount, targetAccount)
-	if err != nil {
+	if err := p.c.Unfollow(ctx,
+		requestingAccount,
+		targetAccount,
+		true, // sideEffects
+	); err != nil {
 		err = fmt.Errorf("BlockCreate: error unfollowing: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	// Ensure unfollowed in other direction;
-	// ignore/don't process returned messages.
-	if _, err := p.unfollow(ctx, targetAccount, requestingAccount); err != nil {
+	// Ensure unfollowed in other direction,
+	// don't process unfollow side effects.
+	if err := p.c.Unfollow(ctx,
+		targetAccount,
+		requestingAccount,
+		false, // sideEffects
+	); err != nil {
 		err = fmt.Errorf("BlockCreate: error unfollowing: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
 	// Process block side effects (federation etc).
-	msgs = append(msgs, &messages.FromClientAPI{
+	p.state.Workers.Client.Queue.Push(&messages.FromClientAPI{
 		APObjectType:   ap.ActivityBlock,
 		APActivityType: ap.ActivityCreate,
 		GTSModel:       block,
 		Origin:         requestingAccount,
 		Target:         targetAccount,
 	})
-
-	// Batch queue accreted client api messages.
-	p.state.Workers.Client.Queue.Push(msgs...)
 
 	return p.RelationshipGet(ctx, requestingAccount, targetAccountID)
 }

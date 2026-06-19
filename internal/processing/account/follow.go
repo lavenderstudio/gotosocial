@@ -137,14 +137,16 @@ func (p *Processor) FollowRemove(ctx context.Context, requestingAccount *gtsmode
 		return nil, errWithCode
 	}
 
-	// Unfollow and deal with side effects.
-	msgs, err := p.unfollow(ctx, requestingAccount, targetAccount)
-	if err != nil {
-		return nil, gtserror.NewErrorNotFound(gtserror.Newf("account %s not found in the db: %s", targetAccountID, err))
+	// Unfollow and deal
+	// with side effects.
+	if err := p.c.Unfollow(ctx,
+		requestingAccount,
+		targetAccount,
+		true, // sideEffects
+	); err != nil {
+		err := gtserror.Newf("db error removing follow (req): %w", err)
+		return nil, gtserror.NewErrorNotFound(err)
 	}
-
-	// Batch queue accreted client api messages.
-	p.state.Workers.Client.Queue.Push(msgs...)
 
 	return p.RelationshipGet(ctx, requestingAccount, targetAccountID)
 }
@@ -217,89 +219,4 @@ func (p *Processor) getFollowTarget(ctx context.Context, requester *gtsmodel.Acc
 
 	// Fetch the target account for requesting user account.
 	return p.c.GetVisibleTargetAccount(ctx, requester, targetID)
-}
-
-// unfollow is a convenience function for having requesting account
-// unfollow (and un follow request) target account, if follows and/or
-// follow requests exist.
-//
-// If a follow and/or follow request was removed this way, one or two
-// messages will be returned which should then be processed by a client
-// api worker.
-func (p *Processor) unfollow(ctx context.Context, requestingAccount *gtsmodel.Account, targetAccount *gtsmodel.Account) ([]*messages.FromClientAPI, error) {
-	var msgs []*messages.FromClientAPI
-
-	// Get follow from requesting account to target account.
-	follow, err := p.state.DB.GetFollow(ctx, requestingAccount.ID, targetAccount.ID)
-	if err != nil && !errors.Is(err, db.ErrNoEntries) {
-		err = gtserror.Newf("error getting follow from %s targeting %s: %w", requestingAccount.ID, targetAccount.ID, err)
-		return nil, err
-	}
-
-	if follow != nil {
-		// Delete known follow from database with ID.
-		err = p.state.DB.DeleteFollowByID(ctx, follow.ID)
-		if err != nil {
-			if !errors.Is(err, db.ErrNoEntries) {
-				err = gtserror.Newf("error deleting request from %s targeting %s: %w", requestingAccount.ID, targetAccount.ID, err)
-				return nil, err
-			}
-
-			// If err == db.ErrNoEntries here then it
-			// indicates a race condition with another
-			// unfollow for the same requester->target.
-			return msgs, nil
-		}
-
-		// Follow status changed, process side effects.
-		msgs = append(msgs, &messages.FromClientAPI{
-			APObjectType:   ap.ActivityFollow,
-			APActivityType: ap.ActivityUndo,
-			GTSModel:       follow,
-			Origin:         requestingAccount,
-			Target:         targetAccount,
-		})
-	}
-
-	// Get follow request from requesting account to target account.
-	followReq, err := p.state.DB.GetFollowRequest(ctx, requestingAccount.ID, targetAccount.ID)
-	if err != nil && !errors.Is(err, db.ErrNoEntries) {
-		err = gtserror.Newf("error getting follow request from %s targeting %s: %w", requestingAccount.ID, targetAccount.ID, err)
-		return nil, err
-	}
-
-	if followReq != nil {
-		// Delete known follow request from database with ID.
-		err = p.state.DB.DeleteFollowRequestByID(ctx, followReq.ID)
-		if err != nil {
-			if !errors.Is(err, db.ErrNoEntries) {
-				err = gtserror.Newf("error deleting follow request from %s targeting %s: %w", requestingAccount.ID, targetAccount.ID, err)
-				return nil, err
-			}
-
-			// If err == db.ErrNoEntries here then it
-			// indicates a race condition with another
-			// unfollow for the same requester->target.
-			return msgs, nil
-		}
-
-		// Follow status changed, process side effects.
-		msgs = append(msgs, &messages.FromClientAPI{
-			APObjectType:   ap.ActivityFollow,
-			APActivityType: ap.ActivityUndo,
-			// Dummy out a follow to undo,
-			// based on the follow request.
-			GTSModel: &gtsmodel.Follow{
-				AccountID:       requestingAccount.ID,
-				Account:         requestingAccount,
-				TargetAccountID: targetAccount.ID,
-				TargetAccount:   targetAccount,
-				URI:             followReq.URI,
-			},
-			Origin: requestingAccount,
-			Target: targetAccount,
-		})
-	}
-
-	return msgs, nil
 }

@@ -27,6 +27,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
+	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	gtsmodel "code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
@@ -95,6 +96,71 @@ func (p *Processor) FollowRelayActor(ctx context.Context, relayActor *gtsmodel.A
 	return nil
 }
 
+// UnfollowRelayActorIfNoConnections checks if the given relayActor is targeted
+// by any relay pushes or relay subscriptions remaining in the database. If not,
+// an Undo Follow will be sent from the instance account targeting the relay actor,
+// essentially stopping the connection.
+func (p *Processor) UnfollowRelayActorIfNoConnections(ctx context.Context, relayActor *gtsmodel.Account) error {
+	relayActorURI := relayActor.URI
+
+	// Check if there's any relay pushes with this actor URI.
+	pushes, err := p.state.DB.GetRelayPushesByActorURI(
+		// Just use barebones, we're
+		// only checking if exists.
+		gtscontext.SetBarebones(ctx),
+		relayActorURI,
+	)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return gtserror.NewfAt(3, "db error getting relay pushes: %w", err)
+	}
+
+	if len(pushes) != 0 {
+		// Pushes still
+		// exist, noop.
+		return nil
+	}
+
+	// Check if there's any relay subs with this actor URI.
+	subs, err := p.state.DB.GetRelaySubscriptionsByActorURI(
+		// Just use barebones, we're
+		// only checking if exists.
+		gtscontext.SetBarebones(ctx),
+		relayActorURI,
+	)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return gtserror.NewfAt(3, "db error getting relay subscriptions: %w", err)
+	}
+
+	if len(subs) != 0 {
+		// Subs still
+		// exist, noop.
+		return nil
+	}
+
+	// No pushes or subscriptions remain targeting the
+	// given relay actor, so we should Undo any Follow
+	// from the instance account targeting them.
+
+	// Get our instance account from the db.
+	iAcct, err := p.state.DB.GetInstanceAccount(ctx, "")
+	if err != nil {
+		return gtserror.NewfAt(3, "db error getting instance account: %w", err)
+	}
+
+	// Unfollow the relay actor, sending
+	// side effects to the client worker
+	// so the Undo Follow gets federated.
+	if err := p.Unfollow(ctx,
+		iAcct,
+		relayActor,
+		true, // sideEffects
+	); err != nil {
+		return gtserror.NewfAt(3, "error unfollowing: %w", err)
+	}
+
+	return nil
+}
+
 func (p *Processor) GetRelayMatcher(
 	ctx context.Context,
 	id string,
@@ -115,7 +181,6 @@ func (p *Processor) GetRelayMatcher(
 
 func (p *Processor) DereferenceRelayActorURI(
 	ctx context.Context,
-	requestUser string,
 	relayActorURI *url.URL,
 ) (*gtsmodel.Account, gtserror.WithCode) {
 	// Ensure relay actor host is not blocked.
@@ -130,9 +195,15 @@ func (p *Processor) DereferenceRelayActorURI(
 		return nil, gtserror.NewErrorUnprocessableEntity(err, err.Error())
 	}
 
-	// Dereference relay actor.
+	// Dereference relay actor using our instance account.
+	instanceAcct, err := p.state.DB.GetInstanceAccount(ctx, "")
+	if err != nil {
+		err = gtserror.Newf("db error getting instance account: %w", err)
+		return nil, gtserror.NewErrorInternalError(err, err.Error())
+	}
+
 	relayActor, _, err := p.federator.Dereferencer.GetAccountByURI(ctx,
-		requestUser,
+		instanceAcct.Username,
 		relayActorURI,
 		true, // tryURL
 	)
