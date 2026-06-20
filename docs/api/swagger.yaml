@@ -9118,7 +9118,7 @@ paths:
                   in: query
                   name: domain
                   type: string
-                - default: latest
+                - default: first_seen
                   description: Order by default "first_seen" (newest -> oldest) or "alphabetical" (a -> z).
                   in: query
                   name: order

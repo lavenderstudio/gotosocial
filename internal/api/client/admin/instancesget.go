@@ -60,7 +60,7 @@ import (
 //		in: query
 //		type: string
 //		description: Order by default "first_seen" (newest -> oldest) or "alphabetical" (a -> z).
-//		default: latest
+//		default: first_seen
 //	-
 //		name: with_errors_only
 //		in: query
