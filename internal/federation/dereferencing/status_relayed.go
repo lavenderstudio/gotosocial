@@ -167,6 +167,13 @@ func (d *Dereferencer) GetRelayedStatus(
 		true, // isNew = true
 	)
 
+	// Pass status to dereferencer
+	// hook for timelining etc.
+	d.onStatusDereference(ctx,
+		status,
+		true, // isNew = true
+	)
+
 	return status, nil
 }
 

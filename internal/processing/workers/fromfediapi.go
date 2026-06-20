@@ -404,6 +404,8 @@ func (p *fediAPI) CreateStatus(ctx context.Context, fMsg *messages.FromFediAPI) 
 func (p *fediAPI) createStatusFromRelay(ctx context.Context, fMsg *messages.FromFediAPI) error {
 	// Retrieve the relayed status, and store it
 	// if it's matched by a relay subscription.
+	//
+	// NOTE: dereferencer hook handles surfacing logic.
 	status, err := p.federate.GetRelayedStatus(ctx,
 		fMsg.Receiving,  // Our instance account.
 		fMsg.Requesting, // Relaying account.
