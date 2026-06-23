@@ -17,7 +17,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import React from "react";
+import React, { useMemo } from "react";
 
 import { useLocation } from "wouter";
 import { useBaseUrl } from "../lib/navigation/util";
@@ -152,6 +152,21 @@ function RelayMatchers({
 	const [ formSubmit, result ] = useFormSubmit(form, createMatcherHook());
 	const [ remove, removeResult ] = deleteMatcherHook();
 
+	// Link to appropriate page depending on if
+	// this is a relay subscription or a relay push.
+	//
+	// We know account id is only ever defined
+	// for relay subscriptions so check for that.
+	const docsLink = useMemo(() => {
+		if (conn.account_id) {
+			// This is a relay subscription.
+			return "https://docs.gotosocial.org/en/stable/admin/relay_subscriptions/#relay-matchers";
+		} else {
+			// Must be a relay push.
+			return "https://docs.gotosocial.org/en/stable/user_guide/relay_pushes/#relay-matchers";
+		}
+	}, [conn.account_id]);
+
 	return (
 		<>
 			<div className="form-section-docs">
@@ -163,7 +178,7 @@ function RelayMatchers({
 					<br/><br/>Regardless of whether the relay connection does or does not match posts by default, exclude matchers will prevent posts from being relayed, even if they would otherwise be matched (ie., exclude matchers take priority).
 				</p>
 				<a
-					href="https://docs.gotosocial.org/en/stable/user_guide/settings/#profile"
+					href={docsLink}
 					target="_blank"
 					className="docslink"
 					rel="noreferrer"

@@ -33,7 +33,6 @@ export default function RelayPushNew() {
 					combined with relay matchers (once you've created the relay connection) to match keywords in posts in order to either include
 					or exclude them in relaying.
 					<br/><br/>If you don't check "Send all allowed posts by default" then nothing will be relayed unless you create relay matchers.
-					<br/><br/>If you 
 				</>
 			}
 			createHook={useCreateRelayPushMutation}

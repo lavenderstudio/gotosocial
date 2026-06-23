@@ -1627,6 +1627,11 @@ func (c *Converter) InstanceSettingsToAPIV1Instance(
 		acctDomain = cmp.Or(config.GetAccountDomain(), host)
 	)
 
+	// Depunify the account domain.
+	if dp, err := util.DePunify(acctDomain); err == nil {
+		acctDomain = dp
+	}
+
 	instance := &apimodel.InstanceV1{
 		URI:                  host,
 		AccountDomain:        acctDomain,
@@ -1777,6 +1782,11 @@ func (c *Converter) InstanceSettingsToAPIV2Instance(
 		host       = config.GetHost()
 		acctDomain = cmp.Or(config.GetAccountDomain(), host)
 	)
+
+	// Depunify the account domain.
+	if dp, err := util.DePunify(acctDomain); err == nil {
+		acctDomain = dp
+	}
 
 	instance := &apimodel.InstanceV2{
 		Domain:          host,

@@ -67,7 +67,12 @@ func (f *DB) Update(ctx context.Context, asType vocab.Type) error {
 	return nil
 }
 
-func (f *DB) updateAccountable(ctx context.Context, receivingAcct *gtsmodel.Account, requestingAcct *gtsmodel.Account, accountable ap.Accountable) error {
+func (f *DB) updateAccountable(
+	ctx context.Context,
+	receiving *gtsmodel.Account,
+	requesting *gtsmodel.Account,
+	accountable ap.Accountable,
+) error {
 	// Extract AP URI of the updated Accountable model.
 	idProp := accountable.GetJSONLDId()
 	if idProp == nil || !idProp.IsIRI() {
@@ -83,9 +88,25 @@ func (f *DB) updateAccountable(ctx context.Context, receivingAcct *gtsmodel.Acco
 		return nil
 	}
 
-	// Check that update was by the account themselves.
-	if accountURIStr != requestingAcct.URI {
-		return gtserror.Newf("update for %s was not requested by owner", accountURIStr)
+	// Check that Update was by
+	// the account owner themself.
+	if accountURIStr != requesting.URI {
+		// If the receiver was our instance account, this is
+		// likely a json-ld-signed forwarded Update from a relay
+		// (the only type of actor our instance account follows).
+		//
+		// Since we don't do anything with json-ld signatures,
+		// we can just throw this away and we'll catch the update
+		// next time we dereference the updated account.
+		if receiving.IsInstance() {
+			log.Debug(ctx, "throwing away Update delivered to instance account")
+			return nil
+		}
+
+		// This is someone delivering an Update for someone
+		// else's account, return 403 Forbidden for this.
+		text := "update for " + accountURIStr + " was not delivered by owner"
+		return gtserror.NewErrorForbidden(errors.New(text), text)
 	}
 
 	// Pass in to the processor the existing version of the requesting
@@ -96,16 +117,21 @@ func (f *DB) updateAccountable(ctx context.Context, receivingAcct *gtsmodel.Acco
 	f.state.Workers.Federator.Queue.Push(&messages.FromFediAPI{
 		APObjectType:   ap.ActorPerson,
 		APActivityType: ap.ActivityUpdate,
-		GTSModel:       requestingAcct,
+		GTSModel:       requesting,
 		APObject:       accountable,
-		Receiving:      receivingAcct,
-		Requesting:     requestingAcct,
+		Receiving:      receiving,
+		Requesting:     requesting,
 	})
 
 	return nil
 }
 
-func (f *DB) updateStatusable(ctx context.Context, receivingAcct *gtsmodel.Account, requestingAcct *gtsmodel.Account, statusable ap.Statusable) error {
+func (f *DB) updateStatusable(
+	ctx context.Context,
+	receiving *gtsmodel.Account,
+	requesting *gtsmodel.Account,
+	statusable ap.Statusable,
+) error {
 	// Extract AP URI of the updated model.
 	idProp := statusable.GetJSONLDId()
 	if idProp == nil || !idProp.IsIRI() {
@@ -123,7 +149,7 @@ func (f *DB) updateStatusable(ctx context.Context, receivingAcct *gtsmodel.Accou
 
 	// Check if this is a forwarded object, i.e. did
 	// the account making the request also create this?
-	forwarded := !isSender(statusable, requestingAcct)
+	forwarded := !isSender(statusable, requesting)
 
 	// Get the status we have on file for this URI string.
 	status, err := f.state.DB.GetStatusByURI(ctx, statusURIStr)
@@ -135,8 +161,8 @@ func (f *DB) updateStatusable(ctx context.Context, receivingAcct *gtsmodel.Accou
 		// We haven't seen this status before, be
 		// lenient and handle as a CREATE event.
 		return f.createStatusable(ctx,
-			receivingAcct,
-			requestingAcct,
+			receiving,
+			requesting,
 			statusable,
 			forwarded,
 		)
@@ -155,8 +181,8 @@ func (f *DB) updateStatusable(ctx context.Context, receivingAcct *gtsmodel.Accou
 		APActivityType: ap.ActivityUpdate,
 		GTSModel:       status, // original status
 		APObject:       (ap.Statusable)(statusable),
-		Receiving:      receivingAcct,
-		Requesting:     requestingAcct,
+		Receiving:      receiving,
+		Requesting:     requesting,
 	})
 
 	return nil
