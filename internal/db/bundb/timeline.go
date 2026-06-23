@@ -28,7 +28,9 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
+	"code.superseriousbusiness.org/gotosocial/internal/util"
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect"
 )
 
 type timelineDB struct {
@@ -37,44 +39,18 @@ type timelineDB struct {
 }
 
 func (t *timelineDB) GetHomeTimeline(ctx context.Context, accountID string, page *paging.Page) ([]*gtsmodel.Status, error) {
-	return loadStatusTimelinePage(ctx, t.db, t.state,
+	// Get IDs of followed accounts whose
+	// statuses should be in the home timeline.
+	accountIDs, err := t.getHomeAccountIDs(ctx, accountID)
+	if err != nil {
+		return nil, gtserror.Newf("error getting home account ids: %w", err)
+	}
 
-		// Paging
-		// params.
-		page,
-
-		// The actual meat of the home-timeline query, outside
-		// of any paging parameters that selects by followings.
-		func(q *bun.SelectQuery) (*bun.SelectQuery, error) {
-
-			// Get account IDs that should be in this home timeline.
-			accountIDs, err := t.getHomeAccountIDs(ctx, accountID)
-			if err != nil {
-				return nil, gtserror.Newf("error getting home account ids: %w", err)
-			}
-
-			// Provide IDs as a bun CTE value type.
-			values := toAccountIDValues(accountIDs)
-
-			// "Join" on the CTE values to select only
-			// statuses belonging to those account IDs.
-			q = q.With("_data", t.db.NewValues(&values)).
-				Table("_data").
-				Where("? = ?", bun.Ident("status.account_id"), bun.Ident("_data.account_id")).
-
-				// Only include statuses that aren't pending approval.
-				Where(db.BitNotSet("flags", gtsmodel.StatusFlagPendingApproval)).
-
-				// Only include statuses that aren't deleted (stubbed-out).
-				Where(db.BitNotSet("flags", gtsmodel.StatusFlagDeleted))
-
-			return q, nil
-		},
-	)
+	return t.timelineForAccountIDs(ctx, accountIDs, page)
 }
 
 func (t *timelineDB) GetPublicTimeline(ctx context.Context, page *paging.Page) ([]*gtsmodel.Status, error) {
-	return loadStatusTimelinePage(ctx, t.db, t.state,
+	q, err := statusTimelineQuery(t.db,
 
 		// Paging
 		// params.
@@ -96,10 +72,15 @@ func (t *timelineDB) GetPublicTimeline(ctx context.Context, page *paging.Page) (
 			return q, nil
 		},
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	return loadStatusTimelineQuery(ctx, t.state, page, q)
 }
 
 func (t *timelineDB) GetLocalTimeline(ctx context.Context, page *paging.Page) ([]*gtsmodel.Status, error) {
-	return loadStatusTimelinePage(ctx, t.db, t.state,
+	q, err := statusTimelineQuery(t.db,
 
 		// Paging
 		// params.
@@ -124,6 +105,11 @@ func (t *timelineDB) GetLocalTimeline(ctx context.Context, page *paging.Page) ([
 			return q, nil
 		},
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	return loadStatusTimelineQuery(ctx, t.state, page, q)
 }
 
 // TODO optimize this query and the logic here, because it's slow as balls -- it takes like a literal second to return with a limit of 20!
@@ -198,45 +184,17 @@ func (t *timelineDB) GetFavedTimeline(ctx context.Context, accountID string, max
 }
 
 func (t *timelineDB) GetListTimeline(ctx context.Context, listID string, page *paging.Page) ([]*gtsmodel.Status, error) {
-	return loadStatusTimelinePage(ctx, t.db, t.state,
+	// Get IDs of accounts contained in this list.
+	accountIDs, err := t.state.DB.GetAccountIDsInList(ctx, listID, nil)
+	if err != nil {
+		return nil, gtserror.Newf("error getting account IDs in list: %w", err)
+	}
 
-		// Paging
-		// params.
-		page,
-
-		// The actual meat of the list-timeline query, outside
-		// of any paging parameters, it selects by list entries.
-		func(q *bun.SelectQuery) (*bun.SelectQuery, error) {
-
-			// Get IDs of all accounts contained in user's list.
-			accountIDs, err := t.state.DB.GetAccountIDsInList(ctx,
-				listID, nil)
-			if err != nil {
-				return nil, gtserror.Newf("error getting account IDs in list: %w", err)
-			}
-
-			// Provide IDs as a bun CTE value type.
-			values := toAccountIDValues(accountIDs)
-
-			// "Join" on the CTE values to select only
-			// statuses belonging to those account IDs.
-			q = q.With("_data", t.db.NewValues(&values)).
-				Table("_data").
-				Where("? = ?", bun.Ident("status.account_id"), bun.Ident("_data.account_id")).
-
-				// Only include statuses that aren't pending approval.
-				Where(db.BitNotSet("flags", gtsmodel.StatusFlagPendingApproval)).
-
-				// Only include statuses that aren't deleted (stubbed-out).
-				Where(db.BitNotSet("flags", gtsmodel.StatusFlagDeleted))
-
-			return q, nil
-		},
-	)
+	return t.timelineForAccountIDs(ctx, accountIDs, page)
 }
 
 func (t *timelineDB) GetTagTimeline(ctx context.Context, tagID string, page *paging.Page) ([]*gtsmodel.Status, error) {
-	return loadStatusTimelinePage(ctx, t.db, t.state,
+	q, err := statusTimelineQuery(t.db,
 
 		// Paging
 		// params.
@@ -258,6 +216,11 @@ func (t *timelineDB) GetTagTimeline(ctx context.Context, tagID string, page *pag
 			return q, nil
 		},
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	return loadStatusTimelineQuery(ctx, t.state, page, q)
 }
 
 func (t *timelineDB) getHomeAccountIDs(ctx context.Context, accountID string) ([]string, error) {
@@ -323,16 +286,121 @@ func (t *timelineDB) getHomeAccountIDs(ctx context.Context, accountID string) ([
 	})
 }
 
-func loadStatusTimelinePage(
+// timelineForAccountIDs returns a paged timeline which
+// contains only statuses authored by the given account IDs.
+// This can be used for both home and list timeline queries.
+//
+// This function executes a different query layout depending
+// on whether Postgres or SQLite is being used as the db driver.
+//
+// See https://codeberg.org/superseriousbusiness/gotosocial/issues/4757.
+func (t *timelineDB) timelineForAccountIDs(
 	ctx context.Context,
-	db *bun.DB,
-	state *state.State,
+	accountIDs []string,
 	page *paging.Page,
-	query func(*bun.SelectQuery) (*bun.SelectQuery, error),
-) (
-	[]*gtsmodel.Status,
-	error,
-) {
+) ([]*gtsmodel.Status, error) {
+	// Convert account IDs to bun VALUES query type.
+	values := t.db.NewValues(util.Ptr(toAccountIDValues(accountIDs)))
+
+	switch t.db.Dialect().Name() {
+	case dialect.SQLite:
+		// In SQLite "Join" on CTE values to select
+		// only statuses belonging to account IDs.
+		q, err := statusTimelineQuery(t.db,
+
+			// Paging
+			// params.
+			page,
+
+			func(q *bun.SelectQuery) (*bun.SelectQuery, error) {
+				q = q.
+					// Select only statuses
+					// that match account ID.
+					With("_data", values).
+					Table("_data").
+					Where("? = ?", bun.Ident("status.account_id"), bun.Ident("_data.account_id")).
+
+					// Only include statuses that aren't pending approval.
+					Where(db.BitNotSet("flags", gtsmodel.StatusFlagPendingApproval)).
+
+					// Only include statuses that aren't deleted (stubbed-out).
+					Where(db.BitNotSet("flags", gtsmodel.StatusFlagDeleted))
+
+				return q, nil
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return loadStatusTimelineQuery(ctx, t.state, page, q)
+
+	case dialect.PG:
+		// For performance reasons in Postgres
+		// it's better to use a CROSS JOIN LATERAL.
+
+		// Build the inner statuses query.
+		innerQ, err := statusTimelineQuery(t.db,
+
+			// Paging
+			// params.
+			page,
+
+			func(q *bun.SelectQuery) (*bun.SelectQuery, error) {
+				q = q.
+					// Select only statuses
+					// that match account ID.
+					Where("? = ?", bun.Ident("status.account_id"), bun.Ident("_data.account_id")).
+
+					// Only include statuses that aren't pending approval.
+					Where(db.BitNotSet("flags", gtsmodel.StatusFlagPendingApproval)).
+
+					// Only include statuses that aren't deleted (stubbed-out).
+					Where(db.BitNotSet("flags", gtsmodel.StatusFlagDeleted))
+
+				return q, nil
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Provide the account id values as a table and do a
+		// CROSS JOIN LATERAL so the inner query can use them.
+		q := t.db.NewSelect().
+			TableExpr("(?) as ?(?)", values, bun.Ident("_data"), bun.Ident("account_id")).
+			// Select status.id
+			// from the inner query.
+			Column("status.id").
+			Join("CROSS JOIN LATERAL (?) AS ?", innerQ, bun.Ident("status"))
+
+		// Set query ordering.
+		if page.Order().Ascending() {
+			q = q.OrderExpr("? ASC", bun.Ident("status.id"))
+		} else /* i.e. descending */ {
+			q = q.OrderExpr("? DESC", bun.Ident("status.id"))
+		}
+
+		// A limit should always
+		// be supplied for this.
+		q = q.Limit(page.Limit)
+
+		return loadStatusTimelineQuery(ctx, t.state, page, q)
+
+	default:
+		panic("unreachable")
+	}
+}
+
+// statusTimelineQuery returns a *bun.SelectQuery for loading
+// a status timeline. The query can have parameters injected
+// to it by callers using the provided query function.
+// Parameters will be injected *before* paging.
+func statusTimelineQuery(
+	db *bun.DB,
+	page *paging.Page,
+	parameterize func(*bun.SelectQuery) (*bun.SelectQuery, error),
+) (*bun.SelectQuery, error) {
 	if page == nil || page.Limit < 1 {
 		panic("paging is required")
 	}
@@ -343,9 +411,6 @@ func loadStatusTimelinePage(
 	limit := page.Limit
 	order := page.Order()
 
-	// Pre-allocate slice of IDs as dest.
-	statusIDs := make([]string, 0, limit)
-
 	// Now start building the database query.
 	//
 	// Select the following:
@@ -354,9 +419,9 @@ func loadStatusTimelinePage(
 		TableExpr("? AS ?", bun.Ident("statuses"), bun.Ident("status")).
 		Column("status.id")
 
-	// Append caller
-	// query details.
-	q, err := query(q)
+	// Inject caller
+	// query parameters.
+	q, err := parameterize(q)
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +447,27 @@ func loadStatusTimelinePage(
 	// be supplied for this.
 	q = q.Limit(limit)
 
-	// Finally, perform query into status ID slice.
+	return q, nil
+}
+
+// loadStatusTimelinePage loads the given status
+// timeline query into a slice of statuses.
+func loadStatusTimelineQuery(
+	ctx context.Context,
+	state *state.State,
+	page *paging.Page,
+	q *bun.SelectQuery,
+) (
+	[]*gtsmodel.Status,
+	error,
+) {
+	// Extract page params.
+	limit := page.Limit
+
+	// Pre-allocate slice of IDs as dest.
+	statusIDs := make([]string, 0, limit)
+
+	// Perform query into status ID slice.
 	if err := q.Scan(ctx, &statusIDs); err != nil {
 		return nil, err
 	}

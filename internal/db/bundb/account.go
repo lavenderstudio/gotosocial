@@ -1225,7 +1225,7 @@ func (a *accountDB) GetAccountWebStatuses(
 	if publicOnly {
 		// Simple case, we
 		// don't need a union.
-		return loadStatusTimelinePage(ctx, a.db, a.state,
+		q, err := statusTimelineQuery(a.db,
 			// Paging
 			// params.
 			page,
@@ -1241,6 +1241,11 @@ func (a *accountDB) GetAccountWebStatuses(
 				), nil
 			},
 		)
+		if err != nil {
+			return nil, err
+		}
+
+		return loadStatusTimelineQuery(ctx, a.state, page, q)
 	}
 
 	// More complicated case with both

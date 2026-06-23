@@ -30,6 +30,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
+	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/messages"
 )
 
@@ -75,6 +76,10 @@ func (f *DB) Announce(ctx context.Context, announce vocab.ActivityStreamsAnnounc
 		return gtserror.Newf("db error getting relay subscriptions for actor URI %s: %w", requesting.URI, err)
 	}
 
+	// Way we treat the boost wrapper
+	// status differs depending on if
+	// this is from a relay or not.
+	var boost *gtsmodel.Status
 	if len(relaySubscriptions) != 0 {
 		// We subscribe to this actor with at least one
 		// relay subscription, which means it's a relay.
@@ -96,16 +101,15 @@ func (f *DB) Announce(ctx context.Context, announce vocab.ActivityStreamsAnnounc
 
 		// Convert boost to gtsmodel.
 		//
-		// We don't store boosts wrappers from
-		// relays so don't bother checking here.
-		boost, _, err := f.converter.ASAnnounceToStatus(ctx, announce)
+		// We never store boost wrappers from
+		// relays so don't bother with isNew here.
+		boost, _, err = f.converter.ASAnnounceToStatus(ctx, announce)
 		if err != nil {
 			return gtserror.Newf("error converting announce to boost: %w", err)
 		}
 
-		// From relay actors we don't care about
-		// storing and generating notifications
-		// for Announces of our *own* posts.
+		// From relay actors we don't care
+		// about Announces of our own posts.
 		uri := boost.BoostOfURI
 		if uri.Host == config.GetHost() ||
 			uri.Host == config.GetAccountDomain() {
@@ -127,22 +131,29 @@ func (f *DB) Announce(ctx context.Context, announce vocab.ActivityStreamsAnnounc
 
 		// Allow processing of the
 		// relay announce to continue.
+
+	} else {
+		// Convert boost to gtsmodel,
+		// checking if it's new to us.
+		var isNew bool
+		boost, isNew, err = f.converter.ASAnnounceToStatus(ctx, announce)
+		if err != nil {
+			return gtserror.Newf("error converting announce to boost: %w", err)
+		}
+
+		if !isNew {
+			// We've already seen
+			// and stored this boost;
+			// nothing else to do here.
+			return nil
+		}
+
+		// Allow processing of the
+		// announce to continue.
 	}
 
-	// Convert boost to gtsmodel.
-	boost, isNew, err := f.converter.ASAnnounceToStatus(ctx, announce)
-	if err != nil {
-		return gtserror.Newf("error converting announce to boost: %w", err)
-	}
-
-	if !isNew {
-		// We've already seen
-		// and stored this boost;
-		// nothing else to do here.
-		return nil
-	}
-
-	// This is a new boost. Process side effects asynchronously.
+	// This is a new or relayed boost.
+	// Process side effects asynchronously.
 	f.state.Workers.Federator.Queue.Push(&messages.FromFediAPI{
 		APObjectType:   ap.ActivityAnnounce,
 		APActivityType: ap.ActivityCreate,
