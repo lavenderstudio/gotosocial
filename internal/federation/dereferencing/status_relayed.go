@@ -78,8 +78,8 @@ func (d *Dereferencer) GetRelayedStatus(
 	unlock = util.DoOnce(unlock)
 	defer unlock()
 
-	// Search the database for existing status.
-	if status, err := d.getStatusDBOnly(ctx, uriStr); err != nil {
+	// Search the database for an existing status under URI / URL.
+	if status, err := d.getStatusFromDB(ctx, uriStr); err != nil {
 		return nil, err
 	} else if status != nil {
 		// If we already have the status,
@@ -92,7 +92,8 @@ func (d *Dereferencer) GetRelayedStatus(
 	// We don't have the relayed status
 	// stored locally, go dereference it.
 	status, statusable, err := d.dereferenceRelayableStatus(
-		ctx, l,
+		ctx,
+		&l,
 		instanceAcct,
 		relayAcct,
 		uri,
@@ -193,7 +194,7 @@ func (d *Dereferencer) GetRelayedAnnounce(
 		return nil, gtserror.SetUnretrievable(err)
 	}
 
-	// Create logger.
+	// Prepare log entry with fields.
 	uriStr := boostWrapper.BoostOfURIStr
 	l := log.
 		WithContext(ctx).
@@ -204,8 +205,8 @@ func (d *Dereferencer) GetRelayedAnnounce(
 	unlock = util.DoOnce(unlock)
 	defer unlock()
 
-	// Search the database for existing status.
-	if status, err := d.getStatusDBOnly(ctx, uriStr); err != nil {
+	// Search the database for an existing status under URI / URL.
+	if status, err := d.getStatusFromDB(ctx, uriStr); err != nil {
 		return nil, err
 	} else if status != nil {
 		// If we already have the status,
@@ -218,7 +219,8 @@ func (d *Dereferencer) GetRelayedAnnounce(
 	// We don't have the relayed status
 	// stored locally, go dereference it.
 	status, statusable, err := d.dereferenceRelayableStatus(
-		ctx, l,
+		ctx,
+		&l,
 		instanceAcct,
 		relayAcct,
 		uri,
@@ -333,11 +335,15 @@ func (d *Dereferencer) GetRelayedAnnounce(
 
 func (d *Dereferencer) dereferenceRelayableStatus(
 	ctx context.Context,
-	l log.Entry,
+	l *log.Entry,
 	instanceAcct *gtsmodel.Account,
 	relayAcct *gtsmodel.Account,
 	uri *url.URL,
-) (*gtsmodel.Status, ap.Statusable, error) {
+) (
+	*gtsmodel.Status,
+	ap.Statusable,
+	error,
+) {
 	// Don't have the status locally, so we need to deref.
 	//
 	// Create transport on behalf of our instance account,
@@ -350,20 +356,19 @@ func (d *Dereferencer) dereferenceRelayableStatus(
 		return nil, nil, gtserror.Newf("couldn't create transport: %w", err)
 	}
 
-	// Dereference statusable from remote, checking
-	// if we already had this status stored under a
-	// different URI (ie., final URI after redirects).
-	statusable, alreadyStatus, err := d.retrieveStatusable(ctx, tsport, uri)
+	// Dereference statusable from remote, checking if we already had this
+	// status stored under a different URI (ie., final URI after redirects).
+	statusable, existing, uri, err := d.retrieveStatusable(ctx, tsport, uri)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// If alreadyStatus was returned, it means
+	// If existing was returned, it means
 	// we already had this status stored in the
 	// db under its final reachable URI and not
 	// the URI passed in. No need to go further.
-	if alreadyStatus != nil {
-		return alreadyStatus, statusable, nil
+	if existing != nil {
+		return existing, statusable, nil
 	}
 
 	// We didn't have the status yet + we dereffed it.
@@ -373,7 +378,9 @@ func (d *Dereferencer) dereferenceRelayableStatus(
 	//
 	// This will also fetch the status author account.
 	status, err := d.convertStatusable(ctx,
-		instanceAcct.Username, uri, statusable,
+		instanceAcct.Username,
+		uri,
+		statusable,
 	)
 	if err != nil {
 		return nil, statusable, err
@@ -382,8 +389,8 @@ func (d *Dereferencer) dereferenceRelayableStatus(
 	// We're only interested in relayed statuses that
 	// are public or unlisted, as followers-only statuses
 	// will be definition by sent to followers anyway.
-	vis := status.Visibility
-	if !(vis == gtsmodel.VisibilityPublic ||
+	if vis := status.Visibility; //
+	!(vis == gtsmodel.VisibilityPublic ||
 		vis == gtsmodel.VisibilityUnlocked) {
 		l.Debug("status neither public nor unlisted")
 		return nil, statusable, nil
@@ -394,7 +401,6 @@ func (d *Dereferencer) dereferenceRelayableStatus(
 	// if the author is the same as for this status.
 	var inReplyToAccountURI string
 	if status.InReplyToURI != "" {
-		var err error
 		inReplyToAccountURI, err = d.retrieveInReplyToAccountURI(ctx, tsport, status)
 		if err != nil {
 			return nil, statusable, err
@@ -466,9 +472,8 @@ func (d *Dereferencer) retrieveInReplyToAccountURI(
 		return "", nil
 	}
 
-	// We don't have the parent stored, try to fetch but
-	// *don't* store it, we only want to check for now.
-	parentStatusable, parentStatus, err := d.retrieveStatusable(ctx, tsport, parentURI)
+	// We don't have the parent stored, try to fetch but *don't* store it, only check for now.
+	parentStatusable, parentStatus, _, err := d.retrieveStatusable(ctx, tsport, parentURI)
 	if err != nil {
 		err := gtserror.Newf("error retrieving %s: %w", inReplyToURI, err)
 		return "", err
@@ -480,11 +485,11 @@ func (d *Dereferencer) retrieveInReplyToAccountURI(
 		return parentStatus.AccountURI, nil
 	}
 
-	attributedTo := ap.GetAttributedTo(parentStatusable)
-	if len(attributedTo) == 0 {
-		err := gtserror.Newf("parent %s had no attributedTo", inReplyToURI)
-		return "", err
+	// Get attributedTo URI from the dereferenced parent status.
+	attributedTo, err := ap.GetOneAttributedTo(parentStatusable)
+	if err != nil {
+		return "", gtserror.SetMalformed(err)
 	}
 
-	return attributedTo[0].String(), nil
+	return attributedTo.String(), nil
 }

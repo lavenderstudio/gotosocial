@@ -254,7 +254,7 @@ func (d *Dereferencer) getStatusByURI(
 	// Search the database
 	// for existing status.
 	uriStr := uri.String()
-	status, err = d.getStatusDBOnly(ctx, uriStr)
+	status, err = d.getStatusFromDB(ctx, uriStr)
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -401,7 +401,7 @@ func (d *Dereferencer) enrichAndStoreStatusSafely(
 
 		// DATA RACE! We likely lost out to another goroutine
 		// in a call to db.Put(Status). Look again in DB by URI.
-		latest, err = d.getStatusDBOnly(ctx, status.URI)
+		latest, err = d.getStatusFromDB(ctx, status.URI)
 		if err != nil {
 			err = gtserror.Newf("error getting status %s from database after race: %w", uriStr, err)
 		}
@@ -450,12 +450,11 @@ func (d *Dereferencer) enrichAndStoreStatus(
 			return nil, nil, isNew, gtserror.Newf("couldn't create transport: %w", err)
 		}
 
-		// Dereference statusable from remote,
-		// checking if we already had this
-		// status stored under a different URI
-		// (ie., the final URI after redirects).
-		var alreadyStatus *gtsmodel.Status
-		statusable, alreadyStatus, err = d.retrieveStatusable(ctx, tsport, uri)
+		var existing *gtsmodel.Status
+
+		// Dereference statusable from remote, checking if we already had this
+		// status stored under a different URI (ie., the final URI after redirects).
+		statusable, existing, uri, err = d.retrieveStatusable(ctx, tsport, uri)
 		if err != nil {
 			return nil, nil, isNew, err
 		}
@@ -466,8 +465,8 @@ func (d *Dereferencer) enrichAndStoreStatus(
 		//
 		// Continue with this status and mark it as not
 		// new so we don't try to store it again below.
-		if alreadyStatus != nil {
-			status = alreadyStatus
+		if existing != nil {
+			status = existing
 			isNew = false
 		}
 	}

@@ -22,7 +22,7 @@ import (
 	"errors"
 	"net/url"
 
-	"code.superseriousbusiness.org/gopkg/xslices"
+	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
@@ -35,10 +35,11 @@ import (
 // getStatusDBOnly checks in the database for
 // status with the given URI (or URL), without
 // doing any external dereferencing.
-func (d *Dereferencer) getStatusDBOnly(
+func (d *Dereferencer) getStatusFromDB(
 	ctx context.Context,
 	uriStr string,
 ) (*gtsmodel.Status, error) {
+
 	// For both queries request a barebones
 	// object, as it will be later populated
 	// in the enrichAndStoreSafely() function.
@@ -77,23 +78,27 @@ func (d *Dereferencer) getStatusDBOnly(
 //
 // Will return malformed if the final redirected URI is not
 // either the AP ID/URI or the URL of the dereffed statusable.
+//
+// The final returned URI is the dereferenced
+// ActivityPub status object's JSON-LD ID.
 func (d *Dereferencer) retrieveStatusable(
 	ctx context.Context,
 	tsport transport.Transport,
 	uri *url.URL,
 ) (
 	statusable ap.Statusable,
-	alreadyStatus *gtsmodel.Status,
+	existing *gtsmodel.Status,
+	statusURI *url.URL,
 	err error,
 ) {
-	// Save this for later comparison.
+	// Save for later comparison.
 	initialURIStr := uri.String()
 
-	// Dereference latest version of the status.
+	// Dereference latest version of status.
 	rsp, err := tsport.Dereference(ctx, uri)
 	if err != nil {
-		err := gtserror.Newf("error dereferencing %s: %w", uri, err)
-		return nil, nil, gtserror.SetUnretrievable(err)
+		err := gtserror.Newf("error dereferencing %s: %w", initialURIStr, err)
+		return nil, nil, nil, gtserror.SetUnretrievable(err)
 	}
 
 	// Attempt to resolve ActivityPub status from response.
@@ -105,8 +110,9 @@ func (d *Dereferencer) retrieveStatusable(
 	if err != nil {
 		// ResolveStatusable will set gtserror.WrongType
 		// on the returned error, so we don't need to do it here.
-		err := gtserror.Newf("error resolving statusable %s: %w", uri, err)
-		return nil, nil, err
+		err := gtserror.Newf("error resolving statusable %s: %w",
+			initialURIStr, err)
+		return nil, nil, nil, err
 	}
 
 	// Check whether input URI and final returned URI
@@ -114,72 +120,55 @@ func (d *Dereferencer) retrieveStatusable(
 	//
 	// NOTE: this URI check + database call is performed
 	// AFTER reading and closing body, for performance.
-	var (
-		finalURI    = rsp.Request.URL
-		finalURIStr = rsp.Request.URL.String()
-		redirected  = finalURIStr != initialURIStr
-	)
+	finalURI := rsp.Request.URL
+	finalURIStr := finalURI.String()
+	redirected := finalURIStr != initialURIStr
 
 	if redirected {
-		// Update passed-in URI
-		// for benefit of the caller.
-		uri = finalURI
-
-		// Check whether we have this status
-		// stored under *final* URI and return
-		// it to the caller if so.
 		var err error
-		alreadyStatus, err = d.getStatusDBOnly(ctx, finalURIStr)
+
+		// Check whether we have this status stored under
+		// *final* determined URI, preferring this for return.
+		existing, err = d.getStatusFromDB(ctx, finalURIStr)
 		if err != nil && !errors.Is(err, db.ErrNoEntries) {
 			err := gtserror.Newf("db error getting status after redirects: %w", err)
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
+
+	// Extract the json-ld ID, i.e. the
+	// actual ActivityPub URI ID of status.
+	jsonldID := ap.GetJSONLDId(statusable)
 
 	// Ensure the final URI we fetched the status
 	// from matches either (one of) the URL(s) or
 	// the ID/URI of the dereferenced statusable.
-	okURIs := append(
-		ap.GetURL(statusable),      // status URL(s)
-		ap.GetJSONLDId(statusable), // status URI
-	)
-	matches, err := util.URIMatches(finalURI, okURIs...)
+	uris := append(ap.GetURL(statusable), jsonldID)
+	matches, err := util.URIMatches(finalURI, uris...)
 	if err != nil {
-		err := gtserror.Newf("error checking final dereferenced status uri %s: %w", finalURIStr, err)
-		return nil, nil, err
+		err := gtserror.Newf("error checking uri matches %s: %w", finalURIStr, err)
+		return nil, nil, nil, gtserror.SetMalformed(err)
 	}
 
 	if !matches {
-		// There's not a match, so the remote is doing
-		// something weird. Gather URI strings we would
-		// have accepted into nice slice for logging.
-		okURIStrs := xslices.Gather(
-			nil,
-			okURIs,
-			func(u *url.URL) string {
-				return u.String()
-			},
-		)
-
-		// Construct error to give a bit more information
-		// in case there were one or more redirects.
-		var err error
+		// For error, include
+		// redirect for context.
+		uristr := finalURIStr
 		if redirected {
-			err = gtserror.Newf(
-				"final http URI %s, after redirect(s) from initial URI %s, does not match dereferenced statusable id or url(s) %+v",
-				finalURIStr, initialURIStr, okURIStrs,
-			)
-		} else {
-			err = gtserror.Newf(
-				"http URI %s does not match dereferenced statusable id or url(s) %+v",
-				initialURIStr, okURIStrs,
-			)
+			uristr += " (redirected from " + initialURIStr + ")"
 		}
 
-		// Set malformed on the returned error.
-		return nil, nil, gtserror.SetMalformed(err)
+		// No URI match, remote is doing something weird. Return malformed error type.
+		err := gtserror.Newf("fetch uri %s does not match known status uri(s): %v",
+			uristr, log.Formatted(uris))
+		return nil, nil, nil, gtserror.SetMalformed(err)
 	}
 
+	// For the final returned URI we set
+	// status' canonical JSON-LD URI, as
+	// checks against its URI won't work
+	// if we return an alternative URL.
+	statusURI = jsonldID
 	return
 }
 
@@ -189,13 +178,21 @@ func (d *Dereferencer) retrieveStatusable(
 func (d *Dereferencer) convertStatusable(
 	ctx context.Context,
 	requestUser string,
-	uri *url.URL,
+	statusURI *url.URL,
 	statusable ap.Statusable,
 ) (*gtsmodel.Status, error) {
-	// Get the attributed-to ID/URI in order to fetch account.
-	attributedTo, err := ap.ExtractAttributedToURI(statusable)
+
+	// Get attributedTo URI from statusable to fetch account.
+	attributedTo, err := ap.GetOneAttributedTo(statusable)
 	if err != nil {
-		return nil, gtserror.New("attributedTo was empty")
+		return nil, gtserror.SetMalformed(err)
+	}
+
+	// The status author, and the status
+	// JSON-LD ID must have the same host.
+	if attributedTo.Host != statusURI.Host {
+		err := gtserror.Newf("id and attributedTo hostnames differ: id=%s attributedTo=%s", attributedTo.Host, statusURI.Host)
+		return nil, gtserror.SetMalformed(err)
 	}
 
 	// Ensure we have the author account of the status dereferenced
@@ -204,13 +201,13 @@ func (d *Dereferencer) convertStatusable(
 
 		// Note that we specifically DO NOT wrap the error, instead collapsing it as string.
 		// Errors fetching an account do not necessarily relate to dereferencing the status.
-		return nil, gtserror.Newf("failed to dereference status author %s: %v", uri, err)
+		return nil, gtserror.Newf("failed to dereference status author %s: %v", statusURI, err)
 	}
 
-	// Convert AP model to our GTS model.
+	// Convert ActivityPub model to our internal GTS model.
 	status, err := d.converter.ASStatusToStatus(ctx, statusable)
 	if err != nil {
-		return nil, gtserror.Newf("error converting statusable to gts model for status %s: %w", uri, err)
+		return nil, gtserror.Newf("error converting statusable to gts model for status %s: %w", statusURI, err)
 	}
 
 	// Ensure final status isn't attempting

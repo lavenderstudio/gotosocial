@@ -237,7 +237,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithNonMatchingURI() {
 		testrig.URLMustParse(remoteAltURI),
 	)
 	expectErrStr := fmt.Sprintf(
-		"retrieveStatusable: http URI %s does not match dereferenced statusable id or url(s) [%s %s]",
+		"retrieveStatusable: fetch uri %s does not match known status uri(s): [%s,%s]",
 		remoteAltURI, remoteURL, remoteURI,
 	)
 	suite.Equal(expectErrStr, err.Error())
