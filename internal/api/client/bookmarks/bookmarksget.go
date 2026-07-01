@@ -22,9 +22,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -97,18 +97,21 @@ const (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) BookmarksGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadBookmarks,
-	)
+func (m *Module) BookmarksGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadBookmarks},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -118,7 +121,7 @@ func (m *Module) BookmarksGETHandler(c *gin.Context) {
 		i, err := strconv.ParseInt(limitString, 10, 64)
 		if err != nil {
 			err := fmt.Errorf("error parsing %s: %s", LimitKey, err)
-			apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 			return
 		}
 		limit = int(i)
@@ -136,20 +139,20 @@ func (m *Module) BookmarksGETHandler(c *gin.Context) {
 		minID = minIDString
 	}
 
-	resp, errWithCode := m.processor.Account().BookmarksGet(c.Request.Context(), authed.Account, limit, maxID, minID)
+	resp, errWithCode := m.processor.Account().BookmarksGet(c, authed.Account, limit, maxID, minID)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if resp.LinkHeader != "" {
-		c.Header("Link", resp.LinkHeader)
+		c.W.Header().Set("Link", resp.LinkHeader)
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp.Items)
+	httputil.JSON(c, http.StatusOK, resp.Items)
 }

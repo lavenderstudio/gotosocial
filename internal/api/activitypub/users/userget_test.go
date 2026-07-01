@@ -20,17 +20,15 @@ package users_test
 import (
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"code.superseriousbusiness.org/activity/streams"
 	"code.superseriousbusiness.org/activity/streams/vocab"
-	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/users"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -45,34 +43,26 @@ func (suite *UserGetTestSuite) TestGetUser() {
 	targetAccount := suite.testAccounts["local_account_1"]
 
 	// setup request
+	req := httptest.NewRequest(http.MethodGet, targetAccount.URI, nil) // the endpoint we're hitting
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, targetAccount.URI, nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/activity+json")
-	ctx.Request.Header.Set("Signature", signedRequest.SignatureHeader)
-	ctx.Request.Header.Set("Date", signedRequest.DateHeader)
-
-	// we need to pass the context through signature check first to set appropriate values on it
-	suite.signatureCheck(ctx)
+	c := httputil.ToContext(recorder, req)
+	c.R.Header.Set("accept", "application/activity+json")
+	c.R.Header.Set("Signature", signedRequest.SignatureHeader)
+	c.R.Header.Set("Date", signedRequest.DateHeader)
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.UsernameKey,
-			Value: targetAccount.Username,
-		},
-	}
+	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
 
-	// trigger the function being tested
-	suite.userModule.UsersGETHandler(ctx)
+	// trigger the function being tested, first passing through sigcheck.
+	suite.signatureCheck.Compile(suite.userModule.UsersGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	// should be a Person
@@ -95,7 +85,6 @@ func (suite *UserGetTestSuite) TestGetUser() {
 // TestGetUserPublicKeyDeleted checks whether the public key of a deleted account can still be dereferenced.
 // This is needed by remote instances for authenticating delete requests and stuff like that.
 func (suite *UserGetTestSuite) TestGetUserPublicKeyDeleted() {
-	userModule := users.New(suite.processor)
 	targetAccount := suite.testAccounts["local_account_1"]
 
 	suite.processor.User().DeleteSelf(suite.T().Context(), suite.testAccounts["local_account_1"])
@@ -113,34 +102,26 @@ func (suite *UserGetTestSuite) TestGetUserPublicKeyDeleted() {
 	signedRequest := derefRequests["foss_satan_dereference_zork_public_key"]
 
 	// setup request
+	req := httptest.NewRequest(http.MethodGet, targetAccount.PublicKeyURI, nil) // the endpoint we're hitting
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, targetAccount.PublicKeyURI, nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/activity+json")
-	ctx.Request.Header.Set("Signature", signedRequest.SignatureHeader)
-	ctx.Request.Header.Set("Date", signedRequest.DateHeader)
-
-	// we need to pass the context through signature check first to set appropriate values on it
-	suite.signatureCheck(ctx)
+	c := httputil.ToContext(recorder, req)
+	c.R.Header.Set("accept", "application/activity+json")
+	c.R.Header.Set("Signature", signedRequest.SignatureHeader)
+	c.R.Header.Set("Date", signedRequest.DateHeader)
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.UsernameKey,
-			Value: targetAccount.Username,
-		},
-	}
+	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
 
-	// trigger the function being tested
-	userModule.UsersGETHandler(ctx)
+	// trigger the function being tested, first passing through sigcheck.
+	suite.signatureCheck.Compile(suite.userModule.UsersGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	// should be a Person
@@ -164,25 +145,17 @@ func (suite *UserGetTestSuite) TestGetUserAuth() {
 	targetAccount := suite.testAccounts["local_account_1"]
 
 	// setup request
+	req := httptest.NewRequest(http.MethodGet, targetAccount.URI, nil) // the endpoint we're hitting
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, targetAccount.URI, nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/activity+json")
-
-	// we need to pass the context through signature check first to set appropriate values on it
-	suite.signatureCheck(ctx)
+	c := httputil.ToContext(recorder, req)
+	c.R.Header.Set("accept", "application/activity+json")
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.UsernameKey,
-			Value: targetAccount.Username,
-		},
-	}
+	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
 
-	// trigger the function being tested
-	suite.userModule.UsersGETHandler(ctx)
+	// trigger the function being tested, first passing through sigcheck.
+	suite.signatureCheck.Compile(suite.userModule.UsersGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusUnauthorized, recorder.Code)
@@ -192,13 +165,13 @@ func (suite *UserGetTestSuite) TestInstanceActor() {
 	targetAccount := suite.testAccounts["instance_account"]
 
 	// setup request
+	req := httptest.NewRequest(http.MethodGet, targetAccount.URI, nil) // the endpoint we're hitting
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, targetAccount.URI, nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/activity+json")
+	c := httputil.ToContext(recorder, req)
+	c.R.Header.Set("accept", "application/activity+json")
 
 	// trigger the function being tested
-	suite.userModule.InstanceActorGETHandler(ctx)
+	suite.userModule.InstanceActorGETHandler(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)

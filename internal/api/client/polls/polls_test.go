@@ -89,7 +89,7 @@ func (suite *PollsStandardTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.pollsModule = polls.New(suite.processor)
+	suite.pollsModule = polls.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 	testrig.StandardDBSetup(suite.db, nil)
 	testrig.StandardStorageSetup(suite.storage, "../../../../testrig/media")
 }

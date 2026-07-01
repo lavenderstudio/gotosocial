@@ -119,8 +119,8 @@ EXPECT=$(cat << "EOF"
     "dry-run": true,
     "email": "",
     "host": "example.com",
-    "http-client-allow-ips": [],
-    "http-client-block-ips": [],
+    "http-client-allow-ips": null,
+    "http-client-block-ips": null,
     "http-client-disable-keep-alives": false,
     "http-client-idle-conn-timeout": 300000000000,
     "http-client-insecure-outgoing": false,
@@ -254,7 +254,7 @@ EXPECT=$(cat << "EOF"
     "tracing-enabled": false,
     "trusted-proxies": [
         "127.0.0.1/32",
-        "docker.host.local"
+        "127.0.1.0/24"
     ],
     "username": "",
     "web-asset-base-dir": "/root",
@@ -277,7 +277,7 @@ GTS_ACCOUNT_DOMAIN='peepee' \
 GTS_PROTOCOL=http \
 GTS_BIND_ADDRESS='127.0.0.1' \
 GTS_PORT=6969 \
-GTS_TRUSTED_PROXIES='127.0.0.1/32,docker.host.local' \
+GTS_TRUSTED_PROXIES='127.0.0.1/32,127.0.1.0/24' \
 GTS_DB_TYPE='sqlite' \
 GTS_DB_POSTGRES_CONNECTION_STRING='' \
 GTS_DB_ADDRESS=':memory:' \

@@ -19,12 +19,13 @@ package admin_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/admin"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
@@ -56,14 +57,6 @@ func (suite *ReportsGetTestSuite) getReports(
 	minID string,
 	limit int,
 ) ([]*apimodel.AdminReport, string, error) {
-	// instantiate recorder + test context
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, account)
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, user)
-
 	// create the request URI
 	requestPath := admin.ReportsPath + "?" + apiutil.LimitKey + "=" + strconv.Itoa(limit)
 	if resolved != nil {
@@ -91,17 +84,25 @@ func (suite *ReportsGetTestSuite) getReports(
 	requestURI := baseURI + "/api/" + requestPath
 
 	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodGet, requestURI, nil)
-	ctx.Request.Header.Set("accept", "application/json")
+	req := httptest.NewRequest(http.MethodGet, requestURI, nil)
+	req.Header.Set("accept", "application/json")
+
+	// instantiate recorder + test context
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, account)
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, user)
 
 	// trigger the handler
-	suite.adminModule.ReportsGETHandler(ctx)
+	suite.adminModule.ReportsGETHandler(c)
 
 	// read the response
 	result := recorder.Result()
 	defer result.Body.Close()
 
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	if err != nil {
 		return nil, "", err
 	}
@@ -136,12 +137,11 @@ func (suite *ReportsGetTestSuite) TestReportsGetAll() {
 	unresolved := util.Ptr(true)
 
 	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", resolved, unresolved, "", "", "", "", "", 20)
-	suite.NoError(err)
-	suite.NotEmpty(reports)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(&reports, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(reports)
 	suite.Equal(`[
   {
     "id": "01GP3DFY9XQ1TJMZT5BGAZPXX7",
@@ -234,7 +234,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetAll() {
         "noindex": true,
         "bot": false,
         "created_at": "2022-06-04T13:12:00.000Z",
-        "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+        "note": "<p>i post about things that concern me</p>",
         "url": "http://localhost:8080/@1happyturtle",
         "avatar": "",
         "avatar_static": "",
@@ -425,7 +425,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetAll() {
         "noindex": true,
         "bot": false,
         "created_at": "2022-06-04T13:12:00.000Z",
-        "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+        "note": "<p>i post about things that concern me</p>",
         "url": "http://localhost:8080/@1happyturtle",
         "avatar": "",
         "avatar_static": "",
@@ -526,7 +526,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetAll() {
         "muted": false,
         "bookmarked": false,
         "pinned": false,
-        "content": "\u003cp\u003edark souls status bot: \"thoughts of dog\"\u003c/p\u003e",
+        "content": "<p>dark souls status bot: \"thoughts of dog\"</p>",
         "reblog": null,
         "account": {
           "id": "01F8MH5ZK5VRH73AKHQM6Y9VNX",
@@ -627,7 +627,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetAll() {
     ],
     "action_taken_comment": null
   }
-]`, string(b))
+]`, out)
 
 	suite.Equal(`<http://localhost:8080/api/v1/admin/reports?limit=20&max_id=01GP3AWY4CRDVRNZKW0TEAMB5R&resolved=true&unresolved=true>; rel="next", <http://localhost:8080/api/v1/admin/reports?limit=20&min_id=01GP3DFY9XQ1TJMZT5BGAZPXX7&resolved=true&unresolved=true>; rel="prev"`, link)
 }
@@ -639,12 +639,11 @@ func (suite *ReportsGetTestSuite) TestReportsGetCreatedByAccount() {
 	account := suite.testAccounts["local_account_2"]
 
 	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", nil, nil, account.ID, "", "", "", "", 20)
-	suite.NoError(err)
-	suite.NotEmpty(reports)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(&reports, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(reports)
 	suite.Equal(`[
   {
     "id": "01GP3AWY4CRDVRNZKW0TEAMB5R",
@@ -688,7 +687,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetCreatedByAccount() {
         "noindex": true,
         "bot": false,
         "created_at": "2022-06-04T13:12:00.000Z",
-        "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+        "note": "<p>i post about things that concern me</p>",
         "url": "http://localhost:8080/@1happyturtle",
         "avatar": "",
         "avatar_static": "",
@@ -789,7 +788,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetCreatedByAccount() {
         "muted": false,
         "bookmarked": false,
         "pinned": false,
-        "content": "\u003cp\u003edark souls status bot: \"thoughts of dog\"\u003c/p\u003e",
+        "content": "<p>dark souls status bot: \"thoughts of dog\"</p>",
         "reblog": null,
         "account": {
           "id": "01F8MH5ZK5VRH73AKHQM6Y9VNX",
@@ -890,7 +889,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetCreatedByAccount() {
     ],
     "action_taken_comment": null
   }
-]`, string(b))
+]`, out)
 
 	suite.Equal(`<http://localhost:8080/api/v1/admin/reports?account_id=01F8MH5NBDF2MV7CTC4Q5128HF&limit=20&max_id=01GP3AWY4CRDVRNZKW0TEAMB5R>; rel="next", <http://localhost:8080/api/v1/admin/reports?account_id=01F8MH5NBDF2MV7CTC4Q5128HF&limit=20&min_id=01GP3AWY4CRDVRNZKW0TEAMB5R>; rel="prev"`, link)
 }
@@ -902,12 +901,11 @@ func (suite *ReportsGetTestSuite) TestReportsGetTargetAccount() {
 	targetAccount := suite.testAccounts["remote_account_1"]
 
 	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", nil, nil, "", targetAccount.ID, "", "", "", 20)
-	suite.NoError(err)
-	suite.NotEmpty(reports)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(&reports, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(reports)
 	suite.Equal(`[
   {
     "id": "01GP3AWY4CRDVRNZKW0TEAMB5R",
@@ -951,7 +949,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetTargetAccount() {
         "noindex": true,
         "bot": false,
         "created_at": "2022-06-04T13:12:00.000Z",
-        "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+        "note": "<p>i post about things that concern me</p>",
         "url": "http://localhost:8080/@1happyturtle",
         "avatar": "",
         "avatar_static": "",
@@ -1052,7 +1050,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetTargetAccount() {
         "muted": false,
         "bookmarked": false,
         "pinned": false,
-        "content": "\u003cp\u003edark souls status bot: \"thoughts of dog\"\u003c/p\u003e",
+        "content": "<p>dark souls status bot: \"thoughts of dog\"</p>",
         "reblog": null,
         "account": {
           "id": "01F8MH5ZK5VRH73AKHQM6Y9VNX",
@@ -1153,7 +1151,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetTargetAccount() {
     ],
     "action_taken_comment": null
   }
-]`, string(b))
+]`, out)
 
 	suite.Equal(`<http://localhost:8080/api/v1/admin/reports?limit=20&max_id=01GP3AWY4CRDVRNZKW0TEAMB5R&target_account_id=01F8MH5ZK5VRH73AKHQM6Y9VNX>; rel="next", <http://localhost:8080/api/v1/admin/reports?limit=20&min_id=01GP3AWY4CRDVRNZKW0TEAMB5R&target_account_id=01F8MH5ZK5VRH73AKHQM6Y9VNX>; rel="prev"`, link)
 }
@@ -1166,12 +1164,11 @@ func (suite *ReportsGetTestSuite) TestReportsGetResolvedTargetAccount() {
 	resolved := util.Ptr(true)
 
 	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", resolved, nil, "", targetAccount.ID, "", "", "", 20)
-	suite.NoError(err)
-	suite.Len(reports, 1)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(&reports, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(reports)
 	suite.Equal(`[
   {
     "id": "01GP3DFY9XQ1TJMZT5BGAZPXX7",
@@ -1264,7 +1261,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetResolvedTargetAccount() {
         "noindex": true,
         "bot": false,
         "created_at": "2022-06-04T13:12:00.000Z",
-        "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+        "note": "<p>i post about things that concern me</p>",
         "url": "http://localhost:8080/@1happyturtle",
         "avatar": "",
         "avatar_static": "",
@@ -1413,7 +1410,7 @@ func (suite *ReportsGetTestSuite) TestReportsGetResolvedTargetAccount() {
     "rules": [],
     "action_taken_comment": "user was warned not to be a turtle anymore"
   }
-]`, string(b))
+]`, out)
 	suite.Equal(`<http://localhost:8080/api/v1/admin/reports?limit=20&max_id=01GP3DFY9XQ1TJMZT5BGAZPXX7&resolved=true&target_account_id=01F8MH5NBDF2MV7CTC4Q5128HF>; rel="next", <http://localhost:8080/api/v1/admin/reports?limit=20&min_id=01GP3DFY9XQ1TJMZT5BGAZPXX7&resolved=true&target_account_id=01F8MH5NBDF2MV7CTC4Q5128HF>; rel="prev"`, link)
 }
 func (suite *ReportsGetTestSuite) TestReportsGetUnresolvedTargetAccount() {
@@ -1423,13 +1420,12 @@ func (suite *ReportsGetTestSuite) TestReportsGetUnresolvedTargetAccount() {
 	targetAccount := suite.testAccounts["local_account_2"]
 
 	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, "", nil, nil, "", targetAccount.ID, "", "", "", 20)
-	suite.NoError(err)
-	suite.Empty(reports)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(&reports, "", "  ")
-	suite.NoError(err)
-
-	suite.Equal(`[]`, string(b))
+	out := testrig.MustJSONString(reports)
+	suite.Equal(`[]`, out)
 	suite.Empty(link)
 }
 

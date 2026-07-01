@@ -18,31 +18,31 @@
 package polls
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/util"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
-	IDKey           = "id"                                 // IDKey is the key for poll IDs
-	BasePath        = "/:" + util.APIVersionKey + "/polls" // BasePath is the base API path for making poll requests through v1 or v2 of the api (for mastodon API compatibility)
-	PollWithID      = BasePath + "/:" + IDKey              //
-	PollVotesWithID = BasePath + "/:" + IDKey + "/votes"   //
+	BasePath        = "/:" + util.APIVersionKey + "/polls"       // BasePath is the base API path for making poll requests through v1 or v2 of the api (for mastodon API compatibility)
+	PollWithID      = BasePath + "/:" + apiutil.IDKey            //
+	PollVotesWithID = BasePath + "/:" + apiutil.IDKey + "/votes" //
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, PollWithID, m.PollGETHandler)
-	attachHandler(http.MethodPost, PollVotesWithID, m.PollVotePOSTHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(PollWithID, m.PollGETHandler)
+	g.POST(PollVotesWithID, m.PollVotePOSTHandler)
 }

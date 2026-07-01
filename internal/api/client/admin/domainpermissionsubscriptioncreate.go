@@ -23,11 +23,12 @@ import (
 	"net/http"
 	"net/url"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin"
 )
 
 // DomainPermissionSubscriptionPOSTHandler swagger:operation POST /api/v1/admin/domain_permission_subscriptions domainPermissionSubscriptionCreate
@@ -164,19 +165,22 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) DomainPermissionSubscriptionPOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeAdminWrite,
-	)
+func (m *Module) DomainPermissionSubscriptionPOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeAdminWrite},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if !*authed.User.Admin {
 		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
 		return
 	}
 
@@ -186,14 +190,14 @@ func (m *Module) DomainPermissionSubscriptionPOSTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Parse + validate form.
 	form := new(apimodel.DomainPermissionSubscriptionRequest)
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
@@ -203,7 +207,7 @@ func (m *Module) DomainPermissionSubscriptionPOSTHandler(c *gin.Context) {
 	if priority < 0 || priority > 255 {
 		const errText = "priority must be a number in the range 0 to 255"
 		errWithCode := gtserror.NewErrorBadRequest(errors.New(errText), errText)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -211,7 +215,7 @@ func (m *Module) DomainPermissionSubscriptionPOSTHandler(c *gin.Context) {
 	if form.URI == nil {
 		const errText = "uri must be set"
 		errWithCode := gtserror.NewErrorBadRequest(errors.New(errText), errText)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -220,7 +224,7 @@ func (m *Module) DomainPermissionSubscriptionPOSTHandler(c *gin.Context) {
 	if err != nil {
 		err := fmt.Errorf("invalid uri provided: %w", err)
 		errWithCode := gtserror.NewErrorBadRequest(err, err.Error())
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -231,7 +235,7 @@ func (m *Module) DomainPermissionSubscriptionPOSTHandler(c *gin.Context) {
 	contentTypeStr := util.PtrOrZero(form.ContentType)
 	contentType, errWithCode := parseDomainPermSubContentType(contentTypeStr)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -239,7 +243,7 @@ func (m *Module) DomainPermissionSubscriptionPOSTHandler(c *gin.Context) {
 	permTypeStr := util.PtrOrZero(form.PermissionType)
 	permType, errWithCode := parseDomainPermissionType(permTypeStr)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -247,7 +251,7 @@ func (m *Module) DomainPermissionSubscriptionPOSTHandler(c *gin.Context) {
 	asDraft := util.PtrOrValue(form.AsDraft, true)
 
 	permSub, errWithCode := m.processor.Admin().DomainPermissionSubscriptionCreate(
-		c.Request.Context(),
+		c,
 		authed.Account,
 		uint8(priority),            // #nosec G115 -- Validated above.
 		util.PtrOrZero(form.Title), // Optional.
@@ -261,9 +265,9 @@ func (m *Module) DomainPermissionSubscriptionPOSTHandler(c *gin.Context) {
 		util.PtrOrZero(form.FetchPassword), // Optional.
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, permSub)
+	httputil.JSON(c, http.StatusOK, permSub)
 }

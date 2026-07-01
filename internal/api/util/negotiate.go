@@ -18,12 +18,8 @@
 package util
 
 import (
-	"errors"
-	"fmt"
-	"strings"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // JSONAcceptHeaders is a slice of offers that just contains application/json types.
@@ -95,88 +91,11 @@ var CSVHeaders = []string{
 	TextCSV,
 }
 
-// NegotiateAccept takes the *gin.Context from an incoming request, and a
-// slice of Offers, and performs content negotiation for the given request
-// with the given content-type offers. It will return a string representation
-// of the first suitable content-type, or an error if something goes wrong or
-// a suitable content-type cannot be matched.
-//
-// For example, if the request in the *gin.Context has Accept headers of value
-// [application/json, text/html], and the provided offers are of value
-// [application/json, application/xml], then the returned string will be
-// 'application/json', which indicates the content-type that should be returned.
-//
-// If the length of offers is 0, then an error will be returned, so this function
-// should only be called in places where format negotiation is actually needed.
-//
-// If there are no Accept headers in the request, then the first offer will be returned,
-// under the assumption that it's better to serve *something* than error out completely.
-//
-// Callers can use the offer slices exported in this package as shortcuts for
-// often-used Accept types.
-//
-// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Content_negotiation#server-driven_content_negotiation
-func NegotiateAccept(c *gin.Context, offers ...string) (string, gtserror.WithCode) {
-	format := NegotiateFormat(c, offers...)
-	if format == "" {
-		text := fmt.Sprintf("no format can be offered for requested Accept header(s) %s; this endpoint offers %s", c.Accepted, offers)
-		return "", gtserror.NewErrorNotAcceptable(errors.New(text), text)
+// NegotiateAccept wraps httputil.NegotiateAccept() to include a gtserror.WithCode{} status code.
+func NegotiateAccept(c *httputil.Context, offers ...string) (string, gtserror.WithCode) {
+	contentType, err := httputil.NegotiateAccept(c, offers...)
+	if err != nil {
+		return "", gtserror.NewErrorNotAcceptable(err, err.Error())
 	}
-	return format, nil
-}
-
-// This is the exact same thing as gin.Context.NegotiateFormat except it contains
-// tsmethurst's fix to make it work properly with multiple accept headers.
-//
-// https://github.com/gin-gonic/gin/pull/3156
-func NegotiateFormat(c *gin.Context, offered ...string) string {
-	if len(offered) == 0 {
-		panic("you must provide at least one offer")
-	}
-
-	if c.Accepted == nil {
-		for _, a := range c.Request.Header.Values("Accept") {
-			c.Accepted = append(c.Accepted, parseAccept(a)...)
-		}
-	}
-
-	if len(c.Accepted) == 0 {
-		return offered[0]
-	}
-
-	for _, accepted := range c.Accepted {
-		for _, offer := range offered {
-			// According to RFC 2616 and RFC 2396, non-ASCII characters are not allowed in headers,
-			// therefore we can just iterate over the string without casting it into []rune
-			i := 0
-			for ; i < len(accepted); i++ {
-				if accepted[i] == '*' || offer[i] == '*' {
-					return offer
-				}
-				if accepted[i] != offer[i] {
-					break
-				}
-			}
-			if i == len(accepted) {
-				return offer
-			}
-		}
-	}
-
-	return ""
-}
-
-// https://github.com/gin-gonic/gin/blob/4787b8203b79012877ac98d7806422da3a678ba2/utils.go#L103
-func parseAccept(acceptHeader string) []string {
-	parts := strings.Split(acceptHeader, ",")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		if i := strings.IndexByte(part, ';'); i > 0 {
-			part = part[:i]
-		}
-		if part = strings.TrimSpace(part); part != "" {
-			out = append(out, part)
-		}
-	}
-	return out
+	return contentType, nil
 }

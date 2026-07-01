@@ -18,11 +18,10 @@
 package timelines
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -34,18 +33,19 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, HomeTimeline, m.HomeTimelineGETHandler)
-	attachHandler(http.MethodGet, PublicTimeline, m.PublicTimelineGETHandler)
-	attachHandler(http.MethodGet, ListTimeline, m.ListTimelineGETHandler)
-	attachHandler(http.MethodGet, TagTimeline, m.TagTimelineGETHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(HomeTimeline, m.HomeTimelineGETHandler)
+	g.GET(PublicTimeline, m.PublicTimelineGETHandler)
+	g.GET(ListTimeline, m.ListTimelineGETHandler)
+	g.GET(TagTimeline, m.TagTimelineGETHandler)
 }

@@ -18,11 +18,10 @@
 package webfinger
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -32,16 +31,19 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
+func (m *Module) Route(g *httputil.RouteGroup) {
 	// Attach handler, injecting robots http header middleware to disallow all.
-	attachHandler(http.MethodGet, WebfingerBasePath, middleware.RobotsHeaders(middleware.RobotsHeadersModeDefault), m.WebfingerGETRequest)
+	g.Use(middleware.RobotsHeaders(middleware.RobotsHeadersModeDefault))
+	g.GET(WebfingerBasePath, m.WebfingerGETRequest)
 }

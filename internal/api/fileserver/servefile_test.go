@@ -23,11 +23,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/fileserver"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -44,19 +44,20 @@ func (suite *ServeFileTestSuite) GetFile(
 	mediaSize media.Size,
 	filename string,
 ) (code int, headers http.Header, body []byte) {
+	req := httptest.NewRequest(http.MethodGet, "http://localhost:8080/whatever", nil)
+	req.Header.Set("accept", "*/*")
 	recorder := httptest.NewRecorder()
 
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, "http://localhost:8080/whatever", nil)
-	ctx.Request.Header.Set("accept", "*/*")
-	ctx.AddParam(fileserver.AccountIDKey, accountID)
-	ctx.AddParam(fileserver.MediaTypeKey, string(mediaType))
-	ctx.AddParam(fileserver.MediaSizeKey, string(mediaSize))
-	ctx.AddParam(fileserver.FileNameKey, filename)
+	c := httputil.ToContext(recorder, req)
+	c.SetPathValue(fileserver.AccountIDKey, accountID)
+	c.SetPathValue(fileserver.MediaTypeKey, string(mediaType))
+	c.SetPathValue(fileserver.MediaSizeKey, string(mediaSize))
+	c.SetPathValue(fileserver.FileNameKey, filename)
 
-	logger := middleware.Logger(false)
-	suite.fileServer.ServeFile(ctx)
-	logger(ctx)
+	// Wrap servefile in logger.
+	m := middleware.Logger(false)
+	h := m(suite.fileServer.ServeFile)
+	h(c)
 
 	code = recorder.Code
 	headers = recorder.Result().Header

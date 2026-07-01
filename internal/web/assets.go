@@ -24,34 +24,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/router"
-	"github.com/gin-gonic/gin"
 )
-
-type fileSystem struct {
-	fs http.FileSystem
-}
-
-// FileSystem server that only accepts directory listings when an index.html is available
-// from https://gist.github.com/hauxe/f2ea1901216177ccf9550a1b8bd59178
-func (fs fileSystem) Open(path string) (http.File, error) {
-	f, err := fs.fs.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	s, _ := f.Stat()
-	if s.IsDir() {
-		index := strings.TrimSuffix(path, "/") + "/index.html"
-		if _, err := fs.fs.Open(index); err != nil {
-			return nil, err
-		}
-	}
-
-	return f, nil
-}
 
 // getAssetFileInfo tries to fetch the ETag for the given filePath from the module's
 // assetsETagCache. If it can't be found there, it uses the provided http.FileSystem
@@ -110,42 +87,45 @@ func getAssetETag(
 func assetsCacheControlMiddleware(
 	wet withETagCache,
 	fs http.FileSystem,
-) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Acquire context from gin request.
-		ctx := c.Request.Context()
-
-		// set this Cache-Control header to instruct clients to validate the response with us
-		// before each reuse (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control)
-		c.Header(cacheControlHeader, cacheControlNoCache)
-
-		ifNoneMatch := c.Request.Header.Get(ifNoneMatchHeader)
-
-		// derive the path of the requested asset inside the provided filesystem
-		upath := c.Request.URL.Path
-		if !strings.HasPrefix(upath, "/") {
-			upath = "/" + upath
-		}
-		assetFilePath := strings.TrimPrefix(path.Clean(upath), assetsPathPrefix)
-
-		// either fetch etag from ttlcache or generate it
-		eTag, err := getAssetETag(wet, assetFilePath, fs)
-		if err != nil {
-			log.Errorf(ctx, "error getting ETag for %s: %s", assetFilePath, err)
-			return
+) httputil.MiddlewareFunc {
+	return func(h httputil.HandlerFunc) httputil.HandlerFunc {
+		if h == nil {
+			panic("nil func")
 		}
 
-		// Regardless of what happens further down, set the etag header
-		// so that the client has the up-to-date version.
-		c.Header(eTagHeader, eTag)
+		return func(c *httputil.Context) {
+			// set this Cache-Control header to instruct clients to validate the response with us
+			// before each reuse (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control)
+			c.W.Header().Set(cacheControlHeader, cacheControlNoCache)
 
-		// If client already has latest version of the asset, 304 + bail.
-		if ifNoneMatch == eTag {
-			c.AbortWithStatus(http.StatusNotModified)
-			return
+			// derive the path of the requested asset inside the provided filesystem
+			upath := c.R.URL.Path
+			if !strings.HasPrefix(upath, "/") {
+				upath = "/" + upath
+			}
+			assetFilePath := strings.TrimPrefix(path.Clean(upath), assetsPathPrefix)
+
+			// either fetch etag from ttlcache or generate it.
+			eTag, err := getAssetETag(wet, assetFilePath, fs)
+			if err != nil {
+				log.Errorf(c, "error getting ETag for %s: %s", assetFilePath, err)
+				return
+			}
+
+			// Regardless of what happens further down, set the etag header
+			// so that the client has the up-to-date version.
+			c.W.Header().Set(eTagHeader, eTag)
+
+			// If client already has latest version of the asset, 304 + bail.
+			if c.R.Header.Get(ifNoneMatchHeader) == eTag {
+				c.W.WriteHeader(http.StatusNotModified)
+				return
+			}
+
+			// else let the rest of the
+			// request be processed normally
+			h(c)
 		}
-
-		// else let the rest of the request be processed normally
 	}
 }
 
@@ -154,16 +134,16 @@ func assetsCacheControlMiddleware(
 func routeAssets(
 	wet withETagCache,
 	r *router.Router,
-	mi ...gin.HandlerFunc,
+	mi ...httputil.Middleware,
 ) {
 	// Group all static files from assets dir at /assets,
 	// so that they can use the same cache control middleware.
 	webAssetsAbsFilePath, err := filepath.Abs(config.GetWebAssetBaseDir())
 	if err != nil {
-		log.Panicf(nil, "error getting absolute path of assets dir: %s", err)
+		panic(fmt.Sprintf("error getting asset dir absolute path: %v", err))
 	}
-	fs := fileSystem{http.Dir(webAssetsAbsFilePath)}
-	assetsGroup := r.AttachGroup(assetsPathPrefix)
+	fs := http.Dir(webAssetsAbsFilePath)
+	assetsGroup := r.Group(assetsPathPrefix)
 	assetsGroup.Use(assetsCacheControlMiddleware(wet, fs))
 	assetsGroup.Use(mi...)
 	assetsGroup.StaticFS("/", fs)

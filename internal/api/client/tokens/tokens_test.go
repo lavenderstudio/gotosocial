@@ -18,21 +18,22 @@
 package tokens_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
 	"net/http/httptest"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/tokens"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
+	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
 type TokensStandardTestSuite struct {
 	suite.Suite
+
+	state state.State
 
 	// standard suite models
 	testTokens       map[string]*gtsmodel.Token
@@ -48,34 +49,29 @@ type TokensStandardTestSuite struct {
 func (suite *TokensStandardTestSuite) req(
 	httpMethod string,
 	requestPath string,
-	handler gin.HandlerFunc,
+	handler httputil.HandlerFunc,
 	pathParams map[string]string,
 ) (string, int) {
-	var (
-		recorder = httptest.NewRecorder()
-		ctx, _   = testrig.CreateGinTestContext(recorder, nil)
-	)
+	// Prepare test context request.
+	req := httptest.NewRequest(httpMethod, requestPath, nil)
+	req.Header.Set("accept", "application/json")
 
 	// Prepare test context.
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-
-	// Prepare test context request.
-	request := httptest.NewRequest(httpMethod, requestPath, nil)
-	request.Header.Set("accept", "application/json")
-	ctx.Request = request
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
 
 	// Inject path parameters.
-	if pathParams != nil {
-		for k, v := range pathParams {
-			ctx.AddParam(k, v)
-		}
+	for k, v := range pathParams {
+		c.SetPathValue(k, v)
 	}
 
-	// Trigger the handler
-	handler(ctx)
+	// Trigger
+	// the handler
+	handler(c)
 
 	// Read the response
 	result := recorder.Result()
@@ -85,13 +81,7 @@ func (suite *TokensStandardTestSuite) req(
 		suite.FailNow(err.Error())
 	}
 
-	// Format as nice indented json.
-	dst := &bytes.Buffer{}
-	if err := json.Indent(dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
-	return dst.String(), recorder.Code
+	return testrig.MustJSONStringFromBytes(b), recorder.Code
 }
 
 func (suite *TokensStandardTestSuite) SetupSuite() {
@@ -109,7 +99,7 @@ func (suite *TokensStandardTestSuite) SetupTest() {
 		"../../../../testrig/media",
 		"../../../../web/template",
 	)
-	suite.tokens = tokens.New(suite.testStructs.Processor)
+	suite.tokens = tokens.New(suite.testStructs.Processor, testrig.LoadTemplates(&suite.state, ""))
 }
 
 func (suite *TokensStandardTestSuite) TearDownTest() {

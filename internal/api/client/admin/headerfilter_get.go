@@ -17,7 +17,7 @@
 
 package admin
 
-import "github.com/gin-gonic/gin"
+import "code.superseriousbusiness.org/gopkg/httputil"
 
 // HeaderFilterAllowGET swagger:operation GET /api/v1/admin/header_allows/{id} headerFilterAllowGet
 //
@@ -64,7 +64,7 @@ import "github.com/gin-gonic/gin"
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) HeaderFilterAllowGET(c *gin.Context) {
+func (m *Module) HeaderFilterAllowGET(c *httputil.Context) {
 	m.getHeaderFilter(c, m.processor.Admin().GetAllowHeaderFilter)
 }
 
@@ -113,7 +113,7 @@ func (m *Module) HeaderFilterAllowGET(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) HeaderFilterBlockGET(c *gin.Context) {
+func (m *Module) HeaderFilterBlockGET(c *httputil.Context) {
 	m.getHeaderFilter(c, m.processor.Admin().GetBlockHeaderFilter)
 }
 
@@ -156,7 +156,7 @@ func (m *Module) HeaderFilterBlockGET(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) HeaderFilterAllowsGET(c *gin.Context) {
+func (m *Module) HeaderFilterAllowsGET(c *httputil.Context) {
 	m.getHeaderFilters(c, m.processor.Admin().GetAllowHeaderFilters)
 }
 
@@ -199,6 +199,6 @@ func (m *Module) HeaderFilterAllowsGET(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) HeaderFilterBlocksGET(c *gin.Context) {
+func (m *Module) HeaderFilterBlocksGET(c *httputil.Context) {
 	m.getHeaderFilters(c, m.processor.Admin().GetBlockHeaderFilters)
 }

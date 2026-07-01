@@ -24,11 +24,10 @@ import (
 	"strconv"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-
-	"github.com/gin-gonic/gin"
 )
 
 // InstancePeersGETHandler swagger:operation GET /api/v1/instance/peers instancePeersGet
@@ -126,19 +125,23 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) InstancePeersGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		false, false, false, false,
-	)
+func (m *Module) InstancePeersGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   false,
+		App:     false,
+		User:    false,
+		Account: false,
+		Scope:   nil,
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	isUnauthenticated := authed.Account == nil || authed.User == nil
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -162,7 +165,7 @@ func (m *Module) InstancePeersGETHandler(c *gin.Context) {
 				includeOpen = true
 			default:
 				err := fmt.Errorf("filter %s not recognized; accepted values are 'open', 'blocked', 'allowed', and 'suspended' (deprecated)", trimmed)
-				apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+				apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 				return
 			}
 		}
@@ -177,28 +180,28 @@ func (m *Module) InstancePeersGETHandler(c *gin.Context) {
 	if includeBlocked && isUnauthenticated && !config.GetInstanceExposeBlocklist() {
 		const errText = "peers blocked query requires an authenticated account/user"
 		errWithCode := gtserror.NewErrorUnauthorized(errors.New(errText), errText)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if includeAllowed && isUnauthenticated && !config.GetInstanceExposeAllowlist() {
 		const errText = "peers allowed query requires an authenticated account/user"
 		errWithCode := gtserror.NewErrorUnauthorized(errors.New(errText), errText)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if includeOpen && isUnauthenticated && !config.GetInstanceExposePeers() {
 		const errText = "peers open query requires an authenticated account/user"
 		errWithCode := gtserror.NewErrorUnauthorized(errors.New(errText), errText)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if includeBlocked && includeAllowed {
 		const errText = "cannot include blocked + allowed filters at the same time"
 		errWithCode := gtserror.NewErrorBadRequest(errors.New(errText), errText)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -208,13 +211,13 @@ func (m *Module) InstancePeersGETHandler(c *gin.Context) {
 		if err != nil {
 			err := fmt.Errorf("error parsing 'flat' key as boolean: %w", err)
 			errWithCode := gtserror.NewErrorBadRequest(err, err.Error())
-			apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, errWithCode)
 			return
 		}
 	}
 
 	data, errWithCode := m.processor.InstancePeersGet(
-		c.Request.Context(),
+		c,
 		includeBlocked,
 		includeAllowed,
 		includeOpen,
@@ -222,9 +225,9 @@ func (m *Module) InstancePeersGETHandler(c *gin.Context) {
 		false, // Don't include severity.
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, data)
+	httputil.JSON(c, http.StatusOK, data)
 }

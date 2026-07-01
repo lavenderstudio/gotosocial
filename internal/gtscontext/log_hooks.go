@@ -26,20 +26,23 @@ import (
 
 func init() {
 	// Add our required logging hooks on application initialization.
-	//
-	// Request ID middleware hook.
 	log.AddHook(func(ctx context.Context, kvs []kv.Field) []kv.Field {
-		if id := RequestID(ctx); id != "" {
-			return append(kvs, kv.Field{K: "requestID", V: id})
-		}
-		return kvs
-	})
 
-	// Public Key ID middleware hook.
-	log.AddHook(func(ctx context.Context, kvs []kv.Field) []kv.Field {
-		if id := OutgoingPublicKeyID(ctx); id != "" {
-			return append(kvs, kv.Field{K: "pubKeyID", V: id})
+		// Incoming HTTP request ID, if set.
+		if id := RequestID(ctx); id != "" {
+			kvs = append(kvs, kv.Field{K: "requestID", V: id})
 		}
+
+		// Incoming client's signing pubkey ID (to us).
+		if id := HTTPSignaturePubKeyID(ctx); id != nil {
+			kvs = append(kvs, kv.Field{K: "pubKeyID", V: id})
+		}
+
+		// Outgoing client signing pubkey ID (from us).
+		if id := OutgoingPublicKeyID(ctx); id != "" {
+			kvs = append(kvs, kv.Field{K: "pubKeyID", V: id})
+		}
+
 		return kvs
 	})
 }

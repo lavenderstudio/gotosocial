@@ -19,16 +19,17 @@ package auth
 
 import (
 	"errors"
+	"net/http"
 
-	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gotosocial/internal/middleware"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 // OOBTokenGETHandler parses the OAuth code from the query
 // params and serves a nice little HTML page showing the code.
-func (m *Module) OOBTokenGETHandler(c *gin.Context) {
-	s := sessions.Default(c)
+func (m *Module) OOBTokenGETHandler(c *httputil.Context) {
+	s := middleware.GetSession(c)
 
 	oobToken := c.Query("code")
 	if oobToken == "" {
@@ -53,21 +54,17 @@ func (m *Module) OOBTokenGETHandler(c *gin.Context) {
 
 	// We're done with
 	// the session now.
-	m.mustClearSession(s)
+	m.mustClearSession(c, s)
 
-	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
-		return
-	}
-
-	apiutil.TemplateWebPage(c, apiutil.WebPage{
-		Template: "oob.tmpl",
-		Instance: instance,
-		Extra: map[string]any{
-			"user":     user.Account.Username,
-			"oobToken": oobToken,
-			"scope":    scope,
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template: "oob.tmpl",
+			Extra: map[string]any{
+				"user":     user.Account.Username,
+				"oobToken": oobToken,
+				"scope":    scope,
+			},
 		},
-	})
+	)
 }

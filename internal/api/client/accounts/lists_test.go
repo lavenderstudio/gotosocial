@@ -24,10 +24,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -36,22 +36,19 @@ type ListsTestSuite struct {
 }
 
 func (suite *ListsTestSuite) getLists(targetAccountID string, expectedHTTPStatus int, expectedBody string) []*apimodel.List {
-	var (
-		recorder = httptest.NewRecorder()
-		ctx, _   = testrig.CreateGinTestContext(recorder, nil)
-		request  = httptest.NewRequest(http.MethodGet, "http://localhost:8080/api/v1/accounts/"+targetAccountID+"/lists", nil)
-	)
+	req := httptest.NewRequest(http.MethodGet, "http://localhost:8080/api/v1/accounts/"+targetAccountID+"/lists", nil)
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
 
 	// Set up the test context.
-	ctx.Request = request
-	ctx.AddParam("id", targetAccountID)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.SetPathValue("id", targetAccountID)
 
 	// Trigger the handler.
-	suite.accountsModule.AccountListsGETHandler(ctx)
+	suite.accountsModule.AccountListsGETHandler(c)
 
 	// Read the result.
 	result := recorder.Result()

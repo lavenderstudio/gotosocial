@@ -18,22 +18,22 @@
 package health
 
 import (
+	"context"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-
-	"github.com/gin-gonic/gin"
 )
 
-func (m *Module) ready(c *gin.Context) {
-	if err := m.readyF(c.Request.Context()); err != nil {
+func ready(ready func(context.Context) error, c *httputil.Context) {
+	if err := ready(c); err != nil {
 		// Set error on the gin context so
 		// it's logged by the logging middleware.
 		errWithCode := gtserror.NewErrorInternalError(err)
 		c.Error(errWithCode) //nolint:errcheck
-		c.Status(http.StatusInternalServerError)
+		c.W.WriteHeader(http.StatusInternalServerError)
 	} else {
-		c.Status(http.StatusOK)
+		c.W.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -52,9 +52,7 @@ func (m *Module) ready(c *gin.Context) {
 //			description: OK
 //		'500':
 //			description: Not ready. Check logs for error message.
-func (m *Module) ReadyGETRequest(c *gin.Context) {
-	m.ready(c)
-}
+func (m *Module) ReadyGETRequest(c *httputil.Context) { ready(m.ready, c) }
 
 // ReadyHEADRequest swagger:operation HEAD /readyz readyHead
 //
@@ -69,6 +67,4 @@ func (m *Module) ReadyGETRequest(c *gin.Context) {
 //	responses:
 //		'200':
 //			description: OK
-func (m *Module) ReadyHEADRequest(c *gin.Context) {
-	m.ready(c)
-}
+func (m *Module) ReadyHEADRequest(c *httputil.Context) { ready(m.ready, c) }

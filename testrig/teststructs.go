@@ -30,6 +30,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/internal/subscriptions"
 	"code.superseriousbusiness.org/gotosocial/internal/surfacing"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 	"code.superseriousbusiness.org/gotosocial/internal/transport"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 )
@@ -47,6 +48,7 @@ type TestStructs struct {
 	State               *state.State
 	Common              *common.Processor
 	Processor           *processing.Processor
+	Templates           *templates.Templates
 	HTTPClient          *MockHTTPClient
 	TypeConverter       *typeutils.Converter
 	EmailSender         email.Sender
@@ -88,6 +90,7 @@ func SetupTestStructs(
 	emailSender := NewEmailSender(rTemplatePath, nil)
 	webPushSender := NewWebPushMockSender()
 	surfacer := NewTestSurfacer(&state, federator, emailSender, webPushSender)
+	templates := LoadTemplates(&state, rTemplatePath)
 
 	common := common.New(
 		&state,
@@ -133,6 +136,7 @@ func SetupTestStructs(
 		InteractionFilter:   intFilter,
 		StatusFilter:        statusFilter,
 		Surfacer:            surfacer,
+		Templates:           templates,
 	}
 }
 

@@ -21,11 +21,11 @@ import (
 	"math"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
-	"github.com/gin-gonic/gin"
 )
 
 // DirectoryGETHandler swagger:operation GET /api/v1/directory directoryGet
@@ -124,24 +124,30 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) DirectoryGETHandler(c *gin.Context) {
+func (m *Module) DirectoryGETHandler(c *httputil.Context) {
 	// If directory is not exposed to unauthed
 	// callers, fail if a token was not provided.
 	var requester *gtsmodel.Account
+
 	if config.GetInstanceDirectoryMode() != config.InstanceDirectoryModeOpen {
-		auth, errWithCode := apiutil.TokenAuth(c,
-			true, true, true, true,
-			apiutil.ScopeReadDirectory,
-		)
+		auth, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+			Token:   true,
+			App:     true,
+			User:    true,
+			Account: true,
+			Scope:   []apiutil.Scope{apiutil.ScopeReadDirectory},
+		})
 		if errWithCode != nil {
-			apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, errWithCode)
 			return
 		}
+
+		// Set account from auth.
 		requester = auth.Account
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -152,7 +158,7 @@ func (m *Module) DirectoryGETHandler(c *gin.Context) {
 		40, // default limit
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -162,32 +168,32 @@ func (m *Module) DirectoryGETHandler(c *gin.Context) {
 		gtsmodel.DirectoryOrderByActive,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Parse offset (default 0).
 	offset, errWithCode := apiutil.ParseOffset(c.Query(apiutil.OffsetKey), 0, math.MaxInt, 0)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	resp, errWithCode := m.processor.Account().DirectoryGet(
-		c.Request.Context(),
+		c,
 		requester,
 		page,
 		offset,
 		orderBy,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if resp.LinkHeader != "" {
-		c.Header("Link", resp.LinkHeader)
+		c.W.Header().Set("Link", resp.LinkHeader)
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp.Items)
+	httputil.JSON(c, http.StatusOK, resp.Items)
 }

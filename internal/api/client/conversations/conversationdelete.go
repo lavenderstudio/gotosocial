@@ -20,8 +20,8 @@ package conversations
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // ConversationDELETEHandler swagger:operation DELETE /api/v1/conversations/{id} conversationDelete
@@ -73,32 +73,35 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) ConversationDELETEHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteConversations,
-	)
+func (m *Module) ConversationDELETEHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteConversations},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	id, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+	id, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	errWithCode = m.processor.Conversations().Delete(c.Request.Context(), authed.Account, id)
+	errWithCode = m.processor.Conversations().Delete(c, authed.Account, id)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	c.JSON(http.StatusOK, apiutil.EmptyJSONObject)
+	httputil.JSON(c, http.StatusOK, apiutil.EmptyJSONObject)
 }

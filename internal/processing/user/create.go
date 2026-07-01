@@ -103,13 +103,15 @@ func (p *Processor) Create(
 		return nil, gtserror.NewErrorConflict(err, err.Error())
 	}
 
-	// Only store reason if one is required.
+	// Only store reason if
+	// one is required.
 	var reason string
 	if config.GetAccountsReasonRequired() {
 		reason = form.Reason
 	}
 
-	// Use instance app if no app provided.
+	// Use instance app
+	// if no app provided.
 	if app == nil {
 		app, err = p.state.DB.GetInstanceApplication(ctx)
 		if err != nil {

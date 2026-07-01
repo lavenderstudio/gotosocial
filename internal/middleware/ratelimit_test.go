@@ -25,9 +25,9 @@ import (
 	"testing"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -36,9 +36,6 @@ type RateLimitTestSuite struct {
 }
 
 func (suite *RateLimitTestSuite) TestRateLimit() {
-	// Suppress warnings about debug mode.
-	gin.SetMode(gin.ReleaseMode)
-
 	const (
 		trustedPlatform = "X-Test-IP"
 		rlLimit         = "X-RateLimit-Limit"
@@ -79,43 +76,42 @@ func (suite *RateLimitTestSuite) TestRateLimit() {
 			shouldExcept: false,
 		},
 	} {
-		rlMiddleware := middleware.RateLimit(
-			test.limit,
-			test.exceptions,
+		// Compile handler from required client IP
+		// determining middlware, and rate limiter.
+		h := httputil.Compile([]httputil.Middleware{
+			middleware.WithClientIP(&httputil.ProxyConfiguration{RemoteIPHeaders: []string{trustedPlatform}}),
+			middleware.RateLimit(test.limit, test.exceptions),
+		},
+			func(c *httputil.Context) { c.W.WriteHeader(200) },
 		)
 
-		// Approximate time when this limiter will reset.
+		// Approximate time when limiter will reset.
 		resetAt := time.Now().Add(5 * time.Minute)
 
 		// Make requests up to +
 		// just over the limit.
 		limitedAt := test.limit + 1
 		for requestsCount := 1; requestsCount < limitedAt; requestsCount++ {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/example", nil)
+			req.Header.Add(trustedPlatform, test.clientIP)
+			c := httputil.ToContext(rec, req)
+
+			// Call rate
+			// limiter.
+			h(c)
+
 			var (
-				recorder = httptest.NewRecorder()
-				ctx, e   = gin.CreateTestContext(recorder)
-			)
-
-			// Instruct engine to derive
-			// clientIP from test header.
-			e.TrustedPlatform = trustedPlatform
-			ctx.Request = httptest.NewRequest(http.MethodGet, "/example", nil)
-			ctx.Request.Header.Add(trustedPlatform, test.clientIP)
-
-			// Call the rate limiter.
-			rlMiddleware(ctx)
-
-			// Fetch RL headers if present.
-			var (
-				limitStr     = recorder.Header().Get(rlLimit)
-				remainingStr = recorder.Header().Get(rlRemaining)
-				resetStr     = recorder.Header().Get(rlReset)
+				// Fetch RL headers if present.
+				limitStr     = rec.Header().Get(rlLimit)
+				remainingStr = rec.Header().Get(rlRemaining)
+				resetStr     = rec.Header().Get(rlReset)
 			)
 
 			if test.shouldExcept {
 				// Request should be allowed through,
 				// no rate-limit headers should be written.
-				suite.Equal(http.StatusOK, recorder.Code)
+				suite.Equal(http.StatusOK, rec.Code)
 				suite.Empty(limitStr)
 				suite.Empty(remainingStr)
 				suite.Empty(resetStr)
@@ -128,39 +124,31 @@ func (suite *RateLimitTestSuite) TestRateLimit() {
 			// Ensure reset is ISO8601, and resets at
 			// approximate reset time (+/- 10 seconds).
 			reset, err := util.ParseISO8601(resetStr)
-			if err != nil {
-				suite.FailNow("", "couldn't parse %s as ISO8601: %q", resetStr, err.Error())
-			}
+			suite.NoError(err)
 			suite.WithinDuration(resetAt, reset, 10*time.Second)
 
 			if requestsCount < limitedAt {
 				// Request should be allowed through.
-				suite.Equal(http.StatusOK, recorder.Code)
+				suite.Equal(http.StatusOK, rec.Code)
 				continue
 			}
 
 			// Request should be denied.
-			suite.Equal(http.StatusTooManyRequests, recorder.Code)
+			suite.Equal(http.StatusTooManyRequests, rec.Code)
 
 			// Make a final request with an unrelated IP to
 			// ensure it's only the one IP being limited.
-			var (
-				unrelatedRecorder        = httptest.NewRecorder()
-				unrelatedCtx, unrelatedE = gin.CreateTestContext(unrelatedRecorder)
-			)
+			req = httptest.NewRequest("GET", "/example", nil)
+			req.Header.Add(trustedPlatform, "192.0.2.255")
+			rec = httptest.NewRecorder()
+			c = httputil.ToContext(rec, req)
 
-			// Instruct engine to derive
-			// clientIP from test header.
-			unrelatedE.TrustedPlatform = trustedPlatform
-			unrelatedCtx.Request = httptest.NewRequest(http.MethodGet, "/example", nil)
-			unrelatedCtx.Request.Header.Add(trustedPlatform, "192.0.2.255")
-
-			// Call the rate limiter.
-			rlMiddleware(unrelatedCtx)
+			// Call rate
+			// limiter.
+			h(c)
 
 			// Request should be allowed through.
-			suite.Equal(http.StatusOK, unrelatedRecorder.Code)
-
+			suite.Equal(http.StatusOK, rec.Code)
 		}
 	}
 }

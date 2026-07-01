@@ -20,17 +20,18 @@ package router
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"strconv"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"codeberg.org/gruf/go-debug"
-	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -39,9 +40,8 @@ const (
 )
 
 type Config struct {
-	// See: gin.Engine{}
-	MaxMultipartMemory int64
-	UseH2C             bool
+	// Our own config.
+	UseH2C bool
 
 	// See: http.Server{}.
 	ReadTimeout       time.Duration
@@ -65,9 +65,9 @@ type Config struct {
 // Router provides the HTTP REST
 // interface for GoToSocial, using gin.
 type Router struct {
-	engine *gin.Engine
-	srv    *http.Server
-	leSrv  *http.Server
+	httputil.Router
+	lesrv *http.Server // lets-encrypt server
+	srv   *http.Server // base server
 }
 
 // New returns a new Router, which wraps
@@ -84,29 +84,6 @@ type Router struct {
 // for all requests passing through the underlying
 // http.Server, so this should be a long-running context.
 func New(ctx context.Context, cfg Config) (*Router, error) {
-	engine := gin.New()
-
-	// TODO: make this configurable?
-	gin.SetMode(gin.ReleaseMode)
-
-	// Create the engine here -- this is the core
-	// request routing handler for GoToSocial.
-	engine.MaxMultipartMemory = cfg.MaxMultipartMemory
-	engine.HandleMethodNotAllowed = true
-	engine.UseH2C = cfg.UseH2C
-
-	// Set up client IP forwarding via
-	// trusted x-forwarded-* headers.
-	trustedProxies := config.GetTrustedProxies()
-	if err := engine.SetTrustedProxies(trustedProxies); err != nil {
-		return nil, err
-	}
-
-	// Attach functions used by HTML templating,
-	// and load HTML templates into the engine.
-	if err := LoadTemplates(engine); err != nil {
-		return nil, err
-	}
 
 	// Use the passed-in cmd context as the base context for server, since
 	// we'll never want the server to live past `server start` command anyway.
@@ -117,6 +94,12 @@ func New(ctx context.Context, cfg Config) (*Router, error) {
 		config.GetBindAddress(),
 		strconv.Itoa(config.GetPort()),
 	)
+
+	// Setup supported protocols.
+	var protos http.Protocols
+	protos.SetHTTP1(true)
+	protos.SetHTTP2(true)
+	protos.SetUnencryptedHTTP2(cfg.UseH2C)
 
 	// HTTP2 server configuration.
 	http2Conf := &http.HTTP2Config{
@@ -131,13 +114,29 @@ func New(ctx context.Context, cfg Config) (*Router, error) {
 		WriteByteTimeout:              cfg.WriteByteTimeout,
 	}
 
-	// Base HTTP server.
-	srv := &http.Server{
+	// Prepare our router.
+	router := new(Router)
+
+	// Set a default JSON not-found handler.
+	router.NotFound = func(c *httputil.Context) {
+		httputil.JSON(c, http.StatusNotFound,
+			json.RawMessage(`{"error":"page not found"}`))
+	}
+
+	// Set a default JSON no-such-method handler.
+	router.NoMethod = func(c *httputil.Context) {
+		httputil.JSON(c, http.StatusMethodNotAllowed,
+			json.RawMessage(`{"error":"method not allowed"}`))
+	}
+
+	// Setup base HTTP server.
+	router.srv = &http.Server{
 		Addr:        addr,
-		Handler:     engine.Handler(),
+		Handler:     router,
 		HTTP2:       http2Conf,
 		BaseContext: baseCtx,
 		ErrorLog:    log.NewStdLogger(log.ERROR),
+		Protocols:   &protos,
 
 		ReadTimeout:       cfg.ReadTimeout,
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
@@ -146,10 +145,7 @@ func New(ctx context.Context, cfg Config) (*Router, error) {
 		MaxHeaderBytes:    cfg.MaxHeaderBytes,
 	}
 
-	return &Router{
-		engine: engine,
-		srv:    srv,
-	}, nil
+	return router, nil
 }
 
 // Start starts the router nicely.
@@ -200,13 +196,15 @@ func (r *Router) Start() error {
 	// at the standard "/debug/pprof" URL.
 	r.srv.Handler = debug.WithPprof(r.srv.Handler)
 	if debug.DEBUG {
+
 		// Profiling requires timeouts longer than 30s, so reset these.
 		log.Warn(nil, "resetting http.Server{} timeout to support profiling")
 		r.srv.ReadTimeout = 0
 		r.srv.WriteTimeout = 0
 	}
 
-	// Start the main listener.
+	// Start the
+	// main listener.
 	go func() {
 		log.Infof(nil, "listening on %s", r.srv.Addr)
 		if err := listen(); err != nil && err != http.ErrServerClosed {
@@ -228,8 +226,8 @@ func (r *Router) Stop() error {
 
 	// Shut down letsencrypt
 	// server if enabled.
-	if r.leSrv != nil {
-		if err := stopServer(ctx, r.leSrv, "letsencrypt http server"); err != nil {
+	if r.lesrv != nil {
+		if err := stopServer(ctx, r.lesrv, "letsencrypt http server"); err != nil {
 			return err
 		}
 	}
@@ -318,18 +316,17 @@ func (r *Router) letsEncryptTLS() (func() error, error) {
 	// Take our own copy of the HTTP server,
 	// and update it to serve LetsEncrypt
 	// requests via the autocert manager.
-	r.leSrv = new(http.Server) //nolint:gosec
-	*r.leSrv = (*r.srv)        //nolint:govet
-	r.leSrv.Handler = acm.HTTPHandler(fallback)
-	r.leSrv.Addr = fmt.Sprintf("%s:%d",
+	r.lesrv = new(http.Server) //nolint:gosec
+	*r.lesrv = (*r.srv)        //nolint:govet
+	r.lesrv.Handler = acm.HTTPHandler(fallback)
+	r.lesrv.Addr = fmt.Sprintf("%s:%d",
 		config.GetBindAddress(),
-		config.GetLetsEncryptPort(),
-	)
+		config.GetLetsEncryptPort())
 
 	go func() {
 		// Start the LetsEncrypt autocert manager HTTP server.
-		log.Infof(nil, "letsencrypt listening on %s", r.leSrv.Addr)
-		if err := r.leSrv.ListenAndServe(); err != nil &&
+		log.Infof(nil, "letsencrypt listening on %s", r.lesrv.Addr)
+		if err := r.lesrv.ListenAndServe(); err != nil &&
 			err != http.ErrServerClosed {
 			log.Panicf(nil, "letsencrypt: listen: %v", err)
 		}

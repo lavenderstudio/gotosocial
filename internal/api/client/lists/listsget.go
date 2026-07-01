@@ -20,8 +20,8 @@ package lists
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // ListsGETHandler swagger:operation GET /api/v1/lists lists
@@ -67,26 +67,29 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) ListsGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadLists,
-	)
+func (m *Module) ListsGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadLists},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	lists, errWithCode := m.processor.List().GetAll(c.Request.Context(), authed.Account)
+	lists, errWithCode := m.processor.List().GetAll(c, authed.Account)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, lists)
+	httputil.JSON(c, http.StatusOK, lists)
 }

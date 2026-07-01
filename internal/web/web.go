@@ -22,14 +22,15 @@ import (
 	"net/http"
 	"net/url"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/router"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 	"code.superseriousbusiness.org/gotosocial/internal/uris"
 	"codeberg.org/gruf/go-cache/v3"
-	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -76,14 +77,16 @@ const (
 )
 
 type Module struct {
+	templates    *templates.Templates
 	processor    *processing.Processor
 	eTagCache    cache.Cache[string, eTagCacheEntry]
 	cookiePolicy apiutil.CookiePolicy
 	isURIBlocked func(context.Context, *url.URL) (bool, error)
 }
 
-func New(db db.DB, processor *processing.Processor, cookiePolicy apiutil.CookiePolicy) *Module {
+func New(db db.DB, processor *processing.Processor, templates *templates.Templates, cookiePolicy apiutil.CookiePolicy) *Module {
 	return &Module{
+		templates:    templates,
 		processor:    processor,
 		eTagCache:    newETagCache(),
 		cookiePolicy: cookiePolicy,
@@ -98,44 +101,45 @@ func (m *Module) ETagCache() cache.Cache[string, eTagCacheEntry] {
 
 // Route attaches the assets filesystem and profile,
 // status, and other web handlers to the router.
-func (m *Module) Route(r *router.Router, mi ...gin.HandlerFunc) {
-	// Route static assets.
+func (m *Module) Route(r *router.Router, mi ...httputil.Middleware) {
+
+	// Add static assets to router.
 	routeAssets(m, r, mi...)
 
 	// Handlers that serve profiles and statuses should use
 	// the SignatureCheck middleware, so that requests with
 	// content-type application/activity+json can be served.
-	profileGroup := r.AttachGroup(profileGroupPath)
+	profileGroup := r.Group(profileGroupPath)
 	profileGroup.Use(mi...)
-	profileGroup.Use(middleware.SignatureCheck(m.isURIBlocked), middleware.CacheControl(middleware.CacheControlConfig{
+	profileGroup.Use(middleware.ExtractSignature(m.isURIBlocked), middleware.CacheControl(middleware.CacheControlConfig{
 		Directives: []string{"no-store"},
 	}))
-	profileGroup.Handle(http.MethodGet, "", m.profileGETHandler) // use empty path here since it's the base of the group
-	profileGroup.Handle(http.MethodGet, statusPath, m.threadGETHandler)
+	profileGroup.GET("", m.profileGETHandler) // use empty path here since it's the base of the group
+	profileGroup.GET(statusPath, m.threadGETHandler)
 
 	// Group for all other web handlers.
-	everythingElseGroup := r.AttachGroup("")
+	everythingElseGroup := r.Group("")
 	everythingElseGroup.Use(mi...)
-	everythingElseGroup.Handle(http.MethodGet, "/", m.indexHandler) // front-page
-	everythingElseGroup.Handle(http.MethodGet, settingsPathPrefix, m.SettingsPanelHandler)
-	everythingElseGroup.Handle(http.MethodGet, settingsPanelGlob, m.SettingsPanelHandler)
-	everythingElseGroup.Handle(http.MethodGet, customCSSPath, m.customCSSGETHandler)
-	everythingElseGroup.Handle(http.MethodGet, instanceCustomCSSPath, m.instanceCustomCSSGETHandler)
-	everythingElseGroup.Handle(http.MethodGet, rssFeedPath, m.rssFeedGETHandler)
-	everythingElseGroup.Handle(http.MethodGet, confirmEmailPath, m.confirmEmailGETHandler)
-	everythingElseGroup.Handle(http.MethodPost, confirmEmailPath, m.confirmEmailPOSTHandler)
-	everythingElseGroup.Handle(http.MethodGet, aboutPath, m.aboutGETHandler)
-	everythingElseGroup.Handle(http.MethodGet, loginPath, m.loginGETHandler)
-	everythingElseGroup.Handle(http.MethodGet, domainBlocklistPath, m.domainBlocklistGETHandler)
-	everythingElseGroup.Handle(http.MethodGet, domainAllowlistPath, m.domainAllowlistGETHandler)
-	everythingElseGroup.Handle(http.MethodGet, tagsPath, m.tagGETHandler)
-	everythingElseGroup.Handle(http.MethodGet, signupPath, m.signupGETHandler)
-	everythingElseGroup.Handle(http.MethodGet, authorizeInteractionPath, m.authorizeInteractionGETHandler)
-	everythingElseGroup.Handle(http.MethodPost, signupPath, m.signupPOSTHandler)
-	everythingElseGroup.Handle(http.MethodGet, directoryPath, m.directoryGETHandler)
+	everythingElseGroup.GET("/", m.indexHandler) // front-page
+	everythingElseGroup.GET(settingsPathPrefix, m.SettingsPanelHandler)
+	everythingElseGroup.GET(settingsPanelGlob, m.SettingsPanelHandler)
+	everythingElseGroup.GET(customCSSPath, m.customCSSGETHandler)
+	everythingElseGroup.GET(instanceCustomCSSPath, m.instanceCustomCSSGETHandler)
+	everythingElseGroup.GET(rssFeedPath, m.rssFeedGETHandler)
+	everythingElseGroup.GET(confirmEmailPath, m.confirmEmailGETHandler)
+	everythingElseGroup.POST(confirmEmailPath, m.confirmEmailPOSTHandler)
+	everythingElseGroup.GET(aboutPath, m.aboutGETHandler)
+	everythingElseGroup.GET(loginPath, m.loginGETHandler)
+	everythingElseGroup.GET(domainBlocklistPath, m.domainBlocklistGETHandler)
+	everythingElseGroup.GET(domainAllowlistPath, m.domainAllowlistGETHandler)
+	everythingElseGroup.GET(tagsPath, m.tagGETHandler)
+	everythingElseGroup.GET(signupPath, m.signupGETHandler)
+	everythingElseGroup.GET(authorizeInteractionPath, m.authorizeInteractionGETHandler)
+	everythingElseGroup.POST(signupPath, m.signupPOSTHandler)
+	everythingElseGroup.GET(directoryPath, m.directoryGETHandler)
 
 	// Redirects from old endpoints for back compat.
-	r.AttachHandler(http.MethodGet, "/auth/edit", func(c *gin.Context) { c.Redirect(http.StatusMovedPermanently, userPanelPath) })
-	r.AttachHandler(http.MethodGet, "/user", func(c *gin.Context) { c.Redirect(http.StatusMovedPermanently, userPanelPath) })
-	r.AttachHandler(http.MethodGet, "/admin", func(c *gin.Context) { c.Redirect(http.StatusMovedPermanently, adminPanelPath) })
+	r.GET("/auth/edit", func(c *httputil.Context) { httputil.Redirect(c, http.StatusMovedPermanently, userPanelPath) })
+	r.GET("/user", func(c *httputil.Context) { httputil.Redirect(c, http.StatusMovedPermanently, userPanelPath) })
+	r.GET("/admin", func(c *httputil.Context) { httputil.Redirect(c, http.StatusMovedPermanently, adminPanelPath) })
 }

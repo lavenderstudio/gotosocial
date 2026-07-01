@@ -23,12 +23,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/followedtags"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 )
 
 func (suite *FollowedTagsTestSuite) getFollowedTags(
@@ -36,20 +36,20 @@ func (suite *FollowedTagsTestSuite) getFollowedTags(
 	expectedHTTPStatus int,
 	expectedBody string,
 ) ([]apimodel.Tag, error) {
+	// create the request
+	req := httptest.NewRequest(http.MethodGet, config.GetProtocol()+"://"+config.GetHost()+"/api/"+followedtags.BasePath, nil)
+	req.Header.Set("accept", "application/json")
+
 	// instantiate recorder + test context
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[accountFixtureName])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[accountFixtureName]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers[accountFixtureName])
-
-	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodGet, config.GetProtocol()+"://"+config.GetHost()+"/api/"+followedtags.BasePath, nil)
-	ctx.Request.Header.Set("accept", "application/json")
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[accountFixtureName])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[accountFixtureName]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers[accountFixtureName])
 
 	// trigger the handler
-	suite.followedTagsModule.FollowedTagsGETHandler(ctx)
+	suite.followedTagsModule.FollowedTagsGETHandler(c)
 
 	// read the response
 	result := recorder.Result()

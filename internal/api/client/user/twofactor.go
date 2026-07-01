@@ -21,11 +21,11 @@ import (
 	"errors"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 const OIDCTwoFactorHelp = "two factor authentication request cannot be processed by GoToSocial as this instance is running with OIDC enabled; you must use 2FA provided by your OIDC provider"
@@ -78,46 +78,48 @@ const OIDCTwoFactorHelp = "two factor authentication request cannot be processed
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal error
-func (m *Module) TwoFactorQRCodePngGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadAccounts,
-	)
+func (m *Module) TwoFactorQRCodePngGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadAccounts},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, "image/png"); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if config.GetOIDCEnabled() {
 		err := errors.New("instance running with OIDC")
-		apiutil.ErrorHandler(c, gtserror.NewErrorUnprocessableEntity(err, OIDCTwoFactorHelp), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorUnprocessableEntity(err, OIDCTwoFactorHelp))
 		return
 	}
 
-	content, errWithCode := m.processor.User().TwoFactorQRCodePngGet(c.Request.Context(), authed.User)
+	content, errWithCode := m.processor.User().TwoFactorQRCodePngGet(c, authed.User)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	defer func() {
 		// Close content when we're done, catch errors.
 		if err := content.Content.Close(); err != nil {
-			log.Errorf(c.Request.Context(), "error closing readcloser: %v", err)
+			log.Errorf(c, "error closing readcloser: %v", err)
 		}
 	}()
 
-	c.DataFromReader(
+	httputil.WriteResponse(c,
 		http.StatusOK,
-		content.ContentLength,
 		content.ContentType,
 		content.Content,
-		nil,
+		content.ContentLength,
 	)
 }
 
@@ -169,34 +171,37 @@ func (m *Module) TwoFactorQRCodePngGETHandler(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal error
-func (m *Module) TwoFactorQRCodeURIGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadAccounts,
-	)
+func (m *Module) TwoFactorQRCodeURIGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadAccounts},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextPlain); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if config.GetOIDCEnabled() {
 		err := errors.New("instance running with OIDC")
-		apiutil.ErrorHandler(c, gtserror.NewErrorUnprocessableEntity(err, OIDCTwoFactorHelp), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorUnprocessableEntity(err, OIDCTwoFactorHelp))
 		return
 	}
 
-	uri, errWithCode := m.processor.User().TwoFactorQRCodeURIGet(c.Request.Context(), authed.User)
+	uri, errWithCode := m.processor.User().TwoFactorQRCodeURIGet(c, authed.User)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.Data(
+	httputil.Data(
 		c,
 		http.StatusOK,
 		apiutil.TextPlain,
@@ -263,46 +268,49 @@ func (m *Module) TwoFactorQRCodeURIGETHandler(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal error
-func (m *Module) TwoFactorEnablePOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteAccounts,
-	)
+func (m *Module) TwoFactorEnablePOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteAccounts},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if config.GetOIDCEnabled() {
 		err := errors.New("instance running with OIDC")
-		apiutil.ErrorHandler(c, gtserror.NewErrorUnprocessableEntity(err, OIDCPasswordHelp), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorUnprocessableEntity(err, OIDCPasswordHelp))
 		return
 	}
 
 	form := &struct {
 		Code string `json:"code" form:"code" validation:"required"`
 	}{}
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	recoveryCodes, errWithCode := m.processor.User().TwoFactorEnable(
-		c.Request.Context(),
+		c,
 		authed.User,
 		form.Code,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, recoveryCodes)
+	httputil.JSON(c, http.StatusOK, recoveryCodes)
 }
 
 // TwoFactorDisablePOSTHandler swagger:operation POST /api/v1/user/2fa/disable TwoFactorDisablePost
@@ -359,43 +367,46 @@ func (m *Module) TwoFactorEnablePOSTHandler(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal error
-func (m *Module) TwoFactorDisablePOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteAccounts,
-	)
+func (m *Module) TwoFactorDisablePOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteAccounts},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if config.GetOIDCEnabled() {
 		err := errors.New("instance running with OIDC")
-		apiutil.ErrorHandler(c, gtserror.NewErrorUnprocessableEntity(err, OIDCPasswordHelp), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorUnprocessableEntity(err, OIDCPasswordHelp))
 		return
 	}
 
 	form := &struct {
 		Password string `json:"password" form:"password" validation:"required"`
 	}{}
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if errWithCode := m.processor.User().TwoFactorDisable(
-		c.Request.Context(),
+		c,
 		authed.User,
 		form.Password,
 	); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.W.WriteHeader(http.StatusOK)
 }

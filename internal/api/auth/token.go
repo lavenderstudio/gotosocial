@@ -21,11 +21,11 @@ import (
 	"net/http"
 	"net/url"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-
-	"github.com/gin-gonic/gin"
 )
 
 type tokenRequestForm struct {
@@ -39,44 +39,44 @@ type tokenRequestForm struct {
 
 // TokenPOSTHandler should be served as a POST at https://example.org/oauth/token
 // The idea here is to serve an oauth access token to a user, which can be used for authorizing against non-public APIs.
-func (m *Module) TokenPOSTHandler(c *gin.Context) {
+func (m *Module) TokenPOSTHandler(c *httputil.Context) {
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	help := []string{}
 
 	form := &tokenRequestForm{}
-	if err := c.ShouldBind(form); err != nil {
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		apiutil.OAuthErrorHandler(c, gtserror.NewErrorBadRequest(oauth.ErrInvalidRequest, err.Error()))
 		return
 	}
 
-	c.Request.Form = url.Values{}
+	c.R.Form = url.Values{}
 
 	var grantType string
 	if form.GrantType != nil {
 		grantType = *form.GrantType
-		c.Request.Form.Set("grant_type", grantType)
+		c.R.Form.Set("grant_type", grantType)
 	} else {
 		help = append(help, "grant_type was not set in the token request form, but must be set to authorization_code or client_credentials")
 	}
 
 	if form.ClientID != nil {
-		c.Request.Form.Set("client_id", *form.ClientID)
+		c.R.Form.Set("client_id", *form.ClientID)
 	} else {
 		help = append(help, "client_id was not set in the token request form")
 	}
 
 	if form.ClientSecret != nil {
-		c.Request.Form.Set("client_secret", *form.ClientSecret)
+		c.R.Form.Set("client_secret", *form.ClientSecret)
 	} else {
 		help = append(help, "client_secret was not set in the token request form")
 	}
 
 	if form.RedirectURI != nil {
-		c.Request.Form.Set("redirect_uri", *form.RedirectURI)
+		c.R.Form.Set("redirect_uri", *form.RedirectURI)
 	} else {
 		help = append(help, "redirect_uri was not set in the token request form")
 	}
@@ -87,14 +87,14 @@ func (m *Module) TokenPOSTHandler(c *gin.Context) {
 			help = append(help, "a code was provided in the token request form, but grant_type was not set to authorization_code")
 		} else {
 			code = *form.Code
-			c.Request.Form.Set("code", code)
+			c.R.Form.Set("code", code)
 		}
 	} else if grantType == "authorization_code" {
 		help = append(help, "code was not set in the token request form, but must be set since grant_type is authorization_code")
 	}
 
 	if form.Scope != nil {
-		c.Request.Form.Set("scope", *form.Scope)
+		c.R.Form.Set("scope", *form.Scope)
 	}
 
 	if len(help) != 0 {
@@ -102,17 +102,15 @@ func (m *Module) TokenPOSTHandler(c *gin.Context) {
 		return
 	}
 
-	token, errWithCode := m.processor.OAuthHandleTokenRequest(c.Request)
+	token, errWithCode := m.processor.OAuthHandleTokenRequest(c.R)
 	if errWithCode != nil {
 		apiutil.OAuthErrorHandler(c, errWithCode)
 		return
 	}
 
-	c.Header("Cache-Control", "no-store")
-	c.Header("Pragma", "no-cache")
-	apiutil.EncodeJSONResponse(
-		c.Writer,
-		c.Request,
+	c.W.Header().Set("Cache-Control", "no-store")
+	c.W.Header().Set("Pragma", "no-cache")
+	httputil.EncodeJSONResponse(c,
 		http.StatusOK,
 		apiutil.AppJSON,
 		token,

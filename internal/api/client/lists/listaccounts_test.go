@@ -25,13 +25,13 @@ import (
 	"strconv"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/lists"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -52,21 +52,6 @@ func (suite *ListAccountsTestSuite) getListAccounts(
 	string, // Link header
 	error,
 ) {
-
-	var (
-		recorder = httptest.NewRecorder()
-		ctx, _   = testrig.CreateGinTestContext(recorder, nil)
-	)
-
-	// Prepare test context.
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-
-	// Inject path parameters.
-	ctx.AddParam("id", listID)
-
 	// Inject query parameters.
 	requestPath := config.GetProtocol() + "://" + config.GetHost() + "/api/" + lists.BasePath + "/" + listID + "/accounts"
 
@@ -86,12 +71,22 @@ func (suite *ListAccountsTestSuite) getListAccounts(
 	}
 
 	// Prepare test context request.
-	request := httptest.NewRequest(http.MethodGet, requestPath, nil)
-	request.Header.Set("accept", "application/json")
-	ctx.Request = request
+	req := httptest.NewRequest(http.MethodGet, requestPath, nil)
+	req.Header.Set("accept", "application/json")
+
+	// Prepare test context.
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+
+	// Inject path parameters.
+	c.SetPathValue("id", listID)
 
 	// trigger the handler
-	suite.listsModule.ListAccountsGETHandler(ctx)
+	suite.listsModule.ListAccountsGETHandler(c)
 
 	// read the response
 	result := recorder.Result()

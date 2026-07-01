@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http/httptest"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/followrequests"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
@@ -35,7 +36,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/internal/storage"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -93,7 +93,7 @@ func (suite *FollowRequestStandardTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.followRequestModule = followrequests.New(suite.processor)
+	suite.followRequestModule = followrequests.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 	testrig.StandardDBSetup(suite.db, nil)
 	testrig.StandardStorageSetup(suite.storage, "../../../../testrig/media")
 }
@@ -104,26 +104,26 @@ func (suite *FollowRequestStandardTestSuite) TearDownTest() {
 	testrig.StopWorkers(&suite.state)
 }
 
-func (suite *FollowRequestStandardTestSuite) newContext(recorder *httptest.ResponseRecorder, requestMethod string, requestBody []byte, requestPath string, bodyContentType string) *gin.Context {
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-
+func (suite *FollowRequestStandardTestSuite) newContext(recorder *httptest.ResponseRecorder, requestMethod string, requestBody []byte, requestPath string, bodyContentType string) *httputil.Context {
 	protocol := config.GetProtocol()
 	host := config.GetHost()
 
 	baseURI := fmt.Sprintf("%s://%s", protocol, host)
 	requestURI := fmt.Sprintf("%s/%s", baseURI, requestPath)
 
-	ctx.Request = httptest.NewRequest(requestMethod, requestURI, bytes.NewReader(requestBody)) // the endpoint we're hitting
+	req := httptest.NewRequest(requestMethod, requestURI, bytes.NewReader(requestBody)) // the endpoint we're hitting
 
 	if bodyContentType != "" {
-		ctx.Request.Header.Set("Content-Type", bodyContentType)
+		req.Header.Set("Content-Type", bodyContentType)
 	}
-	ctx.Request.Header.Set("accept", "application/json")
+	req.Header.Set("accept", "application/json")
 
-	return ctx
+	c := httputil.ToContext(recorder, req)
+
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+
+	return c
 }

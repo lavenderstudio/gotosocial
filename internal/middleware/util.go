@@ -20,32 +20,28 @@ package middleware
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
-// respondBlocked responds to the given gin context with
-// status forbidden, and a generic forbidden JSON response,
-// finally aborting the gin handler chain.
-func respondBlocked(c *gin.Context) {
-	apiutil.Data(c,
+// respondBlocked responds to the given httputil context with
+// status forbidden, and a generic forbidden JSON response.
+func respondBlocked(c *httputil.Context) {
+	httputil.Data(c,
 		http.StatusForbidden,
 		apiutil.AppJSON,
 		apiutil.StatusForbiddenJSON,
 	)
-	c.Abort()
 }
 
-// respondInternalServerError responds to the given gin context
-// with status internal server error, a generic internal server
-// error JSON response, sets the given error on the gin context
-// for later logging, finally aborting the gin handler chain.
-func respondInternalServerError(c *gin.Context, err error) {
-	apiutil.Data(c,
+// respondInternalServerError responds to the given httputil context with
+// status internal server error, a generic internal server error JSON response,
+// sets the given error on the httputil context for later logging.
+func respondInternalServerError(c *httputil.Context, err error) {
+	httputil.Data(c,
 		http.StatusInternalServerError,
 		apiutil.AppJSON,
 		apiutil.StatusInternalServerErrorJSON,
 	)
-	_ = c.Error(err)
-	c.Abort()
+	c.Error(err)
 }

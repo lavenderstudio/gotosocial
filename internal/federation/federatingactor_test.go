@@ -18,8 +18,6 @@
 package federation_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
 	"net/url"
 	"testing"
@@ -146,9 +144,7 @@ func (suite *FederatingActorTestSuite) TestSendRemoteFollower() {
 		suite.FailNow("timed out waiting for message")
 	}
 
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, sent, "", "  ")
-	suite.NoError(err)
+	out := testrig.MustJSONStringFromBytes(sent)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "http://localhost:8080/users/the_mighty_zork",
@@ -166,7 +162,7 @@ func (suite *FederatingActorTestSuite) TestSendRemoteFollower() {
   "published": "2022-06-02T12:22:21+02:00",
   "to": "http://localhost:8080/users/the_mighty_zork/followers",
   "type": "Create"
-}`, dst.String())
+}`, out)
 }
 
 func TestFederatingActorTestSuite(t *testing.T) {

@@ -19,19 +19,19 @@ package reports_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/reports"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -40,18 +40,10 @@ type ReportCreateTestSuite struct {
 }
 
 func (suite *ReportCreateTestSuite) createReport(expectedHTTPStatus int, expectedBody string, form *apimodel.ReportCreateRequest) (*apimodel.Report, error) {
-	// instantiate recorder + test context
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-
 	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodPost, config.GetProtocol()+"://"+config.GetHost()+"/api/"+reports.BasePath, nil)
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.Request.Form = url.Values{
+	req := httptest.NewRequest(http.MethodPost, config.GetProtocol()+"://"+config.GetHost()+"/api/"+reports.BasePath, nil)
+	req.Header.Set("accept", "application/json")
+	req.Form = url.Values{
 		"account_id":   {form.AccountID},
 		"status_ids[]": form.StatusIDs,
 		"comment":      {form.Comment},
@@ -60,14 +52,22 @@ func (suite *ReportCreateTestSuite) createReport(expectedHTTPStatus int, expecte
 		"rule_ids[]":   form.RuleIDs,
 	}
 
+	// instantiate recorder + test context
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+
 	// trigger the handler
-	suite.reportsModule.ReportPOSTHandler(ctx)
+	suite.reportsModule.ReportPOSTHandler(c)
 
 	// read the response
 	result := recorder.Result()
 	defer result.Body.Close()
 
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	if err != nil {
 		return nil, err
 	}

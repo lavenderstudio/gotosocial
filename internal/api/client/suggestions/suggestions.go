@@ -20,9 +20,10 @@ package suggestions
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -30,10 +31,11 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
@@ -75,24 +77,27 @@ func New(processor *processing.Processor) *Module {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: not acceptable
-func (m *Module) SuggestionsGETHandler(c *gin.Context) {
-	_, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeRead,
-	)
+func (m *Module) SuggestionsGETHandler(c *httputil.Context) {
+	_, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeRead},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, apiutil.EmptyJSONArray)
+	httputil.JSON(c, http.StatusOK, apiutil.EmptyJSONArray)
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, BasePath, m.SuggestionsGETHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(BasePath, m.SuggestionsGETHandler)
 }

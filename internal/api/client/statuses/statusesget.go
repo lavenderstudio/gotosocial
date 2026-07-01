@@ -21,9 +21,9 @@ import (
 	"errors"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // StatusesGETHandler swagger:operation GET /api/v1/statuses statusesGet
@@ -83,18 +83,21 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) StatusesGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadStatuses,
-	)
+func (m *Module) StatusesGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadStatuses},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -106,20 +109,20 @@ func (m *Module) StatusesGETHandler(c *gin.Context) {
 	if len(ids) == 0 {
 		const text = "no status ids specified"
 		errWithCode := gtserror.NewErrorBadRequest(errors.New(text), text)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	} else if len(ids) > 100 {
 		const text = "too many status ids specified"
 		errWithCode := gtserror.NewErrorUnprocessableEntity(errors.New(text), text)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiStatuses, errWithCode := m.processor.Status().GetMultiple(c.Request.Context(), authed.Account, ids)
+	apiStatuses, errWithCode := m.processor.Status().GetMultiple(c, authed.Account, ids)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, apiStatuses)
+	httputil.JSON(c, http.StatusOK, apiStatuses)
 }

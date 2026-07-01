@@ -93,7 +93,7 @@ func (suite *FollowedTagsTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.followedTagsModule = followedtags.New(suite.processor)
+	suite.followedTagsModule = followedtags.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 
 	testrig.StandardDBSetup(suite.db, nil)
 	testrig.StandardStorageSetup(suite.storage, "../../../../testrig/media")

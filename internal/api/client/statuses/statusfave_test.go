@@ -23,15 +23,14 @@ import (
 	"strings"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/statuses"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 )
 
 type StatusFaveTestSuite struct {
@@ -45,28 +44,22 @@ func (suite *StatusFaveTestSuite) postStatusFave(
 	user *gtsmodel.User,
 	account *gtsmodel.Account,
 ) (string, *httptest.ResponseRecorder) {
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, app)
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
-	ctx.Set(oauth.SessionAuthorizedUser, user)
-	ctx.Set(oauth.SessionAuthorizedAccount, account)
-
 	const pathBase = "http://localhost:8080/api" + statuses.FavouritePath
 	path := strings.ReplaceAll(pathBase, ":"+apiutil.IDKey, targetStatusID)
-	ctx.Request = httptest.NewRequest(http.MethodPost, path, nil)
-	ctx.Request.Header.Set("accept", "application/json")
+	req := httptest.NewRequest(http.MethodPost, path, nil)
+	req.Header.Set("accept", "application/json")
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, app)
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
+	c.V.Set(oauth.SessionAuthorizedUser, user)
+	c.V.Set(oauth.SessionAuthorizedAccount, account)
 
 	// Populate target status ID.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.IDKey,
-			Value: targetStatusID,
-		},
-	}
+	c.SetPathValue(apiutil.IDKey, targetStatusID)
 
 	// Trigger handler.
-	suite.statusModule.StatusFavePOSTHandler(ctx)
+	suite.statusModule.StatusFavePOSTHandler(c)
 	return suite.parseStatusResponse(recorder)
 }
 

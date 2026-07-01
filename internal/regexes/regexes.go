@@ -18,10 +18,10 @@
 package regexes
 
 import (
-	"bytes"
 	"regexp"
-	"sync"
 
+	"code.superseriousbusiness.org/gopkg/buffers"
+	"codeberg.org/gruf/go-byteutil"
 	xurls "mvdan.cc/xurls/v2"
 )
 
@@ -169,17 +169,13 @@ var (
 	FilePath = regexp.MustCompile(filePath)
 )
 
-// bufpool is a memory pool of byte buffers for use in our regex utility functions.
-var bufpool = sync.Pool{
-	New: func() any {
-		buf := bytes.NewBuffer(make([]byte, 0, 512))
-		return buf
-	},
-}
+// bufpool is a memory pool of byte buffers
+// for use in our regex utility functions.
+var bufpool = buffers.Pool(1024)
 
 // ReplaceAllStringFunc will call through to .ReplaceAllStringFunc in the provided regex, but provide you a clean byte buffer for optimized string writes.
-func ReplaceAllStringFunc(rgx *regexp.Regexp, src string, repl func(match string, buf *bytes.Buffer) string) string {
-	buf := bufpool.Get().(*bytes.Buffer) //nolint
+func ReplaceAllStringFunc(rgx *regexp.Regexp, src string, repl func(match string, buf *byteutil.Buffer) string) string {
+	buf := bufpool.Get()
 	defer bufpool.Put(buf)
 	return rgx.ReplaceAllStringFunc(src, func(match string) string {
 		buf.Reset() // reset use

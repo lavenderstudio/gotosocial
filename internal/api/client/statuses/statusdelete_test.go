@@ -25,12 +25,13 @@ import (
 	"strings"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/statuses"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -44,25 +45,20 @@ func (suite *StatusDeleteTestSuite) TestPostDelete() {
 	targetStatus := suite.testStatuses["local_account_1_status_1"]
 
 	// setup
+	req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("http://localhost:8080%s", strings.Replace(statuses.BasePathWithID, ":id", targetStatus.ID, 1)), nil) // the endpoint we're hitting
+	req.Header.Set("accept", "application/json")
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Request = httptest.NewRequest(http.MethodDelete, fmt.Sprintf("http://localhost:8080%s", strings.Replace(statuses.BasePathWithID, ":id", targetStatus.ID, 1)), nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/json")
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   statuses.IDKey,
-			Value: targetStatus.ID,
-		},
-	}
+	c.SetPathValue(apiutil.IDKey, targetStatus.ID)
 
-	suite.statusModule.StatusDELETEHandler(ctx)
+	suite.statusModule.StatusDELETEHandler(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
@@ -82,7 +78,7 @@ func (suite *StatusDeleteTestSuite) TestPostDelete() {
 	suite.Equal(apimodel.StatusContentTypePlain, statusReply.ContentType)
 
 	if !testrig.WaitFor(func() bool {
-		status, err := suite.db.GetStatusByID(ctx, targetStatus.ID)
+		status, err := suite.db.GetStatusByID(c, targetStatus.ID)
 		return errors.Is(err, db.ErrNoEntries) || status.Flags.Deleted()
 	}) {
 		suite.FailNow("time out waiting for status to be deleted")

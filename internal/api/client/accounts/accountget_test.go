@@ -26,7 +26,7 @@ import (
 
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/accounts"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
-	"github.com/gin-gonic/gin"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -37,16 +37,11 @@ type AccountGetTestSuite struct {
 // accountVerifyGet calls the get account API method for a given account fixture name.
 func (suite *AccountGetTestSuite) getAccount(id string) *apimodel.Account {
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodGet, nil, accounts.BasePath+"/"+id, "")
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   accounts.IDKey,
-			Value: id,
-		},
-	}
+	c := suite.newContext(recorder, http.MethodGet, nil, accounts.BasePath+"/"+id, "")
+	c.SetPathValue(apiutil.IDKey, id)
 
 	// call the handler
-	suite.accountsModule.AccountGETHandler(ctx)
+	suite.accountsModule.AccountGETHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)

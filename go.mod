@@ -19,11 +19,11 @@ require (
 	codeberg.org/gruf/go-cache/v3 v3.6.2
 	codeberg.org/gruf/go-caller v0.0.0-20260615202027-bc5a6ff3cb31
 	codeberg.org/gruf/go-debug v1.3.0
-	codeberg.org/gruf/go-errors/v2 v2.3.4
+	codeberg.org/gruf/go-errors/v2 v2.3.5
 	codeberg.org/gruf/go-fastcopy v1.2.1
 	codeberg.org/gruf/go-fastpath/v2 v2.0.1
 	codeberg.org/gruf/go-ffmpreg v0.6.20
-	codeberg.org/gruf/go-iotools v0.0.0-20240710125620-934ae9c654cf
+	codeberg.org/gruf/go-iotools v0.0.0-20260526131046-972e2a5bc14c
 	codeberg.org/gruf/go-kv/v2 v2.0.10
 	codeberg.org/gruf/go-list v0.0.0-20240425093752-494db03d641f
 	codeberg.org/gruf/go-longdur v0.1.3
@@ -40,15 +40,13 @@ require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/buckket/go-blurhash v1.1.0
 	github.com/coreos/go-oidc/v3 v3.19.0
-	github.com/gin-contrib/cors v1.7.7
-	github.com/gin-contrib/gzip v1.2.6
-	github.com/gin-contrib/sessions v1.1.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-playground/form/v4 v4.3.0
 	github.com/go-swagger/go-swagger v0.33.2
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/feeds v1.2.0
+	github.com/gorilla/sessions v1.4.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/cronexpr v1.1.3
 	github.com/jackc/pgx/v5 v5.10.0
@@ -62,7 +60,9 @@ require (
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/pquerna/otp v1.5.0
 	github.com/prometheus/client_golang v1.23.2
+	github.com/quasoft/memstore v0.0.0-20191010062613-2bce066d2b0b
 	github.com/rivo/uniseg v0.4.7
+	github.com/rs/cors v1.11.1
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -167,11 +167,9 @@ require (
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/golang/geo v0.0.0-20210211234256-740aa86cb551 // indirect
-	github.com/gorilla/context v1.1.2 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
-	github.com/gorilla/sessions v1.4.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -207,7 +205,6 @@ require (
 	github.com/prometheus/otlptranslator v1.0.0 // indirect
 	github.com/prometheus/procfs v0.20.1 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
-	github.com/quasoft/memstore v0.0.0-20191010062613-2bce066d2b0b // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.59.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect

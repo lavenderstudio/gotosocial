@@ -20,9 +20,9 @@ package robots
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
-	"github.com/gin-gonic/gin"
 )
 
 type Module struct{}
@@ -31,12 +31,12 @@ func New() *Module {
 	return &Module{}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
+func (m *Module) Route(g *httputil.RouteGroup) {
 	// Serve different robots.txt file depending on instance
 	// stats mode: Don't disallow scraping nodeinfo if admin
 	// has opted in to serving accurate stats there. In all
 	// other cases, disallow scraping nodeinfo.
-	var handler gin.HandlerFunc
+	var handler httputil.HandlerFunc
 	if config.GetInstanceStatsMode() == config.InstanceStatsModeServe {
 		handler = m.robotsGETHandler
 	} else {
@@ -45,33 +45,41 @@ func (m *Module) Route(attachHandler func(method string, path string, f ...gin.H
 
 	// Attach handler at empty path as this
 	// is already grouped under /robots.txt.
-	attachHandler(http.MethodGet, "", handler)
+	g.GET("", handler)
 }
 
-func (m *Module) robotsGETHandler(c *gin.Context) {
+func (m *Module) robotsGETHandler(c *httputil.Context) {
 	const ETag = "\"" + apiutil.RobotsTxtETag + "\""
-	c.Header("ETag", ETag)
+	c.W.Header().Set("ETag", ETag)
 
-	if c.Request.Header.Get("If-None-Match") == ETag {
-		// Cached.
-		c.AbortWithStatus(http.StatusNotModified)
+	// Check if etag value is already cached.
+	if c.R.Header.Get("If-None-Match") == ETag {
+		c.W.WriteHeader(http.StatusNotModified)
 		return
 	}
 
 	// Not cached, serve.
-	c.String(http.StatusOK, apiutil.RobotsTxt)
+	httputil.String(c,
+		http.StatusOK,
+		apiutil.TextPlain,
+		apiutil.RobotsTxt,
+	)
 }
 
-func (m *Module) robotsGETHandlerDisallowNodeInfo(c *gin.Context) {
+func (m *Module) robotsGETHandlerDisallowNodeInfo(c *httputil.Context) {
 	const ETag = "\"" + apiutil.RobotsTxtDisallowNodeInfoETag + "\""
-	c.Header("ETag", ETag)
+	c.W.Header().Set("ETag", ETag)
 
-	if c.Request.Header.Get("If-None-Match") == ETag {
-		// Cached.
-		c.AbortWithStatus(http.StatusNotModified)
+	// Check if etag value is already cached.
+	if c.R.Header.Get("If-None-Match") == ETag {
+		c.W.WriteHeader(http.StatusNotModified)
 		return
 	}
 
 	// Not cached, serve.
-	c.String(http.StatusOK, apiutil.RobotsTxtDisallowNodeInfo)
+	httputil.String(c,
+		http.StatusOK,
+		apiutil.TextPlain,
+		apiutil.RobotsTxtDisallowNodeInfo,
+	)
 }

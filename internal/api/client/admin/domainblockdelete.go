@@ -18,8 +18,8 @@
 package admin
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"github.com/gin-gonic/gin"
 )
 
 // DomainBlockDELETEHandler swagger:operation DELETE /api/v1/admin/domain_blocks/{id} domainBlockDelete
@@ -81,6 +81,6 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) DomainBlockDELETEHandler(c *gin.Context) {
+func (m *Module) DomainBlockDELETEHandler(c *httputil.Context) {
 	m.deleteDomainPermission(c, gtsmodel.DomainPermissionBlock)
 }

@@ -18,8 +18,6 @@
 package statuses_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,10 +25,11 @@ import (
 	"strings"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/statuses"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -52,22 +51,17 @@ func (suite *StatusSourceTestSuite) TestGetSource() {
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, target, nil)
 	request.Header.Set("accept", "application/json")
-	ctx, _ := testrig.CreateGinTestContext(recorder, request)
+	c := httputil.ToContext(recorder, request)
 
 	// Set auth + path params.
-	ctx.Set(oauth.SessionAuthorizedApplication, testApplication)
-	ctx.Set(oauth.SessionAuthorizedToken, testToken)
-	ctx.Set(oauth.SessionAuthorizedUser, testUser)
-	ctx.Set(oauth.SessionAuthorizedAccount, testAccount)
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   statuses.IDKey,
-			Value: targetStatusID,
-		},
-	}
+	c.V.Set(oauth.SessionAuthorizedApplication, testApplication)
+	c.V.Set(oauth.SessionAuthorizedToken, testToken)
+	c.V.Set(oauth.SessionAuthorizedUser, testUser)
+	c.V.Set(oauth.SessionAuthorizedAccount, testAccount)
+	c.SetPathValue(apiutil.IDKey, targetStatusID)
 
 	// Call the handler.
-	suite.statusModule.StatusSourceGETHandler(ctx)
+	suite.statusModule.StatusSourceGETHandler(c)
 
 	// Check code.
 	if code := recorder.Code; code != http.StatusOK {
@@ -83,18 +77,13 @@ func (suite *StatusSourceTestSuite) TestGetSource() {
 		suite.FailNow(err.Error())
 	}
 
-	// Indent nicely.
-	dst := new(bytes.Buffer)
-	if err := json.Indent(dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
+  "content_type": "text/plain",
   "id": "01F8MHAMCHF6Y650WCRSCP4WMY",
-  "text": "hello everyone!",
   "spoiler_text": "introduction post",
-  "content_type": "text/plain"
-}`, dst.String())
+  "text": "hello everyone!"
+}`, out)
 }
 
 func TestStatusSourceTestSuite(t *testing.T) {

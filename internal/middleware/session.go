@@ -21,57 +21,77 @@ import (
 	"fmt"
 	"net/url"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/log"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/memstore"
-	"github.com/gin-gonic/gin"
-	"golang.org/x/net/idna"
+	"code.superseriousbusiness.org/gotosocial/internal/util"
+	"github.com/gorilla/sessions"
+	"github.com/quasoft/memstore"
 )
 
+type sessionkey struct{}
+
+// GetSession fetches stored session from provided context.
+func GetSession(c *httputil.Context) *sessions.Session {
+	session, _ := c.V.Get(sessionkey{}).(*sessions.Session)
+	return session
+}
+
 // SessionOptions returns the standard set of options to use for each session.
-func SessionOptions(cookiePolicy apiutil.CookiePolicy) sessions.Options {
-	return sessions.Options{
-		Path:   "/",
-		Domain: cookiePolicy.Domain,
-		// 2 minutes
-		MaxAge:   120,
+func SessionOptions(cookiePolicy apiutil.CookiePolicy) *sessions.Options {
+	return &sessions.Options{
+		Path:     "/",
+		Domain:   cookiePolicy.Domain,
+		MaxAge:   120, // 2 minutes
 		Secure:   cookiePolicy.Secure,
 		HttpOnly: cookiePolicy.HTTPOnly,
 		SameSite: cookiePolicy.SameSite,
 	}
 }
 
-// SessionName is a utility function that derives an appropriate session name from the hostname.
+// SessionName is a utility function that derives
+// an appropriate session name from the hostname.
 func SessionName() (string, error) {
-	// parse the protocol + host
-	protocol := config.GetProtocol()
-	host := config.GetHost()
-	u, err := url.Parse(fmt.Sprintf("%s://%s", protocol, host))
+
+	// Parse the combined protocol + host.
+	u, err := url.Parse(config.GetProtocol() + "://" + config.GetHost())
 	if err != nil {
 		return "", err
 	}
 
-	// take the hostname without any port attached
-	strippedHostname := u.Hostname()
-	if strippedHostname == "" {
-		return "", fmt.Errorf("could not derive hostname without port from %s://%s", protocol, host)
+	// Use hostname
+	// without port.
+	host := u.Hostname()
+	if host == "" {
+		return "", fmt.Errorf("could not derive hostname without port from %s://%s", config.GetProtocol(), config.GetHost())
 	}
 
 	// make sure IDNs are converted to punycode or the cookie library breaks:
 	// see https://en.wikipedia.org/wiki/Punycode
-	punyHostname, err := idna.New().ToASCII(strippedHostname)
+	punyhost, err := util.Punify(host)
 	if err != nil {
-		return "", fmt.Errorf("could not convert %s to punycode: %s", strippedHostname, err)
+		return "", fmt.Errorf("could not convert %q to punycode: %v", host, err)
 	}
 
-	return fmt.Sprintf("gotosocial-%s", punyHostname), nil
+	return "gotosocial-" + punyhost, nil
 }
 
 // Session returns a new gin middleware that implements session cookies using the given sessionName, authentication
 // key, and encryption key. Session name can be derived from the SessionName utility function in this package.
-func Session(sessionName string, auth []byte, crypt []byte, cookiePolicy apiutil.CookiePolicy) gin.HandlerFunc {
-	store := memstore.NewStore(auth, crypt)
-	store.Options(SessionOptions(cookiePolicy))
-	return sessions.Sessions(sessionName, store)
+func Session(sessionName string, auth []byte, crypt []byte, cookiePolicy apiutil.CookiePolicy) httputil.FlatMiddlewareFunc {
+	store := memstore.NewMemStore(auth, crypt)
+	store.Options = SessionOptions(cookiePolicy)
+	return func(c *httputil.Context) {
+
+		// Get / create new session with given name.
+		session, err := store.Get(c.R, sessionName)
+		if err != nil {
+			log.Errorf(c, "error getting session: %v", err)
+			return
+		}
+
+		// Store session in request ctx.
+		c.V.Set(sessionkey{}, session)
+	}
 }

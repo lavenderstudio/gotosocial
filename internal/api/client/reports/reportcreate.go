@@ -22,11 +22,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/regexes"
-	"github.com/gin-gonic/gin"
 )
 
 // ReportPOSTHandler swagger:operation POST /api/v1/reports reportCreate
@@ -74,13 +75,16 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) ReportPOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteReports,
-	)
+func (m *Module) ReportPOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteReports},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -90,39 +94,39 @@ func (m *Module) ReportPOSTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form := &apimodel.ReportCreateRequest{}
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if form.AccountID == "" {
 		err := errors.New("account_id must be set")
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if !regexes.ULID.MatchString(form.AccountID) {
 		err := errors.New("account_id was not valid")
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if length := len([]rune(form.Comment)); length > 1000 {
 		err := fmt.Errorf("comment length must be no more than 1000 chars, provided comment was %d chars", length)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
-	apiReport, errWithCode := m.processor.Report().Create(c.Request.Context(), authed.Account, form)
+	apiReport, errWithCode := m.processor.Report().Create(c, authed.Account, form)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, apiReport)
+	httputil.JSON(c, http.StatusOK, apiReport)
 }

@@ -20,13 +20,17 @@ package gtscontext
 import (
 	"context"
 	"net/http"
+	"net/netip"
 	"net/url"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/httputil/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/httpsig"
 )
 
-// package private context key type.
+// package private
+// context key type.
 type ctxkey uint
 
 const (
@@ -35,7 +39,6 @@ const (
 	barebonesKey
 	fastFailKey
 	outgoingPubKeyIDKey
-	requestIDKey
 	receivingAccountKey
 	requestingAccountKey
 	otherIRIsKey
@@ -93,32 +96,14 @@ func (ctx dryRunContext) Value(key any) any {
 	return ctx.Context.Value(key)
 }
 
+// ClientIP searches given context for netip.Addr{} stored by middleware.WithClientIP().
+func ClientIP(ctx context.Context) *netip.Addr { return middleware.GetClientIP(ctx) }
+
 // RequestID returns the request ID associated with context. This value will usually
 // be set by the request ID middleware handler, either pulling an existing supplied
 // value from request headers, or generating a unique new entry. This is useful for
 // tying together log entries associated with an original incoming request.
-func RequestID(ctx context.Context) string {
-	id, _ := ctx.Value(requestIDKey).(string)
-	return id
-}
-
-// SetRequestID stores the given request ID value and returns the wrapped
-// context. See RequestID() for further information on the request ID value.
-func SetRequestID(ctx context.Context, id string) context.Context {
-	return requestIDContext{Context: ctx, requestID: id}
-}
-
-type requestIDContext struct {
-	context.Context
-	requestID string
-}
-
-func (ctx requestIDContext) Value(key any) any {
-	if key == requestIDKey {
-		return ctx.requestID
-	}
-	return ctx.Context.Value(key)
-}
+func RequestID(ctx context.Context) string { return middleware.GetRequestID(ctx) }
 
 // OutgoingPublicKeyID returns the public key ID (URI) associated with context. This
 // value is useful for logging situations in which a given public key URI is
@@ -156,6 +141,13 @@ func ReceivingAccount(ctx context.Context) *gtsmodel.Account {
 // SetReceivingAccount stores the given receiving account value and returns the wrapped
 // context. See ReceivingAccount() for further information on the receiving account value.
 func SetReceivingAccount(ctx context.Context, acct *gtsmodel.Account) context.Context {
+	if c := httputil.UnwrapContext(ctx); c != nil {
+
+		// This function is called within our httputil.HandlerFunc() types,
+		// so worth unwrapping to set on httputil.Context{} where possible.
+		c.V.Set(receivingAccountKey, acct)
+		return ctx
+	}
 	return receivingAccountContext{Context: ctx, account: acct}
 }
 
@@ -181,6 +173,13 @@ func RequestingAccount(ctx context.Context) *gtsmodel.Account {
 // SetRequestingAccount stores the given requesting account value and returns the wrapped
 // context. See RequestingAccount() for further information on the requesting account value.
 func SetRequestingAccount(ctx context.Context, acct *gtsmodel.Account) context.Context {
+	if c := httputil.UnwrapContext(ctx); c != nil {
+
+		// This function is called within our httputil.HandlerFunc() types,
+		// so worth unwrapping to set on httputil.Context{} where possible.
+		c.V.Set(requestingAccountKey, acct)
+		return ctx
+	}
 	return requestingAccountContext{Context: ctx, account: acct}
 }
 
@@ -207,6 +206,13 @@ func OtherIRIs(ctx context.Context) []*url.URL {
 // SetOtherIRIs stores the given IRIs slice and returns the wrapped context.
 // See OtherIRIs() for further information on the IRIs slice value.
 func SetOtherIRIs(ctx context.Context, iris []*url.URL) context.Context {
+	if c := httputil.UnwrapContext(ctx); c != nil {
+
+		// This function is called within our httputil.HandlerFunc() types,
+		// so worth unwrapping to set on httputil.Context{} where possible.
+		c.V.Set(otherIRIsKey, iris)
+		return ctx
+	}
 	return otherIRIsContext{Context: ctx, iris: iris}
 }
 
@@ -257,6 +263,13 @@ func HTTPSignatureVerifier(ctx context.Context) httpsig.VerifierWithOptions {
 // SetHTTPSignatureVerifier stores the given http signature verifier and returns the
 // wrapped context. See HTTPSignatureVerifier() for further information on the verifier value.
 func SetHTTPSignatureVerifier(ctx context.Context, verifier httpsig.VerifierWithOptions) context.Context {
+	if c := httputil.UnwrapContext(ctx); c != nil {
+
+		// This function is called within our httputil.HandlerFunc() types,
+		// so worth unwrapping to set on httputil.Context{} where possible.
+		c.V.Set(httpSigVerifierKey, verifier)
+		return ctx
+	}
 	return httpSignatureVerifierContext{Context: ctx, verifier: verifier}
 }
 
@@ -282,6 +295,13 @@ func HTTPSignature(ctx context.Context) string {
 // SetHTTPSignature stores the given http signature string and returns the wrapped
 // context. See HTTPSignature() for further information on the verifier value.
 func SetHTTPSignature(ctx context.Context, signature string) context.Context {
+	if c := httputil.UnwrapContext(ctx); c != nil {
+
+		// This function is called within our httputil.HandlerFunc() types,
+		// so worth unwrapping to set on httputil.Context{} where possible.
+		c.V.Set(httpSigKey, signature)
+		return ctx
+	}
 	return httpSignatureContext{Context: ctx, signature: signature}
 }
 
@@ -297,8 +317,8 @@ func (ctx httpSignatureContext) Value(key any) any {
 	return ctx.Context.Value(key)
 }
 
-// HTTPSignaturePubKeyID returns the public key id of the http signature
-// for the current ActivityPub request chain.
+// HTTPSignaturePubKeyID returns the public key id of the
+// http signature for the current ActivityPub request chain.
 func HTTPSignaturePubKeyID(ctx context.Context) *url.URL {
 	pubKeyID, _ := ctx.Value(httpSigPubKeyIDKey).(*url.URL)
 	return pubKeyID
@@ -307,6 +327,13 @@ func HTTPSignaturePubKeyID(ctx context.Context) *url.URL {
 // SetHTTPSignaturePubKeyID stores the given http signature public key id and returns
 // the wrapped context. See HTTPSignaturePubKeyID() for further information on the value.
 func SetHTTPSignaturePubKeyID(ctx context.Context, pubKeyID *url.URL) context.Context {
+	if c := httputil.UnwrapContext(ctx); c != nil {
+
+		// This function is called within our httputil.HandlerFunc() types,
+		// so worth unwrapping to set on httputil.Context{} where possible.
+		c.V.Set(httpSigPubKeyIDKey, pubKeyID)
+		return ctx
+	}
 	return httpSigPubKeyIDContext{Context: ctx, pubKeyID: pubKeyID}
 }
 

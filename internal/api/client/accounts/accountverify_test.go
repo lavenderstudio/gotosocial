@@ -40,15 +40,15 @@ type AccountVerifyTestSuite struct {
 func (suite *AccountVerifyTestSuite) accountVerifyGet(fixtureName string) *apimodel.Account {
 	// set up the request
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodGet, nil, accounts.VerifyPath, "")
+	c := suite.newContext(recorder, http.MethodGet, nil, accounts.VerifyPath, "")
 
 	// override the account that we're authenticated as
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[fixtureName])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[fixtureName]))
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers[fixtureName])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[fixtureName])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[fixtureName]))
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers[fixtureName])
 
 	// call the handler
-	suite.accountsModule.AccountVerifyGETHandler(ctx)
+	suite.accountsModule.AccountVerifyGETHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)

@@ -20,7 +20,7 @@ package health
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gopkg/httputil"
 )
 
 // LiveGETRequest swagger:operation GET /livez liveGet
@@ -34,8 +34,8 @@ import (
 //	responses:
 //		'200':
 //			description: OK
-func (m *Module) LiveGETRequest(c *gin.Context) {
-	c.Status(http.StatusOK)
+func (m *Module) LiveGETRequest(c *httputil.Context) {
+	c.W.WriteHeader(http.StatusOK)
 }
 
 // LiveHEADRequest swagger:operation HEAD /livez liveHead
@@ -49,6 +49,6 @@ func (m *Module) LiveGETRequest(c *gin.Context) {
 //	responses:
 //		'200':
 //			description: OK
-func (m *Module) LiveHEADRequest(c *gin.Context) {
-	c.Status(http.StatusOK)
+func (m *Module) LiveHEADRequest(c *httputil.Context) {
+	c.W.WriteHeader(http.StatusOK)
 }

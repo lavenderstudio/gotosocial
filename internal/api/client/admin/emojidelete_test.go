@@ -18,8 +18,6 @@
 package admin_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -28,6 +26,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/admin"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
+	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -40,31 +39,31 @@ func (suite *EmojiDeleteTestSuite) TestEmojiDelete1() {
 	testEmoji := suite.testEmojis["rainbow"]
 
 	path := admin.EmojiPathWithID
-	ctx := suite.newContext(recorder, http.MethodDelete, nil, path, "application/json")
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodDelete, nil, path, "application/json")
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
-	suite.adminModule.EmojiDELETEHandler(ctx)
+	suite.adminModule.EmojiDELETEHandler(c)
 	suite.Equal(http.StatusOK, recorder.Code)
 
 	b, err := io.ReadAll(recorder.Body)
-	suite.NoError(err)
-	suite.NotNil(b)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
-  "shortcode": "rainbow",
-  "url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/original/01F8MH9H8E4VG3KDYJR9EGPXCQ.png",
-  "static_url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/static/01F8MH9H8E4VG3KDYJR9EGPXCQ.png",
-  "visible_in_picker": true,
   "category": "reactions",
-  "id": "01F8MH9H8E4VG3KDYJR9EGPXCQ",
-  "disabled": false,
-  "updated_at": "2021-09-20T10:40:37.000Z",
-  "total_file_size": 42794,
   "content_type": "image/png",
-  "uri": "http://localhost:8080/emoji/01F8MH9H8E4VG3KDYJR9EGPXCQ"
-}`, dst.String())
+  "disabled": false,
+  "id": "01F8MH9H8E4VG3KDYJR9EGPXCQ",
+  "shortcode": "rainbow",
+  "static_url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/static/01F8MH9H8E4VG3KDYJR9EGPXCQ.png",
+  "total_file_size": 42794,
+  "updated_at": "2021-09-20T10:40:37.000Z",
+  "uri": "http://localhost:8080/emoji/01F8MH9H8E4VG3KDYJR9EGPXCQ",
+  "url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/original/01F8MH9H8E4VG3KDYJR9EGPXCQ.png",
+  "visible_in_picker": true
+}`, out)
 
 	// emoji should no longer be in the db
 	dbEmoji, err := suite.state.DB.GetEmojiByID(suite.T().Context(), testEmoji.ID)
@@ -77,10 +76,10 @@ func (suite *EmojiDeleteTestSuite) TestEmojiDelete2() {
 	testEmoji := suite.testEmojis["yell"]
 
 	path := admin.EmojiPathWithID
-	ctx := suite.newContext(recorder, http.MethodDelete, nil, path, "application/json")
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodDelete, nil, path, "application/json")
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
-	suite.adminModule.EmojiDELETEHandler(ctx)
+	suite.adminModule.EmojiDELETEHandler(c)
 	suite.Equal(http.StatusBadRequest, recorder.Code)
 
 	b, err := io.ReadAll(recorder.Body)
@@ -99,10 +98,10 @@ func (suite *EmojiDeleteTestSuite) TestEmojiDeleteNotFound() {
 	recorder := httptest.NewRecorder()
 
 	path := admin.EmojiPathWithID
-	ctx := suite.newContext(recorder, http.MethodDelete, nil, path, "application/json")
-	ctx.AddParam(apiutil.IDKey, "01GF8VRXX1R00X7XH8973Z29R1")
+	c := suite.newContext(recorder, http.MethodDelete, nil, path, "application/json")
+	c.SetPathValue(apiutil.IDKey, "01GF8VRXX1R00X7XH8973Z29R1")
 
-	suite.adminModule.EmojiDELETEHandler(ctx)
+	suite.adminModule.EmojiDELETEHandler(c)
 	suite.Equal(http.StatusNotFound, recorder.Code)
 
 	b, err := io.ReadAll(recorder.Body)

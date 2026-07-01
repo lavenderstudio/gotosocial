@@ -22,11 +22,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin"
 )
 
 // WebfingerGETRequest swagger:operation GET /.well-known/webfinger webfingerGet
@@ -54,42 +54,40 @@ import (
 //		'200':
 //			schema:
 //				"$ref": "#/definitions/wellKnownResponse"
-func (m *Module) WebfingerGETRequest(c *gin.Context) {
+func (m *Module) WebfingerGETRequest(c *httputil.Context) {
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.WebfingerJSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	resourceQuery, set := c.GetQuery("resource")
-	if !set || resourceQuery == "" {
+	resourceQuery := c.Query("resource")
+	if resourceQuery == "" {
 		err := errors.New("no 'resource' in request query")
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	requestedUser, requestedHost, err := util.ExtractWebfingerParts(resourceQuery)
 	if err != nil {
 		err := fmt.Errorf("bad webfinger request with resource query %s: %w", resourceQuery, err)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if requestedHost != config.GetHost() && requestedHost != config.GetAccountDomain() {
 		err := fmt.Errorf("requested host %s does not belong to this instance", requestedHost)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
-	resp, errWithCode := m.processor.Fedi().WebfingerGet(c.Request.Context(), requestedUser)
+	resp, errWithCode := m.processor.Fedi().WebfingerGet(c, requestedUser)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	// Encode JSON HTTP response.
-	apiutil.EncodeJSONResponse(
-		c.Writer,
-		c.Request,
+	// Encode JSON response.
+	httputil.JSONType(c,
 		http.StatusOK,
 		apiutil.AppJRDJSON,
 		resp,

@@ -18,13 +18,14 @@
 package api
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/wellknown/hostmeta"
 	"code.superseriousbusiness.org/gotosocial/internal/api/wellknown/nodeinfo"
 	"code.superseriousbusiness.org/gotosocial/internal/api/wellknown/webfinger"
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/router"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 type WellKnown struct {
@@ -33,13 +34,15 @@ type WellKnown struct {
 	hostMeta  *hostmeta.Module
 }
 
-func (w *WellKnown) Route(r *router.Router, m ...gin.HandlerFunc) {
+func (w *WellKnown) Route(r *router.Router, m ...httputil.Middleware) {
 	// group .well-known endpoints together
-	wellKnownGroup := r.AttachGroup(".well-known")
+	wellKnownGroup := r.Group(".well-known")
 
-	// attach middlewares appropriate for this group
+	// attach middlewares
+	// appropriate for this group
 	wellKnownGroup.Use(m...)
 	wellKnownGroup.Use(
+
 		// Allow public cache for 2 minutes.
 		middleware.CacheControl(middleware.CacheControlConfig{
 			Directives: []string{"public", "max-age=120"},
@@ -47,15 +50,15 @@ func (w *WellKnown) Route(r *router.Router, m ...gin.HandlerFunc) {
 		}),
 	)
 
-	w.nodeInfo.Route(wellKnownGroup.Handle)
-	w.webfinger.Route(wellKnownGroup.Handle)
-	w.hostMeta.Route(wellKnownGroup.Handle)
+	w.nodeInfo.Route(wellKnownGroup)
+	w.webfinger.Route(wellKnownGroup)
+	w.hostMeta.Route(wellKnownGroup)
 }
 
-func NewWellKnown(p *processing.Processor) *WellKnown {
+func NewWellKnown(processor *processing.Processor, templates *templates.Templates) *WellKnown {
 	return &WellKnown{
-		nodeInfo:  nodeinfo.New(p),
-		webfinger: webfinger.New(p),
-		hostMeta:  hostmeta.New(p),
+		nodeInfo:  nodeinfo.New(processor, templates),
+		webfinger: webfinger.New(processor, templates),
+		hostMeta:  hostmeta.New(processor, templates),
 	}
 }

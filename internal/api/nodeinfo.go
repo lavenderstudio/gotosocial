@@ -18,21 +18,22 @@
 package api
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/nodeinfo"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/router"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 type NodeInfo struct {
 	nodeInfo *nodeinfo.Module
 }
 
-func (w *NodeInfo) Route(r *router.Router, m ...gin.HandlerFunc) {
+func (w *NodeInfo) Route(r *router.Router, m ...httputil.Middleware) {
 	// group nodeinfo endpoints together
-	nodeInfoGroup := r.AttachGroup("nodeinfo")
+	nodeInfoGroup := r.Group("nodeinfo")
 
 	// attach middlewares appropriate for this group
 	nodeInfoGroup.Use(m...)
@@ -54,11 +55,11 @@ func (w *NodeInfo) Route(r *router.Router, m ...gin.HandlerFunc) {
 		nodeInfoGroup.Use(middleware.RobotsHeaders(middleware.RobotsHeadersModeDefault))
 	}
 
-	w.nodeInfo.Route(nodeInfoGroup.Handle)
+	w.nodeInfo.Route(nodeInfoGroup)
 }
 
-func NewNodeInfo(p *processing.Processor) *NodeInfo {
+func NewNodeInfo(processor *processing.Processor, templates *templates.Templates) *NodeInfo {
 	return &NodeInfo{
-		nodeInfo: nodeinfo.New(p),
+		nodeInfo: nodeinfo.New(processor, templates),
 	}
 }

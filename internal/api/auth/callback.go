@@ -26,91 +26,94 @@ import (
 	"slices"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
+	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/internal/oidc"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 	"code.superseriousbusiness.org/gotosocial/internal/validate"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-// extraInfo wraps a form-submitted username and transmitted name
+// extraInfo wraps a form-submitted
+// username and transmitted name
 type extraInfo struct {
 	Username string `form:"username"`
 	Name     string `form:"name"` // note that this is only used for re-rendering the page in case of an error
 }
 
 // CallbackGETHandler parses a token from an external auth provider.
-func (m *Module) CallbackGETHandler(c *gin.Context) {
+func (m *Module) CallbackGETHandler(c *httputil.Context) {
 	if !config.GetOIDCEnabled() {
 		err := errors.New("oidc is not enabled for this server")
-		apiutil.ErrorHandler(c, gtserror.NewErrorNotFound(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorNotFound(err, err.Error()))
 		return
 	}
 
-	s := sessions.Default(c)
+	s := middleware.GetSession(c)
 
 	// check the query vs session state parameter to mitigate csrf
 	// https://auth0.com/docs/secure/attack-protection/state-parameters
 
 	returnedInternalState := c.Query(callbackStateParam)
 	if returnedInternalState == "" {
-		m.mustClearSession(s)
+		m.mustClearSession(c, s)
 		err := fmt.Errorf("%s parameter not found on callback query", callbackStateParam)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
-	savedInternalStateI := s.Get(sessionInternalState)
+	savedInternalStateI := s.Values[sessionInternalState]
 	savedInternalState, ok := savedInternalStateI.(string)
 	if !ok {
-		m.mustClearSession(s)
+		m.mustClearSession(c, s)
 		err := fmt.Errorf("key %s was not found in session", sessionInternalState)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if returnedInternalState != savedInternalState {
-		m.mustClearSession(s)
+		m.mustClearSession(c, s)
 		err := errors.New("mismatch between callback state and saved state")
-		apiutil.ErrorHandler(c, gtserror.NewErrorUnauthorized(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorUnauthorized(err, err.Error()))
 		return
 	}
 
 	// retrieve stored claims using code
 	code := c.Query(callbackCodeParam)
 	if code == "" {
-		m.mustClearSession(s)
+		m.mustClearSession(c, s)
 		err := fmt.Errorf("%s parameter not found on callback query", callbackCodeParam)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
-	claims, errWithCode := m.idp.HandleCallback(c.Request.Context(), code)
+	claims, errWithCode := m.idp.HandleCallback(c, code)
 	if errWithCode != nil {
-		m.mustClearSession(s)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		m.mustClearSession(c, s)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// We can use the client_id on the session to retrieve
 	// info about the app associated with the client_id
-	clientID, ok := s.Get(sessionClientID).(string)
+	clientID, ok := s.Values[sessionClientID].(string)
 	if !ok || clientID == "" {
-		m.mustClearSession(s)
+		m.mustClearSession(c, s)
 		err := fmt.Errorf("key %s was not found in session", sessionClientID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, oauth.HelpfulAdvice), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, oauth.HelpfulAdvice))
 		return
 	}
 
-	app, err := m.state.DB.GetApplicationByClientID(c.Request.Context(), clientID)
+	app, err := m.state.DB.GetApplicationByClientID(c, clientID)
 	if err != nil {
-		m.mustClearSession(s)
+		m.mustClearSession(c, s)
 		safe := fmt.Sprintf("application for %s %s could not be retrieved", sessionClientID, clientID)
 		var errWithCode gtserror.WithCode
 		if err == db.ErrNoEntries {
@@ -118,31 +121,27 @@ func (m *Module) CallbackGETHandler(c *gin.Context) {
 		} else {
 			errWithCode = gtserror.NewErrorInternalError(err, safe, oauth.HelpfulAdvice)
 		}
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	user, errWithCode := m.fetchUserForClaims(c.Request.Context(), claims)
+	user, errWithCode := m.fetchUserForClaims(c, claims)
 	if errWithCode != nil {
-		m.mustClearSession(s)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		m.mustClearSession(c, s)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if user == nil {
 		// no user exists yet - let's ask them for their preferred username
-		instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
-		if errWithCode != nil {
-			apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
-			return
-		}
 
-		// store the claims in the session - that way we know the user is authenticated when processing the form later
-		s.Set(sessionClaims, claims)
-		s.Set(sessionAppID, app.ID)
-		if err := s.Save(); err != nil {
-			m.mustClearSession(s)
-			apiutil.ErrorHandler(c, gtserror.NewErrorInternalError(err), m.processor.InstanceGetV1)
+		// store the claims in the session - that way we know
+		// the user is authenticated when processing the form later
+		s.Values[sessionClaims] = claims
+		s.Values[sessionAppID] = app.ID
+		if err := s.Save(c.R, &c.W); err != nil {
+			m.mustClearSession(c, s)
+			apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorInternalError(err))
 			return
 		}
 
@@ -152,65 +151,60 @@ func (m *Module) CallbackGETHandler(c *gin.Context) {
 		// Pending https://codeberg.org/superseriousbusiness/gotosocial/issues/1813
 		suggestedUsername := strings.ToLower(claims.PreferredUsername)
 
-		page := apiutil.WebPage{
-			Template: "finalize.tmpl",
-			Instance: instance,
-			Extra: map[string]any{
-				"name":              claims.Name,
-				"suggestedUsername": suggestedUsername,
+		m.templates.RenderPage(c,
+			http.StatusOK,
+			templates.WebPage{
+				Template: "finalize.tmpl",
+				Extra: map[string]any{
+					"name":              claims.Name,
+					"suggestedUsername": suggestedUsername,
+				},
 			},
-		}
-
-		apiutil.TemplateWebPage(c, page)
+		)
 		return
 	}
 
 	// Check user permissions on login
 	if !allowedGroup(claims.Groups) {
 		err := fmt.Errorf("User groups %+v do not include an allowed group", claims.Groups)
-		apiutil.ErrorHandler(c, gtserror.NewErrorUnauthorized(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorUnauthorized(err, err.Error()))
 		return
 	}
 
-	s.Set(sessionUserID, user.ID)
-	if err := s.Save(); err != nil {
-		m.mustClearSession(s)
-		apiutil.ErrorHandler(c, gtserror.NewErrorInternalError(err), m.processor.InstanceGetV1)
+	s.Values[sessionUserID] = user.ID
+	if err := s.Save(c.R, &c.W); err != nil {
+		m.mustClearSession(c, s)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorInternalError(err))
 		return
 	}
-	c.Redirect(http.StatusFound, "/oauth"+OauthAuthorizePath)
+	httputil.Redirect(c, http.StatusFound, "/oauth"+OauthAuthorizePath)
 }
 
 // FinalizePOSTHandler registers the user after additional data has been provided
-func (m *Module) FinalizePOSTHandler(c *gin.Context) {
-	s := sessions.Default(c)
+func (m *Module) FinalizePOSTHandler(c *httputil.Context) {
+	s := middleware.GetSession(c)
 
 	form := &extraInfo{}
-	if err := c.ShouldBind(form); err != nil {
-		m.mustClearSession(s)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, oauth.HelpfulAdvice), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		m.mustClearSession(c, s)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, oauth.HelpfulAdvice))
 		return
 	}
 
-	// since we have multiple possible validation error, `validationError` is a shorthand for rendering them
+	// since we have multiple possible validation error,
+	// `validationError` is a shorthand for rendering them
 	validationError := func(err error) {
-		instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
-		if errWithCode != nil {
-			apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
-			return
-		}
-
-		page := apiutil.WebPage{
-			Template: "finalize.tmpl",
-			Instance: instance,
-			Extra: map[string]any{
-				"name":              form.Name,
-				"preferredUsername": form.Username,
-				"error":             err,
+		m.templates.RenderPage(c,
+			http.StatusOK,
+			templates.WebPage{
+				Template: "finalize.tmpl",
+				Extra: map[string]any{
+					"name":              form.Name,
+					"preferredUsername": form.Username,
+					"error":             err,
+				},
 			},
-		}
-
-		apiutil.TemplateWebPage(c, page)
+		)
 	}
 
 	// check if the username conforms to the spec
@@ -220,9 +214,9 @@ func (m *Module) FinalizePOSTHandler(c *gin.Context) {
 	}
 
 	// see if the username is still available
-	usernameAvailable, err := m.state.DB.IsUsernameAvailable(c.Request.Context(), form.Username)
+	usernameAvailable, err := m.state.DB.IsUsernameAvailable(c, form.Username)
 	if err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, oauth.HelpfulAdvice), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, oauth.HelpfulAdvice))
 		return
 	}
 	if !usernameAvailable {
@@ -231,37 +225,52 @@ func (m *Module) FinalizePOSTHandler(c *gin.Context) {
 	}
 
 	// retrieve the information previously set by the oidc logic
-	appID, ok := s.Get(sessionAppID).(string)
+	appID, ok := s.Values[sessionAppID].(string)
 	if !ok {
 		err := fmt.Errorf("key %s was not found in session", sessionAppID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, oauth.HelpfulAdvice), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, oauth.HelpfulAdvice))
 		return
 	}
 
-	// retrieve the claims returned by the IDP. Having this present means that we previously already verified these claims
-	claims, ok := s.Get(sessionClaims).(*oidc.Claims)
+	// retrieve the claims returned by the IDP. Having this
+	// present means that we previously already verified these claims
+	claims, ok := s.Values[sessionClaims].(*oidc.Claims)
 	if !ok {
 		err := fmt.Errorf("key %s was not found in session", sessionClaims)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, oauth.HelpfulAdvice), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, oauth.HelpfulAdvice))
+		return
+	}
+
+	// Get client IP from request ctx.
+	clientIP := gtscontext.ClientIP(c)
+	if clientIP == nil {
+		err := errors.New("could not determine ip from request")
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	// we're now ready to actually create the user
-	user, errWithCode := m.createUserFromOIDC(c.Request.Context(), claims, form, net.IP(c.ClientIP()), appID)
+	user, errWithCode := m.createUserFromOIDC(c,
+		claims,
+		form,
+		net.IP(clientIP.AsSlice()),
+		appID,
+	)
 	if errWithCode != nil {
-		m.mustClearSession(s)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		m.mustClearSession(c, s)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
-	s.Delete(sessionClaims)
-	s.Delete(sessionAppID)
-	s.Set(sessionUserID, user.ID)
-	if err := s.Save(); err != nil {
-		m.mustClearSession(s)
-		apiutil.ErrorHandler(c, gtserror.NewErrorInternalError(err), m.processor.InstanceGetV1)
+
+	delete(s.Values, sessionClaims)
+	delete(s.Values, sessionAppID)
+	s.Values[sessionUserID] = user.ID
+	if err := s.Save(c.R, &c.W); err != nil {
+		m.mustClearSession(c, s)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorInternalError(err))
 		return
 	}
-	c.Redirect(http.StatusFound, "/oauth"+OauthAuthorizePath)
+	httputil.Redirect(c, http.StatusFound, "/oauth"+OauthAuthorizePath)
 }
 
 func (m *Module) fetchUserForClaims(ctx context.Context, claims *oidc.Claims) (*gtsmodel.User, gtserror.WithCode) {

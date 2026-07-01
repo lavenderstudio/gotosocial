@@ -20,9 +20,9 @@ package users
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
-	"github.com/gin-gonic/gin"
 )
 
 // StatusRepliesGETHandler swagger:operation GET /users/{username}/statuses/{status}/replies s2sRepliesGet
@@ -94,16 +94,16 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: not found
-func (m *Module) StatusRepliesGETHandler(c *gin.Context) {
+func (m *Module) StatusRepliesGETHandler(c *httputil.Context) {
 	username, statusID, contentType, errWithCode := m.parseCommonWithID(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if contentType == apiutil.TextHTML {
 		// Redirect to status web view.
-		c.Redirect(http.StatusSeeOther, "/@"+username+"/statuses/"+statusID)
+		httputil.Redirect(c, http.StatusSeeOther, "/@"+username+"/statuses/"+statusID)
 		return
 	}
 
@@ -113,7 +113,7 @@ func (m *Module) StatusRepliesGETHandler(c *gin.Context) {
 		true, // default = enabled
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -124,7 +124,7 @@ func (m *Module) StatusRepliesGETHandler(c *gin.Context) {
 		0,  // default = disabled
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -138,16 +138,16 @@ func (m *Module) StatusRepliesGETHandler(c *gin.Context) {
 
 	// Fetch serialized status replies response for input status.
 	resp, errWithCode := m.processor.Fedi().StatusRepliesGet(
-		c.Request.Context(),
+		c,
 		username,
 		statusID,
 		page,
 		onlyOtherAccounts,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSONType(c, http.StatusOK, contentType, resp)
+	httputil.JSONType(c, http.StatusOK, contentType, resp)
 }

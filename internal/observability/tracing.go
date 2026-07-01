@@ -28,8 +28,6 @@ import (
 
 	"codeberg.org/gruf/go-kv/v2"
 
-	"github.com/gin-gonic/gin"
-
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -38,13 +36,15 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 	"go.opentelemetry.io/otel/trace"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 )
 
+var tracerKey = struct{}{}
+
 const (
-	tracerKey  = "gotosocial-server-tracer"
 	tracerName = "code.superseriousbusiness.org/gotosocial/internal/observability"
 )
 
@@ -89,64 +89,69 @@ func InitializeTracing(ctx context.Context) error {
 // InstrumentGin is a middleware injecting tracing information based on the
 // otelgin implementation found at
 // https://github.com/open-telemetry/opentelemetry-go-contrib/blob/main/instrumentation/github.com/gin-gonic/gin/otelgin/gintrace.go
-func TracingMiddleware() gin.HandlerFunc {
+func TracingMiddleware() httputil.MiddlewareFunc {
 	provider := otel.GetTracerProvider()
-	tracer := provider.Tracer(
-		tracerName,
-		trace.WithInstrumentationVersion(config.GetSoftwareVersion()),
-	)
+	tracer := provider.Tracer(tracerName, trace.WithInstrumentationVersion(config.GetSoftwareVersion()))
 	propagator := otel.GetTextMapPropagator()
-	return func(c *gin.Context) {
-		spanName := c.FullPath()
-		// Do not trace a request if it didn't match a route. This doesn't omit
-		// all 404s as a request matching /:user for a user that doesn't exist
-		// still matches the route
-		if spanName == "" {
-			c.Next()
-			return
+	return func(h httputil.HandlerFunc) httputil.HandlerFunc {
+		if h == nil {
+			panic("nil func")
 		}
 
-		c.Set(tracerKey, tracer)
-		savedCtx := c.Request.Context()
-		defer func() {
-			c.Request = c.Request.WithContext(savedCtx)
-		}()
-		ctx := propagator.Extract(savedCtx, propagation.HeaderCarrier(c.Request.Header))
-		opts := []trace.SpanStartOption{
-			trace.WithAttributes(ServerRequestAttributes(c.Request)...),
-			trace.WithSpanKind(trace.SpanKindServer),
-		}
+		return func(c *httputil.Context) {
+			spanName := c.R.URL.Path
 
-		rAttr := semconv.HTTPRoute(spanName)
-		opts = append(opts, trace.WithAttributes(rAttr))
-		id := gtscontext.RequestID(c.Request.Context())
-		if id != "" {
-			opts = append(opts, trace.WithAttributes(attribute.String("requestID", id)))
-		}
-		ctx, span := tracer.Start(ctx, spanName, opts...)
-		defer span.End()
+			c.V.Set(tracerKey, tracer)
 
-		// pass the span through the request context
-		c.Request = c.Request.WithContext(ctx)
+			savedCtx := c.R.Context()
 
-		// serve the request to the next middleware
-		c.Next()
+			ctx := propagator.Extract(savedCtx, propagation.HeaderCarrier(c.R.Header))
+			opts := []trace.SpanStartOption{
+				trace.WithAttributes(ServerRequestAttributes(c.R)...),
+				trace.WithSpanKind(trace.SpanKindServer),
+			}
 
-		status := c.Writer.Status()
-		if status > 0 {
-			span.SetAttributes(semconv.HTTPResponseStatusCode(status))
-		}
-		if len(c.Errors) > 0 {
-			span.SetAttributes(attribute.String("gin.errors", c.Errors.String()))
+			rAttr := semconv.HTTPRoute(spanName)
+			opts = append(opts, trace.WithAttributes(rAttr))
+			id := gtscontext.RequestID(c)
+			if id != "" {
+				opts = append(opts, trace.WithAttributes(attribute.String("requestID", id)))
+			}
+
+			ctx, span := tracer.Start(ctx, spanName, opts...)
+
+			defer func() {
+				// Set original context on req.
+				c.R = c.R.WithContext(savedCtx)
+
+				if status := c.W.StatusCode; status > 0 {
+					span.SetAttributes(semconv.HTTPResponseStatusCode(status))
+				}
+
+				if errs := c.Errors(); len(errs) > 0 {
+					span.SetAttributes(attribute.String("context.errors", fmt.Sprint(errs)))
+				}
+
+				// End span.
+				span.End()
+			}()
+
+			// pass the span through
+			// the request context
+			c.R = c.R.WithContext(ctx)
+
+			// Pass on
+			// to next
+			h(c)
 		}
 	}
 }
 
-func InjectRequestID() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		id := gtscontext.RequestID(c.Request.Context())
+func InjectRequestID() func(*httputil.Context) {
+	return func(c *httputil.Context) {
+		id := gtscontext.RequestID(c)
 		if id != "" {
-			span := trace.SpanFromContext(c.Request.Context())
+			span := trace.SpanFromContext(c)
 			span.SetAttributes(attribute.String("requestID", id))
 		}
 	}
@@ -154,7 +159,7 @@ func InjectRequestID() gin.HandlerFunc {
 
 func ServerRequestAttributes(req *http.Request) []attribute.KeyValue {
 	attrs := make([]attribute.KeyValue, 0, 8)
-	attrs = append(attrs, method(req.Method))
+	attrs = append(attrs, semconv.HTTPRequestMethodKey.String(req.Method))
 	attrs = append(attrs, semconv.URLFull(req.URL.RequestURI()))
 	attrs = append(attrs, semconv.URLScheme(req.URL.Scheme))
 	attrs = append(attrs, semconv.UserAgentOriginal(req.UserAgent()))
@@ -174,24 +179,4 @@ func ServerRequestAttributes(req *http.Request) []attribute.KeyValue {
 	}
 
 	return attrs
-}
-
-func method(m string) attribute.KeyValue {
-	var methodLookup = map[string]attribute.KeyValue{
-		http.MethodConnect: semconv.HTTPRequestMethodConnect,
-		http.MethodDelete:  semconv.HTTPRequestMethodDelete,
-		http.MethodGet:     semconv.HTTPRequestMethodGet,
-		http.MethodHead:    semconv.HTTPRequestMethodHead,
-		http.MethodOptions: semconv.HTTPRequestMethodOptions,
-		http.MethodPatch:   semconv.HTTPRequestMethodPatch,
-		http.MethodPost:    semconv.HTTPRequestMethodPost,
-		http.MethodPut:     semconv.HTTPRequestMethodPut,
-		http.MethodTrace:   semconv.HTTPRequestMethodTrace,
-	}
-
-	if kv, ok := methodLookup[m]; ok {
-		return kv
-	}
-
-	return semconv.HTTPRequestMethodGet
 }

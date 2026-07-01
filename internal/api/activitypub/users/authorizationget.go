@@ -20,30 +20,30 @@ package users
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // AuthorizationGETHandler serves an accepted interaction request as a
 // LikeAuthorization, ReplyAuthorization, or AnnounceAuthorization type.
-func (m *Module) AuthorizationGETHandler(c *gin.Context) {
+func (m *Module) AuthorizationGETHandler(c *httputil.Context) {
 	username, id, contentType, errWithCode := m.parseCommonWithID(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if contentType == apiutil.TextHTML {
 		// Redirect to account web view.
-		c.Redirect(http.StatusSeeOther, "/@"+username)
+		httputil.Redirect(c, http.StatusSeeOther, "/@"+username)
 		return
 	}
 
-	resp, errWithCode := m.processor.Fedi().AuthorizationGet(c.Request.Context(), username, id)
+	resp, errWithCode := m.processor.Fedi().AuthorizationGet(c, username, id)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSONType(c, http.StatusOK, contentType, resp)
+	httputil.JSONType(c, http.StatusOK, contentType, resp)
 }

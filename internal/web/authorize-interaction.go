@@ -18,36 +18,30 @@
 package web
 
 import (
-	"context"
 	"net/http"
 	"net/url"
 
-	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
+	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 )
 
 // authorizeInteractionGETHandler handles redirects from remote
 // (usually Mastodon) instances when a user tries to do a
 // "remote interaction" and gives their GoToSocial account/domain.
 // We use this handler instead of serving a generic 404 page.
-func (m *Module) authorizeInteractionGETHandler(c *gin.Context) {
-	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
+func (m *Module) authorizeInteractionGETHandler(c *httputil.Context) {
+	instance, errWithCode := m.processor.InstanceGetV1(c)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
-	}
-
-	// Return instance we already got from the db,
-	// don't try to fetch it again when erroring.
-	instanceGet := func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-		return instance, nil
 	}
 
 	// We only serve text/html at this endpoint.
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextHTML); errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -59,7 +53,7 @@ func (m *Module) authorizeInteractionGETHandler(c *gin.Context) {
 	if uriStr == "" {
 		const text = "no uri query parameter found in string"
 		errWithCode := gtserror.NewWithCode(http.StatusNotFound, text)
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 	}
 
 	// Try to parse the object URI.
@@ -67,25 +61,27 @@ func (m *Module) authorizeInteractionGETHandler(c *gin.Context) {
 	if err != nil {
 		err := gtserror.Newf("interaction URI could not be parsed: %w", err)
 		errWithCode := gtserror.NewErrorBadRequest(err, err.Error())
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 	}
 
-	page := apiutil.WebPage{
-		Template:    "authorize-interaction.tmpl",
-		Instance:    instance,
-		OGMeta:      apiutil.OGBase(instance),
-		Stylesheets: []string{cssAbout},
-		Javascript: []apiutil.JavascriptEntry{
-			{
-				Src:   jsFrontend,
-				Async: true,
-				Defer: true,
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template:    "authorize-interaction.tmpl",
+			Stylesheets: []string{cssAbout},
+			Javascript: []templates.JavascriptEntry{
+				{
+					Src:   jsFrontend,
+					Async: true,
+					Defer: true,
+				},
+			},
+			Extra: map[string]any{
+				"interactionURI": interactionURI,
+				"instance":       instance,
+				"ogMeta":         typeutils.OpenGraphBase(instance),
 			},
 		},
-		Extra: map[string]any{
-			"interactionURI": interactionURI,
-		},
-	}
-
-	apiutil.TemplateWebPage(c, page)
+	)
 }

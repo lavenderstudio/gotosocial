@@ -19,10 +19,7 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
-	"net/netip"
 	"os"
 	"os/signal"
 	"runtime"
@@ -30,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/cmd/gotosocial/action"
 	"code.superseriousbusiness.org/gotosocial/internal/admin"
@@ -62,12 +60,12 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	gtsstorage "code.superseriousbusiness.org/gotosocial/internal/storage"
 	"code.superseriousbusiness.org/gotosocial/internal/subscriptions"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 	"code.superseriousbusiness.org/gotosocial/internal/transport"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 	"code.superseriousbusiness.org/gotosocial/internal/web"
 	"code.superseriousbusiness.org/gotosocial/internal/webpush"
 	"github.com/KimMachineGun/automemlimit/memlimit"
-	"github.com/gin-gonic/gin"
 	"go.uber.org/automaxprocs/maxprocs"
 )
 
@@ -173,15 +171,36 @@ func Start(ctx context.Context) error {
 		log.Info(ctx, "done! exiting...")
 	}()
 
+	// Setup router configuration
+	// for both maintenance and main
+	// router configuration later.
+	routercfg := router.Config{
+		UseH2C:                        config.GetHTTPServerUseH2C(),
+		ReadTimeout:                   config.GetHTTPServerReadTimeout(),
+		ReadHeaderTimeout:             config.GetHTTPServerReadHeaderTimeout(),
+		WriteTimeout:                  config.GetHTTPServerWriteTimeout(),
+		IdleTimeout:                   config.GetHTTPServerIdleTimeout(),
+		MaxHeaderBytes:                int(config.GetHTTPServerMaxHeaderBytes()), // nolint:gosec
+		MaxConcurrentStreams:          config.GetHTTPServerMaxConcurrentStreams(),
+		MaxDecoderHeaderTableSize:     int(config.GetHTTPServerMaxDecoderHeaderTableSize()),     // nolint:gosec
+		MaxEncoderHeaderTableSize:     int(config.GetHTTPServerMaxEncoderHeaderTableSize()),     // nolint:gosec
+		MaxReadFrameSize:              int(config.GetHTTPServerMaxReadFrameSize()),              // nolint:gosec
+		MaxReceiveBufferPerConnection: int(config.GetHTTPServerMaxReceiveBufferPerConnection()), // nolint:gosec
+		MaxReceiveBufferPerStream:     int(config.GetHTTPServerMaxReceiveBufferPerStream()),     // nolint:gosec
+		SendPingTimeout:               config.GetHTTPServerSendPingTimeout(),
+		PingTimeout:                   config.GetHTTPServerPingTimeout(),
+		WriteByteTimeout:              config.GetHTTPServerWriteByteTimeout(),
+	}
+
 	var err error
 
-	// Create maintenance router without config.
-	route, err = router.New(ctx, router.Config{})
+	// Create maintenance router with config.
+	route, err = router.New(ctx, routercfg)
 	if err != nil {
 		return fmt.Errorf("error creating maintenance router: %w", err)
 	}
 
-	// Route maintenance handlers.
+	// Route web maintenance handlers.
 	maintenance := web.NewMaintenance()
 	maintenance.Route(route)
 
@@ -202,32 +221,32 @@ func Start(ctx context.Context) error {
 		return fmt.Errorf("error starting caches: %w", err)
 	}
 
-	// Open connection to the database now caches started.
-	dbService, err := bundb.NewBunDBService(ctx, state)
+	// Open conn to database now caches started.
+	db, err := bundb.NewBunDBService(ctx, state)
 	if err != nil {
 		return fmt.Errorf("error creating dbservice: %s", err)
 	}
 
 	// Set DB on state.
-	state.DB = dbService
+	state.DB = db
 
 	// Set Actions on state, providing workers to
 	// Actions as well for triggering side effects.
-	state.AdminActions = admin.New(dbService, &state.Workers)
+	state.AdminActions = admin.New(db, &state.Workers)
 
 	// Ensure necessary database instance prerequisites exist.
-	if err := dbService.CreateInstanceAccount(ctx); err != nil {
+	if err := db.CreateInstanceAccount(ctx); err != nil {
 		return fmt.Errorf("error creating instance account: %s", err)
 	}
-	if err := dbService.CreateInstanceSettings(ctx); err != nil {
+	if err := db.CreateInstanceSettings(ctx); err != nil {
 		return fmt.Errorf("error creating instance settings: %s", err)
 	}
-	if err := dbService.CreateInstanceApplication(ctx); err != nil {
+	if err := db.CreateInstanceApplication(ctx); err != nil {
 		return fmt.Errorf("error creating instance application: %s", err)
 	}
 
 	// Get the instance account (we'll need this later).
-	instanceAccount, err := dbService.GetInstanceAccount(ctx, "")
+	instanceAccount, err := db.GetInstanceAccount(ctx, "")
 	if err != nil {
 		return fmt.Errorf("error retrieving instance account: %w", err)
 	}
@@ -238,17 +257,10 @@ func Start(ctx context.Context) error {
 		return fmt.Errorf("error opening storage backend: %w", err)
 	}
 
-	// Parse http client allow
-	// and block range exceptions.
-	ranges, err := parseClientRanges()
-	if err != nil {
-		return err
-	}
-
 	// Prepare wrapped httpclient with config.
 	client := httpclient.New(httpclient.Config{
-		AllowRanges:           ranges.allow,
-		BlockRanges:           ranges.block,
+		AllowRanges:           config.GetHTTPClientAllowIPs(),
+		BlockRanges:           config.GetHTTPClientBlockIPs(),
 		TLSInsecureSkipVerify: config.GetHTTPClientTLSInsecureSkipVerify(),
 		DisableKeepAlives:     config.GetHTTPClientDisableKeepAlives(),
 		MaxIdleConns:          config.GetHTTPClientMaxIdleConns(),
@@ -273,7 +285,7 @@ func Start(ctx context.Context) error {
 		return err
 	}
 
-	// Build handlers used in later initializations.
+	// Build handlers for later initializations.
 	mediaManager := media.NewManager(state)
 	oauthServer := oauth.New(ctx, state,
 		handlers.GetValidateURIHandler(ctx),
@@ -307,12 +319,14 @@ func Start(ctx context.Context) error {
 	// sender (won't send emails) or a real one.
 	var emailSender email.Sender
 	if smtpHost := config.GetSMTPHost(); smtpHost != "" {
+
 		// Host is defined; create a proper sender.
 		emailSender, err = email.NewSender()
 		if err != nil {
 			return fmt.Errorf("error creating email sender: %s", err)
 		}
 	} else {
+
 		// No host is defined; create a noop sender.
 		emailSender, err = email.NewNoopSender(nil)
 		if err != nil {
@@ -321,12 +335,13 @@ func Start(ctx context.Context) error {
 	}
 
 	// Get or create a VAPID key pair.
-	if _, err := dbService.GetVAPIDKeyPair(ctx); err != nil {
+	if _, err := db.GetVAPIDKeyPair(ctx); err != nil {
 		return gtserror.Newf("error getting or creating VAPID key pair: %w", err)
 	}
 
 	// Create a Web Push notification sender.
-	webPushSender := webpush.NewSender(client, state, typeConverter)
+	webPushSender := webpush.NewSender(client,
+		state, typeConverter)
 
 	// Start the job scheduler
 	// (this is required for cleaner).
@@ -423,177 +438,189 @@ func Start(ctx context.Context) error {
 		return fmt.Errorf("error stopping maintenance router: %w", err)
 	}
 
-	// Instantiate the main router with config.
-	route, err = router.New(ctx, router.Config{
-		MaxMultipartMemory:            int64(config.GetHTTPServerMaxMultipartMemory()), // nolint:gosec
-		UseH2C:                        config.GetHTTPServerUseH2C(),
-		ReadTimeout:                   config.GetHTTPServerReadTimeout(),
-		ReadHeaderTimeout:             config.GetHTTPServerReadHeaderTimeout(),
-		WriteTimeout:                  config.GetHTTPServerWriteTimeout(),
-		IdleTimeout:                   config.GetHTTPServerIdleTimeout(),
-		MaxHeaderBytes:                int(config.GetHTTPServerMaxHeaderBytes()), // nolint:gosec
-		MaxConcurrentStreams:          config.GetHTTPServerMaxConcurrentStreams(),
-		MaxDecoderHeaderTableSize:     int(config.GetHTTPServerMaxDecoderHeaderTableSize()),     // nolint:gosec
-		MaxEncoderHeaderTableSize:     int(config.GetHTTPServerMaxEncoderHeaderTableSize()),     // nolint:gosec
-		MaxReadFrameSize:              int(config.GetHTTPServerMaxReadFrameSize()),              // nolint:gosec
-		MaxReceiveBufferPerConnection: int(config.GetHTTPServerMaxReceiveBufferPerConnection()), // nolint:gosec
-		MaxReceiveBufferPerStream:     int(config.GetHTTPServerMaxReceiveBufferPerStream()),     // nolint:gosec
-		SendPingTimeout:               config.GetHTTPServerSendPingTimeout(),
-		PingTimeout:                   config.GetHTTPServerPingTimeout(),
-		WriteByteTimeout:              config.GetHTTPServerWriteByteTimeout(),
-	})
+	// Determine reverse proxy configuration.
+	var proxycfg httputil.ProxyConfiguration
+	if len(config.GetTrustedProxies()) > 0 {
+		proxycfg.RemoteIPHeaders = []string{"X-Forwarded-For", "X-Real-IP"}
+		proxycfg.TrustedPrefixes = config.GetTrustedProxies()
+	}
+
+	// Instantiate templates from with reverse proxy configuration.
+	templates, err := templates.Load(db, typeConverter, &proxycfg)
 	if err != nil {
-		return fmt.Errorf("error creating main router: %s", err)
+		return fmt.Errorf("error loading templates: %w", err)
 	}
 
-	// Start preparing global middleware
-	// stack (used for every request).
-	middlewares := make([]gin.HandlerFunc, 1)
-
-	// RequestID middleware must run before tracing!
-	middlewares[0] = middleware.AddRequestID(config.GetRequestIDHeader())
-
-	// Add tracing middleware if enabled.
-	if config.GetTracingEnabled() {
-		middlewares = append(middlewares, observability.TracingMiddleware())
-	}
-
-	// Add metrics middleware if enabled.
-	if config.GetMetricsEnabled() {
-		middlewares = append(middlewares, observability.MetricsMiddleware())
-	}
-
-	middlewares = append(middlewares, []gin.HandlerFunc{
-		// note: hooks adding ctx fields must be ABOVE
-		// the logger, otherwise won't be accessible.
-		middleware.Logger(config.GetLogClientIP()),
-		middleware.HeaderFilter(state),
-		middleware.UserAgent(),
-		middleware.CORS(),
-		middleware.ExtraHeaders(),
-		middleware.Timeout(10 * time.Minute),
-	}...)
-
-	// Instantiate Content-Security-Policy
-	// middleware, with extra URIs.
-	cspExtraURIs := make([]string, 0)
-
-	// Probe storage to check if extra URI is needed in CSP.
-	// Error here means something is wrong with storage.
-	storageCSPUri, err := state.Storage.ProbeCSPUri(ctx)
+	// Instantiate main router with config.
+	route, err = router.New(ctx, routercfg)
 	if err != nil {
-		return fmt.Errorf("error deriving Content-Security-Policy uri from storage: %w", err)
+		return fmt.Errorf("error creating main router: %w", err)
 	}
 
-	// storageCSPUri may be empty string if
-	// not S3-backed storage; check for this.
-	if storageCSPUri != "" {
-		cspExtraURIs = append(cspExtraURIs, storageCSPUri)
-	}
+	// Handle all our routing logic
+	// within a nested scope so once
+	// the router / server is started
+	// all extra variables can get
+	// garbage-collected where possible.
+	{
 
-	// Add any extra CSP URIs from config.
-	cspExtraURIs = append(cspExtraURIs,
-		config.GetAdvancedCSPExtraURIs()...)
+		// Start preparing global middleware
+		// stack (used for every request).
+		middlewares := make([]httputil.Middleware, 2)
 
-	// Add CSP to middlewares.
-	middlewares = append(middlewares,
-		middleware.ContentSecurityPolicy(cspExtraURIs...))
+		// Hooks adding context fields used by other middlewares must come first!
+		middlewares[0] = middleware.WithRequestID(config.GetRequestIDHeader())
+		middlewares[1] = middleware.WithClientIP(&proxycfg)
 
-	// Attach global middlewares which are used for every request
-	route.AttachGlobalMiddleware(middlewares...)
-
-	// attach global no route / 404 handler to the router
-	route.AttachNoRouteHandler(func(c *gin.Context) {
-		apiutil.ErrorHandler(c, gtserror.NewErrorNotFound(errors.New(http.StatusText(http.StatusNotFound))), process.InstanceGetV1)
-	})
-
-	// build router modules
-	var idp *oidc.IDP
-	if config.GetOIDCEnabled() {
-		idp, err = oidc.NewIDP(ctx)
-		if err != nil {
-			return fmt.Errorf("error creating oidc idp: %w", err)
+		// Add tracing middleware if enabled.
+		if config.GetTracingEnabled() {
+			middlewares = append(middlewares,
+				observability.TracingMiddleware())
 		}
+
+		// Add metrics middleware if enabled.
+		if config.GetMetricsEnabled() {
+			middlewares = append(middlewares,
+				observability.MetricsMiddleware())
+		}
+
+		middlewares = append(middlewares,
+			middleware.Logger(config.GetLogClientIP()),
+			middleware.HeaderFilter(state),
+			middleware.UserAgent(),
+			middleware.CORS(),
+			middleware.ExtraHeaders(),
+			middleware.Timeout(10*time.Minute),
+		)
+
+		// Instantiate Content-Security-Policy
+		// middleware, with extra URIs.
+		cspExtraURIs := make([]string, 0)
+
+		// Probe storage to check if extra URI is needed in CSP.
+		// Error here means something is wrong with storage.
+		storageCSPUri, err := state.Storage.ProbeCSPUri(ctx)
+		if err != nil {
+			return fmt.Errorf("error deriving Content-Security-Policy uri from storage: %w", err)
+		}
+
+		// storageCSPUri may be empty string if
+		// not S3-backed storage; check for this.
+		if storageCSPUri != "" {
+			cspExtraURIs = append(cspExtraURIs, storageCSPUri)
+		}
+
+		// Add any extra CSP URIs from config.
+		cspExtraURIs = append(cspExtraURIs,
+			config.GetAdvancedCSPExtraURIs()...)
+
+		// Add CSP to middlewares.
+		middlewares = append(middlewares,
+			middleware.ContentSecurityPolicy(cspExtraURIs...))
+
+		// Attach global middlewares which
+		// are used for every endpoint.
+		route.Use(middlewares...)
+
+		// build router modules
+		var idp *oidc.IDP
+		if config.GetOIDCEnabled() {
+			idp, err = oidc.NewIDP(ctx)
+			if err != nil {
+				return fmt.Errorf("error creating oidc idp: %w", err)
+			}
+		}
+
+		routerSession, err := db.GetSession(ctx)
+		if err != nil {
+			return fmt.Errorf("error retrieving router session for session middleware: %w", err)
+		}
+
+		sessionName, err := middleware.SessionName()
+		if err != nil {
+			return fmt.Errorf("error generating session name for session middleware: %w", err)
+		}
+
+		// Configure our instance cookie policy.
+		cookiePolicy := apiutil.NewCookiePolicy()
+
+		var (
+			authModule        = api.NewAuth(state, process, templates, idp, routerSession, sessionName, cookiePolicy) // auth/oauth paths
+			clientModule      = api.NewClient(state, process, templates)                                              // api client endpoints
+			healthModule      = api.NewHealth(db.Ready)                                                               // Health check endpoints
+			fileserverModule  = api.NewFileserver(process, templates)                                                 // fileserver endpoints
+			robotsModule      = api.NewRobots()                                                                       // robots.txt endpoint
+			wellKnownModule   = api.NewWellKnown(process, templates)                                                  // .well-known endpoints
+			nodeInfoModule    = api.NewNodeInfo(process, templates)                                                   // nodeinfo endpoint
+			activityPubModule = api.NewActivityPub(db, process, templates)                                            // ActivityPub endpoints
+			webModule         = web.New(db, process, templates, cookiePolicy)                                         // web pages + user profiles + settings panels etc
+		)
+
+		// Create per-route / per-grouping middlewares.
+		rlLimit := config.GetAdvancedRateLimitRequests()
+		exceptions := config.GetAdvancedRateLimitExceptions()
+		clLimit := middleware.RateLimit(rlLimit, exceptions)        // client api
+		s2sLimit := middleware.RateLimit(rlLimit, exceptions)       // server-to-server (AP)
+		fsMainLimit := middleware.RateLimit(rlLimit, exceptions)    // fileserver / web templates
+		fsEmojiLimit := middleware.RateLimit(rlLimit*2, exceptions) // fileserver (emojis only, use high limit)
+
+		// throttling
+		cpuMultiplier := config.GetAdvancedThrottlingMultiplier()
+		retryAfter := config.GetAdvancedThrottlingRetryAfter()
+		clThrottle := middleware.Throttle(cpuMultiplier, retryAfter) // client api
+		s2sThrottle := middleware.Throttle(cpuMultiplier, retryAfter)
+
+		// server-to-server (AP)
+		fsThrottle := middleware.Throttle(cpuMultiplier, retryAfter) // fileserver / web templates / emojis
+		pkThrottle := middleware.Throttle(cpuMultiplier, retryAfter) // throttle public key endpoint separately
+
+		// Robots http headers (x-robots-tag).
+		//
+		// robotsDisallowAll is used for client API + S2S endpoints
+		// that definitely should never be indexed by crawlers.
+		//
+		// robotsDisallowAIOnly is used for utility endpoints,
+		// fileserver, and for web endpoints that set their own
+		// additional robots directives in HTML meta tags.
+		//
+		// Other endpoints like .well-known and nodeinfo handle
+		// robots headers themselves based on configuration.
+		robotsDisallowAll := middleware.RobotsHeaders(middleware.RobotsHeadersModeDefault)
+		robotsDisallowAIOnly := middleware.RobotsHeaders(middleware.RobotsHeadersModeDisallowAIOnly)
+
+		// Compression middleware is applied to all endpoints
+		// except fileserver (this is too expensive for those),
+		// health (which really doesn't need compression), and
+		// metrics (which does its own compression handling that
+		// is rather annoying to neatly override).
+		gzip := middleware.WithCompression()
+
+		// these should be routed in order;
+		// apply throttling *after* rate limiting
+		authModule.Route(route, clLimit, clThrottle, robotsDisallowAll, gzip)
+		clientModule.Route(route, clLimit, clThrottle, robotsDisallowAll, gzip)
+		healthModule.Route(route, clLimit, clThrottle, robotsDisallowAIOnly)
+		fileserverModule.Route(route, fsMainLimit, fsThrottle, robotsDisallowAIOnly)
+		fileserverModule.RouteEmojis(route, instanceAccount.ID, fsEmojiLimit, fsThrottle, robotsDisallowAIOnly)
+		robotsModule.Route(route, fsMainLimit, fsThrottle, robotsDisallowAIOnly, gzip)
+		wellKnownModule.Route(route, gzip, s2sLimit, s2sThrottle)
+		nodeInfoModule.Route(route, s2sLimit, s2sThrottle, gzip)
+		activityPubModule.Route(route, s2sLimit, s2sThrottle, robotsDisallowAll, gzip)
+		activityPubModule.RoutePublicKey(route, s2sLimit, pkThrottle, robotsDisallowAll, gzip)
+		webModule.Route(route, fsMainLimit, fsThrottle, robotsDisallowAIOnly, gzip)
 	}
 
-	routerSession, err := dbService.GetSession(ctx)
-	if err != nil {
-		return fmt.Errorf("error retrieving router session for session middleware: %w", err)
-	}
+	// Set a nicer templated not-found handler
+	// for the main application router instance.
+	route.SetNotFound(func(c *httputil.Context) {
+		errWithCode := gtserror.NewWithCode(404, "unknown route")
+		apiutil.ErrorHandler(c, templates, errWithCode)
+	})
 
-	sessionName, err := middleware.SessionName()
-	if err != nil {
-		return fmt.Errorf("error generating session name for session middleware: %w", err)
-	}
-
-	// Configure our instance cookie policy.
-	cookiePolicy := apiutil.NewCookiePolicy()
-
-	var (
-		authModule        = api.NewAuth(state, process, idp, routerSession, sessionName, cookiePolicy) // auth/oauth paths
-		clientModule      = api.NewClient(state, process)                                              // api client endpoints
-		healthModule      = api.NewHealth(dbService.Ready)                                             // Health check endpoints
-		fileserverModule  = api.NewFileserver(process)                                                 // fileserver endpoints
-		robotsModule      = api.NewRobots()                                                            // robots.txt endpoint
-		wellKnownModule   = api.NewWellKnown(process)                                                  // .well-known endpoints
-		nodeInfoModule    = api.NewNodeInfo(process)                                                   // nodeinfo endpoint
-		activityPubModule = api.NewActivityPub(dbService, process)                                     // ActivityPub endpoints
-		webModule         = web.New(dbService, process, cookiePolicy)                                  // web pages + user profiles + settings panels etc
-	)
-
-	// Create per-route / per-grouping middlewares.
-	// rate limiting
-	rlLimit := config.GetAdvancedRateLimitRequests()
-	exceptions := config.GetAdvancedRateLimitExceptions()
-	clLimit := middleware.RateLimit(rlLimit, exceptions)        // client api
-	s2sLimit := middleware.RateLimit(rlLimit, exceptions)       // server-to-server (AP)
-	fsMainLimit := middleware.RateLimit(rlLimit, exceptions)    // fileserver / web templates
-	fsEmojiLimit := middleware.RateLimit(rlLimit*2, exceptions) // fileserver (emojis only, use high limit)
-
-	// throttling
-	cpuMultiplier := config.GetAdvancedThrottlingMultiplier()
-	retryAfter := config.GetAdvancedThrottlingRetryAfter()
-	clThrottle := middleware.Throttle(cpuMultiplier, retryAfter) // client api
-	s2sThrottle := middleware.Throttle(cpuMultiplier, retryAfter)
-
-	// server-to-server (AP)
-	fsThrottle := middleware.Throttle(cpuMultiplier, retryAfter) // fileserver / web templates / emojis
-	pkThrottle := middleware.Throttle(cpuMultiplier, retryAfter) // throttle public key endpoint separately
-
-	// Robots http headers (x-robots-tag).
-	//
-	// robotsDisallowAll is used for client API + S2S endpoints
-	// that definitely should never be indexed by crawlers.
-	//
-	// robotsDisallowAIOnly is used for utility endpoints,
-	// fileserver, and for web endpoints that set their own
-	// additional robots directives in HTML meta tags.
-	//
-	// Other endpoints like .well-known and nodeinfo handle
-	// robots headers themselves based on configuration.
-	robotsDisallowAll := middleware.RobotsHeaders(middleware.RobotsHeadersModeDefault)
-	robotsDisallowAIOnly := middleware.RobotsHeaders(middleware.RobotsHeadersModeDisallowAIOnly)
-
-	// Gzip middleware is applied to all endpoints except
-	// fileserver (compression too expensive for those),
-	// health (which really doesn't need compression), and
-	// metrics (which does its own compression handling that
-	// is rather annoying to neatly override).
-	gzip := middleware.Gzip()
-
-	// these should be routed in order;
-	// apply throttling *after* rate limiting
-	authModule.Route(route, clLimit, clThrottle, robotsDisallowAll, gzip)
-	clientModule.Route(route, clLimit, clThrottle, robotsDisallowAll, gzip)
-	healthModule.Route(route, clLimit, clThrottle, robotsDisallowAIOnly)
-	fileserverModule.Route(route, fsMainLimit, fsThrottle, robotsDisallowAIOnly)
-	fileserverModule.RouteEmojis(route, instanceAccount.ID, fsEmojiLimit, fsThrottle, robotsDisallowAIOnly)
-	robotsModule.Route(route, fsMainLimit, fsThrottle, robotsDisallowAIOnly, gzip)
-	wellKnownModule.Route(route, gzip, s2sLimit, s2sThrottle)
-	nodeInfoModule.Route(route, s2sLimit, s2sThrottle, gzip)
-	activityPubModule.Route(route, s2sLimit, s2sThrottle, robotsDisallowAll, gzip)
-	activityPubModule.RoutePublicKey(route, s2sLimit, pkThrottle, robotsDisallowAll, gzip)
-	webModule.Route(route, fsMainLimit, fsThrottle, robotsDisallowAIOnly, gzip)
+	// Set updated no method and OPTIONS handlers
+	// to ensure they go through our middleware stack.
+	route.SetNoMethod(func(c *httputil.Context) { httputil.Error(c, 405, "Method Not Allowed") })
+	route.SetOptions(func(c *httputil.Context) { c.W.WriteHeader(200) })
 
 	// Finally start the main http server!
 	if err := route.Start(); err != nil {
@@ -641,45 +668,4 @@ func compileWASM(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func parseClientRanges() (
-	*struct {
-		allow []netip.Prefix
-		block []netip.Prefix
-	},
-	error,
-) {
-	parseF := func(ips []string, ranges []netip.Prefix, flag string) error {
-		for i, ip := range ips {
-			p, err := netip.ParsePrefix(ip)
-			if err != nil {
-				return fmt.Errorf("error parsing %s value %s: %w", flag, ip, err)
-			}
-			ranges[i] = p
-		}
-		return nil
-	}
-
-	allowIPs := config.GetHTTPClientAllowIPs()
-	allowRanges := make([]netip.Prefix, len(allowIPs))
-	allowFlag := config.HTTPClientAllowIPsFlag
-	if err := parseF(allowIPs, allowRanges, allowFlag); err != nil {
-		return nil, err
-	}
-
-	blockIPs := config.GetHTTPClientBlockIPs()
-	blockRanges := make([]netip.Prefix, len(blockIPs))
-	blockFlag := config.HTTPClientBlockIPsFlag
-	if err := parseF(blockIPs, blockRanges, blockFlag); err != nil {
-		return nil, err
-	}
-
-	return &struct {
-		allow []netip.Prefix
-		block []netip.Prefix
-	}{
-		allow: allowRanges,
-		block: blockRanges,
-	}, nil
 }

@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // MediaCleanupPOSTHandler swagger:operation POST /api/v1/admin/media_cleanup mediaCleanup
@@ -79,19 +79,22 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) MediaCleanupPOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeAdminWrite,
-	)
+func (m *Module) MediaCleanupPOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeAdminWrite},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if !*authed.User.Admin {
 		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
 		return
 	}
 
@@ -101,8 +104,8 @@ func (m *Module) MediaCleanupPOSTHandler(c *gin.Context) {
 	}
 
 	form := new(apimodel.MediaCleanupRequest)
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
@@ -111,12 +114,12 @@ func (m *Module) MediaCleanupPOSTHandler(c *gin.Context) {
 	}
 
 	if errWithCode := m.processor.Admin().MediaPrune(
-		c.Request.Context(),
+		c,
 		form.RemoteCacheDays.Duration,
 	); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, form.RemoteCacheDays)
+	httputil.JSON(c, http.StatusOK, form.RemoteCacheDays)
 }

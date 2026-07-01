@@ -18,50 +18,38 @@
 package web
 
 import (
-	"context"
+	"net/http"
 
-	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
-func (m *Module) SettingsPanelHandler(c *gin.Context) {
-	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
-	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
-		return
-	}
-
-	// Return instance we already got from the db,
-	// don't try to fetch it again when erroring.
-	instanceGet := func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-		return instance, nil
-	}
-
+func (m *Module) SettingsPanelHandler(c *httputil.Context) {
 	// We only serve text/html at this endpoint.
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextHTML); errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	page := apiutil.WebPage{
-		Template: "settings.tmpl",
-		Instance: instance,
-		Stylesheets: []string{
-			cssFA,
-			cssProfile, // Used for rendering stub/fake profiles.
-			cssStatus,  // Used for rendering stub/fake statuses.
-			cssSettings,
-		},
-		Javascript: []apiutil.JavascriptEntry{
-			{
-				Src:   jsSettings,
-				Async: true,
-				Defer: true,
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template: "settings.tmpl",
+			Stylesheets: []string{
+				cssFA,
+				cssProfile, // Used for rendering stub/fake profiles.
+				cssStatus,  // Used for rendering stub/fake statuses.
+				cssSettings,
+			},
+			Javascript: []templates.JavascriptEntry{
+				{
+					Src:   jsSettings,
+					Async: true,
+					Defer: true,
+				},
 			},
 		},
-	}
-
-	apiutil.TemplateWebPage(c, page)
+	)
 }

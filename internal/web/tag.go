@@ -18,50 +18,46 @@
 package web
 
 import (
-	"context"
+	"net/http"
 
-	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
+	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 )
 
-func (m *Module) tagGETHandler(c *gin.Context) {
-	ctx := c.Request.Context()
-
+func (m *Module) tagGETHandler(c *httputil.Context) {
 	// We'll need the instance later, and we can also use it
 	// before then to make it easier to return a web error.
-	instance, errWithCode := m.processor.InstanceGetV1(ctx)
+	instance, errWithCode := m.processor.InstanceGetV1(c)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
-	}
-
-	// Return instance we already got from the db,
-	// don't try to fetch it again when erroring.
-	instanceGet := func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-		return instance, nil
 	}
 
 	// We only serve text/html at this endpoint.
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextHTML); errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	tagName, errWithCode := apiutil.ParseTagName(c.Param(apiutil.TagNameKey))
+	tagName, errWithCode := apiutil.ParseTagName(c.PathValue(apiutil.TagNameKey))
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	page := apiutil.WebPage{
-		Template:    "tag.tmpl",
-		Instance:    instance,
-		OGMeta:      apiutil.OGBase(instance),
-		Stylesheets: []string{cssFA, cssThread, cssTag},
-		Extra:       map[string]any{"tagName": tagName},
-	}
-
-	apiutil.TemplateWebPage(c, page)
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template:    "tag.tmpl",
+			Stylesheets: []string{cssFA, cssThread, cssTag},
+			Extra: map[string]any{
+				"tagName":  tagName,
+				"instance": instance,
+				"ogMeta":   typeutils.OpenGraphBase(instance),
+			},
+		},
+	)
 }

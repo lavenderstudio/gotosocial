@@ -18,7 +18,6 @@
 package instance_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -77,7 +76,7 @@ func (suite *InstancePatchTestSuite) instancePatch(
 func (suite *InstancePatchTestSuite) TestInstancePatchUpdateInstanceInfo() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	code, b := suite.instancePatch(
 		instanceModule,
@@ -93,39 +92,22 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateInstanceInfo() {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
 	}
 
-	dst := new(bytes.Buffer)
-	if err := json.Indent(dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
-  "uri": "localhost:8080",
   "account_domain": "localhost:8080",
-  "title": "Example Instance",
-  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
-  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`"+`internal/testmodels.go`+"`"+`.",
-  "short_description": "<p>This is the GoToSocial testrig. It doesn't federate or anything.</p><p>When the testrig is shut down, all data on it will be deleted.</p><p>Don't use this in production!</p>",
-  "short_description_text": "This is the GoToSocial testrig. It doesn't federate or anything.\n\nWhen the testrig is shut down, all data on it will be deleted.\n\nDon't use this in production!",
-  "email": "someone@example.org",
-  "version": "0.0.0-testrig",
-  "languages": [
-    "nl",
-    "en-gb"
-  ],
-  "registrations": true,
   "approval_required": true,
-  "invites_enabled": false,
   "configuration": {
-    "statuses": {
-      "max_characters": 5000,
-      "max_media_attachments": 6,
-      "characters_reserved_per_url": 25,
-      "supported_mime_types": [
-        "text/plain",
-        "text/markdown"
-      ]
+    "accounts": {
+      "allow_custom_css": true,
+      "max_featured_tags": 10,
+      "max_profile_fields": 8
+    },
+    "emojis": {
+      "emoji_size_limit": 51200
     },
     "media_attachments": {
+      "image_matrix_limit": 2147483647,
+      "image_size_limit": 41943040,
       "supported_mime_types": [
         "image/jpeg",
         "image/gif",
@@ -150,71 +132,70 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateInstanceInfo() {
         "audio/x-matroska",
         "video/x-matroska"
       ],
-      "image_size_limit": 41943040,
-      "image_matrix_limit": 2147483647,
-      "video_size_limit": 41943040,
       "video_frame_rate_limit": 2147483647,
-      "video_matrix_limit": 2147483647
+      "video_matrix_limit": 2147483647,
+      "video_size_limit": 41943040
     },
     "polls": {
-      "max_options": 6,
       "max_characters_per_option": 50,
-      "min_expiration": 300,
-      "max_expiration": 2629746
+      "max_expiration": 2629746,
+      "max_options": 6,
+      "min_expiration": 300
     },
-    "accounts": {
-      "allow_custom_css": true,
-      "max_featured_tags": 10,
-      "max_profile_fields": 8
-    },
-    "emojis": {
-      "emoji_size_limit": 51200
+    "statuses": {
+      "characters_reserved_per_url": 25,
+      "max_characters": 5000,
+      "max_media_attachments": 6,
+      "supported_mime_types": [
+        "text/plain",
+        "text/markdown"
+      ]
     }
   },
-  "urls": {
-    "streaming_api": "wss://localhost:8080"
-  },
-  "stats": {
-    "domain_count": 4,
-    "status_count": 24,
-    "user_count": 5
-  },
-  "thumbnail": "http://localhost:8080/assets/logo.webp",
   "contact_account": {
-    "id": "01F8MH17FWEB39HZJ76B6VXSKF",
-    "username": "admin",
     "acct": "admin",
-    "display_name": "",
-    "locked": false,
-    "discoverable": true,
-    "indexable": true,
-    "noindex": false,
-    "bot": false,
-    "created_at": "2022-05-17T13:10:59.000Z",
-    "note": "",
-    "url": "http://localhost:8080/@admin",
     "avatar": "",
     "avatar_static": "",
-    "header": "http://localhost:8080/assets/default_header.webp",
-    "header_static": "http://localhost:8080/assets/default_header.webp",
-    "header_description": "Flat gray background (default header).",
+    "bot": false,
+    "created_at": "2022-05-17T13:10:59.000Z",
+    "discoverable": true,
+    "display_name": "",
+    "emojis": [],
+    "enable_rss": true,
+    "fields": [],
     "followers_count": 1,
     "following_count": 1,
-    "statuses_count": 4,
+    "group": false,
+    "header": "http://localhost:8080/assets/default_header.webp",
+    "header_description": "Flat gray background (default header).",
+    "header_static": "http://localhost:8080/assets/default_header.webp",
+    "id": "01F8MH17FWEB39HZJ76B6VXSKF",
+    "indexable": true,
     "last_status_at": "2021-10-20",
-    "emojis": [],
-    "fields": [],
-    "enable_rss": true,
+    "locked": false,
+    "noindex": false,
+    "note": "",
     "roles": [
       {
+        "color": "",
         "id": "admin",
-        "name": "admin",
-        "color": ""
+        "name": "admin"
       }
     ],
-    "group": false
+    "statuses_count": 4,
+    "url": "http://localhost:8080/@admin",
+    "username": "admin"
   },
+  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
+  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`internal/testmodels.go`"+`.",
+  "email": "someone@example.org",
+  "invites_enabled": false,
+  "languages": [
+    "nl",
+    "en-gb"
+  ],
   "max_toot_chars": 5000,
+  "registrations": true,
   "rules": [
     {
       "id": "01GP3AWY4CRDVRNZKW0TEAMB51",
@@ -225,15 +206,29 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateInstanceInfo() {
       "text": "Do crime"
     }
   ],
+  "short_description": "<p>This is the GoToSocial testrig. It doesn't federate or anything.</p><p>When the testrig is shut down, all data on it will be deleted.</p><p>Don't use this in production!</p>",
+  "short_description_text": "This is the GoToSocial testrig. It doesn't federate or anything.\n\nWhen the testrig is shut down, all data on it will be deleted.\n\nDon't use this in production!",
+  "stats": {
+    "domain_count": 4,
+    "status_count": 24,
+    "user_count": 5
+  },
   "terms": "<p>This is where a list of terms and conditions might go.</p><p>For example:</p><p>If you want to sign up on this instance, you oughta know that we:</p><ol><li>Will sell your data to whoever offers.</li><li>Secure the server with password <code>password</code> wherever possible.</li></ol>",
-  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`"+`password`+"`"+` wherever possible."
-}`, dst.String())
+  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`password`"+` wherever possible.",
+  "thumbnail": "http://localhost:8080/assets/logo.webp",
+  "title": "Example Instance",
+  "uri": "localhost:8080",
+  "urls": {
+    "streaming_api": "wss://localhost:8080"
+  },
+  "version": "0.0.0-testrig"
+}`, out)
 }
 
 func (suite *InstancePatchTestSuite) TestInstancePatchUpdateTitleHTML() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	code, b := suite.instancePatch(
 		instanceModule,
@@ -246,39 +241,22 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateTitleHTML() {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
 	}
 
-	dst := new(bytes.Buffer)
-	if err := json.Indent(dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
-  "uri": "localhost:8080",
   "account_domain": "localhost:8080",
-  "title": "Geoff's Instance",
-  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
-  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`"+`internal/testmodels.go`+"`"+`.",
-  "short_description": "<p>This is the GoToSocial testrig. It doesn't federate or anything.</p><p>When the testrig is shut down, all data on it will be deleted.</p><p>Don't use this in production!</p>",
-  "short_description_text": "This is the GoToSocial testrig. It doesn't federate or anything.\n\nWhen the testrig is shut down, all data on it will be deleted.\n\nDon't use this in production!",
-  "email": "admin@example.org",
-  "version": "0.0.0-testrig",
-  "languages": [
-    "nl",
-    "en-gb"
-  ],
-  "registrations": true,
   "approval_required": true,
-  "invites_enabled": false,
   "configuration": {
-    "statuses": {
-      "max_characters": 5000,
-      "max_media_attachments": 6,
-      "characters_reserved_per_url": 25,
-      "supported_mime_types": [
-        "text/plain",
-        "text/markdown"
-      ]
+    "accounts": {
+      "allow_custom_css": true,
+      "max_featured_tags": 10,
+      "max_profile_fields": 8
+    },
+    "emojis": {
+      "emoji_size_limit": 51200
     },
     "media_attachments": {
+      "image_matrix_limit": 2147483647,
+      "image_size_limit": 41943040,
       "supported_mime_types": [
         "image/jpeg",
         "image/gif",
@@ -303,71 +281,70 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateTitleHTML() {
         "audio/x-matroska",
         "video/x-matroska"
       ],
-      "image_size_limit": 41943040,
-      "image_matrix_limit": 2147483647,
-      "video_size_limit": 41943040,
       "video_frame_rate_limit": 2147483647,
-      "video_matrix_limit": 2147483647
+      "video_matrix_limit": 2147483647,
+      "video_size_limit": 41943040
     },
     "polls": {
-      "max_options": 6,
       "max_characters_per_option": 50,
-      "min_expiration": 300,
-      "max_expiration": 2629746
+      "max_expiration": 2629746,
+      "max_options": 6,
+      "min_expiration": 300
     },
-    "accounts": {
-      "allow_custom_css": true,
-      "max_featured_tags": 10,
-      "max_profile_fields": 8
-    },
-    "emojis": {
-      "emoji_size_limit": 51200
+    "statuses": {
+      "characters_reserved_per_url": 25,
+      "max_characters": 5000,
+      "max_media_attachments": 6,
+      "supported_mime_types": [
+        "text/plain",
+        "text/markdown"
+      ]
     }
   },
-  "urls": {
-    "streaming_api": "wss://localhost:8080"
-  },
-  "stats": {
-    "domain_count": 4,
-    "status_count": 24,
-    "user_count": 5
-  },
-  "thumbnail": "http://localhost:8080/assets/logo.webp",
   "contact_account": {
-    "id": "01F8MH17FWEB39HZJ76B6VXSKF",
-    "username": "admin",
     "acct": "admin",
-    "display_name": "",
-    "locked": false,
-    "discoverable": true,
-    "indexable": true,
-    "noindex": false,
-    "bot": false,
-    "created_at": "2022-05-17T13:10:59.000Z",
-    "note": "",
-    "url": "http://localhost:8080/@admin",
     "avatar": "",
     "avatar_static": "",
-    "header": "http://localhost:8080/assets/default_header.webp",
-    "header_static": "http://localhost:8080/assets/default_header.webp",
-    "header_description": "Flat gray background (default header).",
+    "bot": false,
+    "created_at": "2022-05-17T13:10:59.000Z",
+    "discoverable": true,
+    "display_name": "",
+    "emojis": [],
+    "enable_rss": true,
+    "fields": [],
     "followers_count": 1,
     "following_count": 1,
-    "statuses_count": 4,
+    "group": false,
+    "header": "http://localhost:8080/assets/default_header.webp",
+    "header_description": "Flat gray background (default header).",
+    "header_static": "http://localhost:8080/assets/default_header.webp",
+    "id": "01F8MH17FWEB39HZJ76B6VXSKF",
+    "indexable": true,
     "last_status_at": "2021-10-20",
-    "emojis": [],
-    "fields": [],
-    "enable_rss": true,
+    "locked": false,
+    "noindex": false,
+    "note": "",
     "roles": [
       {
+        "color": "",
         "id": "admin",
-        "name": "admin",
-        "color": ""
+        "name": "admin"
       }
     ],
-    "group": false
+    "statuses_count": 4,
+    "url": "http://localhost:8080/@admin",
+    "username": "admin"
   },
+  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
+  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`internal/testmodels.go`"+`.",
+  "email": "admin@example.org",
+  "invites_enabled": false,
+  "languages": [
+    "nl",
+    "en-gb"
+  ],
   "max_toot_chars": 5000,
+  "registrations": true,
   "rules": [
     {
       "id": "01GP3AWY4CRDVRNZKW0TEAMB51",
@@ -378,15 +355,29 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateTitleHTML() {
       "text": "Do crime"
     }
   ],
+  "short_description": "<p>This is the GoToSocial testrig. It doesn't federate or anything.</p><p>When the testrig is shut down, all data on it will be deleted.</p><p>Don't use this in production!</p>",
+  "short_description_text": "This is the GoToSocial testrig. It doesn't federate or anything.\n\nWhen the testrig is shut down, all data on it will be deleted.\n\nDon't use this in production!",
+  "stats": {
+    "domain_count": 4,
+    "status_count": 24,
+    "user_count": 5
+  },
   "terms": "<p>This is where a list of terms and conditions might go.</p><p>For example:</p><p>If you want to sign up on this instance, you oughta know that we:</p><ol><li>Will sell your data to whoever offers.</li><li>Secure the server with password <code>password</code> wherever possible.</li></ol>",
-  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`"+`password`+"`"+` wherever possible."
-}`, dst.String())
+  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`password`"+` wherever possible.",
+  "thumbnail": "http://localhost:8080/assets/logo.webp",
+  "title": "Geoff's Instance",
+  "uri": "localhost:8080",
+  "urls": {
+    "streaming_api": "wss://localhost:8080"
+  },
+  "version": "0.0.0-testrig"
+}`, out)
 }
 
 func (suite *InstancePatchTestSuite) TestInstancePatchUpdateShortDescriptionHTML() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	code, b := suite.instancePatch(
 		instanceModule,
@@ -399,39 +390,22 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateShortDescriptionHTML
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
 	}
 
-	dst := new(bytes.Buffer)
-	if err := json.Indent(dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
-  "uri": "localhost:8080",
   "account_domain": "localhost:8080",
-  "title": "GoToSocial Testrig Instance",
-  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
-  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`"+`internal/testmodels.go`+"`"+`.",
-  "short_description": "<p>This is some html, which is <em>allowed</em> in short descriptions.</p>",
-  "short_description_text": "This is some html, which is <em>allowed</em> in short descriptions.",
-  "email": "admin@example.org",
-  "version": "0.0.0-testrig",
-  "languages": [
-    "nl",
-    "en-gb"
-  ],
-  "registrations": true,
   "approval_required": true,
-  "invites_enabled": false,
   "configuration": {
-    "statuses": {
-      "max_characters": 5000,
-      "max_media_attachments": 6,
-      "characters_reserved_per_url": 25,
-      "supported_mime_types": [
-        "text/plain",
-        "text/markdown"
-      ]
+    "accounts": {
+      "allow_custom_css": true,
+      "max_featured_tags": 10,
+      "max_profile_fields": 8
+    },
+    "emojis": {
+      "emoji_size_limit": 51200
     },
     "media_attachments": {
+      "image_matrix_limit": 2147483647,
+      "image_size_limit": 41943040,
       "supported_mime_types": [
         "image/jpeg",
         "image/gif",
@@ -456,71 +430,70 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateShortDescriptionHTML
         "audio/x-matroska",
         "video/x-matroska"
       ],
-      "image_size_limit": 41943040,
-      "image_matrix_limit": 2147483647,
-      "video_size_limit": 41943040,
       "video_frame_rate_limit": 2147483647,
-      "video_matrix_limit": 2147483647
+      "video_matrix_limit": 2147483647,
+      "video_size_limit": 41943040
     },
     "polls": {
-      "max_options": 6,
       "max_characters_per_option": 50,
-      "min_expiration": 300,
-      "max_expiration": 2629746
+      "max_expiration": 2629746,
+      "max_options": 6,
+      "min_expiration": 300
     },
-    "accounts": {
-      "allow_custom_css": true,
-      "max_featured_tags": 10,
-      "max_profile_fields": 8
-    },
-    "emojis": {
-      "emoji_size_limit": 51200
+    "statuses": {
+      "characters_reserved_per_url": 25,
+      "max_characters": 5000,
+      "max_media_attachments": 6,
+      "supported_mime_types": [
+        "text/plain",
+        "text/markdown"
+      ]
     }
   },
-  "urls": {
-    "streaming_api": "wss://localhost:8080"
-  },
-  "stats": {
-    "domain_count": 4,
-    "status_count": 24,
-    "user_count": 5
-  },
-  "thumbnail": "http://localhost:8080/assets/logo.webp",
   "contact_account": {
-    "id": "01F8MH17FWEB39HZJ76B6VXSKF",
-    "username": "admin",
     "acct": "admin",
-    "display_name": "",
-    "locked": false,
-    "discoverable": true,
-    "indexable": true,
-    "noindex": false,
-    "bot": false,
-    "created_at": "2022-05-17T13:10:59.000Z",
-    "note": "",
-    "url": "http://localhost:8080/@admin",
     "avatar": "",
     "avatar_static": "",
-    "header": "http://localhost:8080/assets/default_header.webp",
-    "header_static": "http://localhost:8080/assets/default_header.webp",
-    "header_description": "Flat gray background (default header).",
+    "bot": false,
+    "created_at": "2022-05-17T13:10:59.000Z",
+    "discoverable": true,
+    "display_name": "",
+    "emojis": [],
+    "enable_rss": true,
+    "fields": [],
     "followers_count": 1,
     "following_count": 1,
-    "statuses_count": 4,
+    "group": false,
+    "header": "http://localhost:8080/assets/default_header.webp",
+    "header_description": "Flat gray background (default header).",
+    "header_static": "http://localhost:8080/assets/default_header.webp",
+    "id": "01F8MH17FWEB39HZJ76B6VXSKF",
+    "indexable": true,
     "last_status_at": "2021-10-20",
-    "emojis": [],
-    "fields": [],
-    "enable_rss": true,
+    "locked": false,
+    "noindex": false,
+    "note": "",
     "roles": [
       {
+        "color": "",
         "id": "admin",
-        "name": "admin",
-        "color": ""
+        "name": "admin"
       }
     ],
-    "group": false
+    "statuses_count": 4,
+    "url": "http://localhost:8080/@admin",
+    "username": "admin"
   },
+  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
+  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`internal/testmodels.go`"+`.",
+  "email": "admin@example.org",
+  "invites_enabled": false,
+  "languages": [
+    "nl",
+    "en-gb"
+  ],
   "max_toot_chars": 5000,
+  "registrations": true,
   "rules": [
     {
       "id": "01GP3AWY4CRDVRNZKW0TEAMB51",
@@ -531,15 +504,29 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateShortDescriptionHTML
       "text": "Do crime"
     }
   ],
+  "short_description": "<p>This is some html, which is <em>allowed</em> in short descriptions.</p>",
+  "short_description_text": "This is some html, which is <em>allowed</em> in short descriptions.",
+  "stats": {
+    "domain_count": 4,
+    "status_count": 24,
+    "user_count": 5
+  },
   "terms": "<p>This is where a list of terms and conditions might go.</p><p>For example:</p><p>If you want to sign up on this instance, you oughta know that we:</p><ol><li>Will sell your data to whoever offers.</li><li>Secure the server with password <code>password</code> wherever possible.</li></ol>",
-  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`"+`password`+"`"+` wherever possible."
-}`, dst.String())
+  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`password`"+` wherever possible.",
+  "thumbnail": "http://localhost:8080/assets/logo.webp",
+  "title": "GoToSocial Testrig Instance",
+  "uri": "localhost:8080",
+  "urls": {
+    "streaming_api": "wss://localhost:8080"
+  },
+  "version": "0.0.0-testrig"
+}`, out)
 }
 
 func (suite *InstancePatchTestSuite) TestInstancePatchEmptyForm() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	code, b := suite.instancePatch(
 		instanceModule,
@@ -552,18 +539,13 @@ func (suite *InstancePatchTestSuite) TestInstancePatchEmptyForm() {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
 	}
 
-	dst := new(bytes.Buffer)
-	if err := json.Indent(dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
 	suite.Equal(`{"error":"Bad Request: empty form submitted"}`, string(b))
 }
 
 func (suite *InstancePatchTestSuite) TestInstancePatchEmptyContactEmail() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	code, b := suite.instancePatch(
 		instanceModule,
@@ -576,39 +558,22 @@ func (suite *InstancePatchTestSuite) TestInstancePatchEmptyContactEmail() {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
 	}
 
-	dst := new(bytes.Buffer)
-	if err := json.Indent(dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
-  "uri": "localhost:8080",
   "account_domain": "localhost:8080",
-  "title": "GoToSocial Testrig Instance",
-  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
-  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`"+`internal/testmodels.go`+"`"+`.",
-  "short_description": "<p>This is the GoToSocial testrig. It doesn't federate or anything.</p><p>When the testrig is shut down, all data on it will be deleted.</p><p>Don't use this in production!</p>",
-  "short_description_text": "This is the GoToSocial testrig. It doesn't federate or anything.\n\nWhen the testrig is shut down, all data on it will be deleted.\n\nDon't use this in production!",
-  "email": "",
-  "version": "0.0.0-testrig",
-  "languages": [
-    "nl",
-    "en-gb"
-  ],
-  "registrations": true,
   "approval_required": true,
-  "invites_enabled": false,
   "configuration": {
-    "statuses": {
-      "max_characters": 5000,
-      "max_media_attachments": 6,
-      "characters_reserved_per_url": 25,
-      "supported_mime_types": [
-        "text/plain",
-        "text/markdown"
-      ]
+    "accounts": {
+      "allow_custom_css": true,
+      "max_featured_tags": 10,
+      "max_profile_fields": 8
+    },
+    "emojis": {
+      "emoji_size_limit": 51200
     },
     "media_attachments": {
+      "image_matrix_limit": 2147483647,
+      "image_size_limit": 41943040,
       "supported_mime_types": [
         "image/jpeg",
         "image/gif",
@@ -633,71 +598,70 @@ func (suite *InstancePatchTestSuite) TestInstancePatchEmptyContactEmail() {
         "audio/x-matroska",
         "video/x-matroska"
       ],
-      "image_size_limit": 41943040,
-      "image_matrix_limit": 2147483647,
-      "video_size_limit": 41943040,
       "video_frame_rate_limit": 2147483647,
-      "video_matrix_limit": 2147483647
+      "video_matrix_limit": 2147483647,
+      "video_size_limit": 41943040
     },
     "polls": {
-      "max_options": 6,
       "max_characters_per_option": 50,
-      "min_expiration": 300,
-      "max_expiration": 2629746
+      "max_expiration": 2629746,
+      "max_options": 6,
+      "min_expiration": 300
     },
-    "accounts": {
-      "allow_custom_css": true,
-      "max_featured_tags": 10,
-      "max_profile_fields": 8
-    },
-    "emojis": {
-      "emoji_size_limit": 51200
+    "statuses": {
+      "characters_reserved_per_url": 25,
+      "max_characters": 5000,
+      "max_media_attachments": 6,
+      "supported_mime_types": [
+        "text/plain",
+        "text/markdown"
+      ]
     }
   },
-  "urls": {
-    "streaming_api": "wss://localhost:8080"
-  },
-  "stats": {
-    "domain_count": 4,
-    "status_count": 24,
-    "user_count": 5
-  },
-  "thumbnail": "http://localhost:8080/assets/logo.webp",
   "contact_account": {
-    "id": "01F8MH17FWEB39HZJ76B6VXSKF",
-    "username": "admin",
     "acct": "admin",
-    "display_name": "",
-    "locked": false,
-    "discoverable": true,
-    "indexable": true,
-    "noindex": false,
-    "bot": false,
-    "created_at": "2022-05-17T13:10:59.000Z",
-    "note": "",
-    "url": "http://localhost:8080/@admin",
     "avatar": "",
     "avatar_static": "",
-    "header": "http://localhost:8080/assets/default_header.webp",
-    "header_static": "http://localhost:8080/assets/default_header.webp",
-    "header_description": "Flat gray background (default header).",
+    "bot": false,
+    "created_at": "2022-05-17T13:10:59.000Z",
+    "discoverable": true,
+    "display_name": "",
+    "emojis": [],
+    "enable_rss": true,
+    "fields": [],
     "followers_count": 1,
     "following_count": 1,
-    "statuses_count": 4,
+    "group": false,
+    "header": "http://localhost:8080/assets/default_header.webp",
+    "header_description": "Flat gray background (default header).",
+    "header_static": "http://localhost:8080/assets/default_header.webp",
+    "id": "01F8MH17FWEB39HZJ76B6VXSKF",
+    "indexable": true,
     "last_status_at": "2021-10-20",
-    "emojis": [],
-    "fields": [],
-    "enable_rss": true,
+    "locked": false,
+    "noindex": false,
+    "note": "",
     "roles": [
       {
+        "color": "",
         "id": "admin",
-        "name": "admin",
-        "color": ""
+        "name": "admin"
       }
     ],
-    "group": false
+    "statuses_count": 4,
+    "url": "http://localhost:8080/@admin",
+    "username": "admin"
   },
+  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
+  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`internal/testmodels.go`"+`.",
+  "email": "",
+  "invites_enabled": false,
+  "languages": [
+    "nl",
+    "en-gb"
+  ],
   "max_toot_chars": 5000,
+  "registrations": true,
   "rules": [
     {
       "id": "01GP3AWY4CRDVRNZKW0TEAMB51",
@@ -708,15 +672,29 @@ func (suite *InstancePatchTestSuite) TestInstancePatchEmptyContactEmail() {
       "text": "Do crime"
     }
   ],
+  "short_description": "<p>This is the GoToSocial testrig. It doesn't federate or anything.</p><p>When the testrig is shut down, all data on it will be deleted.</p><p>Don't use this in production!</p>",
+  "short_description_text": "This is the GoToSocial testrig. It doesn't federate or anything.\n\nWhen the testrig is shut down, all data on it will be deleted.\n\nDon't use this in production!",
+  "stats": {
+    "domain_count": 4,
+    "status_count": 24,
+    "user_count": 5
+  },
   "terms": "<p>This is where a list of terms and conditions might go.</p><p>For example:</p><p>If you want to sign up on this instance, you oughta know that we:</p><ol><li>Will sell your data to whoever offers.</li><li>Secure the server with password <code>password</code> wherever possible.</li></ol>",
-  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`"+`password`+"`"+` wherever possible."
-}`, dst.String())
+  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`password`"+` wherever possible.",
+  "thumbnail": "http://localhost:8080/assets/logo.webp",
+  "title": "GoToSocial Testrig Instance",
+  "uri": "localhost:8080",
+  "urls": {
+    "streaming_api": "wss://localhost:8080"
+  },
+  "version": "0.0.0-testrig"
+}`, out)
 }
 
 func (suite *InstancePatchTestSuite) TestInstancePatchInvalidEmailAddress() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	code, b := suite.instancePatch(
 		instanceModule,
@@ -730,18 +708,13 @@ func (suite *InstancePatchTestSuite) TestInstancePatchInvalidEmailAddress() {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
 	}
 
-	dst := new(bytes.Buffer)
-	if err := json.Indent(dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
 	suite.Equal(`{"error":"Bad Request: mail: missing '@' or angle-addr"}`, string(b))
 }
 
 func (suite *InstancePatchTestSuite) TestInstancePatchUpdateThumbnail() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	code, b := suite.instancePatch(
 		instanceModule,
@@ -755,44 +728,27 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateThumbnail() {
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
 	}
 
-	dst := new(bytes.Buffer)
-	if err := json.Indent(dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
 	instanceAccount, err := testStructs.State.DB.GetInstanceAccount(suite.T().Context(), "")
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
 
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
-  "uri": "localhost:8080",
   "account_domain": "localhost:8080",
-  "title": "GoToSocial Testrig Instance",
-  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
-  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`"+`internal/testmodels.go`+"`"+`.",
-  "short_description": "<p>This is the GoToSocial testrig. It doesn't federate or anything.</p><p>When the testrig is shut down, all data on it will be deleted.</p><p>Don't use this in production!</p>",
-  "short_description_text": "This is the GoToSocial testrig. It doesn't federate or anything.\n\nWhen the testrig is shut down, all data on it will be deleted.\n\nDon't use this in production!",
-  "email": "admin@example.org",
-  "version": "0.0.0-testrig",
-  "languages": [
-    "nl",
-    "en-gb"
-  ],
-  "registrations": true,
   "approval_required": true,
-  "invites_enabled": false,
   "configuration": {
-    "statuses": {
-      "max_characters": 5000,
-      "max_media_attachments": 6,
-      "characters_reserved_per_url": 25,
-      "supported_mime_types": [
-        "text/plain",
-        "text/markdown"
-      ]
+    "accounts": {
+      "allow_custom_css": true,
+      "max_featured_tags": 10,
+      "max_profile_fields": 8
+    },
+    "emojis": {
+      "emoji_size_limit": 51200
     },
     "media_attachments": {
+      "image_matrix_limit": 2147483647,
+      "image_size_limit": 41943040,
       "supported_mime_types": [
         "image/jpeg",
         "image/gif",
@@ -817,75 +773,70 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateThumbnail() {
         "audio/x-matroska",
         "video/x-matroska"
       ],
-      "image_size_limit": 41943040,
-      "image_matrix_limit": 2147483647,
-      "video_size_limit": 41943040,
       "video_frame_rate_limit": 2147483647,
-      "video_matrix_limit": 2147483647
+      "video_matrix_limit": 2147483647,
+      "video_size_limit": 41943040
     },
     "polls": {
-      "max_options": 6,
       "max_characters_per_option": 50,
-      "min_expiration": 300,
-      "max_expiration": 2629746
+      "max_expiration": 2629746,
+      "max_options": 6,
+      "min_expiration": 300
     },
-    "accounts": {
-      "allow_custom_css": true,
-      "max_featured_tags": 10,
-      "max_profile_fields": 8
-    },
-    "emojis": {
-      "emoji_size_limit": 51200
+    "statuses": {
+      "characters_reserved_per_url": 25,
+      "max_characters": 5000,
+      "max_media_attachments": 6,
+      "supported_mime_types": [
+        "text/plain",
+        "text/markdown"
+      ]
     }
   },
-  "urls": {
-    "streaming_api": "wss://localhost:8080"
-  },
-  "stats": {
-    "domain_count": 4,
-    "status_count": 24,
-    "user_count": 5
-  },
-  "thumbnail": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/attachment/original/`+instanceAccount.AvatarMediaAttachment.ID+`.gif",`+`
-  "thumbnail_type": "image/gif",
-  "thumbnail_static": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/attachment/small/`+instanceAccount.AvatarMediaAttachment.ID+`.webp",`+`
-  "thumbnail_static_type": "image/webp",
-  "thumbnail_description": "A bouncing little green peglin.",
   "contact_account": {
-    "id": "01F8MH17FWEB39HZJ76B6VXSKF",
-    "username": "admin",
     "acct": "admin",
-    "display_name": "",
-    "locked": false,
-    "discoverable": true,
-    "indexable": true,
-    "noindex": false,
-    "bot": false,
-    "created_at": "2022-05-17T13:10:59.000Z",
-    "note": "",
-    "url": "http://localhost:8080/@admin",
     "avatar": "",
     "avatar_static": "",
-    "header": "http://localhost:8080/assets/default_header.webp",
-    "header_static": "http://localhost:8080/assets/default_header.webp",
-    "header_description": "Flat gray background (default header).",
+    "bot": false,
+    "created_at": "2022-05-17T13:10:59.000Z",
+    "discoverable": true,
+    "display_name": "",
+    "emojis": [],
+    "enable_rss": true,
+    "fields": [],
     "followers_count": 1,
     "following_count": 1,
-    "statuses_count": 4,
+    "group": false,
+    "header": "http://localhost:8080/assets/default_header.webp",
+    "header_description": "Flat gray background (default header).",
+    "header_static": "http://localhost:8080/assets/default_header.webp",
+    "id": "01F8MH17FWEB39HZJ76B6VXSKF",
+    "indexable": true,
     "last_status_at": "2021-10-20",
-    "emojis": [],
-    "fields": [],
-    "enable_rss": true,
+    "locked": false,
+    "noindex": false,
+    "note": "",
     "roles": [
       {
+        "color": "",
         "id": "admin",
-        "name": "admin",
-        "color": ""
+        "name": "admin"
       }
     ],
-    "group": false
+    "statuses_count": 4,
+    "url": "http://localhost:8080/@admin",
+    "username": "admin"
   },
+  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
+  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`internal/testmodels.go`"+`.",
+  "email": "admin@example.org",
+  "invites_enabled": false,
+  "languages": [
+    "nl",
+    "en-gb"
+  ],
   "max_toot_chars": 5000,
+  "registrations": true,
   "rules": [
     {
       "id": "01GP3AWY4CRDVRNZKW0TEAMB51",
@@ -896,9 +847,27 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateThumbnail() {
       "text": "Do crime"
     }
   ],
+  "short_description": "<p>This is the GoToSocial testrig. It doesn't federate or anything.</p><p>When the testrig is shut down, all data on it will be deleted.</p><p>Don't use this in production!</p>",
+  "short_description_text": "This is the GoToSocial testrig. It doesn't federate or anything.\n\nWhen the testrig is shut down, all data on it will be deleted.\n\nDon't use this in production!",
+  "stats": {
+    "domain_count": 4,
+    "status_count": 24,
+    "user_count": 5
+  },
   "terms": "<p>This is where a list of terms and conditions might go.</p><p>For example:</p><p>If you want to sign up on this instance, you oughta know that we:</p><ol><li>Will sell your data to whoever offers.</li><li>Secure the server with password <code>password</code> wherever possible.</li></ol>",
-  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`"+`password`+"`"+` wherever possible."
-}`, dst.String())
+  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`password`"+` wherever possible.",
+  "thumbnail": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/attachment/original/`+instanceAccount.AvatarMediaAttachment.ID+`.gif",`+`
+  "thumbnail_description": "A bouncing little green peglin.",
+  "thumbnail_static": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/attachment/small/`+instanceAccount.AvatarMediaAttachment.ID+`.webp",`+`
+  "thumbnail_static_type": "image/webp",
+  "thumbnail_type": "image/gif",
+  "title": "GoToSocial Testrig Instance",
+  "uri": "localhost:8080",
+  "urls": {
+    "streaming_api": "wss://localhost:8080"
+  },
+  "version": "0.0.0-testrig"
+}`, out)
 
 	// extra bonus: check the v2 model thumbnail after the patch
 	instanceV2, err := testStructs.Processor.InstanceGetV2(suite.T().Context())
@@ -906,11 +875,7 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateThumbnail() {
 		suite.FailNow(err.Error())
 	}
 
-	instanceV2ThumbnailJson, err := json.MarshalIndent(instanceV2.Thumbnail, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	instanceV2ThumbnailJson := testrig.MustJSONString(instanceV2.Thumbnail)
 	suite.Equal(`{
   "url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/attachment/original/`+instanceAccount.AvatarMediaAttachment.ID+`.gif",`+`
   "thumbnail_type": "image/gif",
@@ -945,7 +910,7 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateThumbnail() {
 func (suite *InstancePatchTestSuite) TestInstancePatchUpdateThumbnailDescription() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	code, b := suite.instancePatch(
 		instanceModule,
@@ -959,39 +924,22 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateThumbnailDescription
 		suite.FailNowf("wrong status code", "expected %d but got %d", expectedCode, code)
 	}
 
-	dst := new(bytes.Buffer)
-	if err := json.Indent(dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
-  "uri": "localhost:8080",
   "account_domain": "localhost:8080",
-  "title": "GoToSocial Testrig Instance",
-  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
-  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`"+`internal/testmodels.go`+"`"+`.",
-  "short_description": "<p>This is the GoToSocial testrig. It doesn't federate or anything.</p><p>When the testrig is shut down, all data on it will be deleted.</p><p>Don't use this in production!</p>",
-  "short_description_text": "This is the GoToSocial testrig. It doesn't federate or anything.\n\nWhen the testrig is shut down, all data on it will be deleted.\n\nDon't use this in production!",
-  "email": "admin@example.org",
-  "version": "0.0.0-testrig",
-  "languages": [
-    "nl",
-    "en-gb"
-  ],
-  "registrations": true,
   "approval_required": true,
-  "invites_enabled": false,
   "configuration": {
-    "statuses": {
-      "max_characters": 5000,
-      "max_media_attachments": 6,
-      "characters_reserved_per_url": 25,
-      "supported_mime_types": [
-        "text/plain",
-        "text/markdown"
-      ]
+    "accounts": {
+      "allow_custom_css": true,
+      "max_featured_tags": 10,
+      "max_profile_fields": 8
+    },
+    "emojis": {
+      "emoji_size_limit": 51200
     },
     "media_attachments": {
+      "image_matrix_limit": 2147483647,
+      "image_size_limit": 41943040,
       "supported_mime_types": [
         "image/jpeg",
         "image/gif",
@@ -1016,71 +964,70 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateThumbnailDescription
         "audio/x-matroska",
         "video/x-matroska"
       ],
-      "image_size_limit": 41943040,
-      "image_matrix_limit": 2147483647,
-      "video_size_limit": 41943040,
       "video_frame_rate_limit": 2147483647,
-      "video_matrix_limit": 2147483647
+      "video_matrix_limit": 2147483647,
+      "video_size_limit": 41943040
     },
     "polls": {
-      "max_options": 6,
       "max_characters_per_option": 50,
-      "min_expiration": 300,
-      "max_expiration": 2629746
+      "max_expiration": 2629746,
+      "max_options": 6,
+      "min_expiration": 300
     },
-    "accounts": {
-      "allow_custom_css": true,
-      "max_featured_tags": 10,
-      "max_profile_fields": 8
-    },
-    "emojis": {
-      "emoji_size_limit": 51200
+    "statuses": {
+      "characters_reserved_per_url": 25,
+      "max_characters": 5000,
+      "max_media_attachments": 6,
+      "supported_mime_types": [
+        "text/plain",
+        "text/markdown"
+      ]
     }
   },
-  "urls": {
-    "streaming_api": "wss://localhost:8080"
-  },
-  "stats": {
-    "domain_count": 4,
-    "status_count": 24,
-    "user_count": 5
-  },
-  "thumbnail": "http://localhost:8080/assets/logo.webp",
   "contact_account": {
-    "id": "01F8MH17FWEB39HZJ76B6VXSKF",
-    "username": "admin",
     "acct": "admin",
-    "display_name": "",
-    "locked": false,
-    "discoverable": true,
-    "indexable": true,
-    "noindex": false,
-    "bot": false,
-    "created_at": "2022-05-17T13:10:59.000Z",
-    "note": "",
-    "url": "http://localhost:8080/@admin",
     "avatar": "",
     "avatar_static": "",
-    "header": "http://localhost:8080/assets/default_header.webp",
-    "header_static": "http://localhost:8080/assets/default_header.webp",
-    "header_description": "Flat gray background (default header).",
+    "bot": false,
+    "created_at": "2022-05-17T13:10:59.000Z",
+    "discoverable": true,
+    "display_name": "",
+    "emojis": [],
+    "enable_rss": true,
+    "fields": [],
     "followers_count": 1,
     "following_count": 1,
-    "statuses_count": 4,
+    "group": false,
+    "header": "http://localhost:8080/assets/default_header.webp",
+    "header_description": "Flat gray background (default header).",
+    "header_static": "http://localhost:8080/assets/default_header.webp",
+    "id": "01F8MH17FWEB39HZJ76B6VXSKF",
+    "indexable": true,
     "last_status_at": "2021-10-20",
-    "emojis": [],
-    "fields": [],
-    "enable_rss": true,
+    "locked": false,
+    "noindex": false,
+    "note": "",
     "roles": [
       {
+        "color": "",
         "id": "admin",
-        "name": "admin",
-        "color": ""
+        "name": "admin"
       }
     ],
-    "group": false
+    "statuses_count": 4,
+    "url": "http://localhost:8080/@admin",
+    "username": "admin"
   },
+  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
+  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`internal/testmodels.go`"+`.",
+  "email": "admin@example.org",
+  "invites_enabled": false,
+  "languages": [
+    "nl",
+    "en-gb"
+  ],
   "max_toot_chars": 5000,
+  "registrations": true,
   "rules": [
     {
       "id": "01GP3AWY4CRDVRNZKW0TEAMB51",
@@ -1091,9 +1038,23 @@ func (suite *InstancePatchTestSuite) TestInstancePatchUpdateThumbnailDescription
       "text": "Do crime"
     }
   ],
+  "short_description": "<p>This is the GoToSocial testrig. It doesn't federate or anything.</p><p>When the testrig is shut down, all data on it will be deleted.</p><p>Don't use this in production!</p>",
+  "short_description_text": "This is the GoToSocial testrig. It doesn't federate or anything.\n\nWhen the testrig is shut down, all data on it will be deleted.\n\nDon't use this in production!",
+  "stats": {
+    "domain_count": 4,
+    "status_count": 24,
+    "user_count": 5
+  },
   "terms": "<p>This is where a list of terms and conditions might go.</p><p>For example:</p><p>If you want to sign up on this instance, you oughta know that we:</p><ol><li>Will sell your data to whoever offers.</li><li>Secure the server with password <code>password</code> wherever possible.</li></ol>",
-  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`"+`password`+"`"+` wherever possible."
-}`, dst.String())
+  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`password`"+` wherever possible.",
+  "thumbnail": "http://localhost:8080/assets/logo.webp",
+  "title": "GoToSocial Testrig Instance",
+  "uri": "localhost:8080",
+  "urls": {
+    "streaming_api": "wss://localhost:8080"
+  },
+  "version": "0.0.0-testrig"
+}`, out)
 }
 
 func TestInstancePatchTestSuite(t *testing.T) {

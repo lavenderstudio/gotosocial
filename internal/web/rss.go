@@ -21,11 +21,11 @@ import (
 	"net/http"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
-	"github.com/gin-gonic/gin"
 	"github.com/gorilla/feeds"
 )
 
@@ -36,22 +36,22 @@ const (
 	appJSONUTF8 = string(apiutil.AppFeedJSON) + charsetUTF8
 )
 
-func (m *Module) rssFeedGETHandler(c *gin.Context) {
-	contentType, err := apiutil.NegotiateAccept(c,
+func (m *Module) rssFeedGETHandler(c *httputil.Context) {
+	contentType, err := httputil.NegotiateAccept(c,
 		apiutil.AppRSSXML,
 		apiutil.AppAtomXML,
 		apiutil.AppFeedJSON,
 		apiutil.AppJSON,
 	)
 	if err != nil {
-		apiutil.WebErrorHandler(c, gtserror.NewErrorNotAcceptable(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, gtserror.NewErrorNotAcceptable(err, err.Error()))
 		return
 	}
 
 	// Fetch + normalize username from URL.
-	username, errWithCode := apiutil.ParseUsername(c.Param(apiutil.UsernameKey))
+	username, errWithCode := apiutil.ParseUsername(c.PathValue(apiutil.UsernameKey))
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -62,24 +62,24 @@ func (m *Module) rssFeedGETHandler(c *gin.Context) {
 		20, // default limit
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	getFunc, lastPostAt, errWithCode := m.processor.Account().GetRSSFeedForUsername(
-		c.Request.Context(),
+		c,
 		username,
 		page,
 	)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	var feed *feeds.Feed
 
 	// Key to use in etag cache (note content-type suffix).
-	cacheKey := c.Request.URL.Path + "#" + contentType
+	cacheKey := c.R.URL.Path + "#" + contentType
 
 	// Check etag cache for an existing entry under key.
 	cacheEntry, wasCached := m.eTagCache.Get(cacheKey)
@@ -93,14 +93,14 @@ func (m *Module) rssFeedGETHandler(c *gin.Context) {
 		// the string representation of the RSS feed.
 		feed, errWithCode = getFunc()
 		if errWithCode != nil {
-			apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+			apiutil.WebErrorHandler(c, m.templates, errWithCode)
 			return
 		}
 
 		etag, err := generateFeedETag(feed, contentType)
 		if err != nil {
 			errWithCode := gtserror.NewErrorInternalError(err)
-			apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+			apiutil.WebErrorHandler(c, m.templates, errWithCode)
 			return
 		}
 
@@ -125,8 +125,8 @@ func (m *Module) rssFeedGETHandler(c *gin.Context) {
 	// Set 'ETag' and 'Last-Modified' headers no matter what;
 	// even if we return 304 in the next checks, caller may
 	// want to cache these header values.
-	c.Header(eTagHeader, cacheEntry.eTag)
-	c.Header(lastModifiedHeader, cacheEntry.lastModified.Format(http.TimeFormat))
+	c.W.Header().Set(eTagHeader, cacheEntry.eTag)
+	c.W.Header().Set(lastModifiedHeader, cacheEntry.lastModified.Format(http.TimeFormat))
 
 	// Instruct caller to validate the response with us before
 	// each reuse, so that the 'ETag' and 'Last-Modified' headers
@@ -138,14 +138,14 @@ func (m *Module) rssFeedGETHandler(c *gin.Context) {
 	// is disconnected from the origin server."
 	//
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
-	c.Header(cacheControlHeader, cacheControlNoCache)
+	c.W.Header().Set(cacheControlHeader, cacheControlNoCache)
 
 	// Check if caller submitted an ETag via 'If-None-Match'.
 	// If they did + it matches what we have, that means they've
 	// already seen the latest version of this feed, so just bail.
-	ifNoneMatch := c.Request.Header.Get(ifNoneMatchHeader)
+	ifNoneMatch := c.R.Header.Get(ifNoneMatchHeader)
 	if ifNoneMatch == cacheEntry.eTag {
-		c.AbortWithStatus(http.StatusNotModified)
+		c.W.WriteHeader(http.StatusNotModified)
 		return
 	}
 
@@ -153,10 +153,10 @@ func (m *Module) rssFeedGETHandler(c *gin.Context) {
 	// If they did, and our cached ETag entry is not newer than the
 	// given time, this means the caller has already seen the latest
 	// version of this feed, so just bail.
-	ifModifiedSince := extractIfModifiedSince(c.Request)
+	ifModifiedSince := extractIfModifiedSince(c)
 	if !ifModifiedSince.IsZero() &&
 		!unixAfter(cacheEntry.lastModified, ifModifiedSince) {
-		c.AbortWithStatus(http.StatusNotModified)
+		c.W.WriteHeader(http.StatusNotModified)
 		return
 	}
 
@@ -172,7 +172,7 @@ func (m *Module) rssFeedGETHandler(c *gin.Context) {
 	if feed == nil {
 		feed, errWithCode = getFunc()
 		if errWithCode != nil {
-			apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+			apiutil.WebErrorHandler(c, m.templates, errWithCode)
 			return
 		}
 	}
@@ -180,11 +180,11 @@ func (m *Module) rssFeedGETHandler(c *gin.Context) {
 	// Encode response.
 	switch contentType {
 	case apiutil.AppRSSXML:
-		apiutil.XMLType(c, http.StatusOK, appRSSUTF8, (&feeds.Rss{feed}).FeedXml())
+		httputil.XMLType(c, http.StatusOK, appRSSUTF8, (&feeds.Rss{feed}).FeedXml())
 	case apiutil.AppAtomXML:
-		apiutil.XMLType(c, http.StatusOK, appAtomUTF8, (&feeds.Atom{feed}).FeedXml())
+		httputil.XMLType(c, http.StatusOK, appAtomUTF8, (&feeds.Atom{feed}).FeedXml())
 	case apiutil.AppFeedJSON, apiutil.AppJSON:
-		apiutil.JSONType(c, http.StatusOK, appJSONUTF8, (&feeds.JSON{feed}).JSONFeed())
+		httputil.JSONType(c, http.StatusOK, appJSONUTF8, (&feeds.JSON{feed}).JSONFeed())
 	}
 }
 
@@ -225,15 +225,15 @@ func unixAfter(t1 time.Time, t2 time.Time) bool {
 //
 // If no time was provided, or the provided time was
 // not parseable, it will return a zero time.
-func extractIfModifiedSince(r *http.Request) time.Time {
-	val := r.Header.Get(ifModifiedSinceHeader)
+func extractIfModifiedSince(c *httputil.Context) time.Time {
+	val := c.R.Header.Get(ifModifiedSinceHeader)
 	if val == "" {
 		return time.Time{} // Nothing set.
 	}
 
 	ifModifiedSince, err := http.ParseTime(val)
 	if err != nil {
-		log.Errorf(r.Context(), "couldn't parse %q as time: %v", val, err)
+		log.Errorf(c, "error parsing %q: %v", val, err)
 		return time.Time{}
 	}
 

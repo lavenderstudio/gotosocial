@@ -20,10 +20,11 @@ package auth
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	oautherr "code.superseriousbusiness.org/oauth2/v4/errors"
-	"github.com/gin-gonic/gin"
 )
 
 // TokenRevokePOSTHandler swagger:operation POST /oauth/revoke oauthTokenRevoke
@@ -82,9 +83,9 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) TokenRevokePOSTHandler(c *gin.Context) {
+func (m *Module) TokenRevokePOSTHandler(c *httputil.Context) {
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -95,9 +96,9 @@ func (m *Module) TokenRevokePOSTHandler(c *gin.Context) {
 		ClientSecret string `form:"client_secret"`
 		Token        string `form:"token"`
 	}{}
-	if err := c.ShouldBind(form); err != nil {
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		errWithCode := gtserror.NewErrorBadRequest(err, err.Error())
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -129,7 +130,7 @@ func (m *Module) TokenRevokePOSTHandler(c *gin.Context) {
 	}
 
 	errWithCode := m.processor.OAuthRevokeAccessToken(
-		c.Request.Context(),
+		c,
 		form.ClientID,
 		form.ClientSecret,
 		form.Token,
@@ -139,5 +140,5 @@ func (m *Module) TokenRevokePOSTHandler(c *gin.Context) {
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, struct{}{})
+	httputil.JSON(c, http.StatusOK, struct{}{})
 }

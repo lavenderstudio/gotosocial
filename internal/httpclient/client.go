@@ -380,7 +380,7 @@ func (c *Client) do(r *Request) (rsp *http.Response, retry bool, err error) {
 
 	// Wrap closer to ensure body drained BEFORE close.
 	cbody = iotools.CloserAfterCallback(cbody, func() {
-		_, _ = discard.ReadFrom(rbody)
+		_, _ = iotools.Discard.ReadFrom(rbody)
 	})
 
 	// Set the wrapped response body.
@@ -391,10 +391,3 @@ func (c *Client) do(r *Request) (rsp *http.Response, retry bool, err error) {
 
 	return rsp, true, nil
 }
-
-// cast discard writer to full interface it supports.
-var discard = io.Discard.(interface { //nolint
-	io.Writer
-	io.StringWriter
-	io.ReaderFrom
-})

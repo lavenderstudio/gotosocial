@@ -156,22 +156,14 @@ func (suite *ProcessingStandardTestSuite) openStreams(ctx context.Context, accou
 		stream.TimelinePublic,
 		stream.TimelineNotifications,
 	} {
-		stream, err := suite.processor.Stream().Open(ctx, account, streamType)
-		if err != nil {
-			suite.FailNow(err.Error())
-		}
-
+		stream := suite.processor.Stream().Open(ctx, account, streamType)
 		streams[streamType] = stream
 	}
 
 	for _, listID := range listIDs {
 		streamType := stream.TimelineList + ":" + listID
 
-		stream, err := suite.processor.Stream().Open(ctx, account, streamType)
-		if err != nil {
-			suite.FailNow(err.Error())
-		}
-
+		stream := suite.processor.Stream().Open(ctx, account, streamType)
 		streams[streamType] = stream
 	}
 

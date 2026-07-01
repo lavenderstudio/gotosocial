@@ -20,8 +20,8 @@ package hostmeta
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // HostMetaGETHandler swagger:operation GET /.well-known/host-meta hostMetaGet
@@ -41,18 +41,16 @@ import (
 //		'200':
 //			schema:
 //				"$ref": "#/definitions/hostmeta"
-func (m *Module) HostMetaGETHandler(c *gin.Context) {
+func (m *Module) HostMetaGETHandler(c *httputil.Context) {
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.HostMetaHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	hostMeta := m.processor.Fedi().HostMetaGet()
 
 	// Encode XML HTTP response.
-	apiutil.EncodeXMLResponse(
-		c.Writer,
-		c.Request,
+	httputil.EncodeXMLResponse(c,
 		http.StatusOK,
 		HostMetaContentType,
 		hostMeta,

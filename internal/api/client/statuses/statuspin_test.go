@@ -25,15 +25,16 @@ import (
 	"strconv"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/statuses"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -48,20 +49,18 @@ func (suite *StatusPinTestSuite) createPin(
 	requestingAcct *gtsmodel.Account,
 ) (*apimodel.Status, error) {
 	// instantiate recorder + test context
+	req := httptest.NewRequest(http.MethodPost, config.GetProtocol()+"://"+config.GetHost()+"/api/"+statuses.BasePath+"/"+targetStatusID+"/pin", nil)
+	req.Header.Set("accept", "application/json")
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, requestingAcct)
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-
-	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodPost, config.GetProtocol()+"://"+config.GetHost()+"/api/"+statuses.BasePath+"/"+targetStatusID+"/pin", nil)
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.AddParam(statuses.IDKey, targetStatusID)
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, requestingAcct)
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.SetPathValue(apiutil.IDKey, targetStatusID)
 
 	// trigger the handler
-	suite.statusModule.StatusPinPOSTHandler(ctx)
+	suite.statusModule.StatusPinPOSTHandler(c)
 
 	// read the response
 	result := recorder.Result()

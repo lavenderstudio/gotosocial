@@ -30,8 +30,8 @@ type OpenStreamTestSuite struct {
 func (suite *OpenStreamTestSuite) TestOpenStream() {
 	account := suite.testAccounts["local_account_1"]
 
-	_, errWithCode := suite.streamProcessor.Open(suite.T().Context(), account, "user")
-	suite.NoError(errWithCode)
+	stream := suite.streamProcessor.Open(suite.T().Context(), account, "user")
+	suite.NotNil(stream)
 }
 
 func TestOpenStreamTestSuite(t *testing.T) {

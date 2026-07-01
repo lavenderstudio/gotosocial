@@ -71,7 +71,7 @@ type Configuration struct {
 	Protocol                   string        `name:"protocol" usage:"Protocol to use for the REST api of the server (only use http if you are debugging; https should be used even if running behind a reverse proxy!)"`
 	BindAddress                string        `name:"bind-address" usage:"Bind address to use for the GoToSocial server (eg., 0.0.0.0, 172.138.0.9, [::], localhost). For ipv6, enclose the address in square brackets, eg [2001:db8::fed1]. Default binds to all interfaces."`
 	Port                       int           `name:"port" usage:"Port to use for GoToSocial. Change this to 443 if you're running the binary directly on the host machine."`
-	TrustedProxies             []string      `name:"trusted-proxies" usage:"Proxies to trust when parsing x-forwarded headers into real IPs."`
+	TrustedProxies             IPPrefixes    `name:"trusted-proxies" usage:"Proxies to trust when parsing x-forwarded headers into real IPs."`
 	SoftwareVersion            string        `name:"software-version" usage:""`
 	DbType                     string        `name:"db-type" usage:"Database type: eg., postgres"`
 	DbAddress                  string        `name:"db-address" usage:"Database ipv4 address, hostname, or filename"`
@@ -227,8 +227,8 @@ type HTTPServerConfiguration struct {
 }
 
 type HTTPClientConfiguration struct {
-	AllowIPs              []string      `name:"allow-ips"`
-	BlockIPs              []string      `name:"block-ips"`
+	AllowIPs              IPPrefixes    `name:"allow-ips"`
+	BlockIPs              IPPrefixes    `name:"block-ips"`
 	Timeout               time.Duration `name:"timeout"`
 	TLSInsecureSkipVerify bool          `name:"tls-insecure-skip-verify"`
 	InsecureOutgoing      bool          `name:"insecure-outgoing"`

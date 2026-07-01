@@ -20,6 +20,7 @@ package testrig
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"os"
 	"strconv"
 	"time"
@@ -65,9 +66,9 @@ func testDefaults() config.Configuration {
 		Host:                       "localhost:8080",
 		AccountDomain:              "localhost:8080",
 		Protocol:                   "http",
-		BindAddress:                "127.0.0.1",
-		Port:                       8080,
-		TrustedProxies:             []string{"127.0.0.1/32", "::1"},
+		BindAddress:                envStr("GTS_BIND_ADDRESS", "localhost"),
+		Port:                       envInt("GTS_BIND_PORT", 8080),
+		TrustedProxies:             []netip.Prefix{config.MustParsePrefix("127.0.0.1/32"), config.MustParsePrefix("::1")},
 		DbType:                     envStr("GTS_DB_TYPE", "sqlite"),
 		DbAddress:                  envStr("GTS_DB_ADDRESS", ":memory:"),
 		DbPort:                     envInt("GTS_DB_PORT", 0),
@@ -83,8 +84,8 @@ func testDefaults() config.Configuration {
 		DbSqliteCacheSize:          8 * bytesize.MiB,
 		DbSqliteBusyTimeout:        time.Minute * 5,
 
-		WebTemplateBaseDir: "./web/template/",
-		WebAssetBaseDir:    "./web/assets/",
+		WebTemplateBaseDir: envStr("GTS_WEB_TEMPLATE_BASE_DIR", "./web/template/"),
+		WebAssetBaseDir:    envStr("GTS_WEB_ASSET_BASE_DIR", "./web/assets/"),
 
 		InstanceFederationMode:         config.InstanceFederationModeDefault,
 		InstanceFederationSpamFilter:   true,

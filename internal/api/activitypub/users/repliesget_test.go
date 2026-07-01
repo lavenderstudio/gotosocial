@@ -18,7 +18,6 @@
 package users_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -27,10 +26,10 @@ import (
 
 	"code.superseriousbusiness.org/activity/streams"
 	"code.superseriousbusiness.org/activity/streams/vocab"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -47,31 +46,20 @@ func (suite *RepliesGetTestSuite) TestGetReplies() {
 	targetStatus := suite.testStatuses["local_account_1_status_1"]
 
 	// setup request
+	req := httptest.NewRequest(http.MethodGet, targetStatus.URI+"/replies?only_other_accounts=false", nil) // the endpoint we're hitting
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, targetStatus.URI+"/replies?only_other_accounts=false", nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/activity+json")
-	ctx.Request.Header.Set("Signature", signedRequest.SignatureHeader)
-	ctx.Request.Header.Set("Date", signedRequest.DateHeader)
-
-	// we need to pass the context through signature check first to set appropriate values on it
-	suite.signatureCheck(ctx)
+	c := httputil.ToContext(recorder, req)
+	c.R.Header.Set("accept", "application/activity+json")
+	c.R.Header.Set("Signature", signedRequest.SignatureHeader)
+	c.R.Header.Set("Date", signedRequest.DateHeader)
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.UsernameKey,
-			Value: targetAccount.Username,
-		},
-		gin.Param{
-			Key:   apiutil.IDKey,
-			Value: targetStatus.ID,
-		},
-	}
+	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
+	c.SetPathValue(apiutil.IDKey, targetStatus.ID)
 
-	// trigger the function being tested
-	suite.userModule.StatusRepliesGETHandler(ctx)
+	// trigger the function being tested, first passing through sigcheck.
+	suite.signatureCheck.Compile(suite.userModule.StatusRepliesGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
@@ -82,9 +70,8 @@ func (suite *RepliesGetTestSuite) TestGetReplies() {
 	b, err := io.ReadAll(result.Body)
 	assert.NoError(suite.T(), err)
 
-	// Indent JSON
-	// for readability.
-	b = indentJSON(b)
+	// Indent JSON for readability.
+	b = testrig.MustJSONBytesFromBytes(b)
 
 	// Create JSON string of expected output.
 	expect := toJSON(map[string]any{
@@ -115,31 +102,20 @@ func (suite *RepliesGetTestSuite) TestGetRepliesNext() {
 	targetStatus := suite.testStatuses["local_account_1_status_1"]
 
 	// setup request
+	req := httptest.NewRequest(http.MethodGet, targetStatus.URI+"/replies?only_other_accounts=false&page=true", nil) // the endpoint we're hitting
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, targetStatus.URI+"/replies?only_other_accounts=false&page=true", nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/activity+json")
-	ctx.Request.Header.Set("Signature", signedRequest.SignatureHeader)
-	ctx.Request.Header.Set("Date", signedRequest.DateHeader)
-
-	// we need to pass the context through signature check first to set appropriate values on it
-	suite.signatureCheck(ctx)
+	c := httputil.ToContext(recorder, req)
+	c.R.Header.Set("accept", "application/activity+json")
+	c.R.Header.Set("Signature", signedRequest.SignatureHeader)
+	c.R.Header.Set("Date", signedRequest.DateHeader)
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.UsernameKey,
-			Value: targetAccount.Username,
-		},
-		gin.Param{
-			Key:   apiutil.IDKey,
-			Value: targetStatus.ID,
-		},
-	}
+	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
+	c.SetPathValue(apiutil.IDKey, targetStatus.ID)
 
-	// trigger the function being tested
-	suite.userModule.StatusRepliesGETHandler(ctx)
+	// trigger the function being tested, first passing through sigcheck.
+	suite.signatureCheck.Compile(suite.userModule.StatusRepliesGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
@@ -150,9 +126,8 @@ func (suite *RepliesGetTestSuite) TestGetRepliesNext() {
 	b, err := io.ReadAll(result.Body)
 	assert.NoError(suite.T(), err)
 
-	// Indent JSON
-	// for readability.
-	b = indentJSON(b)
+	// Indent JSON for readability.
+	b = testrig.MustJSONBytesFromBytes(b)
 
 	// Create JSON string of expected output.
 	expect := toJSON(map[string]any{
@@ -188,31 +163,20 @@ func (suite *RepliesGetTestSuite) TestGetRepliesLast() {
 	targetStatus := suite.testStatuses["local_account_1_status_1"]
 
 	// setup request
+	req := httptest.NewRequest(http.MethodGet, targetStatus.URI+"/replies?min_id=01FF25D5Q0DH7CHD57CTRS6WK0&only_other_accounts=false", nil)
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, targetStatus.URI+"/replies?min_id=01FF25D5Q0DH7CHD57CTRS6WK0&only_other_accounts=false", nil)
-	ctx.Request.Header.Set("accept", "application/activity+json")
-	ctx.Request.Header.Set("Signature", signedRequest.SignatureHeader)
-	ctx.Request.Header.Set("Date", signedRequest.DateHeader)
-
-	// we need to pass the context through signature check first to set appropriate values on it
-	suite.signatureCheck(ctx)
+	c := httputil.ToContext(recorder, req)
+	c.R.Header.Set("accept", "application/activity+json")
+	c.R.Header.Set("Signature", signedRequest.SignatureHeader)
+	c.R.Header.Set("Date", signedRequest.DateHeader)
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.UsernameKey,
-			Value: targetAccount.Username,
-		},
-		gin.Param{
-			Key:   apiutil.IDKey,
-			Value: targetStatus.ID,
-		},
-	}
+	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
+	c.SetPathValue(apiutil.IDKey, targetStatus.ID)
 
-	// trigger the function being tested
-	suite.userModule.StatusRepliesGETHandler(ctx)
+	// trigger the function being tested, first passing through sigcheck.
+	suite.signatureCheck.Compile(suite.userModule.StatusRepliesGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
@@ -223,9 +187,8 @@ func (suite *RepliesGetTestSuite) TestGetRepliesLast() {
 	b, err := io.ReadAll(result.Body)
 	assert.NoError(suite.T(), err)
 
-	// Indent JSON
-	// for readability.
-	b = indentJSON(b)
+	// Indent JSON for readability.
+	b = testrig.MustJSONBytesFromBytes(b)
 
 	// Create JSON string of expected output.
 	expect := toJSON(map[string]any{
@@ -265,24 +228,5 @@ func toJSON(a any) string {
 		}
 		a = m
 	}
-	var dst bytes.Buffer
-	enc := json.NewEncoder(&dst)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	err := enc.Encode(a)
-	if err != nil {
-		panic(err)
-	}
-	dst.Truncate(dst.Len() - 1) // drop new-line
-	return dst.String()
-}
-
-// indentJSON will return indented JSON from raw provided JSON.
-func indentJSON(b []byte) []byte {
-	var dst bytes.Buffer
-	err := json.Indent(&dst, b, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	return dst.Bytes()
+	return testrig.MustJSONString(a)
 }

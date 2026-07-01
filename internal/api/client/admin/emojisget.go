@@ -22,11 +22,11 @@ import (
 	"net/http"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // EmojisGETHandler swagger:operation GET /api/v1/admin/custom_emojis emojisGet
@@ -137,24 +137,27 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) EmojisGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeAdminReadCustomEmojis,
-	)
+func (m *Module) EmojisGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeAdminReadCustomEmojis},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if !*authed.User.Admin {
 		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -163,7 +166,7 @@ func (m *Module) EmojisGETHandler(c *gin.Context) {
 
 	limit, errWithCode := apiutil.ParseLimit(c.Query(apiutil.LimitKey), 50, 200, 0)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -186,7 +189,7 @@ func (m *Module) EmojisGETHandler(c *gin.Context) {
 				shortcode = strings.Trim(filter[10:], ":") // remove any errant ":"
 			default:
 				err := fmt.Errorf("filter %s not recognized; accepted values are 'domain:[domain]', 'disabled', 'enabled', 'shortcode:[shortcode]'", filter)
-				apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+				apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 				return
 			}
 		}
@@ -208,7 +211,7 @@ func (m *Module) EmojisGETHandler(c *gin.Context) {
 	}
 
 	resp, errWithCode := m.processor.Admin().EmojisGet(
-		c.Request.Context(),
+		c,
 		authed.Account,
 		domain,
 		includeDisabled,
@@ -219,13 +222,13 @@ func (m *Module) EmojisGETHandler(c *gin.Context) {
 		limit,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if resp.LinkHeader != "" {
-		c.Header("Link", resp.LinkHeader)
+		c.W.Header().Set("Link", resp.LinkHeader)
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp.Items)
+	httputil.JSON(c, http.StatusOK, resp.Items)
 }

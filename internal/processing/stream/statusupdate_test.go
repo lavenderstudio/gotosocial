@@ -18,12 +18,11 @@
 package stream_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"testing"
 
 	"code.superseriousbusiness.org/gotosocial/internal/stream"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
+	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -34,8 +33,7 @@ type StatusUpdateTestSuite struct {
 func (suite *StatusUpdateTestSuite) TestStreamNotification() {
 	account := suite.testAccounts["local_account_1"]
 
-	openStream, errWithCode := suite.streamProcessor.Open(suite.T().Context(), account, "user")
-	suite.NoError(errWithCode)
+	openStream := suite.streamProcessor.Open(suite.T().Context(), account, "user")
 
 	editedStatus := suite.testStatuses["remote_account_1_status_1"]
 	apiStatus, err := typeutils.NewConverter(&suite.state).StatusToAPIStatus(suite.T().Context(), editedStatus, account)
@@ -46,102 +44,47 @@ func (suite *StatusUpdateTestSuite) TestStreamNotification() {
 	msg, ok := openStream.Recv(suite.T().Context())
 	suite.True(ok)
 
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, []byte(msg.Payload), "", "  ")
-	suite.NoError(err)
+	out := testrig.MustJSONStringFromString(msg.Payload)
 	suite.Equal(`{
-  "id": "01FVW7JHQFSFK166WWKR8CBA6M",
-  "created_at": "2021-09-20T10:40:37.000Z",
-  "edited_at": null,
-  "in_reply_to_id": null,
-  "in_reply_to_account_id": null,
-  "sensitive": true,
-  "spoiler_text": "potentially annoying post ahead",
-  "visibility": "unlisted",
-  "language": "en",
-  "uri": "http://fossbros-anonymous.io/users/foss_satan/statuses/01FVW7JHQFSFK166WWKR8CBA6M",
-  "url": "http://fossbros-anonymous.io/@foss_satan/statuses/01FVW7JHQFSFK166WWKR8CBA6M",
-  "replies_count": 0,
-  "reblogs_count": 0,
-  "favourites_count": 0,
-  "favourited": false,
-  "reblogged": false,
-  "muted": false,
-  "bookmarked": false,
-  "pinned": false,
-  "content": "\u003cp\u003edark souls status bot: \"thoughts of dog\"\u003c/p\u003e",
-  "reblog": null,
   "account": {
-    "id": "01F8MH5ZK5VRH73AKHQM6Y9VNX",
-    "username": "foss_satan",
     "acct": "foss_satan@fossbros-anonymous.io",
-    "display_name": "big gerald",
-    "locked": false,
-    "discoverable": true,
-    "indexable": true,
-    "noindex": false,
-    "bot": false,
-    "created_at": "2021-09-26T10:52:36.000Z",
-    "note": "i post about like, i dunno, stuff, or whatever!!!!",
-    "url": "http://fossbros-anonymous.io/@foss_satan",
     "avatar": "",
     "avatar_static": "",
-    "header": "http://localhost:8080/assets/default_header.webp",
-    "header_static": "http://localhost:8080/assets/default_header.webp",
-    "header_description": "Flat gray background (default header).",
-    "followers_count": 0,
-    "following_count": 0,
-    "statuses_count": 4,
-    "last_status_at": "2024-11-01",
+    "bot": false,
+    "created_at": "2021-09-26T10:52:36.000Z",
+    "discoverable": true,
+    "display_name": "big gerald",
     "emojis": [],
     "fields": [],
-    "group": false
+    "followers_count": 0,
+    "following_count": 0,
+    "group": false,
+    "header": "http://localhost:8080/assets/default_header.webp",
+    "header_description": "Flat gray background (default header).",
+    "header_static": "http://localhost:8080/assets/default_header.webp",
+    "id": "01F8MH5ZK5VRH73AKHQM6Y9VNX",
+    "indexable": true,
+    "last_status_at": "2024-11-01",
+    "locked": false,
+    "noindex": false,
+    "note": "i post about like, i dunno, stuff, or whatever!!!!",
+    "statuses_count": 4,
+    "url": "http://fossbros-anonymous.io/@foss_satan",
+    "username": "foss_satan"
   },
-  "media_attachments": [
-    {
-      "id": "01FVW7RXPQ8YJHTEXYPE7Q8ZY0",
-      "type": "image",
-      "url": "http://localhost:8080/fileserver/01F8MH5ZK5VRH73AKHQM6Y9VNX/attachment/original/01FVW7RXPQ8YJHTEXYPE7Q8ZY0.jpg",
-      "text_url": "http://localhost:8080/fileserver/01F8MH5ZK5VRH73AKHQM6Y9VNX/attachment/original/01FVW7RXPQ8YJHTEXYPE7Q8ZY0.jpg",
-      "preview_url": "http://localhost:8080/fileserver/01F8MH5ZK5VRH73AKHQM6Y9VNX/attachment/small/01FVW7RXPQ8YJHTEXYPE7Q8ZY0.webp",
-      "remote_url": "http://fossbros-anonymous.io/attachments/original/13bbc3f8-2b5e-46ea-9531-40b4974d9912.jpg",
-      "preview_remote_url": null,
-      "meta": {
-        "original": {
-          "width": 472,
-          "height": 291,
-          "size": "472x291",
-          "aspect": 1.6219932
-        },
-        "small": {
-          "width": 472,
-          "height": 291,
-          "size": "472x291",
-          "aspect": 1.6219932
-        },
-        "focus": {
-          "x": 0,
-          "y": 0
-        }
-      },
-      "description": "tweet from thoughts of dog: i drank. all the water. in my bowl. earlier. but just now. i returned. to the same bowl. and it was. full again.. the bowl. is haunted",
-      "blurhash": "L3Q9_@4n9E?axW4mD$Mx~q00Di%L"
-    }
-  ],
-  "mentions": [],
-  "tags": [],
-  "emojis": [],
+  "bookmarked": false,
   "card": null,
-  "poll": null,
+  "content": "<p>dark souls status bot: \"thoughts of dog\"</p>",
+  "created_at": "2021-09-20T10:40:37.000Z",
+  "edited_at": null,
+  "emojis": [],
+  "favourited": false,
+  "favourites_count": 0,
+  "id": "01FVW7JHQFSFK166WWKR8CBA6M",
+  "in_reply_to_account_id": null,
+  "in_reply_to_id": null,
   "interaction_policy": {
     "can_favourite": {
-      "automatic_approval": [
-        "public",
-        "me"
-      ],
-      "manual_approval": []
-    },
-    "can_reply": {
       "automatic_approval": [
         "public",
         "me"
@@ -154,9 +97,62 @@ func (suite *StatusUpdateTestSuite) TestStreamNotification() {
         "me"
       ],
       "manual_approval": []
+    },
+    "can_reply": {
+      "automatic_approval": [
+        "public",
+        "me"
+      ],
+      "manual_approval": []
     }
-  }
-}`, dst.String())
+  },
+  "language": "en",
+  "media_attachments": [
+    {
+      "blurhash": "L3Q9_@4n9E?axW4mD$Mx~q00Di%L",
+      "description": "tweet from thoughts of dog: i drank. all the water. in my bowl. earlier. but just now. i returned. to the same bowl. and it was. full again.. the bowl. is haunted",
+      "id": "01FVW7RXPQ8YJHTEXYPE7Q8ZY0",
+      "meta": {
+        "focus": {
+          "x": 0,
+          "y": 0
+        },
+        "original": {
+          "aspect": 1.6219932,
+          "height": 291,
+          "size": "472x291",
+          "width": 472
+        },
+        "small": {
+          "aspect": 1.6219932,
+          "height": 291,
+          "size": "472x291",
+          "width": 472
+        }
+      },
+      "preview_remote_url": null,
+      "preview_url": "http://localhost:8080/fileserver/01F8MH5ZK5VRH73AKHQM6Y9VNX/attachment/small/01FVW7RXPQ8YJHTEXYPE7Q8ZY0.webp",
+      "remote_url": "http://fossbros-anonymous.io/attachments/original/13bbc3f8-2b5e-46ea-9531-40b4974d9912.jpg",
+      "text_url": "http://localhost:8080/fileserver/01F8MH5ZK5VRH73AKHQM6Y9VNX/attachment/original/01FVW7RXPQ8YJHTEXYPE7Q8ZY0.jpg",
+      "type": "image",
+      "url": "http://localhost:8080/fileserver/01F8MH5ZK5VRH73AKHQM6Y9VNX/attachment/original/01FVW7RXPQ8YJHTEXYPE7Q8ZY0.jpg"
+    }
+  ],
+  "mentions": [],
+  "muted": false,
+  "pinned": false,
+  "poll": null,
+  "reblog": null,
+  "reblogged": false,
+  "reblogs_count": 0,
+  "replies_count": 0,
+  "sensitive": true,
+  "spoiler_text": "potentially annoying post ahead",
+  "tags": [],
+  "uri": "http://fossbros-anonymous.io/users/foss_satan/statuses/01FVW7JHQFSFK166WWKR8CBA6M",
+  "url": "http://fossbros-anonymous.io/@foss_satan/statuses/01FVW7JHQFSFK166WWKR8CBA6M",
+  "visibility": "unlisted"
+}`, out)
 	suite.Equal(msg.Event, "status.update")
 }
 

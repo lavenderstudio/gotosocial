@@ -98,7 +98,7 @@ func (suite *NotificationsTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.notificationsModule = notifications.New(suite.processor)
+	suite.notificationsModule = notifications.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 }
 
 func (suite *NotificationsTestSuite) TearDownTest() {

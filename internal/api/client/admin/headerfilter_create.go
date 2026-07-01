@@ -17,9 +17,7 @@
 
 package admin
 
-import (
-	"github.com/gin-gonic/gin"
-)
+import "code.superseriousbusiness.org/gopkg/httputil"
 
 // HeaderFilterAllowPOST swagger:operation POST /api/v1/admin/header_allows headerFilterAllowCreate
 //
@@ -65,7 +63,7 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) HeaderFilterAllowPOST(c *gin.Context) {
+func (m *Module) HeaderFilterAllowPOST(c *httputil.Context) {
 	m.createHeaderFilter(c, m.processor.Admin().CreateAllowHeaderFilter)
 }
 
@@ -113,6 +111,6 @@ func (m *Module) HeaderFilterAllowPOST(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) HeaderFilterBlockPOST(c *gin.Context) {
+func (m *Module) HeaderFilterBlockPOST(c *httputil.Context) {
 	m.createHeaderFilter(c, m.processor.Admin().CreateBlockHeaderFilter)
 }

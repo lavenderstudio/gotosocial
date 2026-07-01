@@ -15,32 +15,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-/*
-	The code in this file is adapted from MIT-licensed code in github.com/go-chi/chi. Thanks chi (thi)!
-
-	See: https://github.com/go-chi/chi/blob/e6baba61759b26ddf7b14d1e02d1da81a4d76c08/middleware/throttle.go
-
-	And: https://github.com/sponsors/pkieltyka
-*/
-
 package middleware
 
 import (
 	"net/http"
 	"runtime"
 	"strconv"
-	"sync/atomic"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
+	extmiddleware "code.superseriousbusiness.org/gopkg/httputil/middleware"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 )
 
-// token represents a request that is being processed.
-type token struct{}
-
-// Throttle returns a gin middleware that performs throttling of incoming requests,
+// Throttle returns a middleware that performs throttling of incoming requests,
 // ensuring that only a certain number of requests are handled concurrently, to reduce
 // congestion of the server.
 //
@@ -76,74 +64,17 @@ type token struct{}
 //
 //   - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After
 //   - https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/503
-func Throttle(cpuMultiplier int, retryAfter time.Duration) gin.HandlerFunc {
-	if cpuMultiplier <= 0 {
-		// throttling is disabled,
-		// return a noop middleware
-		return nil
-	}
-
-	if retryAfter < 0 {
-		retryAfter = 0
-	}
-
-	var (
-		limit         = runtime.GOMAXPROCS(0) * cpuMultiplier
-		queueLimit    = limit * cpuMultiplier
-		tokens        = make(chan token, limit)
-		requestCount  = atomic.Int64{}
-		retryAfterStr = strconv.FormatUint(uint64(retryAfter/time.Second), 10) // #nosec G115 -- Checked right above
-	)
-
-	// prefill token channel
-	for i := 0; i < limit; i++ {
-		tokens <- token{}
-	}
-
-	return func(c *gin.Context) {
-		// Always decrement request counter.
-		defer func() { requestCount.Add(-1) }()
-
-		// Increment request count.
-		n := requestCount.Add(1)
-
-		// Check whether the request
-		// count is over queue limit.
-		if n > int64(queueLimit) {
-			c.Header("Retry-After", retryAfterStr)
-			apiutil.Data(c,
-				http.StatusTooManyRequests,
-				apiutil.AppJSON,
-				apiutil.ErrorCapacityExceeded,
-			)
-			c.Abort()
-			return
-		}
-
-		// Sit and wait in the
-		// queue for free token.
-		select {
-
-		case <-c.Request.Context().Done():
-			// request context has
-			// been canceled already.
-			c.Abort()
-			return
-
-		case tok := <-tokens:
-			// caller has successfully
-			// received a token, allowing
-			// request to be processed.
-
-			defer func() {
-				// when we're finished, return
-				// this token to the bucket.
-				tokens <- tok
-			}()
-
-			// Process
-			// request!
-			c.Next()
-		}
-	}
+func Throttle(cpuMultiplier int, retryAfter time.Duration) httputil.MiddlewareFunc {
+	limit := runtime.GOMAXPROCS(0) * cpuMultiplier
+	queueLimit := limit * cpuMultiplier
+	retryAfter = max(retryAfter, 5*time.Second)                             // clamp to a minimum
+	retryAfterStr := strconv.FormatUint(uint64(retryAfter/time.Second), 10) // #nosec G115 -- Checked right above
+	return extmiddleware.WithThrottling(limit, queueLimit, func(c *httputil.Context) {
+		c.W.Header().Set("Retry-After", retryAfterStr)
+		httputil.Data(c,
+			http.StatusTooManyRequests,
+			apiutil.AppJSON,
+			apiutil.ErrorCapacityExceeded,
+		)
+	})
 }

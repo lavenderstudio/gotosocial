@@ -23,12 +23,14 @@ import (
 	"net/http"
 	"net/url"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -40,24 +42,25 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, BasePath, m.RelayPushesGETHandler)
-	attachHandler(http.MethodGet, BasePathWithID, m.RelayPushGETHandler)
-	attachHandler(http.MethodPost, BasePath, m.RelayPushPOSTHandler)
-	attachHandler(http.MethodPut, BasePathWithID, m.RelayPushPUTHandler)
-	attachHandler(http.MethodDelete, BasePathWithID, m.RelayPushDELETEHandler)
-	attachHandler(http.MethodPost, RelayPushMatchersPath, m.RelayPushMatcherPOSTHandler)
-	attachHandler(http.MethodDelete, RelayPushMatchersPathWithID, m.RelayPushMatcherDELETEHandler)
-	attachHandler(http.MethodPut, RelayPushMatchersPathWithID, m.RelayPushMatcherPUTHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(BasePath, m.RelayPushesGETHandler)
+	g.GET(BasePathWithID, m.RelayPushGETHandler)
+	g.POST(BasePath, m.RelayPushPOSTHandler)
+	g.PUT(BasePathWithID, m.RelayPushPUTHandler)
+	g.DELETE(BasePathWithID, m.RelayPushDELETEHandler)
+	g.POST(RelayPushMatchersPath, m.RelayPushMatcherPOSTHandler)
+	g.DELETE(RelayPushMatchersPathWithID, m.RelayPushMatcherDELETEHandler)
+	g.PUT(RelayPushMatchersPathWithID, m.RelayPushMatcherPUTHandler)
 }
 
 // RelayPushesGETHandler swagger:operation GET /api/v1/relay_pushes relayPushes
@@ -105,32 +108,35 @@ func (m *Module) Route(attachHandler func(method string, path string, f ...gin.H
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) RelayPushesGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadRelays,
-	)
+func (m *Module) RelayPushesGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadRelays},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	resp, errWithCode := m.processor.RelayPush().RelayPushesGet(c.Request.Context(), authed.Account.ID)
+	resp, errWithCode := m.processor.RelayPush().RelayPushesGet(c, authed.Account.ID)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if resp.LinkHeader != "" {
-		c.Header("Link", resp.LinkHeader)
+		c.W.Header().Set("Link", resp.LinkHeader)
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp.Items)
+	httputil.JSON(c, http.StatusOK, resp.Items)
 }
 
 // RelayPushGETHandler swagger:operation GET /api/v1/relay_pushes/{id} relayPushGet
@@ -182,38 +188,41 @@ func (m *Module) RelayPushesGETHandler(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) RelayPushGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadRelays,
-	)
+func (m *Module) RelayPushGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadRelays},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	id, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+	id, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	resp, errWithCode := m.processor.RelayPush().RelayPushGet(
-		c.Request.Context(),
+		c,
 		authed,
 		id,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp)
+	httputil.JSON(c, http.StatusOK, resp)
 }
 
 // RelayPushPOSTHandler swagger:operation POST /api/v1/relay_pushes relayPushCreate
@@ -313,13 +322,16 @@ func (m *Module) RelayPushGETHandler(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) RelayPushPOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteRelays,
-	)
+func (m *Module) RelayPushPOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteRelays},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -329,13 +341,13 @@ func (m *Module) RelayPushPOSTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form := new(apimodel.RelayConnectionCreateRequest)
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
@@ -343,12 +355,12 @@ func (m *Module) RelayPushPOSTHandler(c *gin.Context) {
 	relayActorURI, err := url.Parse(form.RelayActorURI)
 	if err != nil {
 		err := fmt.Errorf("relay_actor_uri not parseable: %w", err)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	resp, errWithCode := m.processor.RelayPush().RelayPushCreate(
-		c.Request.Context(),
+		c,
 		authed,
 		relayActorURI,
 		util.PtrOrValue(form.Public, true),   // default true
@@ -359,11 +371,11 @@ func (m *Module) RelayPushPOSTHandler(c *gin.Context) {
 		util.PtrOrZero(form.IgnoreReplies),   // default false
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp)
+	httputil.JSON(c, http.StatusOK, resp)
 }
 
 // RelayPushPUTHandler swagger:operation PUT /api/v1/relay_pushes/{id} relayPushUpdate
@@ -462,13 +474,16 @@ func (m *Module) RelayPushPOSTHandler(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) RelayPushPUTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteRelays,
-	)
+func (m *Module) RelayPushPUTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteRelays},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -478,20 +493,20 @@ func (m *Module) RelayPushPUTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	id, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+	id, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Parse form.
 	form := new(apimodel.RelayConnectionUpdateRequest)
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
@@ -504,12 +519,11 @@ func (m *Module) RelayPushPUTHandler(c *gin.Context) {
 		form.IgnoreReplies == nil {
 		const errText = "no update fields provided"
 		errWithCode := gtserror.NewErrorBadRequest(errors.New(errText), errText)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	resp, errWithCode := m.processor.RelayPush().RelayPushUpdate(
-		c.Request.Context(),
+	resp, errWithCode := m.processor.RelayPush().RelayPushUpdate(c,
 		authed,
 		id,
 		form.Public,
@@ -520,11 +534,11 @@ func (m *Module) RelayPushPUTHandler(c *gin.Context) {
 		form.IgnoreReplies,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp)
+	httputil.JSON(c, http.StatusOK, resp)
 }
 
 // RelayPushDELETEHandler swagger:operation DELETE /api/v1/relay_pushes/{id} relayPushDelete
@@ -576,32 +590,35 @@ func (m *Module) RelayPushPUTHandler(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) RelayPushDELETEHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteRelays,
-	)
+func (m *Module) RelayPushDELETEHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteRelays},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	id, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+	id, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	resp, errWithCode := m.processor.RelayPush().RelayPushDelete(c.Request.Context(), authed, id)
+	resp, errWithCode := m.processor.RelayPush().RelayPushDelete(c, authed, id)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp)
+	httputil.JSON(c, http.StatusOK, resp)
 }

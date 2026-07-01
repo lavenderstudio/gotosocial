@@ -22,11 +22,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin"
 )
 
 // DomainPermissionDraftsPOSTHandler swagger:operation POST /api/v1/admin/domain_permission_drafts domainPermissionDraftCreate
@@ -110,19 +111,22 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) DomainPermissionDraftsPOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeAdminWrite,
-	)
+func (m *Module) DomainPermissionDraftsPOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeAdminWrite},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if !*authed.User.Admin {
 		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
 		return
 	}
 
@@ -132,32 +136,32 @@ func (m *Module) DomainPermissionDraftsPOSTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Parse + validate form.
 	form := new(apimodel.DomainPermissionRequest)
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if form.Domain == "" {
 		const errText = "domain must be set"
 		errWithCode := gtserror.NewErrorBadRequest(errors.New(errText), errText)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	permType, errWithCode := parseDomainPermissionType(form.PermissionType)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	permDraft, errWithCode := m.processor.Admin().DomainPermissionDraftCreate(
-		c.Request.Context(),
+		c,
 		authed.Account,
 		form.Domain,
 		permType,
@@ -166,9 +170,9 @@ func (m *Module) DomainPermissionDraftsPOSTHandler(c *gin.Context) {
 		util.PtrOrZero(form.PrivateComment),
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, permDraft)
+	httputil.JSON(c, http.StatusOK, permDraft)
 }

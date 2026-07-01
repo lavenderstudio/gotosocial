@@ -18,13 +18,14 @@
 package api
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/fileserver"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/router"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 type Fileserver struct {
@@ -32,7 +33,7 @@ type Fileserver struct {
 }
 
 // Attach cache middleware appropriate for file serving.
-func useFSCacheMiddleware(grp *router.RouterGroup) {
+func useFSCacheMiddleware(grp *httputil.RouteGroup) {
 	// If we're using local storage or proxying s3 (ie., serving
 	// from here) we can set a long max-age + immutable on file
 	// requests to reflect that we never host different files at
@@ -65,19 +66,19 @@ func useFSCacheMiddleware(grp *router.RouterGroup) {
 // that handles everything except emojis.
 func (f *Fileserver) Route(
 	r *router.Router,
-	m ...gin.HandlerFunc,
+	m ...httputil.Middleware,
 ) {
 	const fsGroupPath = "fileserver" +
 		"/:" + fileserver.AccountIDKey +
 		"/:" + fileserver.MediaTypeKey
-	fsGroup := r.AttachGroup(fsGroupPath)
+	fsGroup := r.Group(fsGroupPath)
 
 	// Attach provided +
 	// cache middlewares.
 	fsGroup.Use(m...)
 	useFSCacheMiddleware(fsGroup)
 
-	f.fileserver.Route(fsGroup.Handle)
+	f.fileserver.Route(fsGroup)
 }
 
 // Route the "emojis" fileserver
@@ -90,43 +91,33 @@ func (f *Fileserver) Route(
 func (f *Fileserver) RouteEmojis(
 	r *router.Router,
 	instanceAcctID string,
-	m ...gin.HandlerFunc,
+	m ...httputil.Middleware,
 ) {
 	var fsEmojiGroupPath = "fileserver" +
 		"/" + instanceAcctID +
 		"/" + string(media.TypeEmoji)
-	fsEmojiGroup := r.AttachGroup(fsEmojiGroupPath)
+	fsEmojiGroup := r.Group(fsEmojiGroupPath)
 
-	// Inject the instance account and emoji media
-	// type params into the gin context manually,
-	// since we know we're only going to be serving
-	// emojis (stored under the instance account ID)
-	// from this group. This allows us to use the
-	// same handler functions for both the "main"
-	// fileserver handler and the emojis handler.
-	fsEmojiGroup.Use(func(c *gin.Context) {
-		c.Params = append(c.Params, []gin.Param{
-			{
-				Key:   fileserver.AccountIDKey,
-				Value: instanceAcctID,
-			},
-			{
-				Key:   fileserver.MediaTypeKey,
-				Value: string(media.TypeEmoji),
-			},
-		}...)
-	})
+	// Inject the instance account and emoji media type params into the
+	// httputil context manually, since we know we're only going to be
+	// serving emojis (stored under the instance account ID) from this
+	// group. This allows us to use the same handler functions for both
+	// the "main" fileserver handler and the emojis handler.
+	fsEmojiGroup.Use(httputil.FlatMiddlewareFunc(func(c *httputil.Context) {
+		c.SetPathValue(fileserver.AccountIDKey, instanceAcctID)
+		c.SetPathValue(fileserver.MediaTypeKey, string(media.TypeEmoji))
+	}))
 
 	// Attach provided +
 	// cache middlewares.
 	fsEmojiGroup.Use(m...)
 	useFSCacheMiddleware(fsEmojiGroup)
 
-	f.fileserver.Route(fsEmojiGroup.Handle)
+	f.fileserver.Route(fsEmojiGroup)
 }
 
-func NewFileserver(p *processing.Processor) *Fileserver {
+func NewFileserver(processor *processing.Processor, templates *templates.Templates) *Fileserver {
 	return &Fileserver{
-		fileserver: fileserver.New(p),
+		fileserver: fileserver.New(processor, templates),
 	}
 }

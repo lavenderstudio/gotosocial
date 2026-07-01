@@ -23,11 +23,11 @@ import (
 	"net/http"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/form/v4"
 )
@@ -274,13 +274,16 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) StatusCreatePOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteStatuses,
-	)
+func (m *Module) StatusCreatePOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteStatuses},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -290,13 +293,13 @@ func (m *Module) StatusCreatePOSTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form, errWithCode := parseStatusCreateForm(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -310,7 +313,7 @@ func (m *Module) StatusCreatePOSTHandler(c *gin.Context) {
 	// form.Status += "\n\nsent from " + user + "'s iphone\n"
 
 	apiStatus, errWithCode := m.processor.Status().Create(
-		c.Request.Context(),
+		c,
 		authed.Account,
 		authed.Application,
 		form,
@@ -318,11 +321,11 @@ func (m *Module) StatusCreatePOSTHandler(c *gin.Context) {
 	)
 
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, apiStatus)
+	httputil.JSON(c, http.StatusOK, apiStatus)
 }
 
 // intPolicyFormBinding satisfies gin's binding.Binding interface.
@@ -347,13 +350,13 @@ func (intPolicyFormBinding) Bind(req *http.Request, obj any) error {
 	return decoder.Decode(obj, req.Form)
 }
 
-func parseStatusCreateForm(c *gin.Context) (*apimodel.StatusCreateRequest, gtserror.WithCode) {
+func parseStatusCreateForm(c *httputil.Context) (*apimodel.StatusCreateRequest, gtserror.WithCode) {
 	form := new(apimodel.StatusCreateRequest)
 
 	switch ct := c.ContentType(); ct {
 	case binding.MIMEJSON:
 		// Just bind with default json binding.
-		if err := c.ShouldBindWith(form, binding.JSON); err != nil {
+		if err := httputil.ShouldBindWith(c, form, binding.JSON); err != nil {
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),
@@ -362,7 +365,7 @@ func parseStatusCreateForm(c *gin.Context) (*apimodel.StatusCreateRequest, gtser
 
 	case binding.MIMEPOSTForm:
 		// Bind with default form binding first.
-		if err := c.ShouldBindWith(form, binding.FormPost); err != nil {
+		if err := httputil.ShouldBindWith(c, form, binding.FormPost); err != nil {
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),
@@ -371,7 +374,7 @@ func parseStatusCreateForm(c *gin.Context) (*apimodel.StatusCreateRequest, gtser
 
 		// Now do custom binding.
 		intReqForm := new(apimodel.StatusInteractionPolicyForm)
-		if err := c.ShouldBindWith(intReqForm, intPolicyFormBinding{}); err != nil {
+		if err := httputil.ShouldBindWith(c, intReqForm, intPolicyFormBinding{}); err != nil {
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),
@@ -382,7 +385,7 @@ func parseStatusCreateForm(c *gin.Context) (*apimodel.StatusCreateRequest, gtser
 
 	case binding.MIMEMultipartPOSTForm:
 		// Bind with default form binding first.
-		if err := c.ShouldBindWith(form, binding.FormMultipart); err != nil {
+		if err := httputil.ShouldBindWith(c, form, binding.FormMultipart); err != nil {
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),
@@ -391,7 +394,7 @@ func parseStatusCreateForm(c *gin.Context) (*apimodel.StatusCreateRequest, gtser
 
 		// Now do custom binding.
 		intReqForm := new(apimodel.StatusInteractionPolicyForm)
-		if err := c.ShouldBindWith(intReqForm, intPolicyFormBinding{}); err != nil {
+		if err := httputil.ShouldBindWith(c, intReqForm, intPolicyFormBinding{}); err != nil {
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),

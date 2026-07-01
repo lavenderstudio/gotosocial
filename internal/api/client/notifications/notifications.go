@@ -18,20 +18,18 @@
 package notifications
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
-	// IDKey is for notification UUIDs
-	IDKey = "id"
 	// BasePath is the base path for serving the notification API, minus the 'api' prefix.
 	BasePath = "/v1/notifications"
 	// BasePathWithID is just the base path with the ID key in it.
 	// Use this anywhere you need to know the ID of the notification being queried.
-	BasePathWithID    = BasePath + "/:" + IDKey
+	BasePathWithID    = BasePath + "/:" + apiutil.IDKey
 	BasePathWithClear = BasePath + "/clear"
 
 	// TypesKey names an array param specifying notification types to include.
@@ -45,17 +43,18 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, BasePath, m.NotificationsGETHandler)
-	attachHandler(http.MethodGet, BasePathWithID, m.NotificationGETHandler)
-	attachHandler(http.MethodPost, BasePathWithClear, m.NotificationsClearPOSTHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(BasePath, m.NotificationsGETHandler)
+	g.GET(BasePathWithID, m.NotificationGETHandler)
+	g.POST(BasePathWithClear, m.NotificationsClearPOSTHandler)
 }

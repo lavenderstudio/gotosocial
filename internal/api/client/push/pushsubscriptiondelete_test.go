@@ -22,10 +22,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/push"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 )
 
 // deleteSubscription deletes the push subscription for the named account and token.
@@ -34,20 +34,20 @@ func (suite *PushTestSuite) deleteSubscription(
 	tokenFixtureName string,
 	expectedHTTPStatus int,
 ) error {
-	// instantiate recorder + test context
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[accountFixtureName])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[tokenFixtureName]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers[accountFixtureName])
-
 	// create the request
 	requestUrl := config.GetProtocol() + "://" + config.GetHost() + "/api" + push.SubscriptionPath
-	ctx.Request = httptest.NewRequest(http.MethodDelete, requestUrl, nil)
+	req := httptest.NewRequest(http.MethodDelete, requestUrl, nil)
+
+	// instantiate recorder + test context
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[accountFixtureName])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[tokenFixtureName]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers[accountFixtureName])
 
 	// trigger the handler
-	suite.pushModule.PushSubscriptionDELETEHandler(ctx)
+	suite.pushModule.PushSubscriptionDELETEHandler(c)
 
 	// read the response
 	result := recorder.Result()

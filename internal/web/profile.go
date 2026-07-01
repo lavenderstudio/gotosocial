@@ -18,19 +18,19 @@
 package web
 
 import (
-	"context"
 	"maps"
 	"net/http"
 	"net/url"
 
-	"code.superseriousbusiness.org/gopkg/log"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/account"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
+	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 )
 
 type profile struct {
@@ -49,27 +49,20 @@ type profile struct {
 // targeted account from the db, and converts it to its
 // web representation, along with other data needed to
 // render the web view of the account.
-func (m *Module) prepareProfile(c *gin.Context) *profile {
-	ctx := c.Request.Context()
+func (m *Module) prepareProfile(c *httputil.Context) *profile {
 
 	// We'll need the instance later, and we can also use it
 	// before then to make it easier to return a web error.
-	instance, errWithCode := m.processor.InstanceGetV1(ctx)
+	instance, errWithCode := m.processor.InstanceGetV1(c)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return nil
 	}
 
-	// Return instance we already got from the db,
-	// don't try to fetch it again when erroring.
-	instanceGet := func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-		return instance, nil
-	}
-
 	// Parse + normalize account username from the URL.
-	requestedUser, errWithCode := apiutil.ParseUsername(c.Param(apiutil.UsernameKey))
+	requestedUser, errWithCode := apiutil.ParseUsername(c.PathValue(apiutil.UsernameKey))
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return nil
 	}
 
@@ -78,20 +71,20 @@ func (m *Module) prepareProfile(c *gin.Context) *profile {
 	// we should render the AP representation instead.
 	accept, err := apiutil.NegotiateAccept(c, apiutil.HTMLOrActivityPubHeaders...)
 	if err != nil {
-		apiutil.WebErrorHandler(c, gtserror.NewErrorNotAcceptable(err, err.Error()), instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, gtserror.NewErrorNotAcceptable(err, err.Error()))
 		return nil
 	}
 
 	if apiutil.ASContentType(accept) {
 		// AP account representation has
 		// been requested, return that.
-		user, errWithCode := m.processor.Fedi().UserGet(c.Request.Context(), requestedUser)
+		user, errWithCode := m.processor.Fedi().UserGet(c, requestedUser)
 		if errWithCode != nil {
-			apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+			apiutil.WebErrorHandler(c, m.templates, errWithCode)
 			return nil
 		}
 
-		apiutil.JSONType(c, http.StatusOK, accept, user)
+		httputil.JSONType(c, http.StatusOK, accept, user)
 		return nil
 	}
 
@@ -99,9 +92,9 @@ func (m *Module) prepareProfile(c *gin.Context) *profile {
 	//
 	// Proceed with getting the web
 	// representation of the account.
-	account, errWithCode := m.processor.Account().GetWeb(ctx, requestedUser)
+	account, errWithCode := m.processor.Account().GetWeb(c, requestedUser)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return nil
 	}
 
@@ -128,7 +121,7 @@ func (m *Module) prepareProfile(c *gin.Context) *profile {
 	// TODO: change this to 410?
 	if account.Suspended {
 		err := gtserror.Newf("target account %s is suspended", requestedUser)
-		apiutil.WebErrorHandler(c, gtserror.NewErrorNotFound(err), instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, gtserror.NewErrorNotFound(err))
 		return nil
 	}
 
@@ -159,13 +152,12 @@ func (m *Module) prepareProfile(c *gin.Context) *profile {
 	if !doPaging {
 		// If not paging, load pinned statuses.
 		var errWithCode gtserror.WithCode
-		pinnedStatuses, errWithCode = m.processor.Account().WebStatusesGetPinned(
-			ctx,
+		pinnedStatuses, errWithCode = m.processor.Account().WebStatusesGetPinned(c,
 			account.ID,
 			mediaOnly,
 		)
 		if errWithCode != nil {
-			apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+			apiutil.WebErrorHandler(c, m.templates, errWithCode)
 			return nil
 		}
 	}
@@ -185,21 +177,20 @@ func (m *Module) prepareProfile(c *gin.Context) *profile {
 	// in the response, depending on what target account allows.
 	preferIncludeBoosts, errWithCode := apiutil.ParseWebIncludeBoosts(c.Query(apiutil.WebIncludeBoostsKey), nil)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return nil
 	}
 
 	// Get statuses from maxStatusID onwards (or from top if empty string).
 	// The return boolean will indicate whether boosts were actually included.
-	statusResp, errWithCode := m.processor.Account().WebStatusesGet(
-		ctx,
+	statusResp, errWithCode := m.processor.Account().WebStatusesGet(c,
 		account.ID,
 		&paging.Page{Max: paging.MaxID(maxStatusID), Limit: limit},
 		mediaOnly,
 		preferIncludeBoosts,
 	)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return nil
 	}
 
@@ -221,7 +212,7 @@ func (m *Module) prepareProfile(c *gin.Context) *profile {
 }
 
 func includeExcludeBoostsLinks(
-	c *gin.Context,
+	c *httputil.Context,
 	statusResp *account.WebStatusesGetResp,
 ) (
 	includeBoostsLink string,
@@ -236,7 +227,7 @@ func includeExcludeBoostsLinks(
 
 	// Copy request URL
 	// as basis of link.
-	reqURL := c.Request.URL
+	reqURL := c.R.URL
 	uri := &url.URL{
 		Scheme: config.GetProtocol(),
 		Host:   config.GetHost(),
@@ -264,7 +255,7 @@ func includeExcludeBoostsLinks(
 
 // profileGETHandler selects the appropriate rendering
 // mode for the target account profile, and serves that.
-func (m *Module) profileGETHandler(c *gin.Context) {
+func (m *Module) profileGETHandler(c *httputil.Context) {
 	p := m.prepareProfile(c)
 	if p == nil {
 		// Something went wrong,
@@ -279,21 +270,20 @@ func (m *Module) profileGETHandler(c *gin.Context) {
 	case "", "microblog":
 		m.profileMicroblog(c, p)
 
-	// 'gram style media gallery.
+	// 'gram style
+	// media gallery.
 	case "gallery":
 		m.profileGallery(c, p)
 
 	default:
-		log.Panicf(
-			c.Request.Context(),
-			"unknown webrenderingmode %s", wrm,
-		)
+		panic("unknown web layout: " + wrm)
 	}
 }
 
 // profileMicroblog serves the profile
 // in classic GtS "microblog" view.
-func (m *Module) profileMicroblog(c *gin.Context, p *profile) {
+func (m *Module) profileMicroblog(c *httputil.Context, p *profile) {
+
 	// Prepare stylesheets for profile.
 	stylesheets := make([]string, 0, 7)
 
@@ -328,41 +318,43 @@ func (m *Module) profileMicroblog(c *gin.Context, p *profile) {
 		"/@"+p.account.Username+"/custom.css",
 	)
 
-	page := apiutil.WebPage{
-		Template:    "profile.tmpl",
-		Instance:    p.instance,
-		OGMeta:      apiutil.OGAccount(p.instance, p.account),
-		Stylesheets: stylesheets,
-		Javascript: []apiutil.JavascriptEntry{
-			{
-				Src:   jsFrontend,
-				Async: true,
-				Defer: true,
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template:    "profile.tmpl",
+			Stylesheets: stylesheets,
+			Javascript: []templates.JavascriptEntry{
+				{
+					Src:   jsFrontend,
+					Async: true,
+					Defer: true,
+				},
+				{
+					Bottom: true,
+					Src:    jsFrontendPrerender,
+				},
 			},
-			{
-				Bottom: true,
-				Src:    jsFrontendPrerender,
+			Extra: map[string]any{
+				"account":           p.account,
+				"rssFeed":           p.rssFeed,
+				"instance":          p.instance,
+				"ogMeta":            typeutils.OpenGraphAccount(p.instance, p.account),
+				"robotsMeta":        p.robotsMeta,
+				"statuses":          p.statusResp.Items,
+				"statuses_next":     p.statusResp.NextLink,
+				"pinned_statuses":   p.pinnedStatuses,
+				"show_back_to_top":  p.paging,
+				"includeBoostsLink": p.includeBoostsLink,
+				"excludeBoostsLink": p.excludeBoostsLink,
 			},
 		},
-		Extra: map[string]any{
-			"account":           p.account,
-			"rssFeed":           p.rssFeed,
-			"robotsMeta":        p.robotsMeta,
-			"statuses":          p.statusResp.Items,
-			"statuses_next":     p.statusResp.NextLink,
-			"pinned_statuses":   p.pinnedStatuses,
-			"show_back_to_top":  p.paging,
-			"includeBoostsLink": p.includeBoostsLink,
-			"excludeBoostsLink": p.excludeBoostsLink,
-		},
-	}
-
-	apiutil.TemplateWebPage(c, page)
+	)
 }
 
 // profileMicroblog serves the profile
 // in media-only 'gram-style gallery view.
-func (m *Module) profileGallery(c *gin.Context, p *profile) {
+func (m *Module) profileGallery(c *httputil.Context, p *profile) {
 	// Get just attachments from pinned,
 	// making a rough guess for slice size.
 	pinnedGalleryItems := make([]*apimodel.WebAttachment, 0, len(p.pinnedStatuses)*4)
@@ -413,36 +405,38 @@ func (m *Module) profileGallery(c *gin.Context, p *profile) {
 		"/@"+p.account.Username+"/custom.css",
 	)
 
-	page := apiutil.WebPage{
-		Template:    "profile-gallery.tmpl",
-		Instance:    p.instance,
-		OGMeta:      apiutil.OGAccount(p.instance, p.account),
-		Stylesheets: stylesheets,
-		Javascript: []apiutil.JavascriptEntry{
-			{
-				Src:   jsFrontend,
-				Async: true,
-				Defer: true,
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template:    "profile-gallery.tmpl",
+			Stylesheets: stylesheets,
+			Javascript: []templates.JavascriptEntry{
+				{
+					Src:   jsFrontend,
+					Async: true,
+					Defer: true,
+				},
+				{
+					Bottom: true,
+					Src:    jsFrontendPrerender,
+				},
 			},
-			{
-				Bottom: true,
-				Src:    jsFrontendPrerender,
+			Extra: map[string]any{
+				"account":            p.account,
+				"rssFeed":            p.rssFeed,
+				"instance":           p.instance,
+				"ogMeta":             typeutils.OpenGraphAccount(p.instance, p.account),
+				"robotsMeta":         p.robotsMeta,
+				"pinnedGalleryItems": pinnedGalleryItems,
+				"galleryItems":       galleryItems,
+				"statuses":           p.statusResp.Items,
+				"statuses_next":      p.statusResp.NextLink,
+				"pinned_statuses":    p.pinnedStatuses,
+				"show_back_to_top":   p.paging,
+				"includeBoostsLink":  p.includeBoostsLink,
+				"excludeBoostsLink":  p.excludeBoostsLink,
 			},
 		},
-		Extra: map[string]any{
-			"account":            p.account,
-			"rssFeed":            p.rssFeed,
-			"robotsMeta":         p.robotsMeta,
-			"pinnedGalleryItems": pinnedGalleryItems,
-			"galleryItems":       galleryItems,
-			"statuses":           p.statusResp.Items,
-			"statuses_next":      p.statusResp.NextLink,
-			"pinned_statuses":    p.pinnedStatuses,
-			"show_back_to_top":   p.paging,
-			"includeBoostsLink":  p.includeBoostsLink,
-			"excludeBoostsLink":  p.excludeBoostsLink,
-		},
-	}
-
-	apiutil.TemplateWebPage(c, page)
+	)
 }

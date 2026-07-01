@@ -22,10 +22,11 @@ import (
 	"net/http"
 	"strconv"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // PollVotePOSTHandler swagger:operation POST /api/v1/polls/{id}/votes pollVote
@@ -92,13 +93,16 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) PollVotePOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteStatuses,
-	)
+func (m *Module) PollVotePOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteStatuses},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -108,40 +112,41 @@ func (m *Module) PollVotePOSTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	pollID, errWithCode := apiutil.ParseID(c.Param(IDKey))
+	pollID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	choices, err := bindChoices(c)
 	if err != nil {
 		errWithCode := gtserror.NewErrorBadRequest(err, err.Error())
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	poll, errWithCode := m.processor.Polls().PollVote(
-		c.Request.Context(),
+		c,
 		authed.Account,
 		pollID,
 		choices,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, poll)
+	httputil.JSON(c, http.StatusOK, poll)
 }
 
-func bindChoices(c *gin.Context) ([]int, error) {
-	var form apimodel.PollVoteRequest
-	if err := c.ShouldBind(&form); err != nil {
+func bindChoices(c *httputil.Context) ([]int, error) {
+	form := &apimodel.PollVoteRequest{}
+
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		return nil, err
 	}
 

@@ -19,11 +19,12 @@ package reports_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/reports"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
@@ -38,27 +39,28 @@ type ReportGetTestSuite struct {
 }
 
 func (suite *ReportGetTestSuite) getReport(expectedHTTPStatus int, expectedBody string, reportID string) (*apimodel.Report, error) {
+	// create the request
+	req := httptest.NewRequest(http.MethodGet, config.GetProtocol()+"://"+config.GetHost()+"/api/"+reports.BasePath+"/"+reportID, nil)
+	req.Header.Set("accept", "application/json")
+
 	// instantiate recorder + test context
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_2"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_2"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_2"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_2"])
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_2"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_2"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_2"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_2"])
 
-	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodGet, config.GetProtocol()+"://"+config.GetHost()+"/api/"+reports.BasePath+"/"+reportID, nil)
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.AddParam("id", reportID)
+	c.SetPathValue("id", reportID)
 
 	// trigger the handler
-	suite.reportsModule.ReportGETHandler(ctx)
+	suite.reportsModule.ReportGETHandler(c)
 
 	// read the response
 	result := recorder.Result()
 	defer result.Body.Close()
 
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -90,12 +92,11 @@ func (suite *ReportGetTestSuite) TestGetReport1() {
 	targetReport := suite.testReports["local_account_2_report_remote_account_1"]
 
 	report, err := suite.getReport(http.StatusOK, "", targetReport.ID)
-	suite.NoError(err)
-	suite.NotNil(report)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(&report, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(report)
 	suite.Equal(`{
   "id": "01GP3AWY4CRDVRNZKW0TEAMB5R",
   "created_at": "2022-05-14T10:20:03.000Z",
@@ -138,7 +139,7 @@ func (suite *ReportGetTestSuite) TestGetReport1() {
     "fields": [],
     "group": false
   }
-}`, string(b))
+}`, out)
 }
 
 func (suite *ReportGetTestSuite) TestGetReport2() {

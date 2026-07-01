@@ -98,7 +98,7 @@ func (suite *ListsStandardTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.listsModule = lists.New(suite.processor)
+	suite.listsModule = lists.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 
 	testrig.StandardDBSetup(suite.db, nil)
 	testrig.StandardStorageSetup(suite.storage, "../../../../testrig/media")

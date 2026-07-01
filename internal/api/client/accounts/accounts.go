@@ -18,10 +18,10 @@
 package accounts
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -35,8 +35,7 @@ const (
 	PinnedKey         = "pinned"
 
 	BasePath       = "/v1/accounts"
-	IDKey          = "id"
-	BasePathWithID = BasePath + "/:" + IDKey
+	BasePathWithID = BasePath + "/:" + apiutil.IDKey
 
 	BlockPath         = BasePathWithID + "/block"
 	DeletePath        = BasePath + "/delete"
@@ -67,74 +66,76 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
+func (m *Module) Route(g *httputil.RouteGroup) {
 	// create account
-	attachHandler(http.MethodPost, BasePath, m.AccountCreatePOSTHandler)
+	g.POST(BasePath, m.AccountCreatePOSTHandler)
 
 	// get account
-	attachHandler(http.MethodGet, BasePathWithID, m.AccountGETHandler)
+	g.GET(BasePathWithID, m.AccountGETHandler)
 
 	// delete account
-	attachHandler(http.MethodPost, DeletePath, m.AccountDeletePOSTHandler)
+	g.POST(DeletePath, m.AccountDeletePOSTHandler)
 
 	// verify account
-	attachHandler(http.MethodGet, VerifyPath, m.AccountVerifyGETHandler)
+	g.GET(VerifyPath, m.AccountVerifyGETHandler)
 
 	// modify account
-	attachHandler(http.MethodPatch, UpdatePath, m.AccountUpdateCredentialsPATCHHandler)
+	g.PATCH(UpdatePath, m.AccountUpdateCredentialsPATCHHandler)
 
 	// modify account profile media
-	attachHandler(http.MethodDelete, AvatarPath, m.AccountAvatarDELETEHandler)
-	attachHandler(http.MethodDelete, HeaderPath, m.AccountHeaderDELETEHandler)
+	g.DELETE(AvatarPath, m.AccountAvatarDELETEHandler)
+	g.DELETE(HeaderPath, m.AccountHeaderDELETEHandler)
 
 	// get account's statuses
-	attachHandler(http.MethodGet, StatusesPath, m.AccountStatusesGETHandler)
+	g.GET(StatusesPath, m.AccountStatusesGETHandler)
 
 	// get account's featured tags
-	attachHandler(http.MethodGet, FeaturedTagsPath, m.AccountFeaturedTagsGETHandler)
+	g.GET(FeaturedTagsPath, m.AccountFeaturedTagsGETHandler)
 
 	// get following or followers
-	attachHandler(http.MethodGet, FollowersPath, m.AccountFollowersGETHandler)
-	attachHandler(http.MethodGet, FollowingPath, m.AccountFollowingGETHandler)
+	g.GET(FollowersPath, m.AccountFollowersGETHandler)
+	g.GET(FollowingPath, m.AccountFollowingGETHandler)
 
 	// get relationship with account
-	attachHandler(http.MethodGet, RelationshipsPath, m.AccountRelationshipsGETHandler)
+	g.GET(RelationshipsPath, m.AccountRelationshipsGETHandler)
 
 	// follow or unfollow account
-	attachHandler(http.MethodPost, FollowPath, m.AccountFollowPOSTHandler)
-	attachHandler(http.MethodPost, UnfollowPath, m.AccountUnfollowPOSTHandler)
+	g.POST(FollowPath, m.AccountFollowPOSTHandler)
+	g.POST(UnfollowPath, m.AccountUnfollowPOSTHandler)
 
 	// block or unblock account
-	attachHandler(http.MethodPost, BlockPath, m.AccountBlockPOSTHandler)
-	attachHandler(http.MethodPost, UnblockPath, m.AccountUnblockPOSTHandler)
+	g.POST(BlockPath, m.AccountBlockPOSTHandler)
+	g.POST(UnblockPath, m.AccountUnblockPOSTHandler)
 
 	// account lists
-	attachHandler(http.MethodGet, ListsPath, m.AccountListsGETHandler)
+	g.GET(ListsPath, m.AccountListsGETHandler)
 
 	// account note
-	attachHandler(http.MethodPost, NotePath, m.AccountNotePOSTHandler)
+	g.POST(NotePath, m.AccountNotePOSTHandler)
 
 	// mute or unmute account
-	attachHandler(http.MethodPost, MutePath, m.AccountMutePOSTHandler)
-	attachHandler(http.MethodPost, UnmutePath, m.AccountUnmutePOSTHandler)
+	g.POST(MutePath, m.AccountMutePOSTHandler)
+	g.POST(UnmutePath, m.AccountUnmutePOSTHandler)
 
 	// search for accounts
-	attachHandler(http.MethodGet, SearchPath, m.AccountSearchGETHandler)
-	attachHandler(http.MethodGet, LookupPath, m.AccountLookupGETHandler)
+	g.GET(SearchPath, m.AccountSearchGETHandler)
+	g.GET(LookupPath, m.AccountLookupGETHandler)
 
 	// migration handlers
-	attachHandler(http.MethodPost, AliasPath, m.AccountAliasPOSTHandler)
-	attachHandler(http.MethodPost, MovePath, m.AccountMovePOSTHandler)
+	g.POST(AliasPath, m.AccountAliasPOSTHandler)
+	g.POST(MovePath, m.AccountMovePOSTHandler)
 
 	// account themes
-	attachHandler(http.MethodGet, ThemesPath, m.AccountThemesGETHandler)
+	g.GET(ThemesPath, m.AccountThemesGETHandler)
 }

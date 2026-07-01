@@ -19,17 +19,18 @@ package statuses_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/statuses"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -42,27 +43,27 @@ func (suite *StatusUnpinTestSuite) createUnpin(
 	expectedBody string,
 	targetStatusID string,
 ) (*apimodel.Status, error) {
+	// create the request
+	req := httptest.NewRequest(http.MethodPost, config.GetProtocol()+"://"+config.GetHost()+"/api/"+statuses.BasePath+"/"+targetStatusID+"/unpin", nil)
+	req.Header.Set("accept", "application/json")
+
 	// instantiate recorder + test context
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["admin_account"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["admin_account"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["admin_account"])
-
-	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodPost, config.GetProtocol()+"://"+config.GetHost()+"/api/"+statuses.BasePath+"/"+targetStatusID+"/unpin", nil)
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.AddParam(statuses.IDKey, targetStatusID)
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["admin_account"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["admin_account"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["admin_account"])
+	c.SetPathValue(apiutil.IDKey, targetStatusID)
 
 	// trigger the handler
-	suite.statusModule.StatusUnpinPOSTHandler(ctx)
+	suite.statusModule.StatusUnpinPOSTHandler(c)
 
 	// read the response
 	result := recorder.Result()
 	defer result.Body.Close()
 
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	if err != nil {
 		return nil, err
 	}

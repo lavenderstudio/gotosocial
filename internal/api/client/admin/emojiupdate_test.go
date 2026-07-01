@@ -53,11 +53,11 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateNewCategory() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
 	// call the handler
-	suite.adminModule.EmojiPATCHHandler(ctx)
+	suite.adminModule.EmojiPATCHHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -106,10 +106,10 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateNewCategory() {
 	suite.NotEmpty(dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	entry, err := suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImagePath)
+	entry, err := suite.state.Storage.Storage.Stat(c, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageFileSize), entry.Size)
-	entry, err = suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImageStaticPath)
+	entry, err = suite.state.Storage.Storage.Stat(c, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageStaticFileSize), entry.Size)
 }
@@ -130,11 +130,11 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateSwitchCategory() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
 	// call the handler
-	suite.adminModule.EmojiPATCHHandler(ctx)
+	suite.adminModule.EmojiPATCHHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -183,10 +183,10 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateSwitchCategory() {
 	suite.NotEmpty(dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	entry, err := suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImagePath)
+	entry, err := suite.state.Storage.Storage.Stat(c, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageFileSize), entry.Size)
-	entry, err = suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImageStaticPath)
+	entry, err = suite.state.Storage.Storage.Stat(c, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageStaticFileSize), entry.Size)
 }
@@ -208,11 +208,11 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateCopyRemoteToLocal() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
 	// call the handler
-	suite.adminModule.EmojiPATCHHandler(ctx)
+	suite.adminModule.EmojiPATCHHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -261,10 +261,10 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateCopyRemoteToLocal() {
 	suite.NotEmpty(dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	entry, err := suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImagePath)
+	entry, err := suite.state.Storage.Storage.Stat(c, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageFileSize), entry.Size)
-	entry, err = suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImageStaticPath)
+	entry, err = suite.state.Storage.Storage.Stat(c, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageStaticFileSize), entry.Size)
 }
@@ -284,11 +284,11 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateDisableEmoji() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
 	// call the handler
-	suite.adminModule.EmojiPATCHHandler(ctx)
+	suite.adminModule.EmojiPATCHHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -325,11 +325,11 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateDisableLocalEmoji() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
 	// call the handler
-	suite.adminModule.EmojiPATCHHandler(ctx)
+	suite.adminModule.EmojiPATCHHandler(c)
 	suite.Equal(http.StatusBadRequest, recorder.Code)
 
 	// 2. we should have no error message in the result body
@@ -358,11 +358,11 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateModify() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
 	// call the handler
-	suite.adminModule.EmojiPATCHHandler(ctx)
+	suite.adminModule.EmojiPATCHHandler(c)
 	suite.Equal(http.StatusOK, recorder.Code)
 
 	// 2. we should have no error message in the result body
@@ -420,10 +420,10 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateModify() {
 	suite.NotEmpty(dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	entry, err := suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImagePath)
+	entry, err := suite.state.Storage.Storage.Stat(c, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageFileSize), entry.Size)
-	entry, err = suite.state.Storage.Storage.Stat(ctx, dbEmoji.ImageStaticPath)
+	entry, err = suite.state.Storage.Storage.Stat(c, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Equal(int64(dbEmoji.ImageStaticFileSize), entry.Size)
 }
@@ -443,11 +443,11 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateModifyRemoteEmoji() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
 	// call the handler
-	suite.adminModule.EmojiPATCHHandler(ctx)
+	suite.adminModule.EmojiPATCHHandler(c)
 	suite.Equal(http.StatusBadRequest, recorder.Code)
 
 	// 2. we should have no error message in the result body
@@ -476,11 +476,11 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateModifyNoParams() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
 	// call the handler
-	suite.adminModule.EmojiPATCHHandler(ctx)
+	suite.adminModule.EmojiPATCHHandler(c)
 	suite.Equal(http.StatusBadRequest, recorder.Code)
 
 	// 2. we should have no error message in the result body
@@ -510,11 +510,11 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateCopyLocalToLocal() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
 	// call the handler
-	suite.adminModule.EmojiPATCHHandler(ctx)
+	suite.adminModule.EmojiPATCHHandler(c)
 	suite.Equal(http.StatusBadRequest, recorder.Code)
 
 	// 2. we should have no error message in the result body
@@ -544,11 +544,11 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateCopyEmptyShortcode() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
 	// call the handler
-	suite.adminModule.EmojiPATCHHandler(ctx)
+	suite.adminModule.EmojiPATCHHandler(c)
 	suite.Equal(http.StatusBadRequest, recorder.Code)
 
 	// 2. we should have no error message in the result body
@@ -577,11 +577,11 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateCopyNoShortcode() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
 	// call the handler
-	suite.adminModule.EmojiPATCHHandler(ctx)
+	suite.adminModule.EmojiPATCHHandler(c)
 	suite.Equal(http.StatusBadRequest, recorder.Code)
 
 	// 2. we should have no error message in the result body
@@ -611,11 +611,11 @@ func (suite *EmojiUpdateTestSuite) TestEmojiUpdateCopyShortcodeAlreadyInUse() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPathWithID, w.FormDataContentType())
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
 	// call the handler
-	suite.adminModule.EmojiPATCHHandler(ctx)
+	suite.adminModule.EmojiPATCHHandler(c)
 	suite.Equal(http.StatusConflict, recorder.Code)
 
 	// 2. we should have no error message in the result body

@@ -24,10 +24,11 @@ import (
 	"slices"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // these consts are used to ensure users can't spam huge entries into our database
@@ -89,12 +90,16 @@ const (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) AppsPOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		false, false, false, false,
-	)
+func (m *Module) AppsPOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   false,
+		App:     false,
+		User:    false,
+		Account: false,
+		Scope:   nil,
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -109,7 +114,7 @@ func (m *Module) AppsPOSTHandler(c *gin.Context) {
 		) {
 			const errText = "token has insufficient scope permission"
 			errWithCode := gtserror.NewErrorForbidden(errors.New(errText), errText)
-			apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, errWithCode)
 			return
 		}
 	}
@@ -120,14 +125,14 @@ func (m *Module) AppsPOSTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form := &apimodel.ApplicationCreateRequest{}
-	if err := c.ShouldBind(form); err != nil {
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		errWithCode := gtserror.NewErrorBadRequest(err, err.Error())
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -156,21 +161,21 @@ func (m *Module) AppsPOSTHandler(c *gin.Context) {
 		managedByUserID = authed.User.ID
 	}
 
-	apiApp, errWithCode := m.processor.Application().Create(c.Request.Context(), managedByUserID, form)
+	apiApp, errWithCode := m.processor.Application().Create(c, managedByUserID, form)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, apiApp)
+	httputil.JSON(c, http.StatusOK, apiApp)
 }
 
-func (m *Module) fieldTooLong(c *gin.Context, fieldName string, max int, actual int) {
+func (m *Module) fieldTooLong(c *httputil.Context, fieldName string, max int, actual int) {
 	errText := fmt.Sprintf(
 		"%s must be less than %d characters, provided %s was %d characters",
 		fieldName, max, fieldName, actual,
 	)
 
 	errWithCode := gtserror.NewErrorBadRequest(errors.New(errText), errText)
-	apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+	apiutil.ErrorHandler(c, m.templates, errWithCode)
 }

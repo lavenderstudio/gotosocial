@@ -93,22 +93,14 @@ func (suite *WorkersTestSuite) openStreams(ctx context.Context, processor *proce
 		stream.TimelineNotifications,
 		stream.TimelineDirect,
 	} {
-		stream, err := processor.Stream().Open(ctx, account, streamType)
-		if err != nil {
-			suite.FailNow(err.Error())
-		}
-
+		stream := processor.Stream().Open(ctx, account, streamType)
 		streams[streamType] = stream
 	}
 
 	for _, listID := range listIDs {
 		streamType := stream.TimelineList + ":" + listID
 
-		stream, err := processor.Stream().Open(ctx, account, streamType)
-		if err != nil {
-			suite.FailNow(err.Error())
-		}
-
+		stream := processor.Stream().Open(ctx, account, streamType)
 		streams[streamType] = stream
 	}
 

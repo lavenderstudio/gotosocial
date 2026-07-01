@@ -20,29 +20,29 @@ package users
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // StatusGETHandler serves the target status as an activitystreams NOTE so that other AP servers can parse it.
-func (m *Module) StatusGETHandler(c *gin.Context) {
+func (m *Module) StatusGETHandler(c *httputil.Context) {
 	username, statusID, contentType, errWithCode := m.parseCommonWithID(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if contentType == apiutil.TextHTML {
 		// Redirect to status web view.
-		c.Redirect(http.StatusSeeOther, "/@"+username+"/statuses/"+statusID)
+		httputil.Redirect(c, http.StatusSeeOther, "/@"+username+"/statuses/"+statusID)
 		return
 	}
 
-	resp, errWithCode := m.processor.Fedi().StatusGet(c.Request.Context(), username, statusID)
+	resp, errWithCode := m.processor.Fedi().StatusGet(c, username, statusID)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSONType(c, http.StatusOK, contentType, resp)
+	httputil.JSONType(c, http.StatusOK, contentType, resp)
 }

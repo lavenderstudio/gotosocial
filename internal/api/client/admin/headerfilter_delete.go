@@ -17,9 +17,7 @@
 
 package admin
 
-import (
-	"github.com/gin-gonic/gin"
-)
+import "code.superseriousbusiness.org/gopkg/httputil"
 
 // HeaderFilterAllowDELETE swagger:operation DELETE /api/v1/admin/header_allows/{id} headerFilterAllowDelete
 //
@@ -64,7 +62,7 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) HeaderFilterAllowDELETE(c *gin.Context) {
+func (m *Module) HeaderFilterAllowDELETE(c *httputil.Context) {
 	m.deleteHeaderFilter(c, m.processor.Admin().DeleteAllowHeaderFilter)
 }
 
@@ -111,6 +109,6 @@ func (m *Module) HeaderFilterAllowDELETE(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) HeaderFilterBlockDELETE(c *gin.Context) {
+func (m *Module) HeaderFilterBlockDELETE(c *httputil.Context) {
 	m.deleteHeaderFilter(c, m.processor.Admin().DeleteBlockHeaderFilter)
 }

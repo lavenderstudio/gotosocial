@@ -70,7 +70,7 @@ func (expr *CronExpression) String() string {
 type IPPrefixes []netip.Prefix
 
 func (p *IPPrefixes) Set(in string) error {
-	prefix, err := netip.ParsePrefix(in)
+	prefix, err := ParsePrefix(in)
 	if err != nil {
 		return err
 	}
@@ -87,6 +87,32 @@ func (p *IPPrefixes) Strings() []string {
 		strs[i] = prefix.String()
 	}
 	return strs
+}
+
+// MustParsePrefix calls ParsePrefix(), panicking on error.
+func MustParsePrefix(in string) netip.Prefix {
+	prefix, err := ParsePrefix(in)
+	if err != nil {
+		panic(err)
+	}
+	return prefix
+}
+
+// ParsePrefix attempts to parse a netip.Prefix, catching the
+// case where a single address was provided, and handling as /0.
+func ParsePrefix(in string) (prefix netip.Prefix, err error) {
+	prefix, err = netip.ParsePrefix(in)
+	switch {
+	case err == nil:
+	case strings.Contains(err.Error(), "no '/'"):
+		var addr netip.Addr
+		addr, err = netip.ParseAddr(in)
+		if err != nil {
+			return prefix, err
+		}
+		prefix, err = addr.Prefix(0)
+	}
+	return prefix, err
 }
 
 type InstanceDirectoryMode int16

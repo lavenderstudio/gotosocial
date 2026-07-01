@@ -20,18 +20,18 @@ package users
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 
 	errorsv2 "codeberg.org/gruf/go-errors/v2"
 )
 
 // InboxPOSTHandler deals with incoming POST requests to an actor's inbox.
 // Eg., POST to https://example.org/users/whatever/inbox.
-func (m *Module) InboxPOSTHandler(c *gin.Context) {
-	_, err := m.processor.Fedi().InboxPost(c.Request.Context(), c.Writer, c.Request)
+func (m *Module) InboxPOSTHandler(c *httputil.Context) {
+	_, err := m.processor.Fedi().InboxPost(c, &c.W, c.R)
 	if err != nil {
 		errWithCode := errorsv2.AsV2[gtserror.WithCode](err)
 
@@ -39,14 +39,14 @@ func (m *Module) InboxPOSTHandler(c *gin.Context) {
 			// Something else went wrong, and someone forgot to return
 			// an errWithCode! It's chill though. Log the error but don't
 			// return it as-is to the caller, to avoid leaking internals.
-			log.Errorf(c.Request.Context(), "returning Bad Request to caller, err was: %q", err)
+			log.Errorf(c, "returning Bad Request to caller, err was: %q", err)
 			errWithCode = gtserror.NewErrorBadRequest(err)
 		}
 
 		// Pass along confirmed error with code to the main error handler
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.Data(c, http.StatusAccepted, apiutil.AppJSON, apiutil.StatusAcceptedJSON)
+	httputil.Data(c, http.StatusAccepted, apiutil.AppJSON, apiutil.StatusAcceptedJSON)
 }

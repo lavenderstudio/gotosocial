@@ -20,8 +20,8 @@ package accounts
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // AccountSearchGETHandler swagger:operation GET /api/v1/accounts/search accountSearchGet
@@ -114,60 +114,63 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) AccountSearchGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadAccounts,
-	)
+func (m *Module) AccountSearchGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadAccounts},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if authed.Account.IsMoving() {
 		// For moving/moved accounts, just return
 		// empty to avoid breaking client apps.
-		apiutil.Data(c, http.StatusOK, apiutil.AppJSON, apiutil.EmptyJSONArray)
+		httputil.Data(c, http.StatusOK, apiutil.AppJSON, apiutil.EmptyJSONArray)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	limit, errWithCode := apiutil.ParseLimit(c.Query(apiutil.LimitKey), 40, 80, 1)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	offset, errWithCode := apiutil.ParseOffset(c.Query(apiutil.OffsetKey), 0, 10, 0)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	query, errWithCode := apiutil.ParseSearchQuery(c.Query(apiutil.SearchQueryKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	resolve, errWithCode := apiutil.ParseSearchResolve(c.Query(apiutil.SearchResolveKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	following, errWithCode := apiutil.ParseSearchFollowing(c.Query(apiutil.SearchFollowingKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	results, errWithCode := m.processor.Search().Accounts(
-		c.Request.Context(),
+		c,
 		authed.Account,
 		query,
 		limit,
@@ -176,9 +179,9 @@ func (m *Module) AccountSearchGETHandler(c *gin.Context) {
 		following,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, results)
+	httputil.JSON(c, http.StatusOK, results)
 }

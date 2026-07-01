@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -236,16 +235,18 @@ func (suite *AccountTestSuite) TestDereferenceLocalAccountByRedirect() {
 
 	// Convert the target account to ActivityStreams model for dereference.
 	targetAccountable, err := suite.converter.AccountToAS(ctx, targetAccount)
-	suite.NoError(err)
-	suite.NotNil(targetAccountable)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
 	// Serialize to "raw" JSON map for response.
-	rawJSON, err := ap.Serialize(targetAccountable)
-	suite.NoError(err)
+	raw, err := ap.Serialize(targetAccountable)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
 	// Finally serialize to actual bytes.
-	json, err := json.Marshal(rawJSON)
-	suite.NoError(err)
+	json := testrig.MustJSONBytes(raw)
 
 	// Replace test HTTP client with one that always returns the target account AS model.
 	suite.client = testrig.NewMockHTTPClient(func(req *http.Request) (*http.Response, error) {
@@ -290,16 +291,16 @@ func (suite *AccountTestSuite) TestDereferenceMasqueradingLocalAccount() {
 
 	// Convert the target account to ActivityStreams model for dereference.
 	targetAccountable, err := suite.converter.AccountToAS(ctx, targetAccount)
-	suite.NoError(err)
-	suite.NotNil(targetAccountable)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
 	// Serialize to "raw" JSON map for response.
-	rawJSON, err := ap.Serialize(targetAccountable)
+	raw, err := ap.Serialize(targetAccountable)
 	suite.NoError(err)
 
 	// Finally serialize to actual bytes.
-	json, err := json.Marshal(rawJSON)
-	suite.NoError(err)
+	json := testrig.MustJSONBytes(raw)
 
 	// Use any old input test URI, this doesn't actually matter what it is.
 	uri := testrig.URLMustParse("https://this-will-be-redirected.butts/")

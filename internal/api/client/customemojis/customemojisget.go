@@ -20,9 +20,9 @@ package customemojis
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
-	"github.com/gin-gonic/gin"
 )
 
 // CustomEmojisGETHandler swagger:operation GET /api/v1/custom_emojis customEmojisGet
@@ -61,29 +61,32 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) CustomEmojisGETHandler(c *gin.Context) {
+func (m *Module) CustomEmojisGETHandler(c *httputil.Context) {
 	// If custom emojis are not exposed to unauthed
 	// callers, fail if a token was not provided.
 	if !config.GetInstanceExposeCustomEmojis() {
-		if _, errWithCode := apiutil.TokenAuth(c,
-			true, true, true, true,
-			apiutil.ScopeReadCustomEmojis,
-		); errWithCode != nil {
-			apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		if _, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+			Token:   true,
+			App:     true,
+			User:    true,
+			Account: true,
+			Scope:   []apiutil.Scope{apiutil.ScopeReadCustomEmojis},
+		}); errWithCode != nil {
+			apiutil.ErrorHandler(c, m.templates, errWithCode)
 			return
 		}
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	emojis, errWithCode := m.processor.Media().GetCustomEmojis(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, emojis)
+	httputil.JSON(c, http.StatusOK, emojis)
 }

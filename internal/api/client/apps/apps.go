@@ -18,11 +18,10 @@
 package apps
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -31,18 +30,20 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodPost, BasePath, m.AppsPOSTHandler)
-	attachHandler(http.MethodGet, BasePath, m.AppsGETHandler)
-	attachHandler(http.MethodGet, BasePathWithID, m.AppGETHandler)
-	attachHandler(http.MethodDelete, BasePathWithID, m.AppDELETEHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.POST(BasePath, m.AppsPOSTHandler)
+	g.GET(BasePath, m.AppsGETHandler)
+	g.GET(BasePathWithID, m.AppGETHandler)
+	g.DELETE(BasePathWithID, m.AppDELETEHandler)
 }

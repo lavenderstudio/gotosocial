@@ -18,8 +18,6 @@
 package admin_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -27,6 +25,7 @@ import (
 
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/admin"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -39,31 +38,31 @@ func (suite *EmojiGetTestSuite) TestEmojiGet1() {
 	testEmoji := suite.testEmojis["rainbow"]
 
 	path := admin.EmojiPathWithID
-	ctx := suite.newContext(recorder, http.MethodGet, nil, path, "application/json")
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodGet, nil, path, "application/json")
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
-	suite.adminModule.EmojiGETHandler(ctx)
+	suite.adminModule.EmojiGETHandler(c)
 	suite.Equal(http.StatusOK, recorder.Code)
 
 	b, err := io.ReadAll(recorder.Body)
-	suite.NoError(err)
-	suite.NotNil(b)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
-  "shortcode": "rainbow",
-  "url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/original/01F8MH9H8E4VG3KDYJR9EGPXCQ.png",
-  "static_url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/static/01F8MH9H8E4VG3KDYJR9EGPXCQ.png",
-  "visible_in_picker": true,
   "category": "reactions",
-  "id": "01F8MH9H8E4VG3KDYJR9EGPXCQ",
-  "disabled": false,
-  "updated_at": "2021-09-20T10:40:37.000Z",
-  "total_file_size": 42794,
   "content_type": "image/png",
-  "uri": "http://localhost:8080/emoji/01F8MH9H8E4VG3KDYJR9EGPXCQ"
-}`, dst.String())
+  "disabled": false,
+  "id": "01F8MH9H8E4VG3KDYJR9EGPXCQ",
+  "shortcode": "rainbow",
+  "static_url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/static/01F8MH9H8E4VG3KDYJR9EGPXCQ.png",
+  "total_file_size": 42794,
+  "updated_at": "2021-09-20T10:40:37.000Z",
+  "uri": "http://localhost:8080/emoji/01F8MH9H8E4VG3KDYJR9EGPXCQ",
+  "url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/original/01F8MH9H8E4VG3KDYJR9EGPXCQ.png",
+  "visible_in_picker": true
+}`, out)
 }
 
 func (suite *EmojiGetTestSuite) TestEmojiGet2() {
@@ -71,41 +70,41 @@ func (suite *EmojiGetTestSuite) TestEmojiGet2() {
 	testEmoji := suite.testEmojis["yell"]
 
 	path := admin.EmojiPathWithID
-	ctx := suite.newContext(recorder, http.MethodGet, nil, path, "application/json")
-	ctx.AddParam(apiutil.IDKey, testEmoji.ID)
+	c := suite.newContext(recorder, http.MethodGet, nil, path, "application/json")
+	c.SetPathValue(apiutil.IDKey, testEmoji.ID)
 
-	suite.adminModule.EmojiGETHandler(ctx)
+	suite.adminModule.EmojiGETHandler(c)
 	suite.Equal(http.StatusOK, recorder.Code)
 
 	b, err := io.ReadAll(recorder.Body)
-	suite.NoError(err)
-	suite.NotNil(b)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
-  "shortcode": "yell",
-  "url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/original/01GD5KP5CQEE1R3X43Y1EHS2CW.png",
-  "static_url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/static/01GD5KP5CQEE1R3X43Y1EHS2CW.png",
-  "visible_in_picker": false,
-  "id": "01GD5KP5CQEE1R3X43Y1EHS2CW",
+  "content_type": "image/png",
   "disabled": false,
   "domain": "fossbros-anonymous.io",
-  "updated_at": "2020-03-18T12:12:00.000Z",
+  "id": "01GD5KP5CQEE1R3X43Y1EHS2CW",
+  "shortcode": "yell",
+  "static_url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/static/01GD5KP5CQEE1R3X43Y1EHS2CW.png",
   "total_file_size": 19854,
-  "content_type": "image/png",
-  "uri": "http://fossbros-anonymous.io/emoji/01GD5KP5CQEE1R3X43Y1EHS2CW"
-}`, dst.String())
+  "updated_at": "2020-03-18T12:12:00.000Z",
+  "uri": "http://fossbros-anonymous.io/emoji/01GD5KP5CQEE1R3X43Y1EHS2CW",
+  "url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/original/01GD5KP5CQEE1R3X43Y1EHS2CW.png",
+  "visible_in_picker": false
+}`, out)
 }
 
 func (suite *EmojiGetTestSuite) TestEmojiGetNotFound() {
 	recorder := httptest.NewRecorder()
 
 	path := admin.EmojiPathWithID
-	ctx := suite.newContext(recorder, http.MethodGet, nil, path, "application/json")
-	ctx.AddParam(apiutil.IDKey, "01GF8VRXX1R00X7XH8973Z29R1")
+	c := suite.newContext(recorder, http.MethodGet, nil, path, "application/json")
+	c.SetPathValue(apiutil.IDKey, "01GF8VRXX1R00X7XH8973Z29R1")
 
-	suite.adminModule.EmojiGETHandler(ctx)
+	suite.adminModule.EmojiGETHandler(c)
 	suite.Equal(http.StatusNotFound, recorder.Code)
 
 	b, err := io.ReadAll(recorder.Body)

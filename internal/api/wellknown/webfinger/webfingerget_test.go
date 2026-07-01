@@ -18,16 +18,15 @@
 package webfinger_test
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/api/wellknown/webfinger"
 	"code.superseriousbusiness.org/gotosocial/internal/cleaner"
@@ -49,13 +48,13 @@ type WebfingerGetTestSuite struct {
 
 func (suite *WebfingerGetTestSuite) finger(requestPath string) string {
 	// Set up the request.
+	req := httptest.NewRequest(http.MethodGet, requestPath, nil)
+	req.Header.Set("accept", "application/jrd+json")
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, requestPath, nil)
-	ctx.Request.Header.Set("accept", "application/jrd+json")
+	c := httputil.ToContext(recorder, req)
 
 	// Trigger the handler.
-	suite.webfingerModule.WebfingerGETRequest(ctx)
+	suite.webfingerModule.WebfingerGETRequest(c)
 
 	// Read the result + return it
 	// as nicely indented JSON.
@@ -73,12 +72,7 @@ func (suite *WebfingerGetTestSuite) finger(requestPath string) string {
 		suite.FailNow(err.Error())
 	}
 
-	var dst bytes.Buffer
-	if err := json.Indent(&dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
-	return dst.String()
+	return testrig.MustJSONStringFromBytes(b)
 }
 
 func (suite *WebfingerGetTestSuite) funkifyAccountDomain(host string, accountDomain string) *gtsmodel.Account {
@@ -105,7 +99,7 @@ func (suite *WebfingerGetTestSuite) funkifyAccountDomain(host string, accountDom
 		status.NewFilter(&suite.state),
 	)
 
-	suite.webfingerModule = webfinger.New(suite.processor)
+	suite.webfingerModule = webfinger.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 	testrig.StartNoopWorkers(&suite.state)
 
 	// Generate a new account for the
@@ -149,23 +143,23 @@ func (suite *WebfingerGetTestSuite) TestFingerUser() {
 
 	resp := suite.finger(requestPath)
 	suite.Equal(`{
-  "subject": "acct:the_mighty_zork@localhost:8080",
   "aliases": [
     "http://localhost:8080/users/the_mighty_zork",
     "http://localhost:8080/@the_mighty_zork"
   ],
   "links": [
     {
+      "href": "http://localhost:8080/@the_mighty_zork",
       "rel": "http://webfinger.net/rel/profile-page",
-      "type": "text/html",
-      "href": "http://localhost:8080/@the_mighty_zork"
+      "type": "text/html"
     },
     {
+      "href": "http://localhost:8080/users/the_mighty_zork",
       "rel": "self",
-      "type": "application/activity+json",
-      "href": "http://localhost:8080/users/the_mighty_zork"
+      "type": "application/activity+json"
     }
-  ]
+  ],
+  "subject": "acct:the_mighty_zork@localhost:8080"
 }`, resp)
 }
 
@@ -186,23 +180,23 @@ func (suite *WebfingerGetTestSuite) TestFingerUserActorURI() {
 			requestPath := fmt.Sprintf("/%s?resource=%s", webfinger.WebfingerBasePath, tt.resource)
 			resp := suite.finger(requestPath)
 			suite.Equal(`{
-  "subject": "acct:the_mighty_zork@localhost:8080",
   "aliases": [
     "http://localhost:8080/users/the_mighty_zork",
     "http://localhost:8080/@the_mighty_zork"
   ],
   "links": [
     {
+      "href": "http://localhost:8080/@the_mighty_zork",
       "rel": "http://webfinger.net/rel/profile-page",
-      "type": "text/html",
-      "href": "http://localhost:8080/@the_mighty_zork"
+      "type": "text/html"
     },
     {
+      "href": "http://localhost:8080/users/the_mighty_zork",
       "rel": "self",
-      "type": "application/activity+json",
-      "href": "http://localhost:8080/users/the_mighty_zork"
+      "type": "application/activity+json"
     }
-  ]
+  ],
+  "subject": "acct:the_mighty_zork@localhost:8080"
 }`, resp)
 		})
 	}
@@ -214,23 +208,23 @@ func (suite *WebfingerGetTestSuite) TestFingerUserWithDifferentAccountDomainByHo
 
 	resp := suite.finger(requestPath)
 	suite.Equal(`{
-  "subject": "acct:new_account_domain_user@example.org",
   "aliases": [
     "http://gts.example.org/users/new_account_domain_user",
     "http://gts.example.org/@new_account_domain_user"
   ],
   "links": [
     {
+      "href": "http://gts.example.org/@new_account_domain_user",
       "rel": "http://webfinger.net/rel/profile-page",
-      "type": "text/html",
-      "href": "http://gts.example.org/@new_account_domain_user"
+      "type": "text/html"
     },
     {
+      "href": "http://gts.example.org/users/new_account_domain_user",
       "rel": "self",
-      "type": "application/activity+json",
-      "href": "http://gts.example.org/users/new_account_domain_user"
+      "type": "application/activity+json"
     }
-  ]
+  ],
+  "subject": "acct:new_account_domain_user@example.org"
 }`, resp)
 }
 
@@ -240,23 +234,23 @@ func (suite *WebfingerGetTestSuite) TestFingerUserWithDifferentAccountDomainByAc
 
 	resp := suite.finger(requestPath)
 	suite.Equal(`{
-  "subject": "acct:new_account_domain_user@example.org",
   "aliases": [
     "http://gts.example.org/users/new_account_domain_user",
     "http://gts.example.org/@new_account_domain_user"
   ],
   "links": [
     {
+      "href": "http://gts.example.org/@new_account_domain_user",
       "rel": "http://webfinger.net/rel/profile-page",
-      "type": "text/html",
-      "href": "http://gts.example.org/@new_account_domain_user"
+      "type": "text/html"
     },
     {
+      "href": "http://gts.example.org/users/new_account_domain_user",
       "rel": "self",
-      "type": "application/activity+json",
-      "href": "http://gts.example.org/users/new_account_domain_user"
+      "type": "application/activity+json"
     }
-  ]
+  ],
+  "subject": "acct:new_account_domain_user@example.org"
 }`, resp)
 }
 
@@ -268,23 +262,23 @@ func (suite *WebfingerGetTestSuite) TestFingerUserWithoutAcct() {
 
 	resp := suite.finger(requestPath)
 	suite.Equal(`{
-  "subject": "acct:the_mighty_zork@localhost:8080",
   "aliases": [
     "http://localhost:8080/users/the_mighty_zork",
     "http://localhost:8080/@the_mighty_zork"
   ],
   "links": [
     {
+      "href": "http://localhost:8080/@the_mighty_zork",
       "rel": "http://webfinger.net/rel/profile-page",
-      "type": "text/html",
-      "href": "http://localhost:8080/@the_mighty_zork"
+      "type": "text/html"
     },
     {
+      "href": "http://localhost:8080/users/the_mighty_zork",
       "rel": "self",
-      "type": "application/activity+json",
-      "href": "http://localhost:8080/users/the_mighty_zork"
+      "type": "application/activity+json"
     }
-  ]
+  ],
+  "subject": "acct:the_mighty_zork@localhost:8080"
 }`, resp)
 }
 

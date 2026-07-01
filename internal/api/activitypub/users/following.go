@@ -20,22 +20,22 @@ package users
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
-	"github.com/gin-gonic/gin"
 )
 
 // FollowingGETHandler returns a collection of URIs for accounts that the target user follows, formatted so that other AP servers can understand it.
-func (m *Module) FollowingGETHandler(c *gin.Context) {
+func (m *Module) FollowingGETHandler(c *httputil.Context) {
 	username, contentType, errWithCode := m.parseCommon(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if contentType == apiutil.TextHTML {
 		// Redirect to account web view.
-		c.Redirect(http.StatusSeeOther, "/@"+username)
+		httputil.Redirect(c, http.StatusSeeOther, "/@"+username)
 		return
 	}
 
@@ -45,15 +45,15 @@ func (m *Module) FollowingGETHandler(c *gin.Context) {
 		0,  // default = disabled
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	resp, errWithCode := m.processor.Fedi().FollowingGet(c.Request.Context(), username, page)
+	resp, errWithCode := m.processor.Fedi().FollowingGet(c, username, page)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSONType(c, http.StatusOK, contentType, resp)
+	httputil.JSONType(c, http.StatusOK, contentType, resp)
 }

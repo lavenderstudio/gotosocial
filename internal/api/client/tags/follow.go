@@ -20,8 +20,8 @@ package tags
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // FollowTagPOSTHandler swagger:operation POST /api/v1/tags/{tag_name}/follow followTag
@@ -70,13 +70,16 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) FollowTagPOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteFollows,
-	)
+func (m *Module) FollowTagPOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteFollows},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -85,17 +88,17 @@ func (m *Module) FollowTagPOSTHandler(c *gin.Context) {
 		return
 	}
 
-	name, errWithCode := apiutil.ParseTagName(c.Param(apiutil.TagNameKey))
+	name, errWithCode := apiutil.ParseTagName(c.PathValue(apiutil.TagNameKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiTag, errWithCode := m.processor.Tags().Follow(c.Request.Context(), authed.Account, name)
+	apiTag, errWithCode := m.processor.Tags().Follow(c, authed.Account, name)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, apiTag)
+	httputil.JSON(c, http.StatusOK, apiTag)
 }

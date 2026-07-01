@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // MediaRefetchPOSTHandler swagger:operation POST /api/v1/admin/media_refetch mediaRefetch
@@ -81,19 +81,22 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) MediaRefetchPOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeAdminWrite,
-	)
+func (m *Module) MediaRefetchPOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeAdminWrite},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if !*authed.User.Admin {
 		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
 		return
 	}
 
@@ -102,10 +105,10 @@ func (m *Module) MediaRefetchPOSTHandler(c *gin.Context) {
 		return
 	}
 
-	if errWithCode := m.processor.Admin().MediaRefetch(c.Request.Context(), authed.Account, c.Query(DomainQueryKey)); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+	if errWithCode := m.processor.Admin().MediaRefetch(c, authed.Account, c.Query(DomainQueryKey)); errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.Data(c, http.StatusOK, apiutil.AppJSON, apiutil.StatusAcceptedJSON)
+	httputil.Data(c, http.StatusOK, apiutil.AppJSON, apiutil.StatusAcceptedJSON)
 }

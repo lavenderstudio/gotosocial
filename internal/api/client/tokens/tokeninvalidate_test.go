@@ -45,13 +45,13 @@ func (suite *TokenInvalidateTestSuite) TestTokenInvalidate() {
 
 	suite.Equal(http.StatusOK, code)
 	suite.Equal(`{
-  "id": "01F8MGTQW4DKTDF8SW5CT9HYGA",
-  "created_at": "2021-06-20T10:53:00.164Z",
-  "scope": "read write push",
   "application": {
     "name": "really cool gts application",
     "website": "https://reallycool.app"
-  }
+  },
+  "created_at": "2021-06-20T10:53:00.164Z",
+  "id": "01F8MGTQW4DKTDF8SW5CT9HYGA",
+  "scope": "read write push"
 }`, out)
 
 	// Check database for token we

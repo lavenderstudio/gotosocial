@@ -21,9 +21,9 @@ import (
 	"net/http"
 	"net/url"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
-	"github.com/gin-gonic/gin"
 )
 
 // CookiePolicy encompasses a number
@@ -66,11 +66,11 @@ func NewCookiePolicy() CookiePolicy {
 }
 
 // SetCookie will set the given cookie details according to currently configured CookiePolicy{}.
-func (p *CookiePolicy) SetCookie(c *gin.Context, name, value string, maxAge int, path string) {
+func (p *CookiePolicy) SetCookie(c *httputil.Context, name, value string, maxAge int, path string) {
 	if path == "" {
 		path = "/"
 	}
-	http.SetCookie(c.Writer, &http.Cookie{
+	http.SetCookie(&c.W, &http.Cookie{
 		Name:     name,
 		Value:    url.QueryEscape(value),
 		MaxAge:   maxAge,

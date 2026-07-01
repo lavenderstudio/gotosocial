@@ -20,11 +20,11 @@ package markers
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/validate"
-	"github.com/gin-gonic/gin"
 )
 
 // MarkersGETHandler swagger:operation GET /api/v1/markers markersGet
@@ -71,28 +71,31 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) MarkersGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadStatuses,
-	)
+func (m *Module) MarkersGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadStatuses},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	names, errWithCode := parseMarkerNames(c.QueryArray("timeline[]"))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 	}
 
-	marker, errWithCode := m.processor.Markers().Get(c.Request.Context(), authed.Account, names)
+	marker, errWithCode := m.processor.Markers().Get(c, authed.Account, names)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, marker)
+	httputil.JSON(c, http.StatusOK, marker)
 }
 
 // parseMarkerNames turns a list of strings into a set of valid marker timeline names, or returns an error.

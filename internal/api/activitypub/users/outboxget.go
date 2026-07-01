@@ -20,9 +20,9 @@ package users
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
-	"github.com/gin-gonic/gin"
 )
 
 // OutboxGETHandler swagger:operation GET /users/{username}/outbox s2sOutboxGet
@@ -87,16 +87,16 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: not found
-func (m *Module) OutboxGETHandler(c *gin.Context) {
+func (m *Module) OutboxGETHandler(c *httputil.Context) {
 	username, contentType, errWithCode := m.parseCommon(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if contentType == apiutil.TextHTML {
 		// Redirect to account web view.
-		c.Redirect(http.StatusSeeOther, "/@"+username)
+		httputil.Redirect(c, http.StatusSeeOther, "/@"+username)
 		return
 	}
 
@@ -106,15 +106,15 @@ func (m *Module) OutboxGETHandler(c *gin.Context) {
 		0,  // default = disabled
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	resp, errWithCode := m.processor.Fedi().OutboxGet(c.Request.Context(), username, page)
+	resp, errWithCode := m.processor.Fedi().OutboxGet(c, username, page)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSONType(c, http.StatusOK, contentType, resp)
+	httputil.JSONType(c, http.StatusOK, contentType, resp)
 }

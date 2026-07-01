@@ -23,13 +23,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	filtersV2 "code.superseriousbusiness.org/gotosocial/internal/api/client/filters/v2"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 )
 
 func (suite *FiltersTestSuite) getFilter(
@@ -37,22 +37,22 @@ func (suite *FiltersTestSuite) getFilter(
 	expectedHTTPStatus int,
 	expectedBody string,
 ) (*apimodel.FilterV2, error) {
+	// create the request
+	req := httptest.NewRequest(http.MethodGet, config.GetProtocol()+"://"+config.GetHost()+"/api/"+filtersV2.BasePath+"/"+filterID, nil)
+	req.Header.Set("accept", "application/json")
+
 	// instantiate recorder + test context
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
 
-	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodGet, config.GetProtocol()+"://"+config.GetHost()+"/api/"+filtersV2.BasePath+"/"+filterID, nil)
-	ctx.Request.Header.Set("accept", "application/json")
-
-	ctx.AddParam("id", filterID)
+	c.SetPathValue("id", filterID)
 
 	// trigger the handler
-	suite.filtersModule.FilterGETHandler(ctx)
+	suite.filtersModule.FilterGETHandler(c)
 
 	// read the response
 	result := recorder.Result()

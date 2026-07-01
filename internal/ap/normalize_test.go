@@ -300,7 +300,7 @@ func (suite *NormalizeTestSuite) TestNormalizeStatusableAttachmentsOneAttachment
   "attachment": [
     {
       "mediaType": "image/jpeg",
-      "name": "description: here's \u003c\u003ca\u003e\u003e picture of a #cat,%20it%27s%20cute!%20here%27s%20some%20special%20characters:%20%22%22%20%5C%20weeee%27%27%27%27",
+      "name": "description: here's <<a>> picture of a #cat,%20it%27s%20cute!%20here%27s%20some%20special%20characters:%20%22%22%20%5C%20weeee%27%27%27%27",
       "type": "Document",
       "url": "https://files.example.org/media_attachments/files/110/258/459/579/509/026/original/b65392ebe0fb04ef.jpeg"
     }
@@ -322,7 +322,7 @@ func (suite *NormalizeTestSuite) TestNormalizeStatusableAttachmentsOneAttachment
   "attachment": [
     {
       "mediaType": "image/jpeg",
-      "name": "DESCRIPTION: here's \u003c\u003e picture of a #cat, it's cute! here's some special characters: \"\" \\ weeee''''",
+      "name": "DESCRIPTION: here's <> picture of a #cat, it's cute! here's some special characters: \"\" \\ weeee''''",
       "type": "Document",
       "url": "https://files.example.org/media_attachments/files/110/258/459/579/509/026/original/b65392ebe0fb04ef.jpeg"
     }
@@ -345,7 +345,7 @@ func (suite *NormalizeTestSuite) TestNormalizeStatusableAttachmentsOneAttachment
   "attachment": [
     {
       "mediaType": "image/jpeg",
-      "name": "description: here's \u003c\u003ca\u003e\u003e picture of a #cat,%20it%27s%20cute!%20here%27s%20some%20special%20characters:%20%22%22%20%5C%20weeee%27%27%27%27",
+      "name": "description: here's <<a>> picture of a #cat,%20it%27s%20cute!%20here%27s%20some%20special%20characters:%20%22%22%20%5C%20weeee%27%27%27%27",
       "type": "Document",
       "url": "https://files.example.org/media_attachments/files/110/258/459/579/509/026/original/b65392ebe0fb04ef.jpeg"
     }
@@ -367,7 +367,7 @@ func (suite *NormalizeTestSuite) TestNormalizeStatusableAttachmentsOneAttachment
   "attachment": [
     {
       "mediaType": "image/jpeg",
-      "name": "DESCRIPTION: here's \u003c\u003e picture of a #cat, it's cute! here's some special characters: \"\" \\ weeee''''",
+      "name": "DESCRIPTION: here's <> picture of a #cat, it's cute! here's some special characters: \"\" \\ weeee''''",
       "type": "Document",
       "url": "https://files.example.org/media_attachments/files/110/258/459/579/509/026/original/b65392ebe0fb04ef.jpeg"
     }
@@ -390,7 +390,7 @@ func (suite *NormalizeTestSuite) TestNormalizeStatusableAttachmentsMultipleAttac
   "attachment": [
     {
       "mediaType": "image/jpeg",
-      "name": "description: here's \u003c\u003ca\u003e\u003e picture of a #cat,%20it%27s%20cute!%20here%27s%20some%20special%20characters:%20%22%22%20%5C%20weeee%27%27%27%27",
+      "name": "description: here's <<a>> picture of a #cat,%20it%27s%20cute!%20here%27s%20some%20special%20characters:%20%22%22%20%5C%20weeee%27%27%27%27",
       "type": "Document",
       "url": "https://files.example.org/media_attachments/files/110/258/459/579/509/026/original/b65392ebe0fb04ef.jpeg"
     },
@@ -407,7 +407,7 @@ func (suite *NormalizeTestSuite) TestNormalizeStatusableAttachmentsMultipleAttac
     },
     {
       "mediaType": "image/jpeg",
-      "name": "image of a cat \u0026amp; there's a note saying: \u0026lt;danger: #cute but will claw you :(\u0026gt;",
+      "name": "image of a cat &amp; there's a note saying: &lt;danger: #cute but will claw you :(&gt;",
       "type": "Document",
       "url": "https://files.example.org/media_attachments/files/110/258/459/579/509/026/original/b65392ebe0fb04ef.jpeg"
     }
@@ -429,7 +429,7 @@ func (suite *NormalizeTestSuite) TestNormalizeStatusableAttachmentsMultipleAttac
   "attachment": [
     {
       "mediaType": "image/jpeg",
-      "name": "DESCRIPTION: here's \u003c\u003e picture of a #cat, it's cute! here's some special characters: \"\" \\ weeee''''",
+      "name": "DESCRIPTION: here's <> picture of a #cat, it's cute! here's some special characters: \"\" \\ weeee''''",
       "type": "Document",
       "url": "https://files.example.org/media_attachments/files/110/258/459/579/509/026/original/b65392ebe0fb04ef.jpeg"
     },
@@ -446,7 +446,7 @@ func (suite *NormalizeTestSuite) TestNormalizeStatusableAttachmentsMultipleAttac
     },
     {
       "mediaType": "image/jpeg",
-      "name": "image of a cat \u0026 there's a note saying:",
+      "name": "image of a cat & there's a note saying:",
       "type": "Document",
       "url": "https://files.example.org/media_attachments/files/110/258/459/579/509/026/original/b65392ebe0fb04ef.jpeg"
     }

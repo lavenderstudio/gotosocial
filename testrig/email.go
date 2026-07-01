@@ -29,9 +29,9 @@ import (
 // the map, with email address of the recipient as the key, and the value as the
 // parsed email message as it would have been sent.
 func NewEmailSender(templateBaseDir string, sentEmails map[string]string) email.Sender {
-	config.Config(func(cfg *config.Configuration) {
-		cfg.WebTemplateBaseDir = templateBaseDir
-	})
+	if templateBaseDir != "" {
+		config.Config(func(cfg *config.Configuration) { cfg.WebTemplateBaseDir = templateBaseDir })
+	}
 
 	var sendCallback func(toAddress string, message string)
 

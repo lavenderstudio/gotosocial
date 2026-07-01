@@ -17,8 +17,18 @@
 
 package text
 
-import "unicode"
+import (
+	"unicode"
 
+	"code.superseriousbusiness.org/gopkg/buffers"
+)
+
+// bufpool is a memory pool
+// of buffers for conversions.
+var bufpool = buffers.Pool(1024)
+
+// isPermittedInHashtag is true for characters that
+// may be permitted anywhere in hashtag, entirety or not.
 func isPermittedInHashtag(r rune) bool {
 	return unicode.IsLetter(r) || isPermittedIfNotEntireHashtag(r)
 }

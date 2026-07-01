@@ -18,14 +18,14 @@
 package accounts
 
 import (
-	"errors"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin"
 )
 
 // AccountMutePOSTHandler swagger:operation POST /api/v1/accounts/{id}/mute accountMute
@@ -96,13 +96,16 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) AccountMutePOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteMutes,
-	)
+func (m *Module) AccountMutePOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteMutes},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -112,40 +115,39 @@ func (m *Module) AccountMutePOSTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	targetAcctID := c.Param(IDKey)
-	if targetAcctID == "" {
-		err := errors.New("no account id specified")
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	targetAcctID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form := &apimodel.UserMuteCreateUpdateRequest{}
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if err := normalizeCreateUpdateMute(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorUnprocessableEntity(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorUnprocessableEntity(err, err.Error()))
 		return
 	}
 
 	relationship, errWithCode := m.processor.Account().MuteCreate(
-		c.Request.Context(),
+		c,
 		authed.Account,
 		targetAcctID,
 		form,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, relationship)
+	httputil.JSON(c, http.StatusOK, relationship)
 }
 
 func normalizeCreateUpdateMute(form *apimodel.UserMuteCreateUpdateRequest) error {

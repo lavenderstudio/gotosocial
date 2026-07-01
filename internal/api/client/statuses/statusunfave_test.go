@@ -20,17 +20,17 @@ package statuses_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/statuses"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -48,32 +48,27 @@ func (suite *StatusUnfaveTestSuite) TestPostUnfave() {
 	targetStatus := suite.testStatuses["admin_account_status_1"]
 
 	// setup
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:8080%s", strings.Replace(statuses.UnfavouritePath, ":id", targetStatus.ID, 1)), nil) // the endpoint we're hitting
+	req.Header.Set("accept", "application/json")
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Request = httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:8080%s", strings.Replace(statuses.UnfavouritePath, ":id", targetStatus.ID, 1)), nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/json")
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   statuses.IDKey,
-			Value: targetStatus.ID,
-		},
-	}
+	c.SetPathValue(apiutil.IDKey, targetStatus.ID)
 
-	suite.statusModule.StatusUnfavePOSTHandler(ctx)
+	suite.statusModule.StatusUnfavePOSTHandler(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	assert.NoError(suite.T(), err)
 
 	statusReply := &apimodel.Status{}
@@ -97,32 +92,27 @@ func (suite *StatusUnfaveTestSuite) TestPostAlreadyNotFaved() {
 	targetStatus := suite.testStatuses["admin_account_status_2"]
 
 	// setup
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:8080%s", strings.Replace(statuses.UnfavouritePath, ":id", targetStatus.ID, 1)), nil) // the endpoint we're hitting
+	req.Header.Set("accept", "application/json")
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Request = httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:8080%s", strings.Replace(statuses.UnfavouritePath, ":id", targetStatus.ID, 1)), nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/json")
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   statuses.IDKey,
-			Value: targetStatus.ID,
-		},
-	}
+	c.SetPathValue(apiutil.IDKey, targetStatus.ID)
 
-	suite.statusModule.StatusUnfavePOSTHandler(ctx)
+	suite.statusModule.StatusUnfavePOSTHandler(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	assert.NoError(suite.T(), err)
 
 	statusReply := &apimodel.Status{}

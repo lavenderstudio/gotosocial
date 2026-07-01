@@ -20,22 +20,22 @@ package web
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
-	"github.com/gin-gonic/gin"
 )
 
 const textCSSUTF8 = string(apiutil.TextCSS + "; charset=utf-8")
 
-func (m *Module) customCSSGETHandler(c *gin.Context) {
+func (m *Module) customCSSGETHandler(c *httputil.Context) {
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextCSS); errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	requestedUser, errWithCode := apiutil.ParseUsername(c.Param(apiutil.UsernameKey))
+	requestedUser, errWithCode := apiutil.ParseUsername(c.PathValue(apiutil.UsernameKey))
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -44,32 +44,31 @@ func (m *Module) customCSSGETHandler(c *gin.Context) {
 	// when custom CSS gets toggled on or off.
 	var customCSS string
 	if config.GetAccountsAllowCustomCSS() {
-		customCSS, errWithCode = m.processor.Account().GetCustomCSSForUsername(c.Request.Context(), requestedUser)
+		customCSS, errWithCode = m.processor.Account().GetCustomCSSForUsername(c, requestedUser)
 		if errWithCode != nil {
-			apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+			apiutil.WebErrorHandler(c, m.templates, errWithCode)
 			return
 		}
 	}
 
-	c.Header(cacheControlHeader, cacheControlNoCache)
-	c.Data(http.StatusOK, textCSSUTF8, []byte(customCSS))
+	c.W.Header().Set(cacheControlHeader, cacheControlNoCache)
+	httputil.String(c, http.StatusOK, textCSSUTF8, customCSS)
 }
 
-func (m *Module) instanceCustomCSSGETHandler(c *gin.Context) {
-
+func (m *Module) instanceCustomCSSGETHandler(c *httputil.Context) {
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextCSS); errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	instanceV1, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
+	instanceV1, errWithCode := m.processor.InstanceGetV1(c)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	instanceCustomCSS := instanceV1.CustomCSS
 
-	c.Header(cacheControlHeader, cacheControlNoCache)
-	c.Data(http.StatusOK, textCSSUTF8, []byte(instanceCustomCSS))
+	c.W.Header().Set(cacheControlHeader, cacheControlNoCache)
+	httputil.String(c, http.StatusOK, textCSSUTF8, instanceCustomCSS)
 }

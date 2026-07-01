@@ -19,13 +19,14 @@ package admin_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/admin"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
@@ -34,7 +35,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -51,35 +51,36 @@ func (suite *ReportResolveTestSuite) resolveReport(
 	expectedBody string,
 	actionTakenComment *string,
 ) (*apimodel.AdminReport, error) {
-	// instantiate recorder + test context
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, account)
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, user)
-
 	// create the request URI
 	requestPath := admin.ReportsPath + "/" + targetReportID + "/resolve"
 	baseURI := config.GetProtocol() + "://" + config.GetHost()
 	requestURI := baseURI + "/api/" + requestPath
 
 	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodPost, requestURI, nil)
-	ctx.AddParam(apiutil.IDKey, targetReportID)
-	ctx.Request.Header.Set("accept", "application/json")
+	req := httptest.NewRequest(http.MethodPost, requestURI, nil)
+	req.Header.Set("accept", "application/json")
 	if actionTakenComment != nil {
-		ctx.Request.Form = url.Values{"action_taken_comment": {*actionTakenComment}}
+		req.Form = url.Values{"action_taken_comment": {*actionTakenComment}}
 	}
 
+	// instantiate recorder + test context
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, account)
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, user)
+
+	c.SetPathValue(apiutil.IDKey, targetReportID)
+
 	// trigger the handler
-	suite.adminModule.ReportResolvePOSTHandler(ctx)
+	suite.adminModule.ReportResolvePOSTHandler(c)
 
 	// read the response
 	result := recorder.Result()
 	defer result.Body.Close()
 
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	if err != nil {
 		return nil, err
 	}

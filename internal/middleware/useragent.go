@@ -20,20 +20,28 @@ package middleware
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // UserAgent returns a gin middleware which aborts requests with
 // empty user agent strings, returning code 418 - I'm a teapot.
-func UserAgent() gin.HandlerFunc {
-	// todo: make this configurable
+func UserAgent() httputil.MiddlewareFunc {
 	var rsp = []byte(`{"error": "I'm a teapot: no user-agent sent with request"}`)
-	return func(c *gin.Context) {
-		if ua := c.Request.UserAgent(); ua == "" {
-			apiutil.Data(c,
-				http.StatusTeapot, apiutil.AppJSON, rsp)
-			c.Abort()
+	return func(h func(*httputil.Context)) func(*httputil.Context) {
+		if h == nil {
+			panic("nil func")
+		}
+
+		return func(c *httputil.Context) {
+			if ua := c.R.UserAgent(); ua == "" {
+				httputil.Data(c, http.StatusTeapot, apiutil.AppJSON, rsp)
+				return
+			}
+
+			// Pass on
+			// to next.
+			h(c)
 		}
 	}
 }

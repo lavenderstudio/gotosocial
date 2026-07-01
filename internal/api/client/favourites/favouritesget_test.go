@@ -20,15 +20,15 @@ package favourites_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/favourites"
 	"code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -42,23 +42,23 @@ func (suite *FavouritesTestSuite) TestGetFavourites() {
 	oauthToken := oauth.DBTokenToToken(t)
 
 	// setup
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:8080%s?limit=80", favourites.BasePath), nil)
+	req.Header.Set("accept", "application/json")
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_2"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Request = httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:8080%s?limit=80", favourites.BasePath), nil)
-	ctx.Request.Header.Set("accept", "application/json")
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_2"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
 
-	suite.favModule.FavouritesGETHandler(ctx)
+	suite.favModule.FavouritesGETHandler(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	assert.NoError(suite.T(), err)
 
 	favs := []model.Status{}

@@ -19,73 +19,73 @@ package fileserver
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"codeberg.org/gruf/go-fastcopy"
-	"github.com/gin-gonic/gin"
 )
 
 // ServeFile is for serving attachments, headers, and avatars to the requester from instance storage.
 //
 // Note: to mitigate scraping attempts, no information should be given out on a bad request except "404 page not found".
 // Don't give away account ids or media ids or anything like that; callers shouldn't be able to infer anything.
-func (m *Module) ServeFile(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c, false, false, false, false)
+func (m *Module) ServeFile(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   false,
+		App:     false,
+		User:    false,
+		Account: false,
+		Scope:   nil,
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// We use request params to check what to pull out of the database/storage so check everything. A request URL should be formatted as follows:
 	// "https://example.org/fileserver/[ACCOUNT_ID]/[MEDIA_TYPE]/[MEDIA_SIZE]/[FILE_NAME]"
 	// "FILE_NAME" consists of two parts, the attachment's database id, a period, and the file extension.
-	accountID := c.Param(AccountIDKey)
+	accountID := c.PathValue(AccountIDKey)
 	if accountID == "" {
 		err := fmt.Errorf("missing %s from request", AccountIDKey)
-		apiutil.ErrorHandler(c, gtserror.NewErrorNotFound(err), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorNotFound(err))
 		return
 	}
 
-	mediaType := c.Param(MediaTypeKey)
+	mediaType := c.PathValue(MediaTypeKey)
 	if mediaType == "" {
 		err := fmt.Errorf("missing %s from request", MediaTypeKey)
-		apiutil.ErrorHandler(c, gtserror.NewErrorNotFound(err), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorNotFound(err))
 		return
 	}
 
-	mediaSize := c.Param(MediaSizeKey)
+	mediaSize := c.PathValue(MediaSizeKey)
 	if mediaSize == "" {
 		err := fmt.Errorf("missing %s from request", MediaSizeKey)
-		apiutil.ErrorHandler(c, gtserror.NewErrorNotFound(err), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorNotFound(err))
 		return
 	}
 
-	fileName := c.Param(FileNameKey)
+	fileName := c.PathValue(FileNameKey)
 	if fileName == "" {
 		err := fmt.Errorf("missing %s from request", FileNameKey)
-		apiutil.ErrorHandler(c, gtserror.NewErrorNotFound(err), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorNotFound(err))
 		return
 	}
 
-	// Acquire context from gin request.
-	ctx := c.Request.Context()
-
-	content, errWithCode := m.processor.Media().GetFile(ctx, authed.Account, &apimodel.GetContentRequestForm{
+	content, errWithCode := m.processor.Media().GetFile(c, authed.Account, &apimodel.GetContentRequestForm{
 		AccountID: accountID,
 		MediaType: mediaType,
 		MediaSize: mediaSize,
 		FileName:  fileName,
 	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -93,169 +93,44 @@ func (m *Module) ServeFile(c *gin.Context) {
 		// This is a non-local, non-proxied S3 file we're redirecting to. Derive
 		// the max-age value from how long the link has left until it expires.
 		maxAge := int(time.Until(content.URL.Expiry).Seconds())
-		c.Header("Cache-Control", "private, max-age="+strconv.Itoa(maxAge)+", immutable")
-		c.Redirect(http.StatusFound, content.URL.String())
+		c.W.Header().Set("Cache-Control", "private, max-age="+strconv.Itoa(maxAge)+", immutable")
+		httputil.Redirect(c, http.StatusFound, content.URL.String())
 		return
 	}
 
 	defer func() {
 		// Close content when we're done, catch errors.
 		if err := content.Content.Close(); err != nil {
-			log.Errorf(ctx, "ServeFile: error closing readcloser: %s", err)
+			log.Errorf(c, "ServeFile: error closing readcloser: %s", err)
 		}
 	}()
 
 	// TODO: if the requester only accepts text/html we should try to serve them *something*.
 	// This is mostly needed because when sharing a link to a gts-hosted file on something like mastodon, the masto servers will
 	// attempt to look up the content to provide a preview of the link, and they ask for text/html.
-	contentType, err := apiutil.NegotiateAccept(c, content.ContentType)
+	_, err := apiutil.NegotiateAccept(c, content.ContentType)
 	if err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorNotAcceptable(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorNotAcceptable(err, err.Error()))
 		return
 	}
 
-	// if this is a head request, just return info + throw the reader away
-	if c.Request.Method == http.MethodHead {
-		c.Header("Content-Type", contentType)
-		c.Header("Content-Length", strconv.FormatInt(content.ContentLength, 10))
-		c.Status(http.StatusOK)
+	// if this is a head request, just
+	// return info + throw the reader away.
+	if c.R.Method == http.MethodHead {
+		c.W.Header().Set("Content-Type", content.ContentType)
+		c.W.Header().Set("Content-Length", strconv.FormatInt(content.ContentLength, 10))
+		c.W.WriteHeader(http.StatusOK)
 		return
 	}
 
-	// Look for a provided range header.
-	rng := c.GetHeader("Range")
-	if rng == "" {
-		// This is a simple query for the whole file, so do a read from whole reader.
-		c.DataFromReader(http.StatusOK, content.ContentLength, contentType, content.Content, nil)
-		return
-	}
-
-	// Set known content-type and serve range.
-	c.Header("Content-Type", contentType)
-	serveFileRange(
-		c.Writer,
-		c.Request,
+	// Set known media content type and serve the file.
+	c.W.Header().Set("Content-Type", content.ContentType)
+	httputil.ServeFile(c,
 		content.Content,
-		rng,
 		content.ContentLength,
+
+		// Only serve actual file content
+		// if this isn't a HEAD request.
+		c.R.Method != "HEAD",
 	)
-}
-
-// serveFileRange serves the range of a file from a given source reader, without the
-// need for implementation of io.Seeker. Instead we read the first 'start' many bytes
-// into a discard reader. Code is adapted from https://codeberg.org/gruf/simplehttp.
-func serveFileRange(rw http.ResponseWriter, r *http.Request, src io.Reader, rng string, size int64) {
-	var i int
-
-	if i = strings.IndexByte(rng, '='); i < 0 {
-		// Range must include a separating '=' to indicate start
-		http.Error(rw, "Bad Range Header", http.StatusBadRequest)
-		return
-	}
-
-	if rng[:i] != "bytes" {
-		// We only support byte ranges in our implementation
-		http.Error(rw, "Unsupported Range Unit", http.StatusBadRequest)
-		return
-	}
-
-	// Reslice past '='
-	rng = rng[i+1:]
-
-	if i = strings.IndexByte(rng, '-'); i < 0 {
-		// Range header must contain a beginning and end separated by '-'
-		http.Error(rw, "Bad Range Header", http.StatusBadRequest)
-		return
-	}
-
-	var (
-		err error
-
-		// default start + end ranges
-		start, end = int64(0), size - 1
-
-		// start + end range strings
-		startRng, endRng string
-	)
-
-	if startRng = rng[:i]; len(startRng) > 0 {
-		// Parse the start of this byte range
-		start, err = strconv.ParseInt(startRng, 10, 64)
-		if err != nil {
-			http.Error(rw, "Bad Range Header", http.StatusBadRequest)
-			return
-		}
-
-		if start < 0 {
-			// This range starts *before* the file start, why did they send this lol
-			rw.Header().Set("Content-Range", "bytes *"+strconv.FormatInt(size, 10))
-			http.Error(rw, "Unsatisfiable Range", http.StatusRequestedRangeNotSatisfiable)
-			return
-		}
-	} else {
-		// No start supplied, implying file start
-		startRng = "0"
-	}
-
-	if endRng = rng[i+1:]; len(endRng) > 0 {
-		// Parse the end of this byte range
-		end, err = strconv.ParseInt(endRng, 10, 64)
-		if err != nil {
-			http.Error(rw, "Bad Range Header", http.StatusBadRequest)
-			return
-		}
-
-		if end >= size {
-			// According to the http spec if end >= size the server should return the rest of the file
-			// https://www.rfc-editor.org/rfc/rfc9110#section-14.1.2-6
-			end = size - 1
-			endRng = strconv.FormatInt(end, 10)
-		}
-	} else {
-		// No end supplied, implying file end
-		endRng = strconv.FormatInt(end, 10)
-	}
-
-	if start >= end {
-		// This range starts _after_ their range end, unsatisfiable and nonsense!
-		rw.Header().Set("Content-Range", "bytes *"+strconv.FormatInt(size, 10))
-		http.Error(rw, "Unsatisfiable Range", http.StatusRequestedRangeNotSatisfiable)
-		return
-	}
-
-	if rs, ok := src.(io.ReadSeeker); ok {
-		// Source supports seeking (usually *os.File),
-		// seek to the 'start' byte position in file.
-		if _, err := rs.Seek(start, 0); err != nil {
-			log.Errorf(r.Context(), "error seeking in source: %v", err)
-			return
-		}
-	} else {
-		// Compat for when no seek call is implemented,
-		// dump the first 'start' many bytes into void.
-		if _, err := fastcopy.CopyN(io.Discard, src, start); err != nil {
-			log.Errorf(r.Context(), "error reading from source: %v", err)
-			return
-		}
-	}
-
-	// Determine new content length
-	// after slicing to given range.
-	length := end - start + 1
-
-	if end < size-1 {
-		// Range end < file end, limit the reader
-		src = io.LimitReader(src, length)
-	}
-
-	// Write the necessary length and range headers
-	rw.Header().Set("Content-Range", "bytes "+startRng+"-"+endRng+"/"+strconv.FormatInt(size, 10))
-	rw.Header().Set("Content-Length", strconv.FormatInt(length, 10))
-	rw.WriteHeader(http.StatusPartialContent)
-
-	// Read the "seeked" source reader into destination writer.
-	if _, err := fastcopy.Copy(rw, src); err != nil {
-		log.Errorf(r.Context(), "error reading from source: %v", err)
-		return
-	}
 }

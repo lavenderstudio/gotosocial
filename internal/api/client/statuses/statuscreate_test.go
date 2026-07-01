@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/statuses"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
@@ -49,12 +50,8 @@ func (suite *StatusCreateTestSuite) postStatusCore(
 	formData map[string][]string,
 	jsonData string,
 ) *httptest.ResponseRecorder {
+	var req *http.Request
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
 
 	if formData != nil {
 		buf, w, err := testrig.CreateMultipartFormData(nil, formData)
@@ -62,25 +59,31 @@ func (suite *StatusCreateTestSuite) postStatusCore(
 			suite.FailNow(err.Error())
 		}
 
-		ctx.Request = httptest.NewRequest(
+		req = httptest.NewRequest(
 			http.MethodPost,
 			"http://localhost:8080"+statuses.BasePath,
 			bytes.NewReader(buf.Bytes()),
 		)
-		ctx.Request.Header.Set("content-type", w.FormDataContentType())
+		req.Header.Set("content-type", w.FormDataContentType())
 	} else {
-		ctx.Request = httptest.NewRequest(
+		req = httptest.NewRequest(
 			http.MethodPost,
 			"http://localhost:8080"+statuses.BasePath,
 			bytes.NewReader([]byte(jsonData)),
 		)
-		ctx.Request.Header.Set("content-type", "application/json")
+		req.Header.Set("content-type", "application/json")
 	}
 
-	ctx.Request.Header.Set("accept", "application/json")
+	req.Header.Set("accept", "application/json")
+
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
 
 	// Trigger handler.
-	suite.statusModule.StatusCreatePOSTHandler(ctx)
+	suite.statusModule.StatusCreatePOSTHandler(c)
 
 	return recorder
 }

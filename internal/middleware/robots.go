@@ -18,8 +18,8 @@
 package middleware
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 type RobotsHeadersMode int
@@ -28,9 +28,11 @@ const (
 	// Disallow indexing via noindex, nofollow.
 	// Includes anti-"ai" headers.
 	RobotsHeadersModeDefault RobotsHeadersMode = iota
+
 	// Just set anti-"ai" headers and
 	// leave the other headers be.
 	RobotsHeadersModeDisallowAIOnly
+
 	// Allow some limited indexing.
 	// Includes anti-"ai" headers.
 	RobotsHeadersModeAllowSome
@@ -46,23 +48,22 @@ const (
 //
 // If mode == "" then noai, noimageai, noindex, and nofollow will be set
 // (ie., as restrictive as possible).
-func RobotsHeaders(mode RobotsHeadersMode) gin.HandlerFunc {
+func RobotsHeaders(mode RobotsHeadersMode) httputil.FlatMiddlewareFunc {
 	const key = "X-Robots-Tag"
-
 	switch mode {
 	case RobotsHeadersModeDisallowAIOnly:
-		return func(c *gin.Context) {
-			c.Writer.Header().Set(key, apiutil.RobotsDirectiveDisallowAI)
+		return func(c *httputil.Context) {
+			c.W.Header().Set(key, apiutil.RobotsDirectiveDisallowAI)
 		}
 
 	case RobotsHeadersModeAllowSome:
-		return func(c *gin.Context) {
-			c.Writer.Header().Set(key, apiutil.RobotsDirectivesAllowSome)
+		return func(c *httputil.Context) {
+			c.W.Header().Set(key, apiutil.RobotsDirectivesAllowSome)
 		}
 
 	default:
-		return func(c *gin.Context) {
-			c.Writer.Header().Set(key, apiutil.RobotsDirectivesDisallowIndex)
+		return func(c *httputil.Context) {
+			c.W.Header().Set(key, apiutil.RobotsDirectivesDisallowIndex)
 		}
 	}
 }

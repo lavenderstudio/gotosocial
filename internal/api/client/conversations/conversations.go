@@ -18,11 +18,10 @@
 package conversations
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -35,17 +34,19 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, BasePath, m.ConversationsGETHandler)
-	attachHandler(http.MethodDelete, BasePathWithID, m.ConversationDELETEHandler)
-	attachHandler(http.MethodPost, ReadPathWithID, m.ConversationReadPOSTHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(BasePath, m.ConversationsGETHandler)
+	g.DELETE(BasePathWithID, m.ConversationDELETEHandler)
+	g.POST(ReadPathWithID, m.ConversationReadPOSTHandler)
 }

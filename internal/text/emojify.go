@@ -18,12 +18,12 @@
 package text
 
 import (
-	"bytes"
 	"html"
 	"html/template"
 
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/regexes"
+	"codeberg.org/gruf/go-byteutil"
 )
 
 // EmojifyWeb replaces emoji shortcodes like `:example:` in the given HTML
@@ -32,44 +32,44 @@ func EmojifyWeb(emojis []apimodel.Emoji, html template.HTML) template.HTML {
 	out := emojify(
 		emojis,
 		string(html),
-		func(url, staticURL, code string, buf *bytes.Buffer) {
+		func(url, staticURL, code string, buf *byteutil.Buffer) {
 			// Open a picture tag so we
 			// can present multiple options.
-			buf.WriteString(`<picture>`)
+			buf.B = append(buf.B, `<picture>`...)
 
 			// Static version.
-			buf.WriteString(`<source `)
+			buf.B = append(buf.B, `<source `...)
 			{
-				buf.WriteString(`class="emoji" `)
-				buf.WriteString(`srcset="` + staticURL + `" `)
-				buf.WriteString(`type="image/png" `)
+				buf.B = append(buf.B, `class="emoji" `...)
+				buf.B = append(buf.B, `srcset="`+staticURL+`" `...)
+				buf.B = append(buf.B, `type="image/png" `...)
 				// Show this version when user
 				// doesn't want an animated emoji.
-				buf.WriteString(`media="(prefers-reduced-motion: reduce)" `)
+				buf.B = append(buf.B, `media="(prefers-reduced-motion: reduce)" `...)
 				// Limit size to avoid showing
 				// huge emojis when unstyled.
-				buf.WriteString(`width="25" height="25" `)
+				buf.B = append(buf.B, `width="25" height="25" `...)
 			}
-			buf.WriteString(`/>`)
+			buf.B = append(buf.B, `/>`...)
 
 			// Original image source.
-			buf.WriteString(`<img `)
+			buf.B = append(buf.B, `<img `...)
 			{
-				buf.WriteString(`class="emoji" `)
-				buf.WriteString(`src="` + url + `" `)
-				buf.WriteString(`title=":` + code + `:" `)
-				buf.WriteString(`alt=":` + code + `:" `)
+				buf.B = append(buf.B, `class="emoji" `...)
+				buf.B = append(buf.B, `src="`+url+`" `...)
+				buf.B = append(buf.B, `title=":`+code+`:" `...)
+				buf.B = append(buf.B, `alt=":`+code+`:" `...)
 				// Lazy load emojis when
 				// they scroll into view.
-				buf.WriteString(`loading="lazy" `)
+				buf.B = append(buf.B, `loading="lazy" `...)
 				// Limit size to avoid showing
 				// huge emojis when unstyled.
-				buf.WriteString(`width="25" height="25" `)
+				buf.B = append(buf.B, `width="25" height="25" `...)
 			}
-			buf.WriteString(`/>`)
+			buf.B = append(buf.B, `/>`...)
 
 			// Close the picture tag.
-			buf.WriteString(`</picture>`)
+			buf.B = append(buf.B, `</picture>`...)
 		},
 	)
 
@@ -84,18 +84,18 @@ func EmojifyRSS(emojis []apimodel.Emoji, text string) string {
 	return emojify(
 		emojis,
 		text,
-		func(url, staticURL, code string, buf *bytes.Buffer) {
+		func(url, staticURL, code string, buf *byteutil.Buffer) {
 			// Original image source.
-			buf.WriteString(`<img `)
+			buf.B = append(buf.B, `<img `...)
 			{
-				buf.WriteString(`src="` + url + `" `)
-				buf.WriteString(`title=":` + code + `:" `)
-				buf.WriteString(`alt=":` + code + `:" `)
+				buf.B = append(buf.B, `src="`+url+`" `...)
+				buf.B = append(buf.B, `title=":`+code+`:" `...)
+				buf.B = append(buf.B, `alt=":`+code+`:" `...)
 				// Limit size to avoid showing
 				// huge emojis in RSS readers.
-				buf.WriteString(`width="25" height="25" `)
+				buf.B = append(buf.B, `width="25" height="25" `...)
 			}
-			buf.WriteString(`/>`)
+			buf.B = append(buf.B, `/>`...)
 		},
 	)
 }
@@ -110,7 +110,7 @@ func Demojify(text string) string {
 func emojify(
 	emojis []apimodel.Emoji,
 	input string,
-	write func(url, staticURL, code string, buf *bytes.Buffer),
+	write func(url, staticURL, code string, buf *byteutil.Buffer),
 ) string {
 	// Build map of shortcodes. Normalize each
 	// shortcode by readding closing colons.
@@ -123,7 +123,7 @@ func emojify(
 	return regexes.ReplaceAllStringFunc(
 		regexes.EmojiFinder,
 		input,
-		func(shortcode string, buf *bytes.Buffer) string {
+		func(shortcode string, buf *byteutil.Buffer) string {
 			// Look for emoji with this shortcode.
 			emoji, ok := emojisMap[shortcode]
 			if !ok {

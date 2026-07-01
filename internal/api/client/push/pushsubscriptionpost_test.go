@@ -27,11 +27,11 @@ import (
 	"strconv"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/push"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 )
 
 // postSubscription creates or replaces the push subscription for the named account and token.
@@ -48,46 +48,46 @@ func (suite *PushTestSuite) postSubscription(
 	requestJson *string,
 	expectedHTTPStatus int,
 ) (*apimodel.WebPushSubscription, error) {
-	// instantiate recorder + test context
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[accountFixtureName])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[tokenFixtureName]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers[accountFixtureName])
-
 	// create the request
 	requestUrl := config.GetProtocol() + "://" + config.GetHost() + "/api" + push.SubscriptionPath
-	ctx.Request = httptest.NewRequest(http.MethodPost, requestUrl, nil)
-	ctx.Request.Header.Set("accept", "application/json")
+	req := httptest.NewRequest(http.MethodPost, requestUrl, nil)
+	req.Header.Set("accept", "application/json")
+
+	// instantiate recorder + test context
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[accountFixtureName])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[tokenFixtureName]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers[accountFixtureName])
 
 	if requestJson != nil {
-		ctx.Request.Header.Set("content-type", "application/json")
-		ctx.Request.Body = io.NopCloser(strings.NewReader(*requestJson))
+		c.R.Header.Set("content-type", "application/json")
+		c.R.Body = io.NopCloser(strings.NewReader(*requestJson))
 	} else {
-		ctx.Request.Form = make(url.Values)
+		c.R.Form = make(url.Values)
 		if endpoint != nil {
-			ctx.Request.Form["subscription[endpoint]"] = []string{*endpoint}
+			c.R.Form["subscription[endpoint]"] = []string{*endpoint}
 		}
 		if auth != nil {
-			ctx.Request.Form["subscription[keys][auth]"] = []string{*auth}
+			c.R.Form["subscription[keys][auth]"] = []string{*auth}
 		}
 		if p256dh != nil {
-			ctx.Request.Form["subscription[keys][p256dh]"] = []string{*p256dh}
+			c.R.Form["subscription[keys][p256dh]"] = []string{*p256dh}
 		}
 		if alertsMention != nil {
-			ctx.Request.Form["data[alerts][mention]"] = []string{strconv.FormatBool(*alertsMention)}
+			c.R.Form["data[alerts][mention]"] = []string{strconv.FormatBool(*alertsMention)}
 		}
 		if alertsStatus != nil {
-			ctx.Request.Form["data[alerts][status]"] = []string{strconv.FormatBool(*alertsStatus)}
+			c.R.Form["data[alerts][status]"] = []string{strconv.FormatBool(*alertsStatus)}
 		}
 		if policy != nil {
-			ctx.Request.Form["data[policy]"] = []string{*policy}
+			c.R.Form["data[policy]"] = []string{*policy}
 		}
 	}
 
 	// trigger the handler
-	suite.pushModule.PushSubscriptionPOSTHandler(ctx)
+	suite.pushModule.PushSubscriptionPOSTHandler(c)
 
 	// read the response
 	result := recorder.Result()

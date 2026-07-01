@@ -18,11 +18,10 @@
 package reports
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -31,17 +30,18 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, BasePath, m.ReportsGETHandler)
-	attachHandler(http.MethodPost, BasePath, m.ReportPOSTHandler)
-	attachHandler(http.MethodGet, BasePathWithID, m.ReportGETHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(BasePath, m.ReportsGETHandler)
+	g.POST(BasePath, m.ReportPOSTHandler)
+	g.GET(BasePathWithID, m.ReportGETHandler)
 }

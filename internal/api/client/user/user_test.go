@@ -22,6 +22,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/user"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
@@ -34,7 +35,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/storage"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -92,7 +92,7 @@ func (suite *UserStandardTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.userModule = user.New(suite.processor)
+	suite.userModule = user.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 	testrig.StandardDBSetup(suite.db, suite.testAccounts)
 	testrig.StandardStorageSetup(suite.storage, "../../../../testrig/media")
 }
@@ -103,7 +103,7 @@ func (suite *UserStandardTestSuite) TearDownTest() {
 	testrig.StopWorkers(&suite.state)
 }
 
-func (suite *UserStandardTestSuite) POST(path string, formValues map[string][]string, handler gin.HandlerFunc) (*http.Response, int) {
+func (suite *UserStandardTestSuite) POST(path string, formValues map[string][]string, handler httputil.HandlerFunc) (*http.Response, int) {
 	var (
 		oauthToken = oauth.DBTokenToToken(suite.testTokens["local_account_1"])
 		app        = suite.testApplications["application_1"]
@@ -113,20 +113,18 @@ func (suite *UserStandardTestSuite) POST(path string, formValues map[string][]st
 	)
 
 	// Prepare context.
+	req := httptest.NewRequest(http.MethodPost, target, nil)
+	req.Header.Set("accept", "application/json")
+	req.Form = url.Values(formValues)
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, app)
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, user)
-	ctx.Set(oauth.SessionAuthorizedAccount, account)
-
-	// Prepare request.
-	ctx.Request = httptest.NewRequest(http.MethodPost, target, nil)
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.Request.Form = url.Values(formValues)
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, app)
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, user)
+	c.V.Set(oauth.SessionAuthorizedAccount, account)
 
 	// Call the handler.
-	handler(ctx)
+	handler(c)
 
 	// Return response.
 	return recorder.Result(), recorder.Code

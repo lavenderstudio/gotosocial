@@ -18,7 +18,6 @@
 package federatingdb_test
 
 import (
-	"encoding/json"
 	"testing"
 
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
@@ -34,15 +33,18 @@ func (suite *FollowingTestSuite) TestGetFollowing() {
 	testAccount := suite.testAccounts["local_account_1"]
 
 	f, err := suite.federatingDB.Following(suite.T().Context(), testrig.URLMustParse(testAccount.URI))
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
 	fi, err := ap.Serialize(f)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	fJson, err := json.MarshalIndent(fi, "", "  ")
-	suite.NoError(err)
-
-	// zork follows admin account and local_account_1
+	// zork follows admin
+	// and local_account_1
+	out := testrig.MustJSONString(fi)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "items": [
@@ -50,7 +52,7 @@ func (suite *FollowingTestSuite) TestGetFollowing() {
     "http://localhost:8080/users/1happyturtle"
   ],
   "type": "Collection"
-}`, string(fJson))
+}`, out)
 }
 
 func TestFollowingTestSuite(t *testing.T) {

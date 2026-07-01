@@ -21,11 +21,11 @@ import (
 	"errors"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 const OIDCPasswordHelp = "password change request cannot be processed by GoToSocial as this instance is running with OIDC enabled; you must change password using your OIDC provider"
@@ -80,49 +80,52 @@ const OIDCPasswordHelp = "password change request cannot be processed by GoToSoc
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal error
-func (m *Module) PasswordChangePOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteAccounts,
-	)
+func (m *Module) PasswordChangePOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteAccounts},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if config.GetOIDCEnabled() {
 		err := errors.New("instance running with OIDC")
-		apiutil.ErrorHandler(c, gtserror.NewErrorUnprocessableEntity(err, OIDCPasswordHelp), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorUnprocessableEntity(err, OIDCPasswordHelp))
 		return
 	}
 
 	form := &apimodel.PasswordChangeRequest{}
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if form.OldPassword == "" {
 		err := errors.New("password change request missing field old_password")
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if form.NewPassword == "" {
 		err := errors.New("password change request missing field new_password")
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
-	if errWithCode := m.processor.User().PasswordChange(c.Request.Context(), authed.User, form.OldPassword, form.NewPassword); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+	if errWithCode := m.processor.User().PasswordChange(c, authed.User, form.OldPassword, form.NewPassword); errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.Data(c, http.StatusOK, apiutil.AppJSON, apiutil.StatusOKJSON)
+	httputil.Data(c, http.StatusOK, apiutil.AppJSON, apiutil.StatusOKJSON)
 }

@@ -20,11 +20,11 @@ package middleware
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/oauth2/v4"
-	"github.com/gin-gonic/gin"
 )
 
 // TokenCheck returns a new gin middleware for validating oauth tokens in requests.
@@ -48,93 +48,92 @@ import (
 // If an invalid token is presented, or a user/account/application can't be found, then this middleware
 // won't abort the request, since the server might want to still allow public requests that don't have a
 // Bearer token set (eg., for public instance information and so on).
-func TokenCheck(dbConn db.DB, validateBearerToken func(r *http.Request) (oauth2.TokenInfo, error)) func(*gin.Context) {
-	return func(c *gin.Context) {
-		// Acquire context from gin request.
-		ctx := c.Request.Context()
-
-		if c.Request.Header.Get("Authorization") == "" {
-			// no token set in the header, we can just bail
+func TokenCheck(dbConn db.DB, validateBearerToken func(r *http.Request) (oauth2.TokenInfo, error)) httputil.FlatMiddlewareFunc {
+	return func(c *httputil.Context) {
+		if c.R.Header.Get("Authorization") == "" {
+			// no token set in header,
+			// we can just bail here.
 			return
 		}
 
-		ti, err := validateBearerToken(c.Copy().Request)
+		ti, err := validateBearerToken(c.R)
 		if err != nil {
-			log.Debugf(ctx, "token was passed in Authorization header but we could not validate it: %s", err)
+			log.Errorf(c, "invalid bearer token: %w", err)
 			return
 		}
-		c.Set(oauth.SessionAuthorizedToken, ti)
+
+		c.V.Set(oauth.SessionAuthorizedToken, ti)
 
 		// check for user-level token
 		if userID := ti.GetUserID(); userID != "" {
-			log.Tracef(ctx, "authenticated user %s with bearer token, scope is %s", userID, ti.GetScope())
+			log.Tracef(c, "authenticated user %s with bearer token, scope is %s", userID, ti.GetScope())
 
 			// fetch user for this token
-			user, err := dbConn.GetUserByID(ctx, userID)
+			user, err := dbConn.GetUserByID(c, userID)
 			if err != nil {
 				if err != db.ErrNoEntries {
-					log.Errorf(ctx, "database error looking for user with id %s: %s", userID, err)
+					log.Errorf(c, "database error looking for user with id %s: %s", userID, err)
 					return
 				}
-				log.Warnf(ctx, "no user found for userID %s", userID)
+				log.Warnf(c, "no user found for userID %s", userID)
 				return
 			}
 
 			if user.ConfirmedAt.IsZero() {
-				log.Warnf(ctx, "authenticated user %s has never confirmed thier email address", userID)
+				log.Warnf(c, "authenticated user %s has never confirmed thier email address", userID)
 				return
 			}
 
 			if !*user.Approved {
-				log.Warnf(ctx, "authenticated user %s's account was never approved by an admin", userID)
+				log.Warnf(c, "authenticated user %s's account was never approved by an admin", userID)
 				return
 			}
 
 			if *user.Disabled {
-				log.Warnf(ctx, "authenticated user %s's account was disabled'", userID)
+				log.Warnf(c, "authenticated user %s's account was disabled'", userID)
 				return
 			}
 
-			c.Set(oauth.SessionAuthorizedUser, user)
+			c.V.Set(oauth.SessionAuthorizedUser, user)
 
 			// fetch account for this token
 			if user.Account == nil {
-				acct, err := dbConn.GetAccountByID(ctx, user.AccountID)
+				acct, err := dbConn.GetAccountByID(c, user.AccountID)
 				if err != nil {
 					if err != db.ErrNoEntries {
-						log.Errorf(ctx, "database error looking for account with id %s: %s", user.AccountID, err)
+						log.Errorf(c, "database error looking for account with id %s: %s", user.AccountID, err)
 						return
 					}
-					log.Warnf(ctx, "no account found for userID %s", userID)
+					log.Warnf(c, "no account found for userID %s", userID)
 					return
 				}
 				user.Account = acct
 			}
 
 			if !user.Account.SuspendedAt.IsZero() {
-				log.Warnf(ctx, "authenticated user %s's account (accountId=%s) has been suspended", userID, user.AccountID)
+				log.Warnf(c, "authenticated user %s's account (accountId=%s) has been suspended", userID, user.AccountID)
 				return
 			}
 
-			c.Set(oauth.SessionAuthorizedAccount, user.Account)
+			c.V.Set(oauth.SessionAuthorizedAccount, user.Account)
 		}
 
 		// check for application token
 		if clientID := ti.GetClientID(); clientID != "" {
-			log.Tracef(ctx, "authenticated client %s with bearer token, scope is %s", clientID, ti.GetScope())
+			log.Tracef(c, "authenticated client %s with bearer token, scope is %s", clientID, ti.GetScope())
 
 			// fetch app for this token
-			app, err := dbConn.GetApplicationByClientID(ctx, clientID)
+			app, err := dbConn.GetApplicationByClientID(c, clientID)
 			if err != nil {
 				if err != db.ErrNoEntries {
-					log.Errorf(ctx, "database error looking for application with clientID %s: %s", clientID, err)
+					log.Errorf(c, "database error looking for application with clientID %s: %s", clientID, err)
 					return
 				}
-				log.Warnf(ctx, "no app found for client %s", clientID)
+				log.Warnf(c, "no app found for client %s", clientID)
 				return
 			}
 
-			c.Set(oauth.SessionAuthorizedApplication, app)
+			c.V.Set(oauth.SessionAuthorizedApplication, app)
 		}
 	}
 }

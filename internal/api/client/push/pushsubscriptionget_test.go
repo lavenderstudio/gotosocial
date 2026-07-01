@@ -24,11 +24,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/push"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 )
 
 // getSubscription gets the push subscription for the named account and token.
@@ -37,21 +37,21 @@ func (suite *PushTestSuite) getSubscription(
 	tokenFixtureName string,
 	expectedHTTPStatus int,
 ) (*apimodel.WebPushSubscription, error) {
-	// instantiate recorder + test context
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[accountFixtureName])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[tokenFixtureName]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers[accountFixtureName])
-
 	// create the request
 	requestUrl := config.GetProtocol() + "://" + config.GetHost() + "/api" + push.SubscriptionPath
-	ctx.Request = httptest.NewRequest(http.MethodGet, requestUrl, nil)
-	ctx.Request.Header.Set("accept", "application/json")
+	req := httptest.NewRequest(http.MethodGet, requestUrl, nil)
+	req.Header.Set("accept", "application/json")
+
+	// instantiate recorder + test context
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[accountFixtureName])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[tokenFixtureName]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers[accountFixtureName])
 
 	// trigger the handler
-	suite.pushModule.PushSubscriptionGETHandler(ctx)
+	suite.pushModule.PushSubscriptionGETHandler(c)
 
 	// read the response
 	result := recorder.Result()

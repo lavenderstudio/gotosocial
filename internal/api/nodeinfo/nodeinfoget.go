@@ -21,9 +21,9 @@ import (
 	"errors"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // NodeInfo2GETHandler swagger:operation GET /nodeinfo/{schema_version} nodeInfoGet
@@ -52,15 +52,15 @@ import (
 //		'200':
 //			schema:
 //				"$ref": "#/definitions/nodeinfo"
-func (m *Module) NodeInfo2GETHandler(c *gin.Context) {
+func (m *Module) NodeInfo2GETHandler(c *httputil.Context) {
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	var (
 		contentType   string
-		schemaVersion = c.Param(NodeInfoSchema)
+		schemaVersion = c.PathValue(NodeInfoSchema)
 	)
 
 	switch schemaVersion {
@@ -70,20 +70,18 @@ func (m *Module) NodeInfo2GETHandler(c *gin.Context) {
 		contentType = NodeInfo21ContentType
 	default:
 		const errText = "only nodeinfo 2.0 and 2.1 are supported"
-		apiutil.ErrorHandler(c, gtserror.NewErrorNotFound(errors.New(errText), errText), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorNotFound(errors.New(errText), errText))
 		return
 	}
 
-	nodeInfo, errWithCode := m.processor.Fedi().NodeInfoGet(c.Request.Context(), schemaVersion)
+	nodeInfo, errWithCode := m.processor.Fedi().NodeInfoGet(c, schemaVersion)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	// Encode JSON HTTP response.
-	apiutil.EncodeJSONResponse(
-		c.Writer,
-		c.Request,
+	// Encode JSON response.
+	httputil.JSONType(c,
 		http.StatusOK,
 		contentType,
 		nodeInfo,

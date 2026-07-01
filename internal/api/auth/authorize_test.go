@@ -8,8 +8,8 @@ import (
 
 	"code.superseriousbusiness.org/gotosocial/internal/api/auth"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-contrib/sessions"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -81,10 +81,10 @@ func (suite *AuthAuthorizeTestSuite) TestAccountAuthorizeHandler() {
 		*user = *suite.testUsers["unconfirmed_account"]
 		*account = *suite.testAccounts["unconfirmed_account"]
 
-		testSession := sessions.Default(ctx)
-		testSession.Set(sessionUserID, user.ID)
-		testSession.Set(sessionClientID, suite.testApplications["application_1"].ClientID)
-		if err := testSession.Save(); err != nil {
+		testSession := middleware.GetSession(ctx)
+		testSession.Values[sessionUserID] = user.ID
+		testSession.Values[sessionClientID] = suite.testApplications["application_1"].ClientID
+		if err := testSession.Save(ctx.R, &ctx.W); err != nil {
 			panic(fmt.Errorf("failed on case %s: %w", testCase.description, err))
 		}
 
@@ -101,10 +101,10 @@ func (suite *AuthAuthorizeTestSuite) TestAccountAuthorizeHandler() {
 		suite.authModule.AuthorizeGETHandler(ctx)
 
 		// 1. we should have a redirect
-		suite.Equal(testCase.expectedStatusCode, recorder.Code, fmt.Sprintf("failed on case: %s", testCase.description))
+		suite.Equal(testCase.expectedStatusCode, recorder.Code, "failed on case: %s", testCase.description)
 
 		// 2. we should have a redirect to the check your email path, as this user has not confirmed their email yet.
-		suite.Equal(testCase.expectedLocationHeader, recorder.Header().Get("Location"), fmt.Sprintf("failed on case: %s", testCase.description))
+		suite.Equal(testCase.expectedLocationHeader, recorder.Header().Get("Location"), "failed on case: %s", testCase.description)
 	}
 
 	for _, testCase := range tests {

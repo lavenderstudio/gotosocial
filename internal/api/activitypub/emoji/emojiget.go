@@ -20,34 +20,32 @@ package emoji
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
-func (m *Module) EmojiGetHandler(c *gin.Context) {
-	emojiID, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+func (m *Module) EmojiGETHandler(c *httputil.Context) {
+	emojiID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	contentType, err := apiutil.NegotiateAccept(c, apiutil.ActivityPubHeaders...)
 	if err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorNotAcceptable(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorNotAcceptable(err, err.Error()))
 		return
 	}
 
-	resp, errWithCode := m.processor.Fedi().EmojiGet(c.Request.Context(), emojiID)
+	resp, errWithCode := m.processor.Fedi().EmojiGet(c, emojiID)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	// Encode JSON HTTP response.
-	apiutil.EncodeJSONResponse(
-		c.Writer,
-		c.Request,
+	// Encode JSON response.
+	httputil.JSONType(c,
 		http.StatusOK,
 		contentType,
 		resp,

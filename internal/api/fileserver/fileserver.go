@@ -18,10 +18,9 @@
 package fileserver
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -38,16 +37,17 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, FileServePath, m.ServeFile)
-	attachHandler(http.MethodHead, FileServePath, m.ServeFile)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(FileServePath, m.ServeFile)
+	g.HEAD(FileServePath, m.ServeFile)
 }

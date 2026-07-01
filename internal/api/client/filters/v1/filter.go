@@ -18,11 +18,10 @@
 package v1
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -34,19 +33,21 @@ const (
 
 // Module implements APIs for client-side aka "v1" filtering.
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, BasePath, m.FiltersGETHandler)
-	attachHandler(http.MethodPost, BasePath, m.FilterPOSTHandler)
-	attachHandler(http.MethodGet, BasePathWithID, m.FilterGETHandler)
-	attachHandler(http.MethodPut, BasePathWithID, m.FilterPUTHandler)
-	attachHandler(http.MethodDelete, BasePathWithID, m.FilterDELETEHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(BasePath, m.FiltersGETHandler)
+	g.POST(BasePath, m.FilterPOSTHandler)
+	g.GET(BasePathWithID, m.FilterGETHandler)
+	g.PUT(BasePathWithID, m.FilterPUTHandler)
+	g.DELETE(BasePathWithID, m.FilterDELETEHandler)
 }

@@ -22,11 +22,11 @@ import (
 	"slices"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/oauth2/v4"
-	"github.com/gin-gonic/gin"
 )
 
 // Auth wraps an authorized token, application, user, and account.
@@ -40,6 +40,14 @@ type Auth struct {
 	Account     *gtsmodel.Account
 }
 
+type AuthRequirements struct {
+	Token   bool
+	App     bool
+	User    bool
+	Account bool
+	Scope   []Scope
+}
+
 // TokenAuth is a convenience function for returning an TokenAuth struct from a gin context.
 // In essence, it tries to extract a token, application, user, and account from the context,
 // and then sets them on a struct for convenience.
@@ -50,89 +58,42 @@ type Auth struct {
 //
 // If something goes wrong during parsing, then nil and an error will be returned (consider this not authed).
 // TokenAuth is like GetAuthed, but will fail if one of the requirements is not met.
-func TokenAuth(
-	c *gin.Context,
-	requireToken bool,
-	requireApp bool,
-	requireUser bool,
-	requireAccount bool,
-	requireScope ...Scope,
-) (*Auth, gtserror.WithCode) {
-	var (
-		ctx = c.Copy()
-		a   = &Auth{}
-		i   interface{}
-		ok  bool
-	)
+func TokenAuth(c *httputil.Context, r AuthRequirements) (*Auth, gtserror.WithCode) {
+	a := new(Auth)
 
-	i, ok = ctx.Get(oauth.SessionAuthorizedToken)
-	if ok {
-		parsed, ok := i.(oauth2.TokenInfo)
-		if !ok {
-			const errText = "could not parse token from session context"
-			return nil, gtserror.NewErrorUnauthorized(errors.New(errText), errText)
-		}
-		a.Token = parsed
-	}
+	a.Token, _ = c.V.Get(oauth.SessionAuthorizedToken).(oauth2.TokenInfo)
+	a.Application, _ = c.V.Get(oauth.SessionAuthorizedApplication).(*gtsmodel.Application)
+	a.User, _ = c.V.Get(oauth.SessionAuthorizedUser).(*gtsmodel.User)
+	a.Account, _ = c.V.Get(oauth.SessionAuthorizedAccount).(*gtsmodel.Account)
 
-	i, ok = ctx.Get(oauth.SessionAuthorizedApplication)
-	if ok {
-		parsed, ok := i.(*gtsmodel.Application)
-		if !ok {
-			const errText = "could not parse application from session context"
-			return nil, gtserror.NewErrorUnauthorized(errors.New(errText), errText)
-		}
-		a.Application = parsed
-	}
-
-	i, ok = ctx.Get(oauth.SessionAuthorizedUser)
-	if ok {
-		parsed, ok := i.(*gtsmodel.User)
-		if !ok {
-			const errText = "could not parse user from session context"
-			return nil, gtserror.NewErrorUnauthorized(errors.New(errText), errText)
-		}
-		a.User = parsed
-	}
-
-	i, ok = ctx.Get(oauth.SessionAuthorizedAccount)
-	if ok {
-		parsed, ok := i.(*gtsmodel.Account)
-		if !ok {
-			const errText = "could not parse account from session context"
-			return nil, gtserror.NewErrorUnauthorized(errors.New(errText), errText)
-		}
-		a.Account = parsed
-	}
-
-	if requireToken && a.Token == nil {
+	if r.Token && a.Token == nil {
 		const errText = "token not supplied"
 		return nil, gtserror.NewErrorUnauthorized(errors.New(errText), errText)
 	}
 
-	if requireApp && a.Application == nil {
+	if r.App && a.Application == nil {
 		const errText = "application not supplied"
 		return nil, gtserror.NewErrorUnauthorized(errors.New(errText), errText)
 	}
 
-	if requireUser && a.User == nil {
+	if r.User && a.User == nil {
 		const errText = "user not supplied or not authorized"
 		return nil, gtserror.NewErrorUnauthorized(errors.New(errText), errText)
 	}
 
-	if requireAccount && a.Account == nil {
+	if r.Account && a.Account == nil {
 		const errText = "account not supplied or not authorized"
 		return nil, gtserror.NewErrorUnauthorized(errors.New(errText), errText)
 	}
 
-	if len(requireScope) != 0 {
+	if len(r.Scope) != 0 {
 		// We need to match one of the
 		// required scopes, check if we can.
 		hasScopes := strings.Split(a.Token.GetScope(), " ")
 		scopeOK := slices.ContainsFunc(
 			hasScopes,
 			func(hasScope string) bool {
-				for _, requiredScope := range requireScope {
+				for _, requiredScope := range r.Scope {
 					if Scope(hasScope).Permits(requiredScope) {
 						// Got it.
 						return true

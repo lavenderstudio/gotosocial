@@ -22,11 +22,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 )
 
@@ -172,13 +172,16 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) StatusEditPUTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteStatuses,
-	)
+func (m *Module) StatusEditPUTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteStatuses},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -188,37 +191,42 @@ func (m *Module) StatusEditPUTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form, errWithCode := parseStatusEditForm(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiStatus, errWithCode := m.processor.Status().Edit(
-		c.Request.Context(),
+	targetStatusID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	apiStatus, errWithCode := m.processor.Status().Edit(c,
 		authed.Account,
-		c.Param(IDKey),
+		targetStatusID,
 		form,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, apiStatus)
+	httputil.JSON(c, http.StatusOK, apiStatus)
 }
 
-func parseStatusEditForm(c *gin.Context) (*apimodel.StatusEditRequest, gtserror.WithCode) {
+func parseStatusEditForm(c *httputil.Context) (*apimodel.StatusEditRequest, gtserror.WithCode) {
 	form := new(apimodel.StatusEditRequest)
 
 	switch ct := c.ContentType(); ct {
 	case binding.MIMEJSON:
 		// Just bind with default json binding.
-		if err := c.ShouldBindWith(form, binding.JSON); err != nil {
+		if err := httputil.ShouldBindWith(c, form, binding.JSON); err != nil {
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),
@@ -227,7 +235,7 @@ func parseStatusEditForm(c *gin.Context) (*apimodel.StatusEditRequest, gtserror.
 
 	case binding.MIMEPOSTForm:
 		// Bind with default form binding first.
-		if err := c.ShouldBindWith(form, binding.FormPost); err != nil {
+		if err := httputil.ShouldBindWith(c, form, binding.FormPost); err != nil {
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),
@@ -236,7 +244,7 @@ func parseStatusEditForm(c *gin.Context) (*apimodel.StatusEditRequest, gtserror.
 
 	case binding.MIMEMultipartPOSTForm:
 		// Bind with default form binding first.
-		if err := c.ShouldBindWith(form, binding.FormMultipart); err != nil {
+		if err := httputil.ShouldBindWith(c, form, binding.FormMultipart); err != nil {
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),

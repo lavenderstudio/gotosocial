@@ -19,7 +19,7 @@ package admin_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -47,10 +47,10 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateNewCategory() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPath, w.FormDataContentType())
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPath, w.FormDataContentType())
 
 	// call the handler
-	suite.adminModule.EmojiCreatePOSTHandler(ctx)
+	suite.adminModule.EmojiCreatePOSTHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -60,7 +60,7 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateNewCategory() {
 	defer result.Body.Close()
 
 	// check the response
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 	suite.NotEmpty(b)
 
@@ -99,10 +99,10 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateNewCategory() {
 	suite.NotEmpty(dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	emojiBytes, err := suite.state.Storage.Get(ctx, dbEmoji.ImagePath)
+	emojiBytes, err := suite.state.Storage.Get(c, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Len(emojiBytes, dbEmoji.ImageFileSize)
-	emojiStaticBytes, err := suite.state.Storage.Get(ctx, dbEmoji.ImageStaticPath)
+	emojiStaticBytes, err := suite.state.Storage.Get(c, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Len(emojiStaticBytes, dbEmoji.ImageStaticFileSize)
 }
@@ -120,10 +120,10 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateExistingCategory() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPath, w.FormDataContentType())
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPath, w.FormDataContentType())
 
 	// call the handler
-	suite.adminModule.EmojiCreatePOSTHandler(ctx)
+	suite.adminModule.EmojiCreatePOSTHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -133,7 +133,7 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateExistingCategory() {
 	defer result.Body.Close()
 
 	// check the response
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 	suite.NotEmpty(b)
 
@@ -172,10 +172,10 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateExistingCategory() {
 	suite.Equal(suite.testEmojiCategories["cute stuff"].ID, dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	emojiBytes, err := suite.state.Storage.Get(ctx, dbEmoji.ImagePath)
+	emojiBytes, err := suite.state.Storage.Get(c, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Len(emojiBytes, dbEmoji.ImageFileSize)
-	emojiStaticBytes, err := suite.state.Storage.Get(ctx, dbEmoji.ImageStaticPath)
+	emojiStaticBytes, err := suite.state.Storage.Get(c, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Len(emojiStaticBytes, dbEmoji.ImageStaticFileSize)
 }
@@ -193,10 +193,10 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateNoCategory() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPath, w.FormDataContentType())
+	c := suite.newContext(recorder, http.MethodPost, bodyBytes, admin.EmojiPath, w.FormDataContentType())
 
 	// call the handler
-	suite.adminModule.EmojiCreatePOSTHandler(ctx)
+	suite.adminModule.EmojiCreatePOSTHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -206,7 +206,7 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateNoCategory() {
 	defer result.Body.Close()
 
 	// check the response
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 	suite.NotEmpty(b)
 
@@ -245,10 +245,10 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateNoCategory() {
 	suite.Empty(dbEmoji.CategoryID)
 
 	// emoji should be in storage
-	emojiBytes, err := suite.state.Storage.Get(ctx, dbEmoji.ImagePath)
+	emojiBytes, err := suite.state.Storage.Get(c, dbEmoji.ImagePath)
 	suite.NoError(err)
 	suite.Len(emojiBytes, dbEmoji.ImageFileSize)
-	emojiStaticBytes, err := suite.state.Storage.Get(ctx, dbEmoji.ImageStaticPath)
+	emojiStaticBytes, err := suite.state.Storage.Get(c, dbEmoji.ImageStaticPath)
 	suite.NoError(err)
 	suite.Len(emojiStaticBytes, dbEmoji.ImageStaticFileSize)
 }
@@ -276,7 +276,7 @@ func (suite *EmojiCreateTestSuite) TestEmojiCreateAlreadyExists() {
 	defer result.Body.Close()
 
 	// check the response
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 	suite.NotEmpty(b)
 

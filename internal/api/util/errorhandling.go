@@ -22,92 +22,13 @@ import (
 	"errors"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
-	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 	"codeberg.org/gruf/go-kv/v2"
-	"github.com/gin-gonic/gin"
 )
-
-// notVisibleHandler serves an html page explaining that
-// the given item is not visible to the requester.
-//
-// The HTTP status code will be whatever is set on errWithCode.
-//
-// If an error is returned by InstanceGet, the function will panic.
-func notVisibleHandler(
-	c *gin.Context,
-	instanceGet func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode),
-	errWithCode gtserror.WithCode,
-) {
-	ctx := c.Request.Context()
-	instance, err := instanceGet(ctx)
-	if err != nil {
-		panic(err)
-	}
-
-	templateNotVisiblePage(c,
-		instance,
-		gtscontext.RequestID(ctx),
-		errWithCode.Code(),
-	)
-}
-
-// notVisibleHandler serves an html page
-// explaining that the given item has been deleted.
-//
-// The HTTP status code will be whatever is set on errWithCode.
-//
-// If an error is returned by InstanceGet, the function will panic.
-func deletedHandler(
-	c *gin.Context,
-	instanceGet func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode),
-	errWithCode gtserror.WithCode,
-) {
-	ctx := c.Request.Context()
-	instance, err := instanceGet(ctx)
-	if err != nil {
-		panic(err)
-	}
-
-	templateDeletedPage(c,
-		instance,
-		gtscontext.RequestID(ctx),
-		errWithCode.Code(),
-	)
-}
-
-// genericErrorHandler serves either an
-// error page with the errWithCode.Safe(),
-// or just some error json if the caller
-// prefers (or has no preference).
-func genericErrorHandler(
-	c *gin.Context,
-	instanceGet func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode),
-	accept string,
-	errWithCode gtserror.WithCode,
-) {
-	switch accept {
-	case TextHTML:
-		ctx := c.Request.Context()
-		instance, err := instanceGet(ctx)
-		if err != nil {
-			panic(err)
-		}
-
-		templateErrorPage(c,
-			instance,
-			errWithCode.Code(),
-			errWithCode.Safe(),
-			gtscontext.RequestID(ctx),
-		)
-	default:
-		JSON(c, errWithCode.Code(), apimodel.Error{
-			Error: errWithCode.Safe(),
-		})
-	}
-}
 
 // ErrorHandler takes the provided gin context and errWithCode
 // and tries to serve a helpful error to the caller.
@@ -126,12 +47,12 @@ func genericErrorHandler(
 //
 // For 499, see https://en.wikipedia.org/wiki/List_of_HTTP_status_codes#nginx.
 func ErrorHandler(
-	c *gin.Context,
+	c *httputil.Context,
+	t *templates.Templates,
 	errWithCode gtserror.WithCode,
-	instanceGet func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode),
 	offers ...string,
 ) {
-	if ctxErr := c.Request.Context().Err(); ctxErr != nil {
+	if ctxErr := c.R.Context().Err(); ctxErr != nil {
 		// Context error means either client has left already,
 		// or server has timed out a very slow request.
 		//
@@ -146,13 +67,13 @@ func ErrorHandler(
 			// Be correct and write "close".
 			// See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Connection#close
 			// and: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/408
-			c.Header("Connection", "close")
+			c.W.Header().Set("Connection", "close")
 		} else {
 			// Client timed out the request.
 			errWithCode = gtserror.NewErrorClientClosedRequest(err)
 		}
 
-		c.AbortWithStatus(errWithCode.Code())
+		c.W.WriteHeader(errWithCode.Code())
 		return
 	}
 
@@ -165,25 +86,32 @@ func ErrorHandler(
 	// check for a returned error, but if an error occurs here we
 	// can just fall back to default behavior (serve json error).
 	// Prefer provided offers, fall back to JSON or HTML.
-	accept, _ := NegotiateAccept(c, append(offers, JSONOrHTMLAcceptHeaders...)...)
+	accept, _ := httputil.NegotiateFormat(c.R.Header,
+		offersOrDefaults(offers)...)
 
 	switch {
-	case accept == TextHTML && gtserror.IsNotVisible(errWithCode):
-		// Use "item not visible" renderer with useful text.
-		notVisibleHandler(c, instanceGet, errWithCode)
+	case accept != TextHTML:
 
-	case accept == TextHTML && gtserror.Deleted(errWithCode):
-		// Use "item deleted" renderer with useful text.
-		deletedHandler(c, instanceGet, errWithCode)
+	case gtserror.IsNotVisible(errWithCode):
+		// Use "item not visible" renderer w/ useful text.
+		t.RenderNotVisiblePage(c, errWithCode.Code())
+		return
 
-	default:
-		genericErrorHandler(c, instanceGet, accept, errWithCode)
+	case gtserror.Deleted(errWithCode):
+		// Use "item deleted" renderer w/ useful text.
+		t.RenderDeletedPage(c, errWithCode.Code())
+		return
 	}
+
+	// everything else we just respond with a JSON error.
+	httputil.JSON(c, errWithCode.Code(), apimodel.Error{
+		Error: errWithCode.Safe(),
+	})
 }
 
 // WebErrorHandler is like ErrorHandler, but will display HTML over JSON by default.
-func WebErrorHandler(c *gin.Context, errWithCode gtserror.WithCode, instanceGet func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode)) {
-	ErrorHandler(c, errWithCode, instanceGet, TextHTML, AppJSON)
+func WebErrorHandler(c *httputil.Context, t *templates.Templates, errWithCode gtserror.WithCode) {
+	ErrorHandler(c, t, errWithCode, TextHTML, AppJSON)
 }
 
 // OAuthErrorHandler is a lot like ErrorHandler, but it specifically returns errors
@@ -192,10 +120,10 @@ func WebErrorHandler(c *gin.Context, errWithCode gtserror.WithCode, instanceGet 
 // from the error in the 'error_description' field. This means you should be careful not
 // to pass any detailed errors (that might contain sensitive information) into the
 // errWithCode.Error() field, since the client will see this. Use your noggin!
-func OAuthErrorHandler(c *gin.Context, errWithCode gtserror.WithCode) {
-	l := log.WithContext(c.Request.Context()).
+func OAuthErrorHandler(c *httputil.Context, errWithCode gtserror.WithCode) {
+	l := log.WithContext(c).
 		WithFields(kv.Fields{
-			{"path", c.Request.URL.Path},
+			{"path", c.R.URL.Path},
 			{"error", errWithCode.Error()},
 			{"help", errWithCode.Safe()},
 		}...)
@@ -208,7 +136,7 @@ func OAuthErrorHandler(c *gin.Context, errWithCode gtserror.WithCode) {
 		l.Debug("handling OAuth error")
 	}
 
-	JSON(c, statusCode, apimodel.Error{
+	httputil.JSON(c, statusCode, apimodel.Error{
 		Error:            errWithCode.Error(),
 		ErrorDescription: errWithCode.Safe(),
 	})
@@ -216,18 +144,25 @@ func OAuthErrorHandler(c *gin.Context, errWithCode gtserror.WithCode) {
 
 // NotFoundAfterMove returns code 404 to the caller and writes a helpful error message.
 // Specifically used for accounts trying to access endpoints they cannot use while moving.
-func NotFoundAfterMove(c *gin.Context) {
+func NotFoundAfterMove(c *httputil.Context) {
 	const errMsg = "your account has Moved or is currently Moving; you cannot use this endpoint"
-	JSON(c, http.StatusForbidden, apimodel.Error{
+	httputil.JSON(c, http.StatusForbidden, apimodel.Error{
 		Error: errMsg,
 	})
 }
 
 // ForbiddenAfterMove returns code 403 to the caller and writes a helpful error message.
 // Specifically used for accounts trying to take actions on endpoints they cannot do while moving.
-func ForbiddenAfterMove(c *gin.Context) {
+func ForbiddenAfterMove(c *httputil.Context) {
 	const errMsg = "your account has Moved or is currently Moving; you cannot take create or update type actions"
-	JSON(c, http.StatusForbidden, apimodel.Error{
+	httputil.JSON(c, http.StatusForbidden, apimodel.Error{
 		Error: errMsg,
 	})
+}
+
+func offersOrDefaults(offers []string) []string {
+	if len(offers) == 0 {
+		return JSONOrHTMLAcceptHeaders
+	}
+	return offers
 }

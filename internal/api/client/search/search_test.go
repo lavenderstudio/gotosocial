@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/search"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
@@ -35,7 +36,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/internal/storage"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -92,7 +92,7 @@ func (suite *SearchStandardTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.searchModule = search.New(suite.processor)
+	suite.searchModule = search.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 	testrig.StandardDBSetup(suite.db, nil)
 	testrig.StandardStorageSetup(suite.storage, "../../../../testrig/media")
 }
@@ -103,20 +103,22 @@ func (suite *SearchStandardTestSuite) TearDownTest() {
 	testrig.StopWorkers(&suite.state)
 }
 
-func (suite *SearchStandardTestSuite) newContext(recorder *httptest.ResponseRecorder, requestPath string) *gin.Context {
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-
+func (suite *SearchStandardTestSuite) newContext(recorder *httptest.ResponseRecorder, requestPath string) *httputil.Context {
 	protocol := config.GetProtocol()
 	host := config.GetHost()
 
 	baseURI := fmt.Sprintf("%s://%s", protocol, host)
 	requestURI := fmt.Sprintf("%s/%s", baseURI, requestPath)
 
-	ctx.Request = httptest.NewRequest(http.MethodGet, requestURI, nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/json")
-	return ctx
+	req := httptest.NewRequest(http.MethodGet, requestURI, nil) // the endpoint we're hitting
+	req.Header.Set("accept", "application/json")
+
+	c := httputil.ToContext(recorder, req)
+
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+
+	return c
 }

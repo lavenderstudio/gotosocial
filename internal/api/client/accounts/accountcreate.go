@@ -19,14 +19,15 @@ package accounts
 
 import (
 	"errors"
-	"net"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
+	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/validate"
-	"github.com/gin-gonic/gin"
 )
 
 // AccountCreatePOSTHandler swagger:operation POST /api/v1/accounts accountCreate
@@ -84,64 +85,64 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) AccountCreatePOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, false,
-		apiutil.ScopeWriteAccounts,
-	)
+func (m *Module) AccountCreatePOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: false,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteAccounts},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form := &apimodel.AccountCreateRequest{}
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if err := validate.CreateAccount(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
-	clientIP := c.ClientIP()
-	signUpIP := net.ParseIP(clientIP)
-	if signUpIP == nil {
+	clientIP := gtscontext.ClientIP(c)
+	if clientIP == nil {
 		err := errors.New("ip address could not be parsed from request")
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
-	form.IP = signUpIP
+
+	form.IP = clientIP.AsSlice()
 
 	// Create the new user+account.
-	ctx := c.Request.Context()
-	user, errWithCode := m.processor.User().Create(
-		ctx,
+	user, errWithCode := m.processor.User().Create(c,
 		authed.Application,
 		form,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Get a token for the new user.
-	ti, errWithCode := m.processor.User().TokenForNewUser(
-		ctx,
+	ti, errWithCode := m.processor.User().TokenForNewUser(c,
 		authed.Token,
 		authed.Application,
 		user,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, ti)
+	httputil.JSON(c, http.StatusOK, ti)
 }

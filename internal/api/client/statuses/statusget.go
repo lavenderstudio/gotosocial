@@ -18,12 +18,10 @@
 package statuses
 
 import (
-	"errors"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // StatusGETHandler swagger:operation GET /api/v1/statuses/{id} statusGet
@@ -78,33 +76,35 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) StatusGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadStatuses,
-	)
+func (m *Module) StatusGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadStatuses},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	targetStatusID := c.Param(IDKey)
-	if targetStatusID == "" {
-		err := errors.New("no status id specified")
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
-		return
-	}
-
-	apiStatus, errWithCode := m.processor.Status().Get(c.Request.Context(), authed.Account, targetStatusID)
+	targetStatusID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	c.JSON(http.StatusOK, apiStatus)
+	apiStatus, errWithCode := m.processor.Status().Get(c, authed.Account, targetStatusID)
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	httputil.JSON(c, http.StatusOK, apiStatus)
 }

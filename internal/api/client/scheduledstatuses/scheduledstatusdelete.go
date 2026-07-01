@@ -20,9 +20,8 @@ package scheduledstatuses
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-
-	"github.com/gin-gonic/gin"
 )
 
 // ScheduledStatusDELETEHandler swagger:operation DELETE /api/v1/scheduled_statuses/{id} deleteScheduledStatus
@@ -71,36 +70,39 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) ScheduledStatusDELETEHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteStatuses,
-	)
+func (m *Module) ScheduledStatusDELETEHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteStatuses},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	targetScheduledStatusID, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+	targetScheduledStatusID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	errWithCode = m.processor.Status().ScheduledStatusesDelete(
-		c.Request.Context(),
+		c,
 		authed.Account,
 		targetScheduledStatusID,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	c.JSON(http.StatusOK, apiutil.EmptyJSONObject)
+	httputil.JSON(c, http.StatusOK, apiutil.EmptyJSONObject)
 }

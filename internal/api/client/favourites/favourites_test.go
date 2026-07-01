@@ -96,7 +96,7 @@ func (suite *FavouritesStandardTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.favModule = favourites.New(suite.processor)
+	suite.favModule = favourites.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 }
 
 func (suite *FavouritesStandardTestSuite) TearDownTest() {

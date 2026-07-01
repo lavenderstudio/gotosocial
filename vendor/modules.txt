@@ -216,9 +216,12 @@ code.superseriousbusiness.org/go-png-image-structure/v2
 # code.superseriousbusiness.org/gopkg v0.0.0-20260623123713-4ead213a2d22
 ## explicit; go 1.25.0
 code.superseriousbusiness.org/gopkg/buffers
+code.superseriousbusiness.org/gopkg/httputil
+code.superseriousbusiness.org/gopkg/httputil/middleware
 code.superseriousbusiness.org/gopkg/log
 code.superseriousbusiness.org/gopkg/log/format
 code.superseriousbusiness.org/gopkg/log/level
+code.superseriousbusiness.org/gopkg/xencoding
 code.superseriousbusiness.org/gopkg/xjson
 code.superseriousbusiness.org/gopkg/xslices
 # code.superseriousbusiness.org/httpsig v1.5.0
@@ -249,7 +252,7 @@ codeberg.org/gruf/go-caller
 # codeberg.org/gruf/go-debug v1.3.0
 ## explicit; go 1.16
 codeberg.org/gruf/go-debug
-# codeberg.org/gruf/go-errors/v2 v2.3.4
+# codeberg.org/gruf/go-errors/v2 v2.3.5
 ## explicit; go 1.24.5
 codeberg.org/gruf/go-errors/v2
 # codeberg.org/gruf/go-fastcopy v1.2.1
@@ -262,7 +265,7 @@ codeberg.org/gruf/go-fastpath/v2
 ## explicit; go 1.25.0
 codeberg.org/gruf/go-ffmpreg/embed
 codeberg.org/gruf/go-ffmpreg/wasm
-# codeberg.org/gruf/go-iotools v0.0.0-20240710125620-934ae9c654cf
+# codeberg.org/gruf/go-iotools v0.0.0-20260526131046-972e2a5bc14c
 ## explicit; go 1.21
 codeberg.org/gruf/go-iotools
 # codeberg.org/gruf/go-kv v1.6.5
@@ -455,16 +458,6 @@ github.com/gabriel-vasile/mimetype/internal/json
 github.com/gabriel-vasile/mimetype/internal/magic
 github.com/gabriel-vasile/mimetype/internal/markup
 github.com/gabriel-vasile/mimetype/internal/scan
-# github.com/gin-contrib/cors v1.7.7
-## explicit; go 1.25.0
-github.com/gin-contrib/cors
-# github.com/gin-contrib/gzip v1.2.6
-## explicit; go 1.25.0
-github.com/gin-contrib/gzip
-# github.com/gin-contrib/sessions v1.1.0
-## explicit; go 1.25.0
-github.com/gin-contrib/sessions
-github.com/gin-contrib/sessions/memstore
 # github.com/gin-contrib/sse v1.1.0
 ## explicit; go 1.23
 github.com/gin-contrib/sse
@@ -651,9 +644,6 @@ github.com/google/go-cmp/cmp/internal/value
 # github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
-# github.com/gorilla/context v1.1.2
-## explicit; go 1.20
-github.com/gorilla/context
 # github.com/gorilla/css v1.0.1
 ## explicit; go 1.20
 github.com/gorilla/css/scanner
@@ -915,6 +905,10 @@ github.com/rivo/uniseg
 # github.com/rogpeppe/go-internal v1.14.1
 ## explicit; go 1.23
 github.com/rogpeppe/go-internal/fmtsort
+# github.com/rs/cors v1.11.1
+## explicit; go 1.13
+github.com/rs/cors
+github.com/rs/cors/internal
 # github.com/rs/xid v1.6.0
 ## explicit; go 1.16
 github.com/rs/xid

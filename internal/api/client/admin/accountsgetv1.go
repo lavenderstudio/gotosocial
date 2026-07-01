@@ -190,26 +190,29 @@ import (
 	"fmt"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
-	"github.com/gin-gonic/gin"
 )
 
-func (m *Module) AccountsGETV1Handler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeAdminReadAccounts,
-	)
+func (m *Module) AccountsGETV1Handler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeAdminReadAccounts},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if !*authed.User.Admin {
 		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
 		return
 	}
 
@@ -219,13 +222,13 @@ func (m *Module) AccountsGETV1Handler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	page, errWithCode := paging.ParseIDPage(c, 1, 200, 50)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -233,20 +236,20 @@ func (m *Module) AccountsGETV1Handler(c *gin.Context) {
 
 	local, errWithCode := apiutil.ParseLocal(c.Query(apiutil.LocalKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	remote, errWithCode := apiutil.ParseAdminRemote(c.Query(apiutil.AdminRemoteKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if local && remote {
 		keys := []string{apiutil.LocalKey, apiutil.AdminRemoteKey}
 		err := fmt.Errorf("only one of %+v can be true", keys)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
@@ -261,31 +264,31 @@ func (m *Module) AccountsGETV1Handler(c *gin.Context) {
 
 	active, errWithCode := apiutil.ParseAdminActive(c.Query(apiutil.AdminActiveKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	pending, errWithCode := apiutil.ParseAdminPending(c.Query(apiutil.AdminPendingKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	disabled, errWithCode := apiutil.ParseAdminDisabled(c.Query(apiutil.AdminDisabledKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	silenced, errWithCode := apiutil.ParseAdminSilenced(c.Query(apiutil.AdminSilencedKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	suspended, errWithCode := apiutil.ParseAdminSuspended(c.Query(apiutil.AdminSuspendedKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -316,7 +319,7 @@ func (m *Module) AccountsGETV1Handler(c *gin.Context) {
 				apiutil.AdminSuspendedKey,
 			}
 			err := fmt.Errorf("only one of %+v can be true", keys)
-			apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 			return
 		}
 
@@ -329,7 +332,7 @@ func (m *Module) AccountsGETV1Handler(c *gin.Context) {
 
 	staff, errWithCode := apiutil.ParseAdminStaff(c.Query(apiutil.AdminStaffKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -354,18 +357,18 @@ func (m *Module) AccountsGETV1Handler(c *gin.Context) {
 	}
 
 	resp, errWithCode := m.processor.Admin().AccountsGet(
-		c.Request.Context(),
+		c,
 		params,
 		page,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if resp.LinkHeader != "" {
-		c.Header("Link", resp.LinkHeader)
+		c.W.Header().Set("Link", resp.LinkHeader)
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp.Items)
+	httputil.JSON(c, http.StatusOK, resp.Items)
 }

@@ -48,10 +48,10 @@ var fromClientAPICases = []struct {
 			Origin:         &gtsmodel.Account{ID: "654321"},
 			Target:         &gtsmodel.Account{ID: "123456"},
 		},
-		data: toJSON(map[string]any{
+		data: testrig.MustJSONBytes(map[string]any{
 			"ap_object_type":   ap.ObjectNote,
 			"ap_activity_type": ap.ActivityCreate,
-			"gts_model":        json.RawMessage(toJSON(testStatus)),
+			"gts_model":        json.RawMessage(testrig.MustJSONBytes(testStatus)),
 			"gts_model_type":   "*gtsmodel.Status",
 			"target_uri":       "https://gotosocial.org",
 			"origin_id":        "654321",
@@ -67,10 +67,10 @@ var fromClientAPICases = []struct {
 			Origin:         &gtsmodel.Account{ID: "123456"},
 			Target:         &gtsmodel.Account{ID: "654321"},
 		},
-		data: toJSON(map[string]any{
+		data: testrig.MustJSONBytes(map[string]any{
 			"ap_object_type":   ap.ObjectProfile,
 			"ap_activity_type": ap.ActivityUpdate,
-			"gts_model":        json.RawMessage(toJSON(testAccount)),
+			"gts_model":        json.RawMessage(testrig.MustJSONBytes(testAccount)),
 			"gts_model_type":   "*gtsmodel.Account",
 			"target_uri":       "https://uk-queen-is-dead.org",
 			"origin_id":        "123456",
@@ -92,10 +92,10 @@ var fromFediAPICases = []struct {
 			Requesting:     &gtsmodel.Account{ID: "654321"},
 			Receiving:      &gtsmodel.Account{ID: "123456"},
 		},
-		data: toJSON(map[string]any{
+		data: testrig.MustJSONBytes(map[string]any{
 			"ap_object_type":   ap.ObjectNote,
 			"ap_activity_type": ap.ActivityCreate,
-			"gts_model":        json.RawMessage(toJSON(testStatus)),
+			"gts_model":        json.RawMessage(testrig.MustJSONBytes(testStatus)),
 			"gts_model_type":   "*gtsmodel.Status",
 			"target_uri":       "https://gotosocial.org",
 			"requesting_id":    "654321",
@@ -111,10 +111,10 @@ var fromFediAPICases = []struct {
 			Requesting:     &gtsmodel.Account{ID: "123456"},
 			Receiving:      &gtsmodel.Account{ID: "654321"},
 		},
-		data: toJSON(map[string]any{
+		data: testrig.MustJSONBytes(map[string]any{
 			"ap_object_type":   ap.ObjectProfile,
 			"ap_activity_type": ap.ActivityUpdate,
-			"gts_model":        json.RawMessage(toJSON(testAccount)),
+			"gts_model":        json.RawMessage(testrig.MustJSONBytes(testAccount)),
 			"gts_model_type":   "*gtsmodel.Account",
 			"target_uri":       "https://uk-queen-is-dead.org",
 			"requesting_id":    "123456",
@@ -280,13 +280,4 @@ func fromJSON(b []byte) any {
 		panic("multiple json values in b")
 	}
 	return a
-}
-
-// toJSON marshals input type as JSON data.
-func toJSON(a any) []byte {
-	b, err := json.Marshal(a)
-	if err != nil {
-		panic(err)
-	}
-	return b
 }

@@ -18,8 +18,8 @@
 package admin
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"github.com/gin-gonic/gin"
 )
 
 // DomainBlocksPOSTHandler swagger:operation POST /api/v1/admin/domain_blocks domainBlockCreate
@@ -133,7 +133,7 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) DomainBlocksPOSTHandler(c *gin.Context) {
+func (m *Module) DomainBlocksPOSTHandler(c *httputil.Context) {
 	m.createDomainPermissions(c,
 		gtsmodel.DomainPermissionBlock,
 		m.processor.Admin().DomainPermissionCreate,

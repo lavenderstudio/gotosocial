@@ -18,12 +18,11 @@
 package auth
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/oidc"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -69,6 +68,7 @@ const (
 
 type Module struct {
 	state     *state.State
+	templates *templates.Templates
 	processor *processing.Processor
 	idp       *oidc.IDP
 }
@@ -80,30 +80,32 @@ type Module struct {
 func New(
 	state *state.State,
 	processor *processing.Processor,
+	templates *templates.Templates,
 	idp *oidc.IDP,
 ) *Module {
 	return &Module{
 		state:     state,
+		templates: templates,
 		processor: processor,
 		idp:       idp,
 	}
 }
 
 // RouteAuth routes all paths that should have an 'auth' prefix
-func (m *Module) RouteAuth(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, AuthSignInPath, m.SignInGETHandler)
-	attachHandler(http.MethodPost, AuthSignInPath, m.SignInPOSTHandler)
-	attachHandler(http.MethodGet, Auth2FAPath, m.TwoFactorCodeGETHandler)
-	attachHandler(http.MethodPost, Auth2FAPath, m.TwoFactorCodePOSTHandler)
-	attachHandler(http.MethodGet, AuthCallbackPath, m.CallbackGETHandler)
+func (m *Module) RouteAuth(g *httputil.RouteGroup) {
+	g.GET(AuthSignInPath, m.SignInGETHandler)
+	g.POST(AuthSignInPath, m.SignInPOSTHandler)
+	g.GET(Auth2FAPath, m.TwoFactorCodeGETHandler)
+	g.POST(Auth2FAPath, m.TwoFactorCodePOSTHandler)
+	g.GET(AuthCallbackPath, m.CallbackGETHandler)
 }
 
 // RouteOAuth routes all paths that should have an 'oauth' prefix
-func (m *Module) RouteOAuth(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodPost, OauthTokenPath, m.TokenPOSTHandler)
-	attachHandler(http.MethodPost, OauthRevokePath, m.TokenRevokePOSTHandler)
-	attachHandler(http.MethodGet, OauthAuthorizePath, m.AuthorizeGETHandler)
-	attachHandler(http.MethodPost, OauthAuthorizePath, m.AuthorizePOSTHandler)
-	attachHandler(http.MethodPost, OauthFinalizePath, m.FinalizePOSTHandler)
-	attachHandler(http.MethodGet, OauthOOBTokenPath, m.OOBTokenGETHandler)
+func (m *Module) RouteOAuth(g *httputil.RouteGroup) {
+	g.POST(OauthTokenPath, m.TokenPOSTHandler)
+	g.POST(OauthRevokePath, m.TokenRevokePOSTHandler)
+	g.GET(OauthAuthorizePath, m.AuthorizeGETHandler)
+	g.POST(OauthAuthorizePath, m.AuthorizePOSTHandler)
+	g.POST(OauthFinalizePath, m.FinalizePOSTHandler)
+	g.GET(OauthOOBTokenPath, m.OOBTokenGETHandler)
 }

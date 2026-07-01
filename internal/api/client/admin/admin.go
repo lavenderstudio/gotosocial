@@ -18,12 +18,11 @@
 package admin
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -85,121 +84,123 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 	state     *state.State
 }
 
-func New(state *state.State, processor *processing.Processor) *Module {
+func New(state *state.State, processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 		state:     state,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
+func (m *Module) Route(g *httputil.RouteGroup) {
 	// emoji stuff
-	attachHandler(http.MethodPost, EmojiPath, m.EmojiCreatePOSTHandler)
-	attachHandler(http.MethodGet, EmojiPath, m.EmojisGETHandler)
-	attachHandler(http.MethodDelete, EmojiPathWithID, m.EmojiDELETEHandler)
-	attachHandler(http.MethodGet, EmojiPathWithID, m.EmojiGETHandler)
-	attachHandler(http.MethodPatch, EmojiPathWithID, m.EmojiPATCHHandler)
-	attachHandler(http.MethodGet, EmojiCategoriesPath, m.EmojiCategoriesGETHandler)
+	g.POST(EmojiPath, m.EmojiCreatePOSTHandler)
+	g.GET(EmojiPath, m.EmojisGETHandler)
+	g.DELETE(EmojiPathWithID, m.EmojiDELETEHandler)
+	g.GET(EmojiPathWithID, m.EmojiGETHandler)
+	g.PATCH(EmojiPathWithID, m.EmojiPATCHHandler)
+	g.GET(EmojiCategoriesPath, m.EmojiCategoriesGETHandler)
 
 	// domain block stuff
-	attachHandler(http.MethodPost, DomainBlocksPath, m.DomainBlocksPOSTHandler)
-	attachHandler(http.MethodGet, DomainBlocksPath, m.DomainBlocksGETHandler)
-	attachHandler(http.MethodGet, DomainBlocksPathWithID, m.DomainBlockGETHandler)
-	attachHandler(http.MethodPut, DomainBlocksPathWithID, m.DomainBlockUpdatePUTHandler)
-	attachHandler(http.MethodDelete, DomainBlocksPathWithID, m.DomainBlockDELETEHandler)
+	g.POST(DomainBlocksPath, m.DomainBlocksPOSTHandler)
+	g.GET(DomainBlocksPath, m.DomainBlocksGETHandler)
+	g.GET(DomainBlocksPathWithID, m.DomainBlockGETHandler)
+	g.PUT(DomainBlocksPathWithID, m.DomainBlockUpdatePUTHandler)
+	g.DELETE(DomainBlocksPathWithID, m.DomainBlockDELETEHandler)
 
 	// domain allow stuff
-	attachHandler(http.MethodPost, DomainAllowsPath, m.DomainAllowsPOSTHandler)
-	attachHandler(http.MethodGet, DomainAllowsPath, m.DomainAllowsGETHandler)
-	attachHandler(http.MethodGet, DomainAllowsPathWithID, m.DomainAllowGETHandler)
-	attachHandler(http.MethodPut, DomainAllowsPathWithID, m.DomainAllowUpdatePUTHandler)
-	attachHandler(http.MethodDelete, DomainAllowsPathWithID, m.DomainAllowDELETEHandler)
+	g.POST(DomainAllowsPath, m.DomainAllowsPOSTHandler)
+	g.GET(DomainAllowsPath, m.DomainAllowsGETHandler)
+	g.GET(DomainAllowsPathWithID, m.DomainAllowGETHandler)
+	g.PUT(DomainAllowsPathWithID, m.DomainAllowUpdatePUTHandler)
+	g.DELETE(DomainAllowsPathWithID, m.DomainAllowDELETEHandler)
 
 	// domain limits stuff
-	attachHandler(http.MethodGet, DomainLimitsPath, m.DomainLimitsGETHandler)
-	attachHandler(http.MethodPost, DomainLimitsPath, m.DomainLimitsPOSTHandler)
-	attachHandler(http.MethodPut, DomainLimitsPathWithID, m.DomainLimitPUTHandler)
-	attachHandler(http.MethodDelete, DomainLimitsPathWithID, m.DomainLimitDELETEHandler)
+	g.GET(DomainLimitsPath, m.DomainLimitsGETHandler)
+	g.POST(DomainLimitsPath, m.DomainLimitsPOSTHandler)
+	g.PUT(DomainLimitsPathWithID, m.DomainLimitPUTHandler)
+	g.DELETE(DomainLimitsPathWithID, m.DomainLimitDELETEHandler)
 
 	// domain permission draft stuff
-	attachHandler(http.MethodPost, DomainPermissionDraftsPath, m.DomainPermissionDraftsPOSTHandler)
-	attachHandler(http.MethodGet, DomainPermissionDraftsPath, m.DomainPermissionDraftsGETHandler)
-	attachHandler(http.MethodGet, DomainPermissionDraftsPathWithID, m.DomainPermissionDraftGETHandler)
-	attachHandler(http.MethodPost, DomainPermissionDraftAcceptPath, m.DomainPermissionDraftAcceptPOSTHandler)
-	attachHandler(http.MethodPost, DomainPermissionDraftRemovePath, m.DomainPermissionDraftRemovePOSTHandler)
+	g.POST(DomainPermissionDraftsPath, m.DomainPermissionDraftsPOSTHandler)
+	g.GET(DomainPermissionDraftsPath, m.DomainPermissionDraftsGETHandler)
+	g.GET(DomainPermissionDraftsPathWithID, m.DomainPermissionDraftGETHandler)
+	g.POST(DomainPermissionDraftAcceptPath, m.DomainPermissionDraftAcceptPOSTHandler)
+	g.POST(DomainPermissionDraftRemovePath, m.DomainPermissionDraftRemovePOSTHandler)
 
 	// domain permission excludes stuff
-	attachHandler(http.MethodPost, DomainPermissionExcludesPath, m.DomainPermissionExcludesPOSTHandler)
-	attachHandler(http.MethodGet, DomainPermissionExcludesPath, m.DomainPermissionExcludesGETHandler)
-	attachHandler(http.MethodGet, DomainPermissionExcludesPathWithID, m.DomainPermissionExcludeGETHandler)
-	attachHandler(http.MethodDelete, DomainPermissionExcludesPathWithID, m.DomainPermissionExcludeDELETEHandler)
+	g.POST(DomainPermissionExcludesPath, m.DomainPermissionExcludesPOSTHandler)
+	g.GET(DomainPermissionExcludesPath, m.DomainPermissionExcludesGETHandler)
+	g.GET(DomainPermissionExcludesPathWithID, m.DomainPermissionExcludeGETHandler)
+	g.DELETE(DomainPermissionExcludesPathWithID, m.DomainPermissionExcludeDELETEHandler)
 
 	// domain permission subscriptions stuff
-	attachHandler(http.MethodPost, DomainPermissionSubscriptionsPath, m.DomainPermissionSubscriptionPOSTHandler)
-	attachHandler(http.MethodGet, DomainPermissionSubscriptionsPath, m.DomainPermissionSubscriptionsGETHandler)
-	attachHandler(http.MethodGet, DomainPermissionSubscriptionsPreviewPath, m.DomainPermissionSubscriptionsPreviewGETHandler)
-	attachHandler(http.MethodGet, DomainPermissionSubscriptionsPathWithID, m.DomainPermissionSubscriptionGETHandler)
-	attachHandler(http.MethodPatch, DomainPermissionSubscriptionsPathWithID, m.DomainPermissionSubscriptionPATCHHandler)
-	attachHandler(http.MethodPost, DomainPermissionSubscriptionRemovePath, m.DomainPermissionSubscriptionRemovePOSTHandler)
-	attachHandler(http.MethodPost, DomainPermissionSubscriptionTestPath, m.DomainPermissionSubscriptionTestPOSTHandler)
+	g.POST(DomainPermissionSubscriptionsPath, m.DomainPermissionSubscriptionPOSTHandler)
+	g.GET(DomainPermissionSubscriptionsPath, m.DomainPermissionSubscriptionsGETHandler)
+	g.GET(DomainPermissionSubscriptionsPreviewPath, m.DomainPermissionSubscriptionsPreviewGETHandler)
+	g.GET(DomainPermissionSubscriptionsPathWithID, m.DomainPermissionSubscriptionGETHandler)
+	g.PATCH(DomainPermissionSubscriptionsPathWithID, m.DomainPermissionSubscriptionPATCHHandler)
+	g.POST(DomainPermissionSubscriptionRemovePath, m.DomainPermissionSubscriptionRemovePOSTHandler)
+	g.POST(DomainPermissionSubscriptionTestPath, m.DomainPermissionSubscriptionTestPOSTHandler)
 
 	// header filtering administration routes
-	attachHandler(http.MethodGet, HeaderAllowsPathWithID, m.HeaderFilterAllowGET)
-	attachHandler(http.MethodGet, HeaderBlocksPathWithID, m.HeaderFilterBlockGET)
-	attachHandler(http.MethodGet, HeaderAllowsPath, m.HeaderFilterAllowsGET)
-	attachHandler(http.MethodGet, HeaderBlocksPath, m.HeaderFilterBlocksGET)
-	attachHandler(http.MethodPost, HeaderAllowsPath, m.HeaderFilterAllowPOST)
-	attachHandler(http.MethodPost, HeaderBlocksPath, m.HeaderFilterBlockPOST)
-	attachHandler(http.MethodDelete, HeaderAllowsPathWithID, m.HeaderFilterAllowDELETE)
-	attachHandler(http.MethodDelete, HeaderBlocksPathWithID, m.HeaderFilterBlockDELETE)
+	g.GET(HeaderAllowsPathWithID, m.HeaderFilterAllowGET)
+	g.GET(HeaderBlocksPathWithID, m.HeaderFilterBlockGET)
+	g.GET(HeaderAllowsPath, m.HeaderFilterAllowsGET)
+	g.GET(HeaderBlocksPath, m.HeaderFilterBlocksGET)
+	g.POST(HeaderAllowsPath, m.HeaderFilterAllowPOST)
+	g.POST(HeaderBlocksPath, m.HeaderFilterBlockPOST)
+	g.DELETE(HeaderAllowsPathWithID, m.HeaderFilterAllowDELETE)
+	g.DELETE(HeaderBlocksPathWithID, m.HeaderFilterBlockDELETE)
 
 	// domain maintenance stuff
-	attachHandler(http.MethodPost, DomainKeysExpirePath, m.DomainKeysExpirePOSTHandler)
+	g.POST(DomainKeysExpirePath, m.DomainKeysExpirePOSTHandler)
 
 	// accounts stuff
-	attachHandler(http.MethodGet, AccountsV1Path, m.AccountsGETV1Handler)
-	attachHandler(http.MethodGet, AccountsV2Path, m.AccountsGETV2Handler)
-	attachHandler(http.MethodGet, AccountsPathWithID, m.AccountGETHandler)
-	attachHandler(http.MethodPost, AccountsActionPath, m.AccountActionPOSTHandler)
-	attachHandler(http.MethodPost, AccountsApprovePath, m.AccountApprovePOSTHandler)
-	attachHandler(http.MethodPost, AccountsRejectPath, m.AccountRejectPOSTHandler)
+	g.GET(AccountsV1Path, m.AccountsGETV1Handler)
+	g.GET(AccountsV2Path, m.AccountsGETV2Handler)
+	g.GET(AccountsPathWithID, m.AccountGETHandler)
+	g.POST(AccountsActionPath, m.AccountActionPOSTHandler)
+	g.POST(AccountsApprovePath, m.AccountApprovePOSTHandler)
+	g.POST(AccountsRejectPath, m.AccountRejectPOSTHandler)
 
 	// media stuff
-	attachHandler(http.MethodPost, MediaCleanupPath, m.MediaCleanupPOSTHandler)
-	attachHandler(http.MethodPost, MediaPurgePath, m.MediaPurgePOSTHandler)
-	attachHandler(http.MethodPost, MediaRefetchPath, m.MediaRefetchPOSTHandler)
+	g.POST(MediaCleanupPath, m.MediaCleanupPOSTHandler)
+	g.POST(MediaPurgePath, m.MediaPurgePOSTHandler)
+	g.POST(MediaRefetchPath, m.MediaRefetchPOSTHandler)
 
 	// reports stuff
-	attachHandler(http.MethodGet, ReportsPath, m.ReportsGETHandler)
-	attachHandler(http.MethodGet, ReportsPathWithID, m.ReportGETHandler)
-	attachHandler(http.MethodPost, ReportsResolvePath, m.ReportResolvePOSTHandler)
+	g.GET(ReportsPath, m.ReportsGETHandler)
+	g.GET(ReportsPathWithID, m.ReportGETHandler)
+	g.POST(ReportsResolvePath, m.ReportResolvePOSTHandler)
 
 	// email stuff
-	attachHandler(http.MethodPost, EmailTestPath, m.EmailTestPOSTHandler)
+	g.POST(EmailTestPath, m.EmailTestPOSTHandler)
 
 	// instance rules stuff
-	attachHandler(http.MethodGet, InstanceRulesPath, m.RulesGETHandler)
-	attachHandler(http.MethodGet, InstanceRulesPathWithID, m.RuleGETHandler)
-	attachHandler(http.MethodPost, InstanceRulesPath, m.RulePOSTHandler)
-	attachHandler(http.MethodPatch, InstanceRulesPathWithID, m.RulePATCHHandler)
-	attachHandler(http.MethodDelete, InstanceRulesPathWithID, m.RuleDELETEHandler)
+	g.GET(InstanceRulesPath, m.RulesGETHandler)
+	g.GET(InstanceRulesPathWithID, m.RuleGETHandler)
+	g.POST(InstanceRulesPath, m.RulePOSTHandler)
+	g.PATCH(InstanceRulesPathWithID, m.RulePATCHHandler)
+	g.DELETE(InstanceRulesPathWithID, m.RuleDELETEHandler)
 
 	// instances stuff
-	attachHandler(http.MethodGet, InstancesPath, m.InstancesGETHandler)
-	attachHandler(http.MethodGet, InstancesPathWithID, m.InstanceGETHandler)
-	attachHandler(http.MethodPost, InstanceClearDeliveryErrorsPath, m.InstanceClearDeliveryErrorsPOSTHandler)
+	g.GET(InstancesPath, m.InstancesGETHandler)
+	g.GET(InstancesPathWithID, m.InstanceGETHandler)
+	g.POST(InstanceClearDeliveryErrorsPath, m.InstanceClearDeliveryErrorsPOSTHandler)
 
 	// relays stuff
-	attachHandler(http.MethodGet, RelaySubscriptionsPath, m.RelaySubscriptionsGETHandler)
-	attachHandler(http.MethodGet, RelaySubscriptionsPathWithID, m.RelaySubscriptionGETHandler)
-	attachHandler(http.MethodPost, RelaySubscriptionsPath, m.RelaySubscriptionPOSTHandler)
-	attachHandler(http.MethodPut, RelaySubscriptionsPathWithID, m.RelaySubscriptionPUTHandler)
-	attachHandler(http.MethodDelete, RelaySubscriptionsPathWithID, m.RelaySubscriptionDELETEHandler)
-	attachHandler(http.MethodPost, RelaySubscriptionMatchersPath, m.RelaySubscriptionMatcherPOSTHandler)
-	attachHandler(http.MethodDelete, RelaySubscriptionMatchersPathWithMatcherID, m.RelaySubscriptionMatcherDELETEHandler)
-	attachHandler(http.MethodPut, RelaySubscriptionMatchersPathWithMatcherID, m.RelaySubscriptionMatcherPUTHandler)
+	g.GET(RelaySubscriptionsPath, m.RelaySubscriptionsGETHandler)
+	g.GET(RelaySubscriptionsPathWithID, m.RelaySubscriptionGETHandler)
+	g.POST(RelaySubscriptionsPath, m.RelaySubscriptionPOSTHandler)
+	g.PUT(RelaySubscriptionsPathWithID, m.RelaySubscriptionPUTHandler)
+	g.DELETE(RelaySubscriptionsPathWithID, m.RelaySubscriptionDELETEHandler)
+	g.POST(RelaySubscriptionMatchersPath, m.RelaySubscriptionMatcherPOSTHandler)
+	g.DELETE(RelaySubscriptionMatchersPathWithMatcherID, m.RelaySubscriptionMatcherDELETEHandler)
+	g.PUT(RelaySubscriptionMatchersPathWithMatcherID, m.RelaySubscriptionMatcherPUTHandler)
 }

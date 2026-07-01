@@ -18,6 +18,7 @@
 package api
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/auth"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
@@ -26,7 +27,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/router"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 type Auth struct {
@@ -38,10 +39,11 @@ type Auth struct {
 }
 
 // Route attaches 'auth' and 'oauth' groups to the given router.
-func (a *Auth) Route(r *router.Router, m ...gin.HandlerFunc) {
-	// create groupings for the 'auth' and 'oauth' prefixes
-	authGroup := r.AttachGroup("auth")
-	oauthGroup := r.AttachGroup("oauth")
+func (a *Auth) Route(r *router.Router, m ...httputil.Middleware) {
+	// create groupings for the
+	// 'auth' and 'oauth' prefixes
+	authGroup := r.Group("auth")
+	oauthGroup := r.Group("oauth")
 
 	// instantiate + attach shared, non-global middlewares to both of these groups
 	var (
@@ -61,13 +63,14 @@ func (a *Auth) Route(r *router.Router, m ...gin.HandlerFunc) {
 	authGroup.Use(ccMiddleware, sessionMiddleware)
 	oauthGroup.Use(ccMiddleware, sessionMiddleware)
 
-	a.auth.RouteAuth(authGroup.Handle)
-	a.auth.RouteOAuth(oauthGroup.Handle)
+	a.auth.RouteAuth(authGroup)
+	a.auth.RouteOAuth(oauthGroup)
 }
 
 func NewAuth(
 	state *state.State,
-	p *processing.Processor,
+	processor *processing.Processor,
+	templates *templates.Templates,
 	idp *oidc.IDP,
 	routerSession *gtsmodel.RouterSession,
 	sessionName string,
@@ -77,6 +80,6 @@ func NewAuth(
 		routerSession: routerSession,
 		sessionName:   sessionName,
 		cookiePolicy:  cookiePolicy,
-		auth:          auth.New(state, p, idp),
+		auth:          auth.New(state, processor, templates, idp),
 	}
 }

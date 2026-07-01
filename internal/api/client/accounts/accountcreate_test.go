@@ -26,6 +26,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/accounts"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/language"
+	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
@@ -107,6 +108,10 @@ func (suite *AccountCreateTestSuite) TestAccountCreatePOSTHandlerLocale() {
 		recorder := httptest.NewRecorder()
 		ctx := suite.newContext(recorder, http.MethodPost, bodyBytes, accounts.BasePath, w.FormDataContentType())
 
+		// Manually pass through client IP handler
+		// so client IP value is set for below handler.
+		middleware.WithClientIP(nil)(ctx)
+
 		// Call the handler
 		suite.accountsModule.AccountCreatePOSTHandler(ctx)
 
@@ -121,13 +126,13 @@ func (suite *AccountCreateTestSuite) TestAccountCreatePOSTHandlerLocale() {
 		}
 
 		// There should be an account in the database now.
-		acct, err := suite.state.DB.GetAccountByUsernameDomain(ctx, testStruct.username, "")
+		acct, err := suite.state.DB.GetAccountByUsernameDomain(ctx.R.Context(), testStruct.username, "")
 		if err != nil {
 			suite.FailNow(err.Error())
 		}
 
 		// There should be a user in the database now.
-		user, err := suite.state.DB.GetUserByAccountID(ctx, acct.ID)
+		user, err := suite.state.DB.GetUserByAccountID(ctx.R.Context(), acct.ID)
 		if err != nil {
 			suite.FailNow(err.Error())
 		}

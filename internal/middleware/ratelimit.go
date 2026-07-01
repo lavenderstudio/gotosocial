@@ -24,10 +24,10 @@ import (
 	"strconv"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
-	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
+	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin"
 	"github.com/ulule/limiter/v3"
 	"github.com/ulule/limiter/v3/drivers/store/memory"
 
@@ -36,7 +36,7 @@ import (
 
 const rateLimitPeriod = 5 * time.Minute
 
-// RateLimit returns a gin middleware that will automatically rate
+// RateLimit returns a middleware that will automatically rate
 // limit caller (by IP address), and enrich the response header with
 // the following headers:
 //
@@ -49,13 +49,14 @@ const rateLimitPeriod = 5 * time.Minute
 //
 // If the config AdvancedRateLimitRequests value is <= 0, then a noop
 // handler will be returned, which performs no rate limiting.
-func RateLimit(limit int, except []netip.Prefix) gin.HandlerFunc {
+func RateLimit(limit int, except []netip.Prefix) httputil.MiddlewareFunc {
 	if limit <= 0 {
 		// Rate limiting is disabled.
 		// Return noop middleware.
 		return nil
 	}
 
+	// Prepare limiter instance.
 	limiter := limiter.New(
 		memory.NewStore(),
 		limiter.Rate{
@@ -75,104 +76,89 @@ func RateLimit(limit int, except []netip.Prefix) gin.HandlerFunc {
 	// legit users access to the service.
 	ipv6Mask := net.CIDRMask(64, 128)
 
-	return func(c *gin.Context) {
-		// Use Gin's heuristic for determining
-		// clientIP, which accounts for reverse
-		// proxies and trusted proxies setting.
-		clientIP := c.ClientIP()
-
-		// ClientIP must be set.
-		if clientIP == "" {
-			log.Warn(
-				c.Request.Context(),
-				"cannot do rate limiting for this request as client IP discovered by gin was empty;"+
-					" your upstream reverse proxy may be misconfigured",
-			)
-			c.Next()
-			return
+	return func(h func(*httputil.Context)) func(*httputil.Context) {
+		if h == nil {
+			panic("nil func")
 		}
 
-		// ClientIP must be parseable.
-		ip, err := netip.ParseAddr(clientIP)
-		if err != nil {
-			log.Warnf(
-				c.Request.Context(),
-				"cannot do rate limiting for this request as client IP %s could not be parsed;"+
-					" your upstream reverse proxy may be misconfigured: %v",
-				clientIP, err,
-			)
-			c.Next()
-			return
-		}
+		return func(c *httputil.Context) {
+			// Use our heuristic for determining
+			// clientIP, which accounts for reverse
+			// proxies and trusted proxies setting.
+			ip := gtscontext.ClientIP(c)
 
-		// Check if this IP is exempt from rate
-		// limits and skip further checks if so.
-		for _, prefix := range except {
-			if prefix.Contains(ip) {
-				c.Next()
+			// ClientIP
+			// must be set.
+			if ip == nil {
+				log.Warn(c,
+					"cannot do rate limiting for this request as client IP was empty;"+
+						" your upstream reverse proxy may be misconfigured")
+
+				// Pass on
+				// to next.
+				h(c)
 				return
 			}
+
+			// Check if this IP is exempt from rate
+			// limits and skip further checks if so.
+			for _, prefix := range except {
+				if prefix.Contains(*ip) {
+
+					// Pass on
+					// to next.
+					h(c)
+					return
+				}
+			}
+
+			if ip.Is6() {
+				// Convert to older "net"
+				// package IP for masking.
+				asIP := net.IP(ip.AsSlice())
+
+				// Apply coarse IPv6 mask.
+				asIP = asIP.Mask(ipv6Mask)
+
+				// Convert back to netip.Addr type.
+				addr, _ := netip.AddrFromSlice(asIP)
+				ip = &addr
+			}
+
+			// Fetch rate limit info for (masked) clientIP.
+			context, err := limiter.Get(c, ip.String())
+			if err != nil {
+				respondInternalServerError(c, err)
+				return
+			}
+
+			// Provide reset in same format used by
+			// Mastodon. There's no real standard as
+			// to what format X-RateLimit-Reset SHOULD
+			// use, but since most clients interacting
+			// with us will expect the Mastodon version,
+			// it makes sense to take this.
+			resetT := time.Unix(context.Reset, 0)
+			reset := util.FormatISO8601(resetT)
+
+			c.W.Header().Set("X-RateLimit-Limit", strconv.FormatInt(context.Limit, 10))
+			c.W.Header().Set("X-RateLimit-Remaining", strconv.FormatInt(context.Remaining, 10))
+			c.W.Header().Set("X-RateLimit-Reset", reset)
+
+			if context.Reached {
+				// Return JSON error message for
+				// consistency with other endpoints.
+				httputil.Data(c,
+					http.StatusTooManyRequests,
+					apiutil.AppJSON,
+					apiutil.ErrorRateLimited,
+				)
+				return
+			}
+
+			// Pass on
+			// to next.
+			h(c)
 		}
-
-		if ip.Is6() {
-			// Convert to "net" package IP for mask.
-			asIP := net.IP(ip.AsSlice())
-
-			// Apply coarse IPv6 mask.
-			asIP = asIP.Mask(ipv6Mask)
-
-			// Convert back to netip.Addr from net.IP.
-			ip, _ = netip.AddrFromSlice(asIP)
-		}
-
-		// Fetch rate limit info for this (masked) clientIP.
-		context, err := limiter.Get(c, ip.String())
-		if err != nil {
-			// Since we use an in-memory cache now,
-			// it's actually impossible for this to
-			// error, but handle it nicely anyway in
-			// case we switch implementation in future.
-			errWithCode := gtserror.NewErrorInternalError(err)
-
-			// Set error on gin context so it'll
-			// be picked up by logging middleware.
-			c.Error(errWithCode) //nolint:errcheck
-
-			// Bail with 500.
-			c.AbortWithStatusJSON(
-				errWithCode.Code(),
-				gin.H{"error": errWithCode.Safe()},
-			)
-			return
-		}
-
-		// Provide reset in same format used by
-		// Mastodon. There's no real standard as
-		// to what format X-RateLimit-Reset SHOULD
-		// use, but since most clients interacting
-		// with us will expect the Mastodon version,
-		// it makes sense to take this.
-		resetT := time.Unix(context.Reset, 0)
-		reset := util.FormatISO8601(resetT)
-
-		c.Header("X-RateLimit-Limit", strconv.FormatInt(context.Limit, 10))
-		c.Header("X-RateLimit-Remaining", strconv.FormatInt(context.Remaining, 10))
-		c.Header("X-RateLimit-Reset", reset)
-
-		if context.Reached {
-			// Return JSON error message for
-			// consistency with other endpoints.
-			apiutil.Data(c,
-				http.StatusTooManyRequests,
-				apiutil.AppJSON,
-				apiutil.ErrorRateLimited,
-			)
-			c.Abort()
-			return
-		}
-
-		// Allow the request
-		// to continue.
-		c.Next()
 	}
 }

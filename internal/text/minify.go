@@ -18,6 +18,8 @@
 package text
 
 import (
+	"strings"
+
 	"code.superseriousbusiness.org/gopkg/log"
 	"github.com/tdewolff/minify/v2"
 	"github.com/tdewolff/minify/v2/html"
@@ -45,10 +47,14 @@ var m = func() *minify.M {
 // it will be logged and the original string
 // returned unmodified.
 func MinifyHTML(in string) string {
-	out, err := m.String("text/html", in)
+	buf := bufpool.Get()
+	err := m.Minify("text/html", buf, strings.NewReader(in))
 	if err != nil {
-		log.Error(nil, err)
+		log.Errorf(nil, "error minifying: %v", err)
+		bufpool.Put(buf)
+		return in
 	}
-
-	return out
+	str := string(buf.B)
+	bufpool.Put(buf)
+	return str
 }

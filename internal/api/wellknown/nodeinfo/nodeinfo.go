@@ -20,11 +20,12 @@ package nodeinfo
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -34,30 +35,34 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
 // New returns a new nodeinfo module
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
+func (m *Module) Route(g *httputil.RouteGroup) {
 	// If instance is configured to serve instance stats
 	// faithfully at nodeinfo, we should allow robots to
 	// crawl nodeinfo endpoints in a limited capacity.
 	// In all other cases, disallow everything.
-	var robots gin.HandlerFunc
+	var robots httputil.FlatMiddlewareFunc
 	if config.GetInstanceStatsMode() == config.InstanceStatsModeServe {
 		robots = middleware.RobotsHeaders(middleware.RobotsHeadersModeAllowSome)
 	} else {
 		robots = middleware.RobotsHeaders(middleware.RobotsHeadersModeDefault)
 	}
 
-	// Attach handler, injecting robots http header middleware.
-	attachHandler(http.MethodGet, NodeInfoWellKnownPath, robots, m.NodeInfoWellKnownGETHandler)
+	// Attach handler, injecting
+	// robots http header middleware.
+	g.Use(robots)
+	g.GET(NodeInfoWellKnownPath, m.NodeInfoWellKnownGETHandler)
 }
 
 // NodeInfoWellKnownGETHandler swagger:operation GET /.well-known/nodeinfo nodeInfoWellKnownGet
@@ -78,22 +83,20 @@ func (m *Module) Route(attachHandler func(method string, path string, f ...gin.H
 //		'200':
 //			schema:
 //				"$ref": "#/definitions/wellKnownResponse"
-func (m *Module) NodeInfoWellKnownGETHandler(c *gin.Context) {
+func (m *Module) NodeInfoWellKnownGETHandler(c *httputil.Context) {
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	resp, errWithCode := m.processor.Fedi().NodeInfoRelGet(c.Request.Context())
+	resp, errWithCode := m.processor.Fedi().NodeInfoRelGet(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	// Encode JSON HTTP response.
-	apiutil.EncodeJSONResponse(
-		c.Writer,
-		c.Request,
+	// Encode JSON response.
+	httputil.JSONType(c,
 		http.StatusOK,
 		apiutil.AppJSON,
 		resp,

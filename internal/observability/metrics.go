@@ -25,12 +25,12 @@ import (
 	"os"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 
-	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
@@ -269,6 +269,7 @@ func InitializeMetrics(ctx context.Context, state *state.State) error {
 	}
 
 	// Create Prometheus metrics server.
+	// TODO: attach this to our main router.
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 
@@ -315,6 +316,6 @@ func InitializeMetrics(ctx context.Context, state *state.State) error {
 	return nil
 }
 
-func MetricsMiddleware() gin.HandlerFunc {
-	return ginMiddleware()
+func MetricsMiddleware() httputil.MiddlewareFunc {
+	return middleware()
 }

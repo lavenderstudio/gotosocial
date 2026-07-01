@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http/httptest"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/api/auth"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
@@ -37,9 +38,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/internal/storage"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/memstore"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -97,7 +95,7 @@ func (suite *AuthStandardTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.authModule = auth.New(&suite.state, suite.processor, suite.idp)
+	suite.authModule = auth.New(&suite.state, suite.processor, testrig.LoadTemplates(&suite.state, ""), suite.idp)
 
 	testrig.StandardDBSetup(suite.db, suite.testAccounts)
 	testrig.StartNoopWorkers(&suite.state)
@@ -113,39 +111,40 @@ func (suite *AuthStandardTestSuite) newContext(
 	requestPath string,
 	requestBody []byte,
 	bodyContentType string,
-) (*gin.Context, *httptest.ResponseRecorder) {
-	// Create the recorder and test context.
-	recorder := httptest.NewRecorder()
-	ctx, engine := testrig.CreateGinTestContext(recorder, nil)
-
-	// Load templates into the engine.
-	testrig.ConfigureTemplatesWithGin(engine, "../../../web/template")
-
+) (
+	*httputil.Context,
+	*httptest.ResponseRecorder,
+) {
 	// Create the request itself.
 	protocol := config.GetProtocol()
 	host := config.GetHost()
 	baseURI := fmt.Sprintf("%s://%s", protocol, host)
 	requestURI := fmt.Sprintf("%s/%s", baseURI, requestPath)
-	ctx.Request = httptest.NewRequest(
+	req := httptest.NewRequest(
 		requestMethod,
 		requestURI,
 		bytes.NewReader(requestBody),
 	)
 
+	// Create the recorder and test context.
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+
 	// Transmit appropriate Content-Type.
 	if bodyContentType != "" {
-		ctx.Request.Header.Set("Content-Type", bodyContentType)
+		c.R.Header.Set("Content-Type", bodyContentType)
 	}
 
 	// Accept whatever, so we can use
 	// this to test both HTML and JSON.
-	ctx.Request.Header.Set("accept", "*/*")
+	c.R.Header.Set("accept", "*/*")
 
-	// Trigger the session middleware on the context.
-	store := memstore.NewStore(make([]byte, 32), make([]byte, 32))
-	store.Options(middleware.SessionOptions(apiutil.NewCookiePolicy()))
-	sessionMiddleware := sessions.Sessions("gotosocial-localhost", store)
-	sessionMiddleware(ctx)
+	// Trigger the session middleware on context.
+	middleware.Session("gotosocial-localhost",
+		make([]byte, 32),
+		make([]byte, 32),
+		apiutil.NewCookiePolicy(),
+	).Handler()(c)
 
-	return ctx, recorder
+	return c, recorder
 }

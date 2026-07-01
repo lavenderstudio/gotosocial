@@ -24,12 +24,13 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/gin-gonic/gin"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -48,17 +49,19 @@ var modes = []string{
 }
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodPost, BasePath, m.ImportPOSTHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.POST(BasePath, m.ImportPOSTHandler)
 }
 
 // ImportPOSTHandler swagger:operation POST /api/v1/import importData
@@ -133,13 +136,16 @@ func (m *Module) Route(attachHandler func(method string, path string, f ...gin.H
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) ImportPOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWrite,
-	)
+func (m *Module) ImportPOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWrite},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -149,27 +155,27 @@ func (m *Module) ImportPOSTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form := &apimodel.ImportRequest{}
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if form.Data == nil {
 		const text = "no data file provided"
 		err := errors.New(text)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, text), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, text))
 		return
 	}
 
 	if form.Type == "" {
 		const text = "no type provided"
 		err := errors.New(text)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, text), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, text))
 		return
 	}
 
@@ -177,7 +183,7 @@ func (m *Module) ImportPOSTHandler(c *gin.Context) {
 	if !slices.Contains(types, form.Type) {
 		text := fmt.Sprintf("type %s not recognized, valid types are: %+v", form.Type, types)
 		err := errors.New(text)
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, text), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, text))
 		return
 	}
 
@@ -186,7 +192,7 @@ func (m *Module) ImportPOSTHandler(c *gin.Context) {
 		if !slices.Contains(modes, form.Mode) {
 			text := fmt.Sprintf("mode %s not recognized, valid modes are: %+v", form.Mode, modes)
 			err := errors.New(text)
-			apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, text), m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, text))
 			return
 		}
 	}
@@ -194,16 +200,16 @@ func (m *Module) ImportPOSTHandler(c *gin.Context) {
 
 	// Trigger the import.
 	errWithCode = m.processor.Account().ImportData(
-		c.Request.Context(),
+		c,
 		authed.Account,
 		form.Data,
 		form.Type,
 		overwrite,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusAccepted, gin.H{"status": "accepted"})
+	httputil.JSON(c, http.StatusAccepted, map[string]string{"status": "accepted"})
 }

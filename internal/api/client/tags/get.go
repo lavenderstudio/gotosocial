@@ -20,8 +20,8 @@ package tags
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // TagGETHandler swagger:operation GET /api/v1/tags/{tag_name} getTag
@@ -73,26 +73,30 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) TagGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-	)
+func (m *Module) TagGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   nil,
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	name, errWithCode := apiutil.ParseTagName(c.Param(apiutil.TagNameKey))
+	name, errWithCode := apiutil.ParseTagName(c.PathValue(apiutil.TagNameKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiTag, errWithCode := m.processor.Tags().Get(c.Request.Context(), authed.Account, name)
+	apiTag, errWithCode := m.processor.Tags().Get(c, authed.Account, name)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, apiTag)
+	httputil.JSON(c, http.StatusOK, apiTag)
 }

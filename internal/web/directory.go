@@ -18,38 +18,33 @@
 package web
 
 import (
-	"context"
 	"errors"
+	"net/http"
 
-	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
+	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 )
 
 const (
 	directoryPath = "/directory"
 )
 
-func (m *Module) directoryGETHandler(c *gin.Context) {
-	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
+func (m *Module) directoryGETHandler(c *httputil.Context) {
+	instance, errWithCode := m.processor.InstanceGetV1(c)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
-	}
-
-	// Return instance we already got from the db,
-	// don't try to fetch it again when erroring.
-	instanceGet := func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-		return instance, nil
 	}
 
 	// We only serve text/html at this endpoint.
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextHTML); errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -60,7 +55,7 @@ func (m *Module) directoryGETHandler(c *gin.Context) {
 		const errText = "directory not exposed"
 		const errTextHelpful = "this instance does not currently expose an account directory"
 		errWithCode := gtserror.NewErrorNotFound(errors.New(errText), errTextHelpful)
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -71,7 +66,7 @@ func (m *Module) directoryGETHandler(c *gin.Context) {
 		40, // default limit
 	)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -81,18 +76,18 @@ func (m *Module) directoryGETHandler(c *gin.Context) {
 		gtsmodel.DirectoryOrderByActive,
 	)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Get web model accounts.
 	resp, errWithCode := m.processor.Account().WebDirectoryGet(
-		c.Request.Context(),
+		c,
 		page,
 		orderBy,
 	)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -111,16 +106,20 @@ func (m *Module) directoryGETHandler(c *gin.Context) {
 		robotsMeta = apiutil.RobotsDirectivesAllowSome
 	}
 
-	apiutil.TemplateWebPage(c, apiutil.WebPage{
-		Template:    "directory.tmpl",
-		Instance:    instance,
-		OGMeta:      apiutil.OGBase(instance),
-		Stylesheets: []string{cssFA, cssDirectory},
-		Extra: map[string]any{
-			"accounts":      resp.Items,
-			"accounts_next": resp.NextLink,
-			"accounts_prev": accountsPrev,
-			"robotsMeta":    robotsMeta,
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template:    "directory.tmpl",
+			Stylesheets: []string{cssFA, cssDirectory},
+			Extra: map[string]any{
+				"accounts":      resp.Items,
+				"accounts_next": resp.NextLink,
+				"accounts_prev": accountsPrev,
+				"instance":      instance,
+				"ogMeta":        typeutils.OpenGraphBase(instance),
+				"robotsMeta":    robotsMeta,
+			},
 		},
-	})
+	)
 }

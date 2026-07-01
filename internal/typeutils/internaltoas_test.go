@@ -18,7 +18,6 @@
 package typeutils_test
 
 import (
-	"encoding/json"
 	"errors"
 	"testing"
 
@@ -45,9 +44,7 @@ func (suite *InternalToASTestSuite) TestAccountToAS() {
 	ser, err := ap.Serialize(accountable)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -95,10 +92,10 @@ func (suite *InternalToASTestSuite) TestAccountToAS() {
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqtQQjwFLHPez+7uF9AX7\nuvLFHm3SyNIozhhVmGhxHIs0xdgRnZKmzmZkFdrFuXddBTAglU4C2u3dw10jJO1a\nWIFQF8bGkRHZG7Pd25/XmWWBRPmOJxNLeWBqpj0G+2zTMgnAV72hALSDFY2/QDsx\nUthenKw0Srpj1LUwvRbyVQQ8fGu4v0HACFnlOX2hCQwhfAnGrb0V70Y2IJu++MP7\n6i49md0vR0Mv3WbsEJUNp1fTIUzkgWB31icvfrNmaaAxw5FkAE+KfkkylhRxi5i5\nRR1XQUINWc2Kj2Kro+CJarKG+9zasMyN7+D230gpESi8rXv1SwRu865FR3gANdDS\nMwIDAQAB\n-----END PUBLIC KEY-----\n"
   },
   "published": "2022-05-20T11:09:18Z",
-  "summary": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+  "summary": "<p>hey yo this is my profile!</p>",
   "type": "Person",
   "url": "http://localhost:8080/@the_mighty_zork"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestAccountToASBot() {
@@ -117,9 +114,7 @@ func (suite *InternalToASTestSuite) TestAccountToASBot() {
 	ser, err := ap.Serialize(accountable)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -167,10 +162,10 @@ func (suite *InternalToASTestSuite) TestAccountToASBot() {
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqtQQjwFLHPez+7uF9AX7\nuvLFHm3SyNIozhhVmGhxHIs0xdgRnZKmzmZkFdrFuXddBTAglU4C2u3dw10jJO1a\nWIFQF8bGkRHZG7Pd25/XmWWBRPmOJxNLeWBqpj0G+2zTMgnAV72hALSDFY2/QDsx\nUthenKw0Srpj1LUwvRbyVQQ8fGu4v0HACFnlOX2hCQwhfAnGrb0V70Y2IJu++MP7\n6i49md0vR0Mv3WbsEJUNp1fTIUzkgWB31icvfrNmaaAxw5FkAE+KfkkylhRxi5i5\nRR1XQUINWc2Kj2Kro+CJarKG+9zasMyN7+D230gpESi8rXv1SwRu865FR3gANdDS\nMwIDAQAB\n-----END PUBLIC KEY-----\n"
   },
   "published": "2022-05-20T11:09:18Z",
-  "summary": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+  "summary": "<p>hey yo this is my profile!</p>",
   "type": "Service",
   "url": "http://localhost:8080/@the_mighty_zork"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestAccountToASWithFields() {
@@ -183,9 +178,7 @@ func (suite *InternalToASTestSuite) TestAccountToASWithFields() {
 	ser, err := ap.Serialize(accountable)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -236,10 +229,10 @@ func (suite *InternalToASTestSuite) TestAccountToASWithFields() {
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwXTcOAvM1Jiw5Ffpk0qn\nr0cwbNvFe/5zQ+Tp7tumK/ZnT37o7X0FUEXrxNi+dkhmeJ0gsaiN+JQGNUewvpSk\nPIAXKvi908aSfCGjs7bGlJCJCuDuL5d6m7hZnP9rt9fJc70GElPpG0jc9fXwlz7T\nlsPb2ecatmG05Y4jPwdC+oN4MNCv9yQzEvCVMzl76EJaM602kIHC1CISn0rDFmYd\n9rSN7XPlNJw1F6PbpJ/BWQ+pXHKw3OEwNTETAUNYiVGnZU+B7a7bZC9f6/aPbJuV\nt8Qmg+UnDvW1Y8gmfHnxaWG2f5TDBvCHmcYtucIZPLQD4trAozC4ryqlmCWQNKbt\n0wIDAQAB\n-----END PUBLIC KEY-----\n"
   },
   "published": "2022-06-04T13:12:00Z",
-  "summary": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+  "summary": "<p>i post about things that concern me</p>",
   "type": "Person",
   "url": "http://localhost:8080/@1happyturtle"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestAccountToASAliasedAndMoved() {
@@ -265,9 +258,7 @@ func (suite *InternalToASTestSuite) TestAccountToASAliasedAndMoved() {
 	ser, err := ap.Serialize(accountable)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -323,10 +314,10 @@ func (suite *InternalToASTestSuite) TestAccountToASAliasedAndMoved() {
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqtQQjwFLHPez+7uF9AX7\nuvLFHm3SyNIozhhVmGhxHIs0xdgRnZKmzmZkFdrFuXddBTAglU4C2u3dw10jJO1a\nWIFQF8bGkRHZG7Pd25/XmWWBRPmOJxNLeWBqpj0G+2zTMgnAV72hALSDFY2/QDsx\nUthenKw0Srpj1LUwvRbyVQQ8fGu4v0HACFnlOX2hCQwhfAnGrb0V70Y2IJu++MP7\n6i49md0vR0Mv3WbsEJUNp1fTIUzkgWB31icvfrNmaaAxw5FkAE+KfkkylhRxi5i5\nRR1XQUINWc2Kj2Kro+CJarKG+9zasMyN7+D230gpESi8rXv1SwRu865FR3gANdDS\nMwIDAQAB\n-----END PUBLIC KEY-----\n"
   },
   "published": "2022-05-20T11:09:18Z",
-  "summary": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+  "summary": "<p>hey yo this is my profile!</p>",
   "type": "Person",
   "url": "http://localhost:8080/@the_mighty_zork"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestAccountToASWithOneField() {
@@ -340,10 +331,9 @@ func (suite *InternalToASTestSuite) TestAccountToASWithOneField() {
 	ser, err := ap.Serialize(accountable)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
-	// Despite only one field being set, attachments should still be a slice/array.
+	// Despite only one field being set,
+	// attachments should still be a slice/array.
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -389,10 +379,10 @@ func (suite *InternalToASTestSuite) TestAccountToASWithOneField() {
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwXTcOAvM1Jiw5Ffpk0qn\nr0cwbNvFe/5zQ+Tp7tumK/ZnT37o7X0FUEXrxNi+dkhmeJ0gsaiN+JQGNUewvpSk\nPIAXKvi908aSfCGjs7bGlJCJCuDuL5d6m7hZnP9rt9fJc70GElPpG0jc9fXwlz7T\nlsPb2ecatmG05Y4jPwdC+oN4MNCv9yQzEvCVMzl76EJaM602kIHC1CISn0rDFmYd\n9rSN7XPlNJw1F6PbpJ/BWQ+pXHKw3OEwNTETAUNYiVGnZU+B7a7bZC9f6/aPbJuV\nt8Qmg+UnDvW1Y8gmfHnxaWG2f5TDBvCHmcYtucIZPLQD4trAozC4ryqlmCWQNKbt\n0wIDAQAB\n-----END PUBLIC KEY-----\n"
   },
   "published": "2022-06-04T13:12:00Z",
-  "summary": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+  "summary": "<p>i post about things that concern me</p>",
   "type": "Person",
   "url": "http://localhost:8080/@1happyturtle"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestAccountToASWithEmoji() {
@@ -406,9 +396,7 @@ func (suite *InternalToASTestSuite) TestAccountToASWithEmoji() {
 	ser, err := ap.Serialize(accountable)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -457,7 +445,7 @@ func (suite *InternalToASTestSuite) TestAccountToASWithEmoji() {
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqtQQjwFLHPez+7uF9AX7\nuvLFHm3SyNIozhhVmGhxHIs0xdgRnZKmzmZkFdrFuXddBTAglU4C2u3dw10jJO1a\nWIFQF8bGkRHZG7Pd25/XmWWBRPmOJxNLeWBqpj0G+2zTMgnAV72hALSDFY2/QDsx\nUthenKw0Srpj1LUwvRbyVQQ8fGu4v0HACFnlOX2hCQwhfAnGrb0V70Y2IJu++MP7\n6i49md0vR0Mv3WbsEJUNp1fTIUzkgWB31icvfrNmaaAxw5FkAE+KfkkylhRxi5i5\nRR1XQUINWc2Kj2Kro+CJarKG+9zasMyN7+D230gpESi8rXv1SwRu865FR3gANdDS\nMwIDAQAB\n-----END PUBLIC KEY-----\n"
   },
   "published": "2022-05-20T11:09:18Z",
-  "summary": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+  "summary": "<p>hey yo this is my profile!</p>",
   "tag": {
     "icon": {
       "mediaType": "image/png",
@@ -471,7 +459,7 @@ func (suite *InternalToASTestSuite) TestAccountToASWithEmoji() {
   },
   "type": "Person",
   "url": "http://localhost:8080/@the_mighty_zork"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestAccountToASWithSharedInbox() {
@@ -486,9 +474,7 @@ func (suite *InternalToASTestSuite) TestAccountToASWithSharedInbox() {
 	ser, err := ap.Serialize(accountable)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -539,10 +525,10 @@ func (suite *InternalToASTestSuite) TestAccountToASWithSharedInbox() {
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqtQQjwFLHPez+7uF9AX7\nuvLFHm3SyNIozhhVmGhxHIs0xdgRnZKmzmZkFdrFuXddBTAglU4C2u3dw10jJO1a\nWIFQF8bGkRHZG7Pd25/XmWWBRPmOJxNLeWBqpj0G+2zTMgnAV72hALSDFY2/QDsx\nUthenKw0Srpj1LUwvRbyVQQ8fGu4v0HACFnlOX2hCQwhfAnGrb0V70Y2IJu++MP7\n6i49md0vR0Mv3WbsEJUNp1fTIUzkgWB31icvfrNmaaAxw5FkAE+KfkkylhRxi5i5\nRR1XQUINWc2Kj2Kro+CJarKG+9zasMyN7+D230gpESi8rXv1SwRu865FR3gANdDS\nMwIDAQAB\n-----END PUBLIC KEY-----\n"
   },
   "published": "2022-05-20T11:09:18Z",
-  "summary": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+  "summary": "<p>hey yo this is my profile!</p>",
   "type": "Person",
   "url": "http://localhost:8080/@the_mighty_zork"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestStatusToAS() {
@@ -550,13 +536,15 @@ func (suite *InternalToASTestSuite) TestStatusToAS() {
 	ctx := suite.T().Context()
 
 	asStatus, err := suite.typeconverter.StatusToAS(ctx, testStatus)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
 	ser, err := ap.Serialize(asStatus)
-	suite.NoError(err)
-
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+	out := testrig.MustJSONString(ser)
 
 	suite.Equal(`{
   "@context": [
@@ -568,9 +556,9 @@ func (suite *InternalToASTestSuite) TestStatusToAS() {
   ],
   "attributedTo": "http://localhost:8080/users/the_mighty_zork",
   "cc": "http://localhost:8080/users/the_mighty_zork/followers",
-  "content": "\u003cp\u003ehello everyone!\u003c/p\u003e",
+  "content": "<p>hello everyone!</p>",
   "contentMap": {
-    "en": "\u003cp\u003ehello everyone!\u003c/p\u003e"
+    "en": "<p>hello everyone!</p>"
   },
   "id": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY",
   "interactionPolicy": {
@@ -599,7 +587,7 @@ func (suite *InternalToASTestSuite) TestStatusToAS() {
   "replies": {
     "first": {
       "id": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY/replies?page=true",
-      "next": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY/replies?page=true\u0026only_other_accounts=false",
+      "next": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY/replies?page=true&only_other_accounts=false",
       "partOf": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY/replies",
       "type": "CollectionPage"
     },
@@ -611,7 +599,7 @@ func (suite *InternalToASTestSuite) TestStatusToAS() {
   "to": "https://www.w3.org/ns/activitystreams#Public",
   "type": "Note",
   "url": "http://localhost:8080/@the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestStatusWithTagsToASWithIDs() {
@@ -625,9 +613,7 @@ func (suite *InternalToASTestSuite) TestStatusWithTagsToASWithIDs() {
 	ser, err := ap.Serialize(asStatus)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -658,9 +644,9 @@ func (suite *InternalToASTestSuite) TestStatusWithTagsToASWithIDs() {
   ],
   "attributedTo": "http://localhost:8080/users/admin",
   "cc": "http://localhost:8080/users/admin/followers",
-  "content": "\u003cp\u003ehello world! \u003ca href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\"\u003e#\u003cspan\u003ewelcome\u003c/span\u003e\u003c/a\u003e ! first post on the instance :rainbow: !\u003c/p\u003e",
+  "content": "<p>hello world! <a href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\">#<span>welcome</span></a> ! first post on the instance :rainbow: !</p>",
   "contentMap": {
-    "en": "\u003cp\u003ehello world! \u003ca href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\"\u003e#\u003cspan\u003ewelcome\u003c/span\u003e\u003c/a\u003e ! first post on the instance :rainbow: !\u003c/p\u003e"
+    "en": "<p>hello world! <a href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\">#<span>welcome</span></a> ! first post on the instance :rainbow: !</p>"
   },
   "id": "http://localhost:8080/users/admin/statuses/01F8MH75CBF9JFX4ZAD54N0W0R",
   "interactionPolicy": {
@@ -689,7 +675,7 @@ func (suite *InternalToASTestSuite) TestStatusWithTagsToASWithIDs() {
   "replies": {
     "first": {
       "id": "http://localhost:8080/users/admin/statuses/01F8MH75CBF9JFX4ZAD54N0W0R/replies?page=true",
-      "next": "http://localhost:8080/users/admin/statuses/01F8MH75CBF9JFX4ZAD54N0W0R/replies?page=true\u0026only_other_accounts=false",
+      "next": "http://localhost:8080/users/admin/statuses/01F8MH75CBF9JFX4ZAD54N0W0R/replies?page=true&only_other_accounts=false",
       "partOf": "http://localhost:8080/users/admin/statuses/01F8MH75CBF9JFX4ZAD54N0W0R/replies",
       "type": "CollectionPage"
     },
@@ -717,7 +703,7 @@ func (suite *InternalToASTestSuite) TestStatusWithTagsToASWithIDs() {
   "to": "https://www.w3.org/ns/activitystreams#Public",
   "type": "Note",
   "url": "http://localhost:8080/@admin/statuses/01F8MH75CBF9JFX4ZAD54N0W0R"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestStatusWithTagsToASFromDB() {
@@ -732,9 +718,7 @@ func (suite *InternalToASTestSuite) TestStatusWithTagsToASFromDB() {
 	ser, err := ap.Serialize(asStatus)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -765,9 +749,9 @@ func (suite *InternalToASTestSuite) TestStatusWithTagsToASFromDB() {
   ],
   "attributedTo": "http://localhost:8080/users/admin",
   "cc": "http://localhost:8080/users/admin/followers",
-  "content": "\u003cp\u003ehello world! \u003ca href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\"\u003e#\u003cspan\u003ewelcome\u003c/span\u003e\u003c/a\u003e ! first post on the instance :rainbow: !\u003c/p\u003e",
+  "content": "<p>hello world! <a href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\">#<span>welcome</span></a> ! first post on the instance :rainbow: !</p>",
   "contentMap": {
-    "en": "\u003cp\u003ehello world! \u003ca href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\"\u003e#\u003cspan\u003ewelcome\u003c/span\u003e\u003c/a\u003e ! first post on the instance :rainbow: !\u003c/p\u003e"
+    "en": "<p>hello world! <a href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\">#<span>welcome</span></a> ! first post on the instance :rainbow: !</p>"
   },
   "id": "http://localhost:8080/users/admin/statuses/01F8MH75CBF9JFX4ZAD54N0W0R",
   "interactionPolicy": {
@@ -796,7 +780,7 @@ func (suite *InternalToASTestSuite) TestStatusWithTagsToASFromDB() {
   "replies": {
     "first": {
       "id": "http://localhost:8080/users/admin/statuses/01F8MH75CBF9JFX4ZAD54N0W0R/replies?page=true",
-      "next": "http://localhost:8080/users/admin/statuses/01F8MH75CBF9JFX4ZAD54N0W0R/replies?page=true\u0026only_other_accounts=false",
+      "next": "http://localhost:8080/users/admin/statuses/01F8MH75CBF9JFX4ZAD54N0W0R/replies?page=true&only_other_accounts=false",
       "partOf": "http://localhost:8080/users/admin/statuses/01F8MH75CBF9JFX4ZAD54N0W0R/replies",
       "type": "CollectionPage"
     },
@@ -824,7 +808,7 @@ func (suite *InternalToASTestSuite) TestStatusWithTagsToASFromDB() {
   "to": "https://www.w3.org/ns/activitystreams#Public",
   "type": "Note",
   "url": "http://localhost:8080/@admin/statuses/01F8MH75CBF9JFX4ZAD54N0W0R"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestStatusToASWithMentions() {
@@ -845,9 +829,7 @@ func (suite *InternalToASTestSuite) TestStatusToASWithMentions() {
 	ser, err := ap.Serialize(asStatus)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -858,9 +840,9 @@ func (suite *InternalToASTestSuite) TestStatusToASWithMentions() {
     "http://localhost:8080/users/admin/followers",
     "http://localhost:8080/users/the_mighty_zork"
   ],
-  "content": "\u003cp\u003ehi \u003cspan class=\"h-card\"\u003e\u003ca href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e@\u003cspan\u003ethe_mighty_zork\u003c/span\u003e\u003c/a\u003e\u003c/span\u003e welcome to the instance!\u003c/p\u003e",
+  "content": "<p>hi <span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> welcome to the instance!</p>",
   "contentMap": {
-    "en": "\u003cp\u003ehi \u003cspan class=\"h-card\"\u003e\u003ca href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e@\u003cspan\u003ethe_mighty_zork\u003c/span\u003e\u003c/a\u003e\u003c/span\u003e welcome to the instance!\u003c/p\u003e"
+    "en": "<p>hi <span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> welcome to the instance!</p>"
   },
   "id": "http://localhost:8080/users/admin/statuses/01FF25D5Q0DH7CHD57CTRS6WK0",
   "inReplyTo": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY",
@@ -894,7 +876,7 @@ func (suite *InternalToASTestSuite) TestStatusToASWithMentions() {
   "replies": {
     "first": {
       "id": "http://localhost:8080/users/admin/statuses/01FF25D5Q0DH7CHD57CTRS6WK0/replies?page=true",
-      "next": "http://localhost:8080/users/admin/statuses/01FF25D5Q0DH7CHD57CTRS6WK0/replies?page=true\u0026only_other_accounts=false",
+      "next": "http://localhost:8080/users/admin/statuses/01FF25D5Q0DH7CHD57CTRS6WK0/replies?page=true&only_other_accounts=false",
       "partOf": "http://localhost:8080/users/admin/statuses/01FF25D5Q0DH7CHD57CTRS6WK0/replies",
       "type": "CollectionPage"
     },
@@ -909,7 +891,7 @@ func (suite *InternalToASTestSuite) TestStatusToASWithMentions() {
   "to": "https://www.w3.org/ns/activitystreams#Public",
   "type": "Note",
   "url": "http://localhost:8080/@admin/statuses/01FF25D5Q0DH7CHD57CTRS6WK0"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestStatusToASPoliteApproved() {
@@ -965,9 +947,7 @@ func (suite *InternalToASTestSuite) TestStatusToASPoliteApproved() {
 	ser, err := ap.Serialize(asStatus)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -978,7 +958,7 @@ func (suite *InternalToASTestSuite) TestStatusToASPoliteApproved() {
     "http://localhost:8080/users/admin/followers",
     "http://localhost:8080/users/1happyturtle"
   ],
-  "content": "\u003cp\u003eHi \u003cspan class=\"h-card\"\u003e\u003ca href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e@\u003cspan\u003e1happyturtle\u003c/span\u003e\u003c/a\u003e\u003c/span\u003e, can I reply?\u003c/p\u003e",
+  "content": "<p>Hi <span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span>, can I reply?</p>",
   "id": "http://localhost:8080/users/admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ",
   "inReplyTo": "http://localhost:8080/users/1happyturtle/statuses/01F8MHC8VWDRBQR0N1BATDDEM5",
   "interactionPolicy": {
@@ -1007,7 +987,7 @@ func (suite *InternalToASTestSuite) TestStatusToASPoliteApproved() {
   "replies": {
     "first": {
       "id": "http://localhost:8080/users/admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ/replies?page=true",
-      "next": "http://localhost:8080/users/admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ/replies?page=true\u0026only_other_accounts=false",
+      "next": "http://localhost:8080/users/admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ/replies?page=true&only_other_accounts=false",
       "partOf": "http://localhost:8080/users/admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ/replies",
       "type": "CollectionPage"
     },
@@ -1023,7 +1003,7 @@ func (suite *InternalToASTestSuite) TestStatusToASPoliteApproved() {
   "to": "https://www.w3.org/ns/activitystreams#Public",
   "type": "Note",
   "url": "http://localhost:8080/@admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestStatusToASPImpoliteApproved() {
@@ -1075,9 +1055,7 @@ func (suite *InternalToASTestSuite) TestStatusToASPImpoliteApproved() {
 	ser, err := ap.Serialize(asStatus)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -1088,7 +1066,7 @@ func (suite *InternalToASTestSuite) TestStatusToASPImpoliteApproved() {
     "http://localhost:8080/users/admin/followers",
     "http://localhost:8080/users/1happyturtle"
   ],
-  "content": "\u003cp\u003eHi \u003cspan class=\"h-card\"\u003e\u003ca href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e@\u003cspan\u003e1happyturtle\u003c/span\u003e\u003c/a\u003e\u003c/span\u003e, can I reply?\u003c/p\u003e",
+  "content": "<p>Hi <span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span>, can I reply?</p>",
   "id": "http://localhost:8080/users/admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ",
   "inReplyTo": "http://localhost:8080/users/1happyturtle/statuses/01F8MHC8VWDRBQR0N1BATDDEM5",
   "interactionPolicy": {
@@ -1117,7 +1095,7 @@ func (suite *InternalToASTestSuite) TestStatusToASPImpoliteApproved() {
   "replies": {
     "first": {
       "id": "http://localhost:8080/users/admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ/replies?page=true",
-      "next": "http://localhost:8080/users/admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ/replies?page=true\u0026only_other_accounts=false",
+      "next": "http://localhost:8080/users/admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ/replies?page=true&only_other_accounts=false",
       "partOf": "http://localhost:8080/users/admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ/replies",
       "type": "CollectionPage"
     },
@@ -1133,7 +1111,7 @@ func (suite *InternalToASTestSuite) TestStatusToASPImpoliteApproved() {
   "to": "https://www.w3.org/ns/activitystreams#Public",
   "type": "Note",
   "url": "http://localhost:8080/@admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestStatusesToASOutboxPage() {
@@ -1150,13 +1128,11 @@ func (suite *InternalToASTestSuite) TestStatusesToASOutboxPage() {
 	ser, err := ap.Serialize(page)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "http://localhost:8080/users/admin/outbox?page=true",
-  "next": "http://localhost:8080/users/admin/outbox?page=true\u0026max_id=01F8MH75CBF9JFX4ZAD54N0W0R",
+  "next": "http://localhost:8080/users/admin/outbox?page=true&max_id=01F8MH75CBF9JFX4ZAD54N0W0R",
   "orderedItems": [
     {
       "actor": "http://localhost:8080/users/admin",
@@ -1178,9 +1154,9 @@ func (suite *InternalToASTestSuite) TestStatusesToASOutboxPage() {
     }
   ],
   "partOf": "http://localhost:8080/users/admin/outbox",
-  "prev": "http://localhost:8080/users/admin/outbox?page=true\u0026min_id=01F8MHAAY43M6RJ473VQFCVH37",
+  "prev": "http://localhost:8080/users/admin/outbox?page=true&min_id=01F8MHAAY43M6RJ473VQFCVH37",
   "type": "OrderedCollectionPage"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestSelfBoostFollowersOnlyToAS() {
@@ -1204,9 +1180,7 @@ func (suite *InternalToASTestSuite) TestSelfBoostFollowersOnlyToAS() {
 	ser, err := ap.Serialize(asBoost)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "http://localhost:8080/users/the_mighty_zork",
@@ -1216,7 +1190,7 @@ func (suite *InternalToASTestSuite) TestSelfBoostFollowersOnlyToAS() {
   "published": "2022-06-09T13:12:00Z",
   "to": "http://localhost:8080/users/the_mighty_zork/followers",
   "type": "Announce"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestReportToAS() {
@@ -1237,9 +1211,7 @@ func (suite *InternalToASTestSuite) TestReportToAS() {
 	ser, err := ap.Serialize(flag)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "http://localhost:8080/users/localhost:8080",
@@ -1250,7 +1222,7 @@ func (suite *InternalToASTestSuite) TestReportToAS() {
     "http://fossbros-anonymous.io/users/foss_satan/statuses/01FVW7JHQFSFK166WWKR8CBA6M"
   ],
   "type": "Flag"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestPinnedStatusesToASSomeItems() {
@@ -1270,9 +1242,7 @@ func (suite *InternalToASTestSuite) TestPinnedStatusesToASSomeItems() {
 	ser, err := ap.Serialize(collection)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "http://localhost:8080/users/admin/collections/featured",
@@ -1282,7 +1252,7 @@ func (suite *InternalToASTestSuite) TestPinnedStatusesToASSomeItems() {
   ],
   "totalItems": 2,
   "type": "OrderedCollection"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestPinnedStatusesToASNoItems() {
@@ -1302,16 +1272,14 @@ func (suite *InternalToASTestSuite) TestPinnedStatusesToASNoItems() {
 	ser, err := ap.Serialize(collection)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "http://localhost:8080/users/the_mighty_zork/collections/featured",
   "orderedItems": [],
   "totalItems": 0,
   "type": "OrderedCollection"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestPinnedStatusesToASOneItem() {
@@ -1331,9 +1299,7 @@ func (suite *InternalToASTestSuite) TestPinnedStatusesToASOneItem() {
 	ser, err := ap.Serialize(collection)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(ser, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(ser)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "http://localhost:8080/users/1happyturtle/collections/featured",
@@ -1342,7 +1308,7 @@ func (suite *InternalToASTestSuite) TestPinnedStatusesToASOneItem() {
   ],
   "totalItems": 1,
   "type": "OrderedCollection"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestPollVoteToASCreate() {
@@ -1353,16 +1319,17 @@ func (suite *InternalToASTestSuite) TestPollVoteToASCreate() {
 	suite.Len(creates, 2)
 
 	createI0, err := ap.Serialize(creates[0])
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
 	createI1, err := ap.Serialize(creates[1])
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	bytes0, err := json.MarshalIndent(createI0, "", "  ")
-	suite.NoError(err)
-
-	bytes1, err := json.MarshalIndent(createI1, "", "  ")
-	suite.NoError(err)
+	out0 := testrig.MustJSONString(createI0)
+	out1 := testrig.MustJSONString(createI1)
 
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
@@ -1379,7 +1346,7 @@ func (suite *InternalToASTestSuite) TestPollVoteToASCreate() {
   "published": "2021-09-11T11:45:37+02:00",
   "to": "http://fossbros-anonymous.io/users/foss_satan",
   "type": "Create"
-}`, string(bytes0))
+}`, out0)
 
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
@@ -1396,7 +1363,7 @@ func (suite *InternalToASTestSuite) TestPollVoteToASCreate() {
   "published": "2021-09-11T11:45:37+02:00",
   "to": "http://fossbros-anonymous.io/users/foss_satan",
   "type": "Create"
-}`, string(bytes1))
+}`, out1)
 }
 
 func (suite *InternalToASTestSuite) TestImpoliteInteractionReqToASAcceptAnnounce() {
@@ -1432,11 +1399,7 @@ func (suite *InternalToASTestSuite) TestImpoliteInteractionReqToASAcceptAnnounce
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(i, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONString(i)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "http://localhost:8080/users/the_mighty_zork",
@@ -1449,7 +1412,7 @@ func (suite *InternalToASTestSuite) TestImpoliteInteractionReqToASAcceptAnnounce
   "target": "http://localhost:8080/users/the_mighty_zork/statuses/01JJYCVKCXB9JTQD1XW2KB8MT3",
   "to": "http://fossbros-anonymous.io/users/foss_satan",
   "type": "Accept"
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestImpoliteInteractionReqToASAcceptLike() {
@@ -1485,11 +1448,7 @@ func (suite *InternalToASTestSuite) TestImpoliteInteractionReqToASAcceptLike() {
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(i, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONString(i)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "http://localhost:8080/users/the_mighty_zork",
@@ -1498,7 +1457,7 @@ func (suite *InternalToASTestSuite) TestImpoliteInteractionReqToASAcceptLike() {
   "target": "http://localhost:8080/users/the_mighty_zork/statuses/01JJYCVKCXB9JTQD1XW2KB8MT3",
   "to": "http://fossbros-anonymous.io/users/foss_satan",
   "type": "Accept"
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestInteractionReqToASAcceptLikePolite() {
@@ -1535,11 +1494,7 @@ func (suite *InternalToASTestSuite) TestInteractionReqToASAcceptLikePolite() {
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(i, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONString(i)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -1557,7 +1512,7 @@ func (suite *InternalToASTestSuite) TestInteractionReqToASAcceptLikePolite() {
   "result": "http://localhost:8080/users/the_mighty_zork/authorizations/01J1AKMZ8JE5NW0ZSFTRC1JJNE",
   "to": "http://fossbros-anonymous.io/users/foss_satan",
   "type": "Accept"
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestPoliteInteractionReqToASAuthorization() {
@@ -1594,11 +1549,7 @@ func (suite *InternalToASTestSuite) TestPoliteInteractionReqToASAuthorization() 
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(i, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONString(i)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -1609,7 +1560,7 @@ func (suite *InternalToASTestSuite) TestPoliteInteractionReqToASAuthorization() 
   "interactingObject": "https://fossbros-anonymous.io/users/foss_satan/likes/01J1AKRRHQ6MDDQHV0TP716T2K",
   "interactionTarget": "http://localhost:8080/users/the_mighty_zork/statuses/01JJYCVKCXB9JTQD1XW2KB8MT3",
   "type": "LikeAuthorization"
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToASTestSuite) TestInteractionReqToASInteractionRequestable() {
@@ -1645,11 +1596,7 @@ func (suite *InternalToASTestSuite) TestInteractionReqToASInteractionRequestable
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(i, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONString(i)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -1673,9 +1620,9 @@ func (suite *InternalToASTestSuite) TestInteractionReqToASInteractionRequestable
     ],
     "attributedTo": "http://fossbros-anonymous.io/users/foss_satan",
     "cc": "https://www.w3.org/ns/activitystreams#Public",
-    "content": "\u003cp\u003edark souls status bot: \"thoughts of dog\"\u003c/p\u003e",
+    "content": "<p>dark souls status bot: \"thoughts of dog\"</p>",
     "contentMap": {
-      "en": "\u003cp\u003edark souls status bot: \"thoughts of dog\"\u003c/p\u003e"
+      "en": "<p>dark souls status bot: \"thoughts of dog\"</p>"
     },
     "id": "http://fossbros-anonymous.io/users/foss_satan/statuses/01FVW7JHQFSFK166WWKR8CBA6M",
     "interactionPolicy": {
@@ -1704,7 +1651,7 @@ func (suite *InternalToASTestSuite) TestInteractionReqToASInteractionRequestable
     "replies": {
       "first": {
         "id": "http://fossbros-anonymous.io/users/foss_satan/statuses/01FVW7JHQFSFK166WWKR8CBA6M/replies?page=true",
-        "next": "http://fossbros-anonymous.io/users/foss_satan/statuses/01FVW7JHQFSFK166WWKR8CBA6M/replies?page=true\u0026only_other_accounts=false",
+        "next": "http://fossbros-anonymous.io/users/foss_satan/statuses/01FVW7JHQFSFK166WWKR8CBA6M/replies?page=true&only_other_accounts=false",
         "partOf": "http://fossbros-anonymous.io/users/foss_satan/statuses/01FVW7JHQFSFK166WWKR8CBA6M/replies",
         "type": "CollectionPage"
       },
@@ -1718,7 +1665,7 @@ func (suite *InternalToASTestSuite) TestInteractionReqToASInteractionRequestable
   "object": "http://localhost:8080/users/the_mighty_zork/statuses/01JJYCVKCXB9JTQD1XW2KB8MT3",
   "to": "http://localhost:8080/users/the_mighty_zork",
   "type": "ReplyRequest"
-}`, string(b))
+}`, out)
 }
 
 func TestInternalToASTestSuite(t *testing.T) {

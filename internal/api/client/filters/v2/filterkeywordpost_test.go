@@ -26,13 +26,13 @@ import (
 	"strconv"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	filtersV2 "code.superseriousbusiness.org/gotosocial/internal/api/client/filters/v2"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/internal/stream"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 )
 
 func (suite *FiltersTestSuite) postFilterKeyword(
@@ -43,34 +43,35 @@ func (suite *FiltersTestSuite) postFilterKeyword(
 	expectedHTTPStatus int,
 	expectedBody string,
 ) (*apimodel.FilterKeyword, error) {
+	// create the request
+	req := httptest.NewRequest(http.MethodPost, config.GetProtocol()+"://"+config.GetHost()+"/api/"+filtersV2.BasePath+"/"+filterID+"/keywords", nil)
+	req.Header.Set("accept", "application/json")
+
 	// instantiate recorder + test context
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
 
-	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodPost, config.GetProtocol()+"://"+config.GetHost()+"/api/"+filtersV2.BasePath+"/"+filterID+"/keywords", nil)
-	ctx.Request.Header.Set("accept", "application/json")
 	if requestJson != nil {
-		ctx.Request.Header.Set("content-type", "application/json")
-		ctx.Request.Body = io.NopCloser(strings.NewReader(*requestJson))
+		c.R.Header.Set("content-type", "application/json")
+		c.R.Body = io.NopCloser(strings.NewReader(*requestJson))
 	} else {
-		ctx.Request.Form = make(url.Values)
+		c.R.Form = make(url.Values)
 		if keyword != nil {
-			ctx.Request.Form["keyword"] = []string{*keyword}
+			c.R.Form["keyword"] = []string{*keyword}
 		}
 		if wholeWord != nil {
-			ctx.Request.Form["whole_word"] = []string{strconv.FormatBool(*wholeWord)}
+			c.R.Form["whole_word"] = []string{strconv.FormatBool(*wholeWord)}
 		}
 	}
 
-	ctx.AddParam("id", filterID)
+	c.SetPathValue("id", filterID)
 
 	// trigger the handler
-	suite.filtersModule.FilterKeywordPOSTHandler(ctx)
+	suite.filtersModule.FilterKeywordPOSTHandler(c)
 
 	// read the response
 	result := recorder.Result()

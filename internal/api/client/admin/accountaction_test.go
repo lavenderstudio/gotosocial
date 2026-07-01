@@ -51,17 +51,17 @@ func (suite *AccountActionTestSuite) TestSuspendAccount() {
 	}
 	bodyBytes := requestBody.Bytes()
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(
+	c := suite.newContext(
 		recorder,
 		http.MethodPost,
 		bodyBytes,
 		admin.AccountsActionPath,
 		w.FormDataContentType(),
 	)
-	ctx.AddParam(apiutil.IDKey, testAccount.ID)
+	c.SetPathValue(apiutil.IDKey, testAccount.ID)
 
 	// Call the handler
-	suite.adminModule.AccountActionPOSTHandler(ctx)
+	suite.adminModule.AccountActionPOSTHandler(c)
 
 	// We should have no error
 	// message in the result body.
@@ -85,7 +85,7 @@ func (suite *AccountActionTestSuite) TestSuspendAccount() {
 
 	// Account should be suspended.
 	if !testrig.WaitFor(func() bool {
-		account, err := suite.state.DB.GetAccountByID(ctx, testAccount.ID)
+		account, err := suite.state.DB.GetAccountByID(c, testAccount.ID)
 		return err == nil && !account.SuspendedAt.IsZero()
 	}) {
 		suite.FailNow("", "failed waiting for account to be suspended")
@@ -94,7 +94,7 @@ func (suite *AccountActionTestSuite) TestSuspendAccount() {
 	// Appropriate admin action
 	// should be in the db.
 	if !testrig.WaitFor(func() bool {
-		adminActions, err := suite.state.DB.GetAdminActions(ctx)
+		adminActions, err := suite.state.DB.GetAdminActions(c)
 		return err == nil && slices.ContainsFunc(
 			adminActions,
 			func(a *gtsmodel.AdminAction) bool {

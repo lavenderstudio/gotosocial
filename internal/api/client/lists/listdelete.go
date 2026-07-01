@@ -18,12 +18,10 @@
 package lists
 
 import (
-	"errors"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // ListDELETEHandler swagger:operation DELETE /api/v1/lists/{id} listDelete
@@ -72,32 +70,34 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) ListDELETEHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteLists,
-	)
+func (m *Module) ListDELETEHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteLists},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	targetListID := c.Param(IDKey)
-	if targetListID == "" {
-		err := errors.New("no list id specified")
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	targetListID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	if errWithCode := m.processor.List().Delete(c.Request.Context(), authed.Account, targetListID); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+	if errWithCode := m.processor.List().Delete(c, authed.Account, targetListID); errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.Data(c, http.StatusOK, apiutil.AppJSON, apiutil.EmptyJSONObject)
+	httputil.Data(c, http.StatusOK, apiutil.AppJSON, apiutil.EmptyJSONObject)
 }

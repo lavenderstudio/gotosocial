@@ -18,23 +18,25 @@
 package middleware
 
 import (
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gopkg/httputil"
 )
 
-// ExtraHeaders returns a new gin middleware which adds various extra headers to the response.
-func ExtraHeaders() gin.HandlerFunc {
-	return func(c *gin.Context) {
+// ExtraHeaders returns a new gin middleware
+// which adds various extra headers to the response.
+func ExtraHeaders() httputil.FlatMiddlewareFunc {
+	return func(c *httputil.Context) {
+
 		// Inform all callers which server implementation this is.
-		c.Header("Server", "gotosocial")
+		c.W.Header().Set("Server", "gotosocial")
 
 		// Equivalent to CSP frame-ancestors for older browsers
-		c.Header("X-Frame-Options", "DENY")
+		c.W.Header().Set("X-Frame-Options", "DENY")
 
 		// Don't do MIME type sniffing
-		c.Header("X-Content-Type-Options", "nosniff")
+		c.W.Header().Set("X-Content-Type-Options", "nosniff")
 
 		// Only send Referer header for URLs matching our protocol, hostname and port
-		c.Header("Referrer-Policy", "same-origin")
+		c.W.Header().Set("Referrer-Policy", "same-origin")
 
 		// Prevent google chrome cohort tracking. Originally this was referred
 		// to as FlocBlock. Floc was replaced by Topics in 2022 and the spec says
@@ -43,6 +45,6 @@ func ExtraHeaders() gin.HandlerFunc {
 		// See: https://smartframe.io/blog/google-topics-api-everything-you-need-to-know
 		//
 		// See: https://github.com/patcg-individual-drafts/topics
-		c.Header("Permissions-Policy", "browsing-topics=()")
+		c.W.Header().Set("Permissions-Policy", "browsing-topics=()")
 	}
 }

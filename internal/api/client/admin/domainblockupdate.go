@@ -18,8 +18,8 @@
 package admin
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"github.com/gin-gonic/gin"
 )
 
 // DomainBlockUpdatePUTHandler swagger:operation PUT /api/v1/admin/domain_blocks/{id} domainBlockUpdate
@@ -98,6 +98,6 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) DomainBlockUpdatePUTHandler(c *gin.Context) {
+func (m *Module) DomainBlockUpdatePUTHandler(c *httputil.Context) {
 	m.updateDomainPermission(c, gtsmodel.DomainPermissionBlock)
 }

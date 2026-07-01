@@ -25,14 +25,15 @@ import (
 	"slices"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 	"codeberg.org/gruf/go-byteutil"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-gonic/gin"
 	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -49,9 +50,9 @@ import (
 //
 // If an idp provider is set, then the user will
 // be redirected to that to do their sign in.
-func (m *Module) SignInGETHandler(c *gin.Context) {
+func (m *Module) SignInGETHandler(c *httputil.Context) {
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.HTMLAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -63,7 +64,7 @@ func (m *Module) SignInGETHandler(c *gin.Context) {
 		// to redirect to.
 		internalState := m.mustStringFromSession(
 			c,
-			sessions.Default(c),
+			middleware.GetSession(c),
 			sessionInternalState,
 		)
 		if internalState == "" {
@@ -72,22 +73,12 @@ func (m *Module) SignInGETHandler(c *gin.Context) {
 			return
 		}
 
-		c.Redirect(http.StatusSeeOther, m.idp.AuthCodeURL(internalState))
+		httputil.Redirect(c, http.StatusSeeOther, m.idp.AuthCodeURL(internalState))
 		return
 	}
 
-	// IDP provider is not in use.
-	// Render our own cute little page.
-	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
-		return
-	}
-
-	apiutil.TemplateWebPage(c, apiutil.WebPage{
-		Template: "sign-in.tmpl",
-		Instance: instance,
-	})
+	m.templates.RenderPage(c, http.StatusOK,
+		templates.WebPage{Template: "sign-in.tmpl"})
 }
 
 // SignInPOSTHandler should be served at
@@ -96,21 +87,22 @@ func (m *Module) SignInGETHandler(c *gin.Context) {
 // The handler will check the submitted credentials,
 // then redirect either to the 2fa form, or straight
 // to the authorize page served at /oauth/authorize.
-func (m *Module) SignInPOSTHandler(c *gin.Context) {
-	s := sessions.Default(c)
+func (m *Module) SignInPOSTHandler(c *httputil.Context) {
+	s := middleware.GetSession(c)
 
-	// Parse email + password.
+	// Parse email
+	// + password.
 	form := &struct {
 		Email    string `form:"username" binding:"required"`
 		Password string `form:"password" binding:"required"`
 	}{}
-	if err := c.ShouldBind(form); err != nil {
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		m.clearSessionWithBadRequest(c, s, err, oauth.HelpfulAdvice)
 		return
 	}
 
 	user, errWithCode := m.validatePassword(
-		c.Request.Context(),
+		c,
 		form.Email,
 		form.Password,
 	)
@@ -119,27 +111,27 @@ func (m *Module) SignInPOSTHandler(c *gin.Context) {
 		// can just press back and try again if they
 		// accidentally gave the wrong password, without
 		// having to do the whole sign in flow again!
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Whether or not 2fa is enabled, we want
 	// to save the session when we're done here.
-	defer m.mustSaveSession(s)
+	defer m.mustSaveSession(c, s)
 
 	if user.TwoFactorEnabled() {
 		// If this user has 2FA enabled, redirect
 		// to the 2FA page and have them submit
 		// a code from their authenticator app.
-		s.Set(sessionUserIDAwaiting2FA, user.ID)
-		c.Redirect(http.StatusFound, "/auth"+Auth2FAPath)
+		s.Values[sessionUserIDAwaiting2FA] = user.ID
+		httputil.Redirect(c, http.StatusFound, "/auth"+Auth2FAPath)
 		return
 	}
 
 	// If the user doesn't have 2fa enabled,
 	// redirect straight to the OAuth authorize page.
-	s.Set(sessionUserID, user.ID)
-	c.Redirect(http.StatusFound, "/oauth"+OauthAuthorizePath)
+	s.Values[sessionUserID] = user.ID
+	httputil.Redirect(c, http.StatusFound, "/oauth"+OauthAuthorizePath)
 }
 
 // validatePassword takes an email address and a password.
@@ -152,7 +144,10 @@ func (m *Module) validatePassword(
 	ctx context.Context,
 	email string,
 	password string,
-) (*gtsmodel.User, gtserror.WithCode) {
+) (
+	*gtsmodel.User,
+	gtserror.WithCode,
+) {
 	if email == "" || password == "" {
 		err := errors.New("email or password was not provided")
 		return incorrectPassword(err)
@@ -192,8 +187,8 @@ func incorrectPassword(err error) (*gtsmodel.User, gtserror.WithCode) {
 //
 // The 2fa template displays a simple form asking the
 // user to input a code from their authenticator app.
-func (m *Module) TwoFactorCodeGETHandler(c *gin.Context) {
-	s := sessions.Default(c)
+func (m *Module) TwoFactorCodeGETHandler(c *httputil.Context) {
+	s := middleware.GetSession(c)
 
 	user := m.mustUserFromSession(c, s)
 	if user == nil {
@@ -202,19 +197,14 @@ func (m *Module) TwoFactorCodeGETHandler(c *gin.Context) {
 		return
 	}
 
-	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
-		return
-	}
-
-	apiutil.TemplateWebPage(c, apiutil.WebPage{
-		Template: "2fa.tmpl",
-		Instance: instance,
-		Extra: map[string]any{
-			"user": user.Account.Username,
+	m.templates.RenderPage(c, http.StatusOK,
+		templates.WebPage{
+			Template: "2fa.tmpl",
+			Extra: map[string]any{
+				"user": user.Account.Username,
+			},
 		},
-	})
+	)
 }
 
 // TwoFactorCodePOSTHandler should be served at
@@ -223,8 +213,8 @@ func (m *Module) TwoFactorCodeGETHandler(c *gin.Context) {
 // The idea is to handle a submitted 2fa code, validate it,
 // and if valid redirect to the /oauth/authorize page that
 // the user would get to if they didn't have 2fa enabled.
-func (m *Module) TwoFactorCodePOSTHandler(c *gin.Context) {
-	s := sessions.Default(c)
+func (m *Module) TwoFactorCodePOSTHandler(c *httputil.Context) {
+	s := middleware.GetSession(c)
 
 	user := m.mustUserFromSession(c, s)
 	if user == nil {
@@ -237,7 +227,7 @@ func (m *Module) TwoFactorCodePOSTHandler(c *gin.Context) {
 	form := &struct {
 		Code string `form:"code" binding:"required"`
 	}{}
-	if err := c.ShouldBind(form); err != nil {
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		m.clearSessionWithBadRequest(c, s, err, oauth.HelpfulAdvice)
 		return
 	}
@@ -256,18 +246,18 @@ func (m *Module) TwoFactorCodePOSTHandler(c *gin.Context) {
 		const errText = "2fa code invalid or timed out, press back and try again; " +
 			"if issues persist, pester your instance admin to check the server clock"
 		errWithCode := gtserror.NewErrorBadRequest(errors.New(errText), errText)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Code looks good! Redirect
 	// to the OAuth authorize page.
-	s.Set(sessionUserID, user.ID)
-	m.mustSaveSession(s)
-	c.Redirect(http.StatusFound, "/oauth"+OauthAuthorizePath)
+	s.Values[sessionUserID] = user.ID
+	m.mustSaveSession(c, s)
+	httputil.Redirect(c, http.StatusFound, "/oauth"+OauthAuthorizePath)
 }
 
-func (m *Module) validate2FACode(c *gin.Context, user *gtsmodel.User, code string) (bool, error) {
+func (m *Module) validate2FACode(c *httputil.Context, user *gtsmodel.User, code string) (bool, error) {
 	code = strings.TrimSpace(code)
 	if len(code) <= 6 {
 		// This is a normal authenticator
@@ -292,7 +282,7 @@ func (m *Module) validate2FACode(c *gin.Context, user *gtsmodel.User, code strin
 		// Remove this one-time code from the user's backups.
 		user.TwoFactorBackups = slices.Delete(user.TwoFactorBackups, i, i+1)
 		if err := m.state.DB.UpdateUser(
-			c.Request.Context(),
+			c,
 			user,
 			"two_factor_backups",
 		); err != nil {

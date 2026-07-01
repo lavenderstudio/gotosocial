@@ -25,8 +25,9 @@ import (
 	"net/url"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/buffers"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
-	"codeberg.org/gruf/go-fastcopy"
+
 	"codeberg.org/gruf/go-storage"
 	"codeberg.org/gruf/go-storage/disk"
 )
@@ -107,9 +108,9 @@ func NewFileStorage() (*Driver, error) {
 	basePath := config.GetStorageLocalBasePath()
 
 	// Use default disk config with
-	// increased write buffer size.
+	// our shared buffers package.
 	diskCfg := disk.DefaultConfig()
-	diskCfg.CopyFn = fastcopy.Copy
+	diskCfg.CopyFn = buffers.Copy
 
 	// Open the disk storage implementation
 	disk, err := disk.Open(basePath, &diskCfg)

@@ -20,11 +20,14 @@ package testrig
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"encoding/xml"
 	"io"
 	"mime/multipart"
 	"net/url"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"code.superseriousbusiness.org/gopkg/log"
@@ -284,4 +287,84 @@ func WaitFor(condition func() bool) bool {
 func Dump(v any) string {
 	buf := format.Global.Append(nil, v, format.DefaultArgs())
 	return string(buf)
+}
+
+// MustJSONString encodes the given
+// input to a nicely-indented, unescaped
+// JSON string, or panics.
+func MustJSONString(v any) string {
+	return string(MustJSONBytes(v))
+}
+
+// MustJSONStringUgly encodes the given
+// input to a not-indented, HTML-escaped
+// JSON string, or panics.
+func MustJSONStringUgly(v any) string {
+	return string(MustJSONBytesUgly(v))
+}
+
+// MustJSONBytes encodes the given
+// input to nicely-indented, unescaped
+// JSON bytes, or panics.
+func MustJSONBytes(v any) []byte {
+	buf := bytes.Buffer{}
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(v); err != nil {
+		panic(err)
+	}
+	return []byte(strings.TrimSuffix(buf.String(), "\n"))
+}
+
+// MustJSONBytesUgly encodes the given
+// input to not-indented, HTML-escaped
+// JSON bytes, or panics.
+func MustJSONBytesUgly(v any) []byte {
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+// MustJSONStringFromBytes decodes + reencodes the given
+// JSON string to nicely-indented JSON string, or panics.
+func MustJSONStringFromString(s string) string {
+	return MustJSONStringFromBytes([]byte(s))
+}
+
+// MustJSONStringFromBytes decodes + reencodes the given
+// JSON bytes to nicely-indented JSON string, or panics.
+func MustJSONStringFromBytes(b []byte) string {
+	return string(MustJSONBytesFromBytes(b))
+}
+
+// MustJSONBytesFromBytes decodes + reencodes the given
+// JSON bytes to nicely-indented JSON bytes, or panics.
+func MustJSONBytesFromBytes(b []byte) []byte {
+	var v any
+	switch b[0] {
+	case '[':
+		v = []any{}
+	case '{':
+		v = make(map[string]any)
+	default:
+		panic("neither array nor object")
+	}
+	if err := json.Unmarshal(b, &v); err != nil {
+		panic(err)
+	}
+	return MustJSONBytes(&v)
+}
+
+// MustJSONBytes encodes the given
+// input to XML bytes, or panics.
+func MustXMLBytes(v any) []byte {
+	buf := bytes.Buffer{}
+	enc := xml.NewEncoder(&buf)
+	if err := enc.Encode(v); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
 }

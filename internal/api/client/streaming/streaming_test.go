@@ -29,6 +29,7 @@ import (
 	"testing"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/streaming"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
@@ -36,13 +37,13 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/federation"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
+	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/internal/storage"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -109,7 +110,9 @@ func (suite *StreamingTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.streamingModule = streaming.New(suite.processor, 1, 4096)
+
+	templates := testrig.LoadTemplates(&suite.state, "")
+	suite.streamingModule = streaming.New(suite.processor, templates, 1)
 }
 
 func (suite *StreamingTestSuite) TearDownTest() {
@@ -182,56 +185,40 @@ func (c *connTester) RemoteAddr() net.Addr {
 
 type TestResponseRecorder struct {
 	*httptest.ResponseRecorder
-	w            gin.ResponseWriter
-	closeChannel chan bool
-}
-
-func (r *TestResponseRecorder) CloseNotify() <-chan bool {
-	return r.closeChannel
-}
-
-func (r *TestResponseRecorder) closeClient() {
-	r.closeChannel <- true
 }
 
 func (r *TestResponseRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	conn := &connTester{
-		writes: 0,
-	}
+	conn := &connTester{writes: 0}
 	brw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
 	return conn, brw, nil
 }
 
 func CreateTestResponseRecorder() *TestResponseRecorder {
-	w := new(gin.ResponseWriter)
-	return &TestResponseRecorder{
-		httptest.NewRecorder(),
-		*w,
-		make(chan bool, 1),
-	}
+	return &TestResponseRecorder{httptest.NewRecorder()}
 }
 
 func (suite *StreamingTestSuite) TestSecurityHeader() {
 	// set up the context for the request
 	t := suite.testTokens["local_account_1"]
 	oauthToken := oauth.DBTokenToToken(t)
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("ws://localhost:8080/%s?stream=user", streaming.BasePath), nil) // the endpoint we're hitting
 	recorder := CreateTestResponseRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Request = httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:8080/%s?stream=user", streaming.BasePath), nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.Request.Header.Set(streaming.AccessTokenHeader, oauthToken.Access)
-	ctx.Request.Header.Set("Connection", "upgrade")
-	ctx.Request.Header.Set("Upgrade", "websocket")
-	ctx.Request.Header.Set("Sec-Websocket-Version", "13")
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.R.Header.Set("accept", "application/json")
+	c.R.Header.Set(streaming.AccessTokenHeader, oauthToken.Access)
+	c.R.Header.Set("Connection", "upgrade")
+	c.R.Header.Set("Upgrade", "websocket")
+	c.R.Header.Set("Sec-Websocket-Version", "13")
 	key := [16]byte{'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'}
 	key64 := base64.StdEncoding.EncodeToString(key[:]) // sec-websocket-key must be base64 encoded and 16 bytes long
-	ctx.Request.Header.Set("Sec-Websocket-Key", key64)
+	c.R.Header.Set("Sec-Websocket-Key", key64)
 
-	suite.streamingModule.StreamGETHandler(ctx)
+	middleware.CORS().Handler()(c)
+	suite.streamingModule.StreamGETHandler(c)
 
 	result := recorder.Result()
 	defer result.Body.Close()

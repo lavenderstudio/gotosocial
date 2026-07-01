@@ -23,11 +23,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	mediamodule "code.superseriousbusiness.org/gotosocial/internal/api/client/media"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
@@ -105,7 +106,7 @@ func (suite *MediaCreateTestSuite) SetupTest() {
 	)
 
 	// setup module being tested
-	suite.mediaModule = mediamodule.New(suite.processor)
+	suite.mediaModule = mediamodule.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 
 	// setup test data
 	suite.testTokens = testrig.NewTestTokens()
@@ -130,20 +131,6 @@ func (suite *MediaCreateTestSuite) TestMediaCreateSuccessful() {
 	t := suite.testTokens["local_account_1"]
 	oauthToken := oauth.DBTokenToToken(t)
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-
-	// see what's in storage *before* the request
-	var storageKeysBeforeRequest []string
-	if err := suite.storage.WalkKeys(ctx, func(key string) error {
-		storageKeysBeforeRequest = append(storageKeysBeforeRequest, key)
-		return nil
-	}); err != nil {
-		panic(err)
-	}
 
 	// create the request
 	buf, w, err := testrig.CreateMultipartFormData(testrig.FileToDataF("file", "../../../../testrig/media/test-jpeg.jpg"), map[string][]string{
@@ -153,17 +140,33 @@ func (suite *MediaCreateTestSuite) TestMediaCreateSuccessful() {
 	if err != nil {
 		panic(err)
 	}
-	ctx.Request = httptest.NewRequest(http.MethodPost, "http://localhost:8080/api/v1/media", bytes.NewReader(buf.Bytes())) // the endpoint we're hitting
-	ctx.Request.Header.Set("Content-Type", w.FormDataContentType())
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.AddParam(apiutil.APIVersionKey, apiutil.APIv1)
+	req := httptest.NewRequest(http.MethodPost, "http://localhost:8080/api/v1/media", bytes.NewReader(buf.Bytes())) // the endpoint we're hitting
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("accept", "application/json")
+
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+
+	// see what's in storage *before* the request
+	var storageKeysBeforeRequest []string
+	if err := suite.storage.WalkKeys(c, func(key string) error {
+		storageKeysBeforeRequest = append(storageKeysBeforeRequest, key)
+		return nil
+	}); err != nil {
+		panic(err)
+	}
+
+	c.SetPathValue(apiutil.APIVersionKey, apiutil.APIv1)
 
 	// do the actual request
-	suite.mediaModule.MediaCreatePOSTHandler(ctx)
+	suite.mediaModule.MediaCreatePOSTHandler(c)
 
 	// check what's in storage *after* the request
 	var storageKeysAfterRequest []string
-	if err := suite.storage.WalkKeys(ctx, func(key string) error {
+	if err := suite.storage.WalkKeys(c, func(key string) error {
 		storageKeysAfterRequest = append(storageKeysAfterRequest, key)
 		return nil
 	}); err != nil {
@@ -175,7 +178,7 @@ func (suite *MediaCreateTestSuite) TestMediaCreateSuccessful() {
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 	fmt.Println(string(b))
 
@@ -215,20 +218,6 @@ func (suite *MediaCreateTestSuite) TestMediaCreateSuccessfulV2() {
 	t := suite.testTokens["local_account_1"]
 	oauthToken := oauth.DBTokenToToken(t)
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-
-	// see what's in storage *before* the request
-	var storageKeysBeforeRequest []string
-	if err := suite.storage.WalkKeys(ctx, func(key string) error {
-		storageKeysBeforeRequest = append(storageKeysBeforeRequest, key)
-		return nil
-	}); err != nil {
-		panic(err)
-	}
 
 	// create the request
 	buf, w, err := testrig.CreateMultipartFormData(testrig.FileToDataF("file", "../../../../testrig/media/test-jpeg.jpg"), map[string][]string{
@@ -238,17 +227,33 @@ func (suite *MediaCreateTestSuite) TestMediaCreateSuccessfulV2() {
 	if err != nil {
 		panic(err)
 	}
-	ctx.Request = httptest.NewRequest(http.MethodPost, "http://localhost:8080/api/v2/media", bytes.NewReader(buf.Bytes())) // the endpoint we're hitting
-	ctx.Request.Header.Set("Content-Type", w.FormDataContentType())
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.AddParam(apiutil.APIVersionKey, apiutil.APIv2)
+	req := httptest.NewRequest(http.MethodPost, "http://localhost:8080/api/v2/media", bytes.NewReader(buf.Bytes())) // the endpoint we're hitting
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("accept", "application/json")
+
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+
+	// see what's in storage *before* the request
+	var storageKeysBeforeRequest []string
+	if err := suite.storage.WalkKeys(c, func(key string) error {
+		storageKeysBeforeRequest = append(storageKeysBeforeRequest, key)
+		return nil
+	}); err != nil {
+		panic(err)
+	}
+
+	c.SetPathValue(apiutil.APIVersionKey, apiutil.APIv2)
 
 	// do the actual request
-	suite.mediaModule.MediaCreatePOSTHandler(ctx)
+	suite.mediaModule.MediaCreatePOSTHandler(c)
 
 	// check what's in storage *after* the request
 	var storageKeysAfterRequest []string
-	if err := suite.storage.WalkKeys(ctx, func(key string) error {
+	if err := suite.storage.WalkKeys(c, func(key string) error {
 		storageKeysAfterRequest = append(storageKeysAfterRequest, key)
 		return nil
 	}); err != nil {
@@ -260,7 +265,7 @@ func (suite *MediaCreateTestSuite) TestMediaCreateSuccessfulV2() {
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 	fmt.Println(string(b))
 
@@ -300,11 +305,6 @@ func (suite *MediaCreateTestSuite) TestMediaCreateLongDescription() {
 	t := suite.testTokens["local_account_1"]
 	oauthToken := oauth.DBTokenToToken(t)
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
 
 	// read a random string of a really long description
 	descriptionBytes := make([]byte, 5000)
@@ -321,20 +321,27 @@ func (suite *MediaCreateTestSuite) TestMediaCreateLongDescription() {
 	if err != nil {
 		panic(err)
 	}
-	ctx.Request = httptest.NewRequest(http.MethodPost, "http://localhost:8080/api/v1/media", bytes.NewReader(buf.Bytes())) // the endpoint we're hitting
-	ctx.Request.Header.Set("Content-Type", w.FormDataContentType())
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.AddParam(apiutil.APIVersionKey, apiutil.APIv1)
+	req := httptest.NewRequest(http.MethodPost, "http://localhost:8080/api/v1/media", bytes.NewReader(buf.Bytes())) // the endpoint we're hitting
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("accept", "application/json")
+
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+
+	c.SetPathValue(apiutil.APIVersionKey, apiutil.APIv1)
 
 	// do the actual request
-	suite.mediaModule.MediaCreatePOSTHandler(ctx)
+	suite.mediaModule.MediaCreatePOSTHandler(c)
 
 	// check response
 	suite.EqualValues(http.StatusBadRequest, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	suite.Equal(`{"error":"Bad Request: image description length must be between 0 and 500 characters (inclusive), but provided image description was 6667 chars"}`, string(b))
@@ -348,11 +355,6 @@ func (suite *MediaCreateTestSuite) TestMediaCreateTooShortDescription() {
 	t := suite.testTokens["local_account_1"]
 	oauthToken := oauth.DBTokenToToken(t)
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
 
 	// create the request
 	buf, w, err := testrig.CreateMultipartFormData(testrig.FileToDataF("file", "../../../../testrig/media/test-jpeg.jpg"), map[string][]string{
@@ -362,13 +364,20 @@ func (suite *MediaCreateTestSuite) TestMediaCreateTooShortDescription() {
 	if err != nil {
 		panic(err)
 	}
-	ctx.Request = httptest.NewRequest(http.MethodPost, "http://localhost:8080/api/v1/media", bytes.NewReader(buf.Bytes())) // the endpoint we're hitting
-	ctx.Request.Header.Set("Content-Type", w.FormDataContentType())
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.AddParam(apiutil.APIVersionKey, apiutil.APIv1)
+	req := httptest.NewRequest(http.MethodPost, "http://localhost:8080/api/v1/media", bytes.NewReader(buf.Bytes())) // the endpoint we're hitting
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("accept", "application/json")
+
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+
+	c.SetPathValue(apiutil.APIVersionKey, apiutil.APIv1)
 
 	// do the actual request
-	suite.mediaModule.MediaCreatePOSTHandler(ctx)
+	suite.mediaModule.MediaCreatePOSTHandler(c)
 
 	// check response -- there should be no error because minimum description length is checked on *UPDATE*, not initial upload
 	suite.EqualValues(http.StatusOK, recorder.Code)

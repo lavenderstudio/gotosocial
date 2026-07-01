@@ -20,11 +20,11 @@ package timelines
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
-	"github.com/gin-gonic/gin"
 )
 
 // PublicTimelineGETHandler swagger:operation GET /api/v1/timelines/public publicTimeline
@@ -111,38 +111,46 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: bad request
-func (m *Module) PublicTimelineGETHandler(c *gin.Context) {
+func (m *Module) PublicTimelineGETHandler(c *httputil.Context) {
 	var (
 		authed      *apiutil.Auth
 		errWithCode gtserror.WithCode
 	)
+
 	if config.GetInstanceExposePublicTimeline() {
 		// If the public timeline is allowed to be exposed, still check if we
 		// can extract various authentication properties, but don't require them.
-		authed, errWithCode = apiutil.TokenAuth(c,
-			false, false, false, false,
-		)
+		authed, errWithCode = apiutil.TokenAuth(c, apiutil.AuthRequirements{
+			Token:   false,
+			App:     false,
+			User:    false,
+			Account: false,
+			Scope:   nil,
+		})
 	} else {
-		authed, errWithCode = apiutil.TokenAuth(c,
-			true, true, true, true,
-			apiutil.ScopeReadStatuses,
-		)
+		authed, errWithCode = apiutil.TokenAuth(c, apiutil.AuthRequirements{
+			Token:   true,
+			App:     true,
+			User:    true,
+			Account: true,
+			Scope:   []apiutil.Scope{apiutil.ScopeReadStatuses},
+		})
 	}
 
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if authed.Account != nil && authed.Account.IsMoving() {
 		// For moving/moved accounts, just return
 		// empty to avoid breaking client apps.
-		apiutil.Data(c, http.StatusOK, apiutil.AppJSON, apiutil.EmptyJSONArray)
+		httputil.Data(c, http.StatusOK, apiutil.AppJSON, apiutil.EmptyJSONArray)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -152,30 +160,30 @@ func (m *Module) PublicTimelineGETHandler(c *gin.Context) {
 		20, // default limit
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	local, errWithCode := apiutil.ParseLocal(c.Query(apiutil.LocalKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	resp, errWithCode := m.processor.Timeline().PublicTimelineGet(
-		c.Request.Context(),
+		c,
 		authed.Account,
 		page,
 		local,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if resp.LinkHeader != "" {
-		c.Header("Link", resp.LinkHeader)
+		c.W.Header().Set("Link", resp.LinkHeader)
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp.Items)
+	httputil.JSON(c, http.StatusOK, resp.Items)
 }

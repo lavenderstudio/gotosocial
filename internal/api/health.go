@@ -20,19 +20,20 @@ package api
 import (
 	"context"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/health"
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/router"
-	"github.com/gin-gonic/gin"
 )
 
 type Health struct {
 	health *health.Module
 }
 
-func (mt *Health) Route(r *router.Router, m ...gin.HandlerFunc) {
-	// Create new group on top level prefix.
-	healthGroup := r.AttachGroup("")
+func (mt *Health) Route(r *router.Router, m ...httputil.Middleware) {
+	// Create new group
+	// on top level prefix.
+	healthGroup := r.Group("")
 	healthGroup.Use(m...)
 	healthGroup.Use(
 		middleware.CacheControl(middleware.CacheControlConfig{
@@ -41,7 +42,7 @@ func (mt *Health) Route(r *router.Router, m ...gin.HandlerFunc) {
 		}),
 	)
 
-	mt.health.Route(healthGroup.Handle)
+	mt.health.Route(healthGroup)
 }
 
 func NewHealth(readyF func(context.Context) error) *Health {

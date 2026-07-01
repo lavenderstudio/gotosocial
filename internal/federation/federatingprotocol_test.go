@@ -20,7 +20,6 @@ package federation_test
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -51,11 +50,7 @@ func (suite *FederatingProtocolTestSuite) postInboxRequestBodyHook(
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.Marshal(raw)
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-	suite.NoError(err)
+	b := testrig.MustJSONBytes(raw)
 	request := httptest.NewRequest(http.MethodPost, receivingAccount.InboxURI, bytes.NewBuffer(b))
 	request.Header.Set("Signature", activity.SignatureHeader)
 	request.Header.Set("Date", activity.DateHeader)
@@ -79,11 +74,7 @@ func (suite *FederatingProtocolTestSuite) authenticatePostInbox(
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.Marshal(raw)
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	b := testrig.MustJSONBytes(raw)
 	request := httptest.NewRequest(http.MethodPost, receivingAccount.InboxURI, bytes.NewBuffer(b))
 	request.Header.Set("Signature", activity.SignatureHeader)
 	request.Header.Set("Date", activity.DateHeader)

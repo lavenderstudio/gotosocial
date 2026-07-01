@@ -24,6 +24,7 @@ import (
 	"strings"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/tags"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
@@ -39,7 +40,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/internal/storage"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -101,7 +101,7 @@ func (suite *TagsTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.tagsModule = tags.New(suite.processor)
+	suite.tagsModule = tags.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 
 	testrig.StandardDBSetup(suite.db, nil)
 	testrig.StandardStorageSetup(suite.storage, "../../../../testrig/media")
@@ -119,31 +119,27 @@ func (suite *TagsTestSuite) tagAction(
 	tagName string,
 	method string,
 	path string,
-	handler func(c *gin.Context),
+	handler func(c *httputil.Context),
 	expectedHTTPStatus int,
 	expectedBody string,
 ) (*apimodel.Tag, error) {
-	// instantiate recorder + test context
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[accountFixtureName])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[accountFixtureName]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers[accountFixtureName])
-
 	// create the request
 	url := config.GetProtocol() + "://" + config.GetHost() + "/api/" + path
-	ctx.Request = httptest.NewRequest(
-		method,
-		strings.Replace(url, ":tag_name", tagName, 1),
-		nil,
-	)
-	ctx.Request.Header.Set("accept", "application/json")
+	req := httptest.NewRequest(method, strings.Replace(url, ":tag_name", tagName, 1), nil)
+	req.Header.Set("accept", "application/json")
 
-	ctx.AddParam("tag_name", tagName)
+	// instantiate recorder + test context
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[accountFixtureName])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[accountFixtureName]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers[accountFixtureName])
+	c.SetPathValue("tag_name", tagName)
 
-	// trigger the handler
-	handler(ctx)
+	// trigger
+	// the handler
+	handler(c)
 
 	// read the response
 	result := recorder.Result()

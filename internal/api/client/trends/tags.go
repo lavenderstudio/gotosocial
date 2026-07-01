@@ -20,8 +20,8 @@ package trends
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // TagsGETHandler swagger:operation GET /api/v1/trends/tags getTrendingTags
@@ -48,11 +48,11 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: not acceptable
-func (m *Module) TagsGETHandler(c *gin.Context) {
+func (m *Module) TagsGETHandler(c *httputil.Context) {
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, apiutil.EmptyJSONArray)
+	httputil.JSON(c, http.StatusOK, apiutil.EmptyJSONArray)
 }

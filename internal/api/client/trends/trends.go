@@ -18,10 +18,9 @@
 package trends
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -32,17 +31,18 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, TagsPath, m.TagsGETHandler)
-	attachHandler(http.MethodGet, StatusesPath, m.StatusesGETHandler)
-	attachHandler(http.MethodGet, LinksPath, m.LinksGETHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(TagsPath, m.TagsGETHandler)
+	g.GET(StatusesPath, m.StatusesGETHandler)
+	g.GET(LinksPath, m.LinksGETHandler)
 }

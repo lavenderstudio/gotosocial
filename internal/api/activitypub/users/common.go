@@ -18,9 +18,9 @@
 package users
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // SwaggerCollection represents an ActivityPub Collection.
@@ -85,13 +85,13 @@ type SwaggerFeaturedCollection struct {
 	TotalItems int
 }
 
-func (m *Module) parseCommon(c *gin.Context) (
+func (m *Module) parseCommon(c *httputil.Context) (
 	username string,
 	contentType string,
 	errWithCode gtserror.WithCode,
 ) {
 	// Get username from request params.
-	username, errWithCode = apiutil.ParseUsername(c.Param(apiutil.UsernameKey))
+	username, errWithCode = apiutil.ParseUsername(c.PathValue(apiutil.UsernameKey))
 	if errWithCode != nil {
 		return
 	}
@@ -107,7 +107,7 @@ func (m *Module) parseCommon(c *gin.Context) (
 	return
 }
 
-func (m *Module) parseCommonWithID(c *gin.Context) (
+func (m *Module) parseCommonWithID(c *httputil.Context) (
 	username string,
 	id string,
 	contentType string,
@@ -120,7 +120,7 @@ func (m *Module) parseCommonWithID(c *gin.Context) (
 	}
 
 	// Additionally get ID from request params.
-	id, errWithCode = apiutil.ParseID(c.Param(apiutil.IDKey))
+	id, errWithCode = apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
 		return
 	}

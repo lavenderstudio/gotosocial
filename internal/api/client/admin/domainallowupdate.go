@@ -18,8 +18,8 @@
 package admin
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"github.com/gin-gonic/gin"
 )
 
 // DomainAllowUpdatePUTHandler swagger:operation PUT /api/v1/admin/domain_allows/{id} domainAllowUpdate
@@ -98,6 +98,6 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) DomainAllowUpdatePUTHandler(c *gin.Context) {
+func (m *Module) DomainAllowUpdatePUTHandler(c *httputil.Context) {
 	m.updateDomainPermission(c, gtsmodel.DomainPermissionAllow)
 }

@@ -18,10 +18,9 @@
 package user
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -36,21 +35,22 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, BasePath, m.UserGETHandler)
-	attachHandler(http.MethodPost, PasswordChangePath, m.PasswordChangePOSTHandler)
-	attachHandler(http.MethodPost, EmailChangePath, m.EmailChangePOSTHandler)
-	attachHandler(http.MethodGet, TwoFactorQRCodePngPath, m.TwoFactorQRCodePngGETHandler)
-	attachHandler(http.MethodGet, TwoFactorQRCodeURIPath, m.TwoFactorQRCodeURIGETHandler)
-	attachHandler(http.MethodPost, TwoFactorEnablePath, m.TwoFactorEnablePOSTHandler)
-	attachHandler(http.MethodPost, TwoFactorDisablePath, m.TwoFactorDisablePOSTHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(BasePath, m.UserGETHandler)
+	g.POST(PasswordChangePath, m.PasswordChangePOSTHandler)
+	g.POST(EmailChangePath, m.EmailChangePOSTHandler)
+	g.GET(TwoFactorQRCodePngPath, m.TwoFactorQRCodePngGETHandler)
+	g.GET(TwoFactorQRCodeURIPath, m.TwoFactorQRCodeURIGETHandler)
+	g.POST(TwoFactorEnablePath, m.TwoFactorEnablePOSTHandler)
+	g.POST(TwoFactorDisablePath, m.TwoFactorDisablePOSTHandler)
 }

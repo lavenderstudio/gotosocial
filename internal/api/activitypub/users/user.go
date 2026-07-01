@@ -18,12 +18,11 @@
 package users
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 	"code.superseriousbusiness.org/gotosocial/internal/uris"
-	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -44,27 +43,29 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, BasePath, m.UsersGETHandler)
-	attachHandler(http.MethodPost, InboxPath, m.InboxPOSTHandler)
-	attachHandler(http.MethodGet, FollowersPath, m.FollowersGETHandler)
-	attachHandler(http.MethodGet, FollowingPath, m.FollowingGETHandler)
-	attachHandler(http.MethodGet, FeaturedCollectionPath, m.FeaturedCollectionGETHandler)
-	attachHandler(http.MethodGet, StatusPath, m.StatusGETHandler)
-	attachHandler(http.MethodGet, StatusRepliesPath, m.StatusRepliesGETHandler)
-	attachHandler(http.MethodGet, OutboxPath, m.OutboxGETHandler)
-	attachHandler(http.MethodGet, AcceptPath, m.AcceptGETHandler)
-	attachHandler(http.MethodGet, AuthorizationsPath, m.AuthorizationGETHandler)
-	attachHandler(http.MethodGet, LikeRequestsPath, m.LikeRequestsGETHandler)
-	attachHandler(http.MethodGet, ReplyRequestsPath, m.ReplyRequestsGETHandler)
-	attachHandler(http.MethodGet, AnnounceRequestsPath, m.AnnounceRequestsGETHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(BasePath, m.UsersGETHandler)
+	g.POST(InboxPath, m.InboxPOSTHandler)
+	g.GET(FollowersPath, m.FollowersGETHandler)
+	g.GET(FollowingPath, m.FollowingGETHandler)
+	g.GET(FeaturedCollectionPath, m.FeaturedCollectionGETHandler)
+	g.GET(StatusPath, m.StatusGETHandler)
+	g.GET(StatusRepliesPath, m.StatusRepliesGETHandler)
+	g.GET(OutboxPath, m.OutboxGETHandler)
+	g.GET(AcceptPath, m.AcceptGETHandler)
+	g.GET(AuthorizationsPath, m.AuthorizationGETHandler)
+	g.GET(LikeRequestsPath, m.LikeRequestsGETHandler)
+	g.GET(ReplyRequestsPath, m.ReplyRequestsGETHandler)
+	g.GET(AnnounceRequestsPath, m.AnnounceRequestsGETHandler)
 }

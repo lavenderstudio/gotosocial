@@ -18,12 +18,12 @@
 package federatingdb_test
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
 
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
+	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -47,12 +47,8 @@ func (suite *UpdateTestSuite) TestUpdateNewMention() {
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(&m, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
-	suite.T().Logf("Update:\n%s\n", string(b))
+	out := testrig.MustJSONString(m)
+	suite.T().Logf("Update:\n%s\n", out)
 
 	note := update.Activity.GetActivityStreamsObject().At(0).GetActivityStreamsNote()
 	if err := suite.federatingDB.Update(ctx, note); err != nil {

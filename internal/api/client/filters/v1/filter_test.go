@@ -102,7 +102,7 @@ func (suite *FiltersTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.filtersModule = filtersV1.New(suite.processor)
+	suite.filtersModule = filtersV1.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 
 	testrig.StandardDBSetup(suite.db, nil)
 	testrig.StandardStorageSetup(suite.storage, "../../../../../testrig/media")
@@ -115,11 +115,7 @@ func (suite *FiltersTestSuite) TearDownTest() {
 }
 
 func (suite *FiltersTestSuite) openHomeStream(account *gtsmodel.Account) *stream.Stream {
-	stream, err := suite.processor.Stream().Open(suite.T().Context(), account, stream.TimelineHome)
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-	return stream
+	return suite.processor.Stream().Open(suite.T().Context(), account, stream.TimelineHome)
 }
 
 func (suite *FiltersTestSuite) checkStreamed(

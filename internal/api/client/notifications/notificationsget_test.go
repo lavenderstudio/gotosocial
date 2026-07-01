@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/notifications"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
@@ -33,7 +34,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -49,17 +49,9 @@ func (suite *NotificationsTestSuite) getNotifications(
 	expectedHTTPStatus int,
 	expectedBody string,
 ) ([]*apimodel.Notification, string, error) {
-	// instantiate recorder + test context
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, account)
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, user)
-
 	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodGet, config.GetProtocol()+"://"+config.GetHost()+"/api/"+notifications.BasePath, nil)
-	ctx.Request.Header.Set("accept", "application/json")
+	req := httptest.NewRequest(http.MethodGet, config.GetProtocol()+"://"+config.GetHost()+"/api/"+notifications.BasePath, nil)
+	req.Header.Set("accept", "application/json")
 	query := url.Values{}
 	if maxID != "" {
 		query.Set(notifications.MaxIDKey, maxID)
@@ -76,10 +68,18 @@ func (suite *NotificationsTestSuite) getNotifications(
 	if len(excludeTypes) > 0 {
 		query[notifications.ExcludeTypesKey] = excludeTypes
 	}
-	ctx.Request.URL.RawQuery = query.Encode()
+	req.URL.RawQuery = query.Encode()
+
+	// instantiate recorder + test context
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, account)
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, user)
 
 	// trigger the handler
-	suite.notificationsModule.NotificationsGETHandler(ctx)
+	suite.notificationsModule.NotificationsGETHandler(c)
 
 	// read the response
 	result := recorder.Result()

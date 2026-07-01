@@ -36,10 +36,10 @@ type TokenTestSuite struct {
 }
 
 func (suite *TokenTestSuite) TestPOSTTokenEmptyForm() {
-	ctx, recorder := suite.newContext(http.MethodPost, "oauth/token", []byte{}, "")
-	ctx.Request.Header.Set("accept", "application/json")
+	c, recorder := suite.newContext(http.MethodPost, "oauth/token", []byte{}, "")
+	c.R.Header.Set("accept", "application/json")
 
-	suite.authModule.TokenPOSTHandler(ctx)
+	suite.authModule.TokenPOSTHandler(c)
 
 	suite.Equal(http.StatusBadRequest, recorder.Code)
 
@@ -68,10 +68,10 @@ func (suite *TokenTestSuite) TestRetrieveClientCredentialsOK() {
 	}
 	bodyBytes := requestBody.Bytes()
 
-	ctx, recorder := suite.newContext(http.MethodPost, "oauth/token", bodyBytes, w.FormDataContentType())
-	ctx.Request.Header.Set("accept", "application/json")
+	c, recorder := suite.newContext(http.MethodPost, "oauth/token", bodyBytes, w.FormDataContentType())
+	c.R.Header.Set("accept", "application/json")
 
-	suite.authModule.TokenPOSTHandler(ctx)
+	suite.authModule.TokenPOSTHandler(c)
 
 	suite.Equal(http.StatusOK, recorder.Code)
 
@@ -114,10 +114,10 @@ func (suite *TokenTestSuite) TestRetrieveClientCredentialsBadScope() {
 	}
 	bodyBytes := requestBody.Bytes()
 
-	ctx, recorder := suite.newContext(http.MethodPost, "oauth/token", bodyBytes, w.FormDataContentType())
-	ctx.Request.Header.Set("accept", "application/json")
+	c, recorder := suite.newContext(http.MethodPost, "oauth/token", bodyBytes, w.FormDataContentType())
+	c.R.Header.Set("accept", "application/json")
 
-	suite.authModule.TokenPOSTHandler(ctx)
+	suite.authModule.TokenPOSTHandler(c)
 
 	suite.Equal(http.StatusForbidden, recorder.Code)
 
@@ -146,10 +146,10 @@ func (suite *TokenTestSuite) TestRetrieveClientCredentialsDifferentRedirectURI()
 	}
 	bodyBytes := requestBody.Bytes()
 
-	ctx, recorder := suite.newContext(http.MethodPost, "oauth/token", bodyBytes, w.FormDataContentType())
-	ctx.Request.Header.Set("accept", "application/json")
+	c, recorder := suite.newContext(http.MethodPost, "oauth/token", bodyBytes, w.FormDataContentType())
+	c.R.Header.Set("accept", "application/json")
 
-	suite.authModule.TokenPOSTHandler(ctx)
+	suite.authModule.TokenPOSTHandler(c)
 
 	suite.Equal(http.StatusForbidden, recorder.Code)
 
@@ -180,10 +180,10 @@ func (suite *TokenTestSuite) TestRetrieveAuthorizationCodeOK() {
 	}
 	bodyBytes := requestBody.Bytes()
 
-	ctx, recorder := suite.newContext(http.MethodPost, "oauth/token", bodyBytes, w.FormDataContentType())
-	ctx.Request.Header.Set("accept", "application/json")
+	c, recorder := suite.newContext(http.MethodPost, "oauth/token", bodyBytes, w.FormDataContentType())
+	c.R.Header.Set("accept", "application/json")
 
-	suite.authModule.TokenPOSTHandler(ctx)
+	suite.authModule.TokenPOSTHandler(c)
 
 	suite.Equal(http.StatusOK, recorder.Code)
 
@@ -224,10 +224,10 @@ func (suite *TokenTestSuite) TestRetrieveAuthorizationCodeNoCode() {
 	}
 	bodyBytes := requestBody.Bytes()
 
-	ctx, recorder := suite.newContext(http.MethodPost, "oauth/token", bodyBytes, w.FormDataContentType())
-	ctx.Request.Header.Set("accept", "application/json")
+	c, recorder := suite.newContext(http.MethodPost, "oauth/token", bodyBytes, w.FormDataContentType())
+	c.R.Header.Set("accept", "application/json")
 
-	suite.authModule.TokenPOSTHandler(ctx)
+	suite.authModule.TokenPOSTHandler(c)
 
 	suite.Equal(http.StatusBadRequest, recorder.Code)
 
@@ -257,10 +257,10 @@ func (suite *TokenTestSuite) TestRetrieveAuthorizationCodeWrongGrantType() {
 	}
 	bodyBytes := requestBody.Bytes()
 
-	ctx, recorder := suite.newContext(http.MethodPost, "oauth/token", bodyBytes, w.FormDataContentType())
-	ctx.Request.Header.Set("accept", "application/json")
+	c, recorder := suite.newContext(http.MethodPost, "oauth/token", bodyBytes, w.FormDataContentType())
+	c.R.Header.Set("accept", "application/json")
 
-	suite.authModule.TokenPOSTHandler(ctx)
+	suite.authModule.TokenPOSTHandler(c)
 
 	suite.Equal(http.StatusBadRequest, recorder.Code)
 

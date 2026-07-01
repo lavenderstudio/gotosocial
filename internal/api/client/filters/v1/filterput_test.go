@@ -26,13 +26,13 @@ import (
 	"strconv"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	filtersV1 "code.superseriousbusiness.org/gotosocial/internal/api/client/filters/v1"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/internal/stream"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 )
 
 func (suite *FiltersTestSuite) putFilter(
@@ -47,45 +47,46 @@ func (suite *FiltersTestSuite) putFilter(
 	expectedHTTPStatus int,
 	expectedBody string,
 ) (*apimodel.FilterV1, error) {
+	// create the request
+	req := httptest.NewRequest(http.MethodPut, config.GetProtocol()+"://"+config.GetHost()+"/api/"+filtersV1.BasePath+"/"+filterKeywordID, nil)
+	req.Header.Set("accept", "application/json")
+
 	// instantiate recorder + test context
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
 
-	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodPut, config.GetProtocol()+"://"+config.GetHost()+"/api/"+filtersV1.BasePath+"/"+filterKeywordID, nil)
-	ctx.Request.Header.Set("accept", "application/json")
 	if requestJson != nil {
-		ctx.Request.Header.Set("content-type", "application/json")
-		ctx.Request.Body = io.NopCloser(strings.NewReader(*requestJson))
+		c.R.Header.Set("content-type", "application/json")
+		c.R.Body = io.NopCloser(strings.NewReader(*requestJson))
 	} else {
-		ctx.Request.Form = make(url.Values)
+		c.R.Form = make(url.Values)
 		if phrase != nil {
-			ctx.Request.Form["phrase"] = []string{*phrase}
+			c.R.Form["phrase"] = []string{*phrase}
 		}
 		if context != nil {
-			ctx.Request.Form["context[]"] = *context
+			c.R.Form["context[]"] = *context
 		}
 		if irreversible != nil {
-			ctx.Request.Form["irreversible"] = []string{strconv.FormatBool(*irreversible)}
+			c.R.Form["irreversible"] = []string{strconv.FormatBool(*irreversible)}
 		}
 		if wholeWord != nil {
-			ctx.Request.Form["whole_word"] = []string{strconv.FormatBool(*wholeWord)}
+			c.R.Form["whole_word"] = []string{strconv.FormatBool(*wholeWord)}
 		}
 		if expiresIn != nil {
-			ctx.Request.Form["expires_in"] = []string{strconv.Itoa(*expiresIn)}
+			c.R.Form["expires_in"] = []string{strconv.Itoa(*expiresIn)}
 		} else if expiresInStr != nil {
-			ctx.Request.Form["expires_in"] = []string{*expiresInStr}
+			c.R.Form["expires_in"] = []string{*expiresInStr}
 		}
 	}
 
-	ctx.AddParam("id", filterKeywordID)
+	c.SetPathValue("id", filterKeywordID)
 
 	// trigger the handler
-	suite.filtersModule.FilterPUTHandler(ctx)
+	suite.filtersModule.FilterPUTHandler(c)
 
 	// read the response
 	result := recorder.Result()

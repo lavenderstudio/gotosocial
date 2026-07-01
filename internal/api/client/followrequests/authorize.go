@@ -18,12 +18,10 @@
 package followrequests
 
 import (
-	"errors"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // FollowRequestAuthorizePOSTHandler swagger:operation POST /api/v1/follow_requests/{account_id}/authorize authorizeFollowRequest
@@ -77,13 +75,16 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) FollowRequestAuthorizePOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteFollows,
-	)
+func (m *Module) FollowRequestAuthorizePOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteFollows},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -93,22 +94,21 @@ func (m *Module) FollowRequestAuthorizePOSTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	originAccountID := c.Param(IDKey)
-	if originAccountID == "" {
-		err := errors.New("no account id specified")
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
-		return
-	}
-
-	relationship, errWithCode := m.processor.Account().FollowRequestAccept(c.Request.Context(), authed.Account, originAccountID)
+	originAccountID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, relationship)
+	relationship, errWithCode := m.processor.Account().FollowRequestAccept(c, authed.Account, originAccountID)
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	httputil.JSON(c, http.StatusOK, relationship)
 }

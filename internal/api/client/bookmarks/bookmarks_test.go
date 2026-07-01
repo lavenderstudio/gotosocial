@@ -20,12 +20,13 @@ package bookmarks_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/bookmarks"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/statuses"
@@ -111,8 +112,8 @@ func (suite *BookmarkTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.statusModule = statuses.New(suite.processor)
-	suite.bookmarkModule = bookmarks.New(suite.processor)
+	suite.statusModule = statuses.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
+	suite.bookmarkModule = bookmarks.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 }
 
 func (suite *BookmarkTestSuite) TearDownTest() {
@@ -130,14 +131,6 @@ func (suite *BookmarkTestSuite) getBookmarks(
 	minID string,
 	limit int,
 ) ([]*apimodel.Status, string, error) {
-	// instantiate recorder + test context
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, account)
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, user)
-
 	// create the request URI
 	requestPath := bookmarks.BasePath + "?" + bookmarks.LimitKey + "=" + strconv.Itoa(limit)
 	if maxID != "" {
@@ -150,11 +143,19 @@ func (suite *BookmarkTestSuite) getBookmarks(
 	requestURI := baseURI + "/api/" + requestPath
 
 	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodGet, requestURI, nil)
-	ctx.Request.Header.Set("accept", "application/json")
+	req := httptest.NewRequest(http.MethodGet, requestURI, nil)
+	req.Header.Set("accept", "application/json")
+
+	// instantiate recorder + test context
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, account)
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, user)
 
 	// trigger the handler
-	suite.bookmarkModule.BookmarksGETHandler(ctx)
+	suite.bookmarkModule.BookmarksGETHandler(c)
 
 	// read the response
 	result := recorder.Result()
@@ -164,7 +165,7 @@ func (suite *BookmarkTestSuite) getBookmarks(
 		return nil, "", fmt.Errorf("expected %d got %d", expectedHTTPStatus, resultCode)
 	}
 
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	if err != nil {
 		return nil, "", err
 	}

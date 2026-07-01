@@ -18,14 +18,13 @@
 package admin_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/admin"
+	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -43,11 +42,11 @@ func (suite *EmojiCategoriesGetTestSuite) TestEmojiCategoriesGet() {
 	suite.Equal(http.StatusOK, recorder.Code)
 
 	b, err := io.ReadAll(recorder.Body)
-	suite.NoError(err)
-	suite.NotNil(b)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.Fail(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`[
   {
     "id": "01GGQ989PTT9PMRN4FZ1WWK2B9",
@@ -57,7 +56,7 @@ func (suite *EmojiCategoriesGetTestSuite) TestEmojiCategoriesGet() {
     "id": "01GGQ8V4993XK67B2JB396YFB7",
     "name": "reactions"
   }
-]`, dst.String())
+]`, out)
 }
 
 func TestEmojiCategoriesGetTestSuite(t *testing.T) {

@@ -24,14 +24,15 @@ import (
 	"slices"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
 	streampkg "code.superseriousbusiness.org/gotosocial/internal/stream"
+	"codeberg.org/gruf/go-runners"
 
-	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
@@ -170,11 +171,8 @@ var pingMsg = []byte("ping!")
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: bad request
-func (m *Module) StreamGETHandler(c *gin.Context) {
-	var (
-		account     *gtsmodel.Account
-		errWithCode gtserror.WithCode
-	)
+func (m *Module) StreamGETHandler(c *httputil.Context) {
+	var account *gtsmodel.Account
 
 	// Check both query parameter AND header "Sec-Websocket-Protocol"
 	// value for a token. The latter is hacky and not technically
@@ -184,26 +182,32 @@ func (m *Module) StreamGETHandler(c *gin.Context) {
 	// Chrome also *always* expects the "Sec-Websocket-Protocol"
 	// response value to match input, so it must always be checked.
 	queryToken := c.Query(AccessTokenQueryKey)
-	headerToken := c.GetHeader(AccessTokenHeader)
+	headerToken := c.R.Header.Get(AccessTokenHeader)
 
 	// Prefer query token else use header token.
 	token := cmp.Or(queryToken, headerToken)
 	if token != "" {
+		var errWithCode gtserror.WithCode
 
 		// Token was provided, use it to authorize stream.
-		account, errWithCode = m.processor.Stream().Authorize(c.Request.Context(), token)
+		account, errWithCode = m.processor.Stream().Authorize(c, token)
 		if errWithCode != nil {
-			apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, errWithCode)
 			return
 		}
 
 	} else {
 
-		// No explicit token was provided:
-		// try regular oauth as a last resort.
-		authed, errWithCode := apiutil.TokenAuth(c, true, true, true, true)
+		// No explicit token was provided: try regular oauth as a last resort.
+		authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+			Token:   true,
+			App:     true,
+			User:    true,
+			Account: true,
+			Scope:   nil,
+		})
 		if errWithCode != nil {
-			apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, errWithCode)
 			return
 		}
 
@@ -218,7 +222,8 @@ func (m *Module) StreamGETHandler(c *gin.Context) {
 		return
 	}
 
-	// Get the initial requested stream type, if there is one.
+	// Get the initial requested
+	// stream type, if there is one.
 	streamType := c.Query(StreamQueryKey)
 
 	// Rewrite "allow_local_only" type as we always
@@ -240,19 +245,16 @@ func (m *Module) StreamGETHandler(c *gin.Context) {
 	// Open a stream with the processor; this lets processor
 	// functions pass messages into a channel, which we can
 	// then read from and put into a websockets connection.
-	stream, errWithCode := m.processor.Stream().Open(
-		c.Request.Context(), // this ctx is only used for logging
+	stream := m.processor.Stream().Open(
+		c, // this ctx is only used for logging
 		account,
 		streamType,
 	)
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
-		return
-	}
 
-	l := log.WithContext(c.Request.Context()).
+	l := log.WithContext(c).
 		WithField("streamID", id.NewULID()).
 		WithField("username", account.Username)
+	l.Trace("attempting websocket upgrade")
 
 	// Upgrade the incoming HTTP request. This hijacks the
 	// underlying connection and reuses it for the websocket
@@ -271,7 +273,11 @@ func (m *Module) StreamGETHandler(c *gin.Context) {
 		responseHeader = http.Header{AccessTokenHeader: {headerToken}}
 	}
 
-	wsConn, err := m.wsUpgrade.Upgrade(c.Writer, c.Request, responseHeader)
+	// Attempt to upgrade this incoming request to a websocket conn.
+	//
+	// Note that here we pass in the unwrapped responsewriter, since
+	// the websocket library needs to be able to hijack the connection.
+	wsconn, err := m.wsupgrade.Upgrade(&c.W, c.R, responseHeader)
 	if err != nil {
 		l.Errorf("error upgrading websocket connection: %v", err)
 		stream.Close()
@@ -283,33 +289,30 @@ func (m *Module) StreamGETHandler(c *gin.Context) {
 	// This prevents the upgrade handler from holding open any
 	// throttle / rate-limit request tokens which could become
 	// problematic on instances with multiple users.
-	go m.handleWSConn(&l, wsConn, stream)
+	go m.handleWSConn(wsconn, stream, &l)
 }
 
-// handleWSConn handles a two-way websocket streaming connection.
-// It will both read messages from the connection, and push messages
-// into the connection. If any errors are encountered while reading
-// or writing (including expected errors like clients leaving), the
-// connection will be closed.
-func (m *Module) handleWSConn(l *log.Entry, wsConn *websocket.Conn, stream *streampkg.Stream) {
+// handleWSConn handles a two-way websocket streaming connection. It will
+// both read messages from the connection, and push messages into the
+// connection. If any errors are encountered while reading or writing
+// (including expected errors like clients leaving), the connection will be closed.
+func (m *Module) handleWSConn(
+	wsconn *websocket.Conn,
+	stream *streampkg.Stream,
+	l *log.Entry,
+) {
 	l.Info("opened websocket connection")
 
-	// Create new async context with cancel.
-	ctx, cncl := context.WithCancel(context.Background())
+	// Create new context w/ cancel for
+	// websocket conn and its goroutines.
+	ctx, cncl := runners.CtxWithCancel()
 
-	go func() {
-		defer cncl()
+	// Read from websocket conn to our stream.
+	go readFromWSConn(wsconn, stream, cncl, l)
 
-		// Read messages from websocket to server.
-		m.readFromWSConn(wsConn, stream, l)
-	}()
-
-	go func() {
-		defer cncl()
-
-		// Write messages from processor in websocket conn.
-		m.writeToWSConn(ctx, wsConn, stream, m.dTicker, l)
-	}()
+	// Write from our stream to websocket connection.
+	go writeToWSConn(ctx, wsconn, stream, m.pingfreq,
+		cncl, l)
 
 	// Wait for ctx
 	// to be closed.
@@ -319,8 +322,8 @@ func (m *Module) handleWSConn(l *log.Entry, wsConn *websocket.Conn, stream *stre
 	// straightaway.
 	stream.Close()
 
-	// Tidy up underlying websocket connection.
-	if err := wsConn.Close(); err != nil {
+	// Close underlying websocket connection.
+	if err := wsconn.Close(); err != nil {
 		l.Errorf("error closing websocket connection: %v", err)
 	}
 
@@ -333,11 +336,15 @@ func (m *Module) handleWSConn(l *log.Entry, wsConn *websocket.Conn, stream *stre
 //
 // This is a blocking function; will return only on read error or
 // if the given context is canceled.
-func (m *Module) readFromWSConn(
-	wsConn *websocket.Conn,
+func readFromWSConn(
+	wsconn *websocket.Conn,
 	stream *streampkg.Stream,
+	cncl func(),
 	l *log.Entry,
 ) {
+	// Cancel
+	// context.
+	defer cncl()
 
 	for {
 		var msg struct {
@@ -346,8 +353,9 @@ func (m *Module) readFromWSConn(
 			List   string `json:"list,omitempty"`
 		}
 
-		// Read JSON objects from the client and act on them.
-		if err := wsConn.ReadJSON(&msg); err != nil {
+		// Read JSON objects from client and react.
+		if err := wsconn.ReadJSON(&msg); err != nil {
+
 			// Only log an error if something weird happened.
 			// See: https://www.rfc-editor.org/rfc/rfc6455.html#section-11.7
 			if !websocket.IsCloseError(err, []int{
@@ -407,13 +415,18 @@ func (m *Module) readFromWSConn(
 //
 // This is a blocking function; will return only on write error or
 // if the given context is canceled.
-func (m *Module) writeToWSConn(
+func writeToWSConn(
 	ctx context.Context,
-	wsConn *websocket.Conn,
+	wsconn *websocket.Conn,
 	stream *streampkg.Stream,
 	ping time.Duration,
+	cncl func(),
 	l *log.Entry,
 ) {
+	// Cancel
+	// context.
+	defer cncl()
+
 	for {
 		// Wrap context with timeout to send a ping.
 		pingCtx, cncl := context.WithTimeout(ctx, ping)
@@ -447,7 +460,7 @@ func (m *Module) writeToWSConn(
 			// We have a message to stream.
 			l.Tracef("writing websocket message: %+v", msg)
 
-			if err := wsConn.WriteJSON(msg); err != nil {
+			if err := wsconn.WriteJSON(msg); err != nil {
 				// If there's an error writing then drop the
 				// connection, as client may have disappeared
 				// suddenly; they can reconnect if necessary.
@@ -460,7 +473,7 @@ func (m *Module) writeToWSConn(
 			// need to send a keep-alive ping.
 			l.Trace("writing websocket ping")
 
-			if err := wsConn.WriteControl(websocket.PingMessage, pingMsg, time.Time{}); err != nil {
+			if err := wsconn.WriteControl(websocket.PingMessage, pingMsg, time.Time{}); err != nil {
 				// If there's an error writing then drop the
 				// connection, as client may have disappeared
 				// suddenly; they can reconnect if necessary.

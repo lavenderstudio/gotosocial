@@ -44,12 +44,14 @@ func Must(fn func()) {
 // stack to stderr on panic and return the panic value.
 func Recover() any {
 	if r := recover(); r != nil {
-		// Gather calling func frames.
+
+		// Gather calling funcs.
 		pcs := make([]uintptr, 10)
 		n := runtime.Callers(3, pcs)
 		i := runtime.CallersFrames(pcs[:n])
-		c := gatherFrames(i, n)
-		fmt.Fprintf(os.Stderr, "recovered panic: %v\n\n%s\n", r, c.String())
+		_, _ = fmt.Fprintf(os.Stderr,
+			"recovered panic: %v\n\n%s\n",
+			r, gatherFrames(i, n).String())
 		return r
 	}
 	return nil

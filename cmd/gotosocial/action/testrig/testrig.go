@@ -21,13 +21,13 @@ package testrig
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/cmd/gotosocial/action"
 	"code.superseriousbusiness.org/gotosocial/internal/admin"
@@ -47,7 +47,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 	"code.superseriousbusiness.org/gotosocial/internal/web"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 )
 
 // check function conformance.
@@ -185,25 +184,45 @@ func Start(ctx context.Context) error {
 		HTTP router initialization
 	*/
 
+	templates := testrig.LoadTemplates(state, "")
+
 	route = testrig.NewTestRouter(state.DB)
-	middlewares := []gin.HandlerFunc{
-		middleware.AddRequestID(config.GetRequestIDHeader()), // requestID middleware must run before tracing
+
+	// Determine reverse proxy configuration.
+	var proxycfg httputil.ProxyConfiguration
+	if len(config.GetTrustedProxies()) > 0 {
+		proxycfg.RemoteIPHeaders = []string{"X-Forwarded-For", "X-Real-IP"}
+		proxycfg.TrustedPrefixes = config.GetTrustedProxies()
 	}
+
+	// Start preparing global middleware
+	// stack (used for every request).
+	middlewares := make([]httputil.Middleware, 2)
+
+	// Hooks adding context fields used by other middlewares must come first!
+	middlewares[0] = middleware.WithRequestID(config.GetRequestIDHeader())
+	middlewares[1] = middleware.WithClientIP(&proxycfg)
+
+	// Add tracing middleware if enabled.
 	if config.GetTracingEnabled() {
-		middlewares = append(middlewares, observability.TracingMiddleware())
+		middlewares = append(middlewares,
+			observability.TracingMiddleware())
 	}
 
+	// Add metrics middleware if enabled.
 	if config.GetMetricsEnabled() {
-		middlewares = append(middlewares, observability.MetricsMiddleware())
+		middlewares = append(middlewares,
+			observability.MetricsMiddleware())
 	}
 
-	middlewares = append(middlewares, []gin.HandlerFunc{
+	middlewares = append(middlewares,
 		middleware.Logger(config.GetLogClientIP()),
 		middleware.HeaderFilter(state),
 		middleware.UserAgent(),
 		middleware.CORS(),
 		middleware.ExtraHeaders(),
-	}...)
+		middleware.Timeout(10*time.Minute),
+	)
 
 	// Instantiate Content-Security-Policy
 	// middleware, with extra URIs.
@@ -223,18 +242,16 @@ func Start(ctx context.Context) error {
 	}
 
 	// Add any extra CSP URIs from config.
-	cspExtraURIs = append(cspExtraURIs, config.GetAdvancedCSPExtraURIs()...)
+	cspExtraURIs = append(cspExtraURIs,
+		config.GetAdvancedCSPExtraURIs()...)
 
 	// Add CSP to middlewares.
-	middlewares = append(middlewares, middleware.ContentSecurityPolicy(cspExtraURIs...))
+	middlewares = append(middlewares,
+		middleware.ContentSecurityPolicy(cspExtraURIs...))
 
-	// attach global middlewares which are used for every request
-	route.AttachGlobalMiddleware(middlewares...)
-
-	// attach global no route / 404 handler to the router
-	route.AttachNoRouteHandler(func(c *gin.Context) {
-		apiutil.ErrorHandler(c, gtserror.NewErrorNotFound(errors.New(http.StatusText(http.StatusNotFound))), processor.InstanceGetV1)
-	})
+	// Attach global middlewares which
+	// are used for every endpoint.
+	route.Use(middlewares...)
 
 	// build router modules
 	var idp *oidc.IDP
@@ -259,15 +276,15 @@ func Start(ctx context.Context) error {
 	cookiePolicy := apiutil.NewCookiePolicy()
 
 	var (
-		authModule        = api.NewAuth(state, processor, idp, routerSession, sessionName, cookiePolicy) // auth/oauth paths
-		clientModule      = api.NewClient(state, processor)                                              // api client endpoints
-		healthModule      = api.NewHealth(state.DB.Ready)                                                // Health check endpoints
-		fileserverModule  = api.NewFileserver(processor)                                                 // fileserver endpoints
-		robotsModule      = api.NewRobots()                                                              // robots.txt endpoint
-		wellKnownModule   = api.NewWellKnown(processor)                                                  // .well-known endpoints
-		nodeInfoModule    = api.NewNodeInfo(processor)                                                   // nodeinfo endpoint
-		activityPubModule = api.NewActivityPub(state.DB, processor)                                      // ActivityPub endpoints
-		webModule         = web.New(state.DB, processor, cookiePolicy)                                   // web pages + user profiles + settings panels etc
+		authModule        = api.NewAuth(state, processor, templates, idp, routerSession, sessionName, cookiePolicy) // auth/oauth paths
+		clientModule      = api.NewClient(state, processor, templates)                                              // api client endpoints
+		healthModule      = api.NewHealth(state.DB.Ready)                                                           // Health check endpoints
+		fileserverModule  = api.NewFileserver(processor, templates)                                                 // fileserver endpoints
+		robotsModule      = api.NewRobots()                                                                         // robots.txt endpoint
+		wellKnownModule   = api.NewWellKnown(processor, templates)                                                  // .well-known endpoints
+		nodeInfoModule    = api.NewNodeInfo(processor, templates)                                                   // nodeinfo endpoint
+		activityPubModule = api.NewActivityPub(state.DB, processor, templates)                                      // ActivityPub endpoints
+		webModule         = web.New(state.DB, processor, templates, cookiePolicy)                                   // web pages + user profiles + settings panels etc
 	)
 
 	// these should be routed in order
@@ -302,6 +319,18 @@ func Start(ctx context.Context) error {
 	if err := subscriptions.ScheduleJobs(); err != nil {
 		return fmt.Errorf("error scheduling subscriptions jobs: %w", err)
 	}
+
+	// Set a nicer templated not-found handler
+	// for the main application router instance.
+	route.SetNotFound(func(c *httputil.Context) {
+		errWithCode := gtserror.NewWithCode(404, "unknown route")
+		apiutil.ErrorHandler(c, templates, errWithCode)
+	})
+
+	// Set updated no method and OPTIONS handlers
+	// to ensure they go through our middleware stack.
+	route.SetNoMethod(func(c *httputil.Context) { httputil.Error(c, 405, "Method Not Allowed") })
+	route.SetOptions(func(c *httputil.Context) { c.W.WriteHeader(200) })
 
 	// Finally start the main http server!
 	if err := route.Start(); err != nil {

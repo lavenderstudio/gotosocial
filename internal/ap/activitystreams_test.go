@@ -17,7 +17,6 @@
 package ap_test
 
 import (
-	"encoding/json"
 	"net/url"
 	"testing"
 
@@ -25,6 +24,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
+	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -300,9 +300,5 @@ func toJSON(a any) string {
 		}
 		a = m
 	}
-	b, err := json.MarshalIndent(a, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	return string(b)
+	return testrig.MustJSONString(a)
 }

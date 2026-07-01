@@ -18,14 +18,13 @@
 package accounts
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // AccountStatusesGETHandler swagger:operation GET /api/v1/accounts/{id}/statuses accountStatuses
@@ -142,32 +141,34 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) AccountStatusesGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadStatuses,
-	)
+func (m *Module) AccountStatusesGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadStatuses},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	targetAcctID := c.Param(IDKey)
-	if targetAcctID == "" {
-		err := errors.New("no account id specified")
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	targetAcctID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if authed.Account.IsMoving() && targetAcctID != authed.Account.ID {
 		// For moving/moved accounts, allow the
 		// account to view its own statuses only.
-		apiutil.Data(c, http.StatusOK, apiutil.AppJSON, apiutil.EmptyJSONArray)
+		httputil.Data(c, http.StatusOK, apiutil.AppJSON, apiutil.EmptyJSONArray)
 		return
 	}
 
@@ -177,7 +178,7 @@ func (m *Module) AccountStatusesGETHandler(c *gin.Context) {
 		i, err := strconv.ParseInt(limitString, 10, 32)
 		if err != nil {
 			err := fmt.Errorf("error parsing %s: %s", LimitKey, err)
-			apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 			return
 		}
 		limit = int(i)
@@ -189,7 +190,7 @@ func (m *Module) AccountStatusesGETHandler(c *gin.Context) {
 		i, err := strconv.ParseBool(excludeRepliesString)
 		if err != nil {
 			err := fmt.Errorf("error parsing %s: %s", ExcludeRepliesKey, err)
-			apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 			return
 		}
 		excludeReplies = i
@@ -201,7 +202,7 @@ func (m *Module) AccountStatusesGETHandler(c *gin.Context) {
 		i, err := strconv.ParseBool(excludeReblogsString)
 		if err != nil {
 			err := fmt.Errorf("error parsing %s: %s", ExcludeReblogsKey, err)
-			apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 			return
 		}
 		excludeReblogs = i
@@ -225,7 +226,7 @@ func (m *Module) AccountStatusesGETHandler(c *gin.Context) {
 		i, err := strconv.ParseBool(pinnedString)
 		if err != nil {
 			err := fmt.Errorf("error parsing %s: %s", PinnedKey, err)
-			apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 			return
 		}
 		pinnedOnly = i
@@ -237,7 +238,7 @@ func (m *Module) AccountStatusesGETHandler(c *gin.Context) {
 		i, err := strconv.ParseBool(mediaOnlyString)
 		if err != nil {
 			err := fmt.Errorf("error parsing %s: %s", OnlyMediaKey, err)
-			apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 			return
 		}
 		mediaOnly = i
@@ -249,21 +250,21 @@ func (m *Module) AccountStatusesGETHandler(c *gin.Context) {
 		i, err := strconv.ParseBool(publicOnlyString)
 		if err != nil {
 			err := fmt.Errorf("error parsing %s: %s", OnlyPublicKey, err)
-			apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 			return
 		}
 		publicOnly = i
 	}
 
-	resp, errWithCode := m.processor.Account().StatusesGet(c.Request.Context(), authed.Account, targetAcctID, limit, excludeReplies, excludeReblogs, maxID, minID, pinnedOnly, mediaOnly, publicOnly)
+	resp, errWithCode := m.processor.Account().StatusesGet(c, authed.Account, targetAcctID, limit, excludeReplies, excludeReblogs, maxID, minID, pinnedOnly, mediaOnly, publicOnly)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if resp.LinkHeader != "" {
-		c.Header("Link", resp.LinkHeader)
+		c.W.Header().Set("Link", resp.LinkHeader)
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp.Items)
+	httputil.JSON(c, http.StatusOK, resp.Items)
 }

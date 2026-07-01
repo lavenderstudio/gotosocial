@@ -18,14 +18,15 @@
 package web
 
 import (
-	"context"
 	"errors"
+	"net/http"
 
-	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
+	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 )
 
 const (
@@ -33,34 +34,28 @@ const (
 	domainAllowlistPath = aboutPath + "/domain_allows"
 )
 
-func (m *Module) domainBlocklistGETHandler(c *gin.Context) {
-	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
+func (m *Module) domainBlocklistGETHandler(c *httputil.Context) {
+	instance, errWithCode := m.processor.InstanceGetV1(c)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
-	}
-
-	// Return instance we already got from the db,
-	// don't try to fetch it again when erroring.
-	instanceGet := func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-		return instance, nil
 	}
 
 	// We only serve text/html at this endpoint.
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextHTML); errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if !config.GetInstanceExposeBlocklistWeb() {
 		const errText = "this instance does not expose its blocklist via the web"
 		errWithCode := gtserror.NewErrorUnauthorized(errors.New(errText), errText)
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	domainBlocks, errWithCode := m.processor.InstancePeersGet(
-		c.Request.Context(),
+		c,
 		true,  // Include blocked.
 		false, // Don't include allowed.
 		false, // Don't include open.
@@ -68,49 +63,47 @@ func (m *Module) domainBlocklistGETHandler(c *gin.Context) {
 		false, // Don't include severity.
 	)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	page := apiutil.WebPage{
-		Template:    "domain-blocklist.tmpl",
-		Instance:    instance,
-		OGMeta:      apiutil.OGBase(instance),
-		Stylesheets: []string{cssFA},
-		Extra:       map[string]any{"blocklist": domainBlocks},
-	}
-
-	apiutil.TemplateWebPage(c, page)
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template:    "domain-blocklist.tmpl",
+			Stylesheets: []string{cssFA},
+			Extra: map[string]any{
+				"blocklist": domainBlocks,
+				"instance":  instance,
+				"ogMeta":    typeutils.OpenGraphBase(instance),
+			},
+		},
+	)
 }
 
-func (m *Module) domainAllowlistGETHandler(c *gin.Context) {
-	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
+func (m *Module) domainAllowlistGETHandler(c *httputil.Context) {
+	instance, errWithCode := m.processor.InstanceGetV1(c)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
-	}
-
-	// Return instance we already got from the db,
-	// don't try to fetch it again when erroring.
-	instanceGet := func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-		return instance, nil
 	}
 
 	// We only serve text/html at this endpoint.
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextHTML); errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if !config.GetInstanceExposeAllowlistWeb() {
 		const errText = "this instance does not expose its allowlist via the web"
 		errWithCode := gtserror.NewErrorUnauthorized(errors.New(errText), errText)
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	domainAllows, errWithCode := m.processor.InstancePeersGet(
-		c.Request.Context(),
+		c,
 		false, // Don't include blocked.
 		true,  // Include allowed.
 		false, // Don't include open.
@@ -118,17 +111,21 @@ func (m *Module) domainAllowlistGETHandler(c *gin.Context) {
 		false, // Don't include severity.
 	)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	page := apiutil.WebPage{
-		Template:    "domain-allowlist.tmpl",
-		Instance:    instance,
-		OGMeta:      apiutil.OGBase(instance),
-		Stylesheets: []string{cssFA},
-		Extra:       map[string]any{"allowlist": domainAllows},
-	}
-
-	apiutil.TemplateWebPage(c, page)
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template:    "domain-allowlist.tmpl",
+			Stylesheets: []string{cssFA},
+			Extra: map[string]any{
+				"allowlist": domainAllows,
+				"instance":  instance,
+				"ogMeta":    typeutils.OpenGraphBase(instance),
+			},
+		},
+	)
 }

@@ -18,9 +18,7 @@
 package typeutils_test
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"strings"
 	"testing"
 
@@ -38,11 +36,11 @@ type InternalToFrontendTestSuite struct {
 func (suite *InternalToFrontendTestSuite) TestAccountToFrontend() {
 	testAccount := suite.testAccounts["local_account_1"] // take zork for this test
 	apiAccount, err := suite.typeconverter.AccountToAPIAccountPublic(suite.T().Context(), testAccount)
-	suite.NoError(err)
-	suite.NotNil(apiAccount)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(apiAccount, "", "  ")
-	suite.NoError(err)
+	out := testrig.MustJSONString(apiAccount)
 	suite.Equal(`{
   "id": "01F8MH1H7YV1Z7D2C8K2730QBF",
   "username": "the_mighty_zork",
@@ -54,7 +52,7 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontend() {
   "noindex": false,
   "bot": false,
   "created_at": "2022-05-20T11:09:18.000Z",
-  "note": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+  "note": "<p>hey yo this is my profile!</p>",
   "url": "http://localhost:8080/@the_mighty_zork",
   "avatar": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/original/01F8MH58A357CV5K7R7TJMSH6S.jpg",
   "avatar_static": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/small/01F8MH58A357CV5K7R7TJMSH6S.webp",
@@ -72,7 +70,7 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontend() {
   "fields": [],
   "enable_rss": true,
   "group": false
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestAccountToFrontendAliasedAndMoved() {
@@ -91,13 +89,13 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendAliasedAndMoved()
 	}
 
 	apiAccount, err := suite.typeconverter.AccountToAPIAccountSensitive(suite.T().Context(), testAccount)
-	suite.NoError(err)
-	suite.NotNil(apiAccount)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
 	// moved and also_known_as_uris
 	// should both be set now.
-	b, err := json.MarshalIndent(apiAccount, "", "  ")
-	suite.NoError(err)
+	out := testrig.MustJSONString(apiAccount)
 	suite.Equal(`{
   "id": "01F8MH1H7YV1Z7D2C8K2730QBF",
   "username": "the_mighty_zork",
@@ -109,7 +107,7 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendAliasedAndMoved()
   "noindex": false,
   "bot": false,
   "created_at": "2022-05-20T11:09:18.000Z",
-  "note": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+  "note": "<p>hey yo this is my profile!</p>",
   "url": "http://localhost:8080/@the_mighty_zork",
   "avatar": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/original/01F8MH58A357CV5K7R7TJMSH6S.jpg",
   "avatar_static": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/small/01F8MH58A357CV5K7R7TJMSH6S.webp",
@@ -159,7 +157,7 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendAliasedAndMoved()
     "noindex": true,
     "bot": false,
     "created_at": "2022-06-04T13:12:00.000Z",
-    "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+    "note": "<p>i post about things that concern me</p>",
     "url": "http://localhost:8080/@1happyturtle",
     "avatar": "",
     "avatar_static": "",
@@ -187,7 +185,7 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendAliasedAndMoved()
     "group": false
   },
   "group": false
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestAccountToFrontendWithEmojiStruct() {
@@ -199,11 +197,14 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendWithEmojiStruct()
 	testAccount.EmojiIDs = []string{testEmoji.ID}
 
 	apiAccount, err := suite.typeconverter.AccountToAPIAccountPublic(suite.T().Context(), testAccount)
-	suite.NoError(err)
-	suite.NotNil(apiAccount)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(apiAccount, "", "  ")
-	suite.NoError(err)
+	out := testrig.MustJSONString(apiAccount)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 	suite.Equal(`{
   "id": "01F8MH1H7YV1Z7D2C8K2730QBF",
   "username": "the_mighty_zork",
@@ -215,7 +216,7 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendWithEmojiStruct()
   "noindex": false,
   "bot": false,
   "created_at": "2022-05-20T11:09:18.000Z",
-  "note": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+  "note": "<p>hey yo this is my profile!</p>",
   "url": "http://localhost:8080/@the_mighty_zork",
   "avatar": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/original/01F8MH58A357CV5K7R7TJMSH6S.jpg",
   "avatar_static": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/small/01F8MH58A357CV5K7R7TJMSH6S.webp",
@@ -241,7 +242,7 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendWithEmojiStruct()
   "fields": [],
   "enable_rss": true,
   "group": false
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestAccountToFrontendWithEmojiIDs() {
@@ -251,11 +252,11 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendWithEmojiIDs() {
 	testAccount.EmojiIDs = []string{testEmoji.ID}
 
 	apiAccount, err := suite.typeconverter.AccountToAPIAccountPublic(suite.T().Context(), testAccount)
-	suite.NoError(err)
-	suite.NotNil(apiAccount)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(apiAccount, "", "  ")
-	suite.NoError(err)
+	out := testrig.MustJSONString(apiAccount)
 	suite.Equal(`{
   "id": "01F8MH1H7YV1Z7D2C8K2730QBF",
   "username": "the_mighty_zork",
@@ -267,7 +268,7 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendWithEmojiIDs() {
   "noindex": false,
   "bot": false,
   "created_at": "2022-05-20T11:09:18.000Z",
-  "note": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+  "note": "<p>hey yo this is my profile!</p>",
   "url": "http://localhost:8080/@the_mighty_zork",
   "avatar": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/original/01F8MH58A357CV5K7R7TJMSH6S.jpg",
   "avatar_static": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/small/01F8MH58A357CV5K7R7TJMSH6S.webp",
@@ -293,17 +294,17 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendWithEmojiIDs() {
   "fields": [],
   "enable_rss": true,
   "group": false
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestAccountToFrontendSensitive() {
 	testAccount := suite.testAccounts["local_account_1"] // take zork for this test
 	apiAccount, err := suite.typeconverter.AccountToAPIAccountSensitive(suite.T().Context(), testAccount)
-	suite.NoError(err)
-	suite.NotNil(apiAccount)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(apiAccount, "", "  ")
-	suite.NoError(err)
+	out := testrig.MustJSONString(apiAccount)
 	suite.Equal(`{
   "id": "01F8MH1H7YV1Z7D2C8K2730QBF",
   "username": "the_mighty_zork",
@@ -315,7 +316,7 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendSensitive() {
   "noindex": false,
   "bot": false,
   "created_at": "2022-05-20T11:09:18.000Z",
-  "note": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+  "note": "<p>hey yo this is my profile!</p>",
   "url": "http://localhost:8080/@the_mighty_zork",
   "avatar": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/original/01F8MH58A357CV5K7R7TJMSH6S.jpg",
   "avatar_static": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/small/01F8MH58A357CV5K7R7TJMSH6S.webp",
@@ -352,21 +353,20 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendSensitive() {
     "highlighted": false
   },
   "group": false
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestAccountToFrontendPublicPunycode() {
 	testAccount := suite.testAccounts["remote_account_4"]
 	apiAccount, err := suite.typeconverter.AccountToAPIAccountPublic(suite.T().Context(), testAccount)
-	suite.NoError(err)
-	suite.NotNil(apiAccount)
-
-	b, err := json.MarshalIndent(apiAccount, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
 	// Even though account domain is stored in
 	// punycode, it should be served in its
 	// unicode representation in the 'acct' field.
+	out := testrig.MustJSONString(apiAccount)
 	suite.Equal(`{
   "id": "07GZRBAEMBNKGZ8Z9VSKSXKR98",
   "username": "üser",
@@ -392,7 +392,7 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendPublicPunycode() 
   "emojis": [],
   "fields": [],
   "group": false
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestLocalInstanceAccountToFrontendPublic() {
@@ -403,12 +403,11 @@ func (suite *InternalToFrontendTestSuite) TestLocalInstanceAccountToFrontendPubl
 	}
 
 	apiAccount, err := suite.typeconverter.AccountToAPIAccountPublic(ctx, testAccount)
-	suite.NoError(err)
-	suite.NotNil(apiAccount)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(apiAccount, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(apiAccount)
 	suite.Equal(`{
   "id": "01AY6P665V14JJR0AFVRT7311Y",
   "username": "localhost:8080",
@@ -434,7 +433,7 @@ func (suite *InternalToFrontendTestSuite) TestLocalInstanceAccountToFrontendPubl
   "emojis": [],
   "fields": [],
   "group": false
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestLocalInstanceAccountToFrontendBlocked() {
@@ -445,12 +444,11 @@ func (suite *InternalToFrontendTestSuite) TestLocalInstanceAccountToFrontendBloc
 	}
 
 	apiAccount, err := suite.typeconverter.AccountToAPIAccountBlocked(ctx, testAccount)
-	suite.NoError(err)
-	suite.NotNil(apiAccount)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(apiAccount, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(apiAccount)
 	suite.Equal(`{
   "id": "01AY6P665V14JJR0AFVRT7311Y",
   "username": "localhost:8080",
@@ -476,18 +474,18 @@ func (suite *InternalToFrontendTestSuite) TestLocalInstanceAccountToFrontendBloc
   "emojis": [],
   "fields": [],
   "group": false
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestStatusToFrontend() {
 	testStatus := suite.testStatuses["admin_account_status_1"]
 	requestingAccount := suite.testAccounts["local_account_1"]
 	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requestingAccount)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(apiStatus, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(apiStatus)
 	suite.Equal(`{
   "id": "01F8MH75CBF9JFX4ZAD54N0W0R",
   "created_at": "2021-10-20T11:36:45.000Z",
@@ -508,7 +506,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontend() {
   "muted": false,
   "bookmarked": true,
   "pinned": false,
-  "content": "\u003cp\u003ehello world! \u003ca href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\"\u003e#\u003cspan\u003ewelcome\u003c/span\u003e\u003c/a\u003e ! first post on the instance :rainbow: !\u003c/p\u003e",
+  "content": "<p>hello world! <a href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\">#<span>welcome</span></a> ! first post on the instance :rainbow: !</p>",
   "reblog": null,
   "application": {
     "name": "superseriousbusiness",
@@ -622,7 +620,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontend() {
       "manual_approval": []
     }
   }
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestStatusToFrontendHTMLContentWarning() {
@@ -633,11 +631,11 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendHTMLContentWarning
 
 	requestingAccount := suite.testAccounts["local_account_1"]
 	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requestingAccount)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(apiStatus, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(apiStatus)
 	suite.Equal(`{
   "id": "01F8MH75CBF9JFX4ZAD54N0W0R",
   "created_at": "2021-10-20T11:36:45.000Z",
@@ -658,7 +656,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendHTMLContentWarning
   "muted": false,
   "bookmarked": true,
   "pinned": false,
-  "content": "\u003cp\u003ehello world! \u003ca href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\"\u003e#\u003cspan\u003ewelcome\u003c/span\u003e\u003c/a\u003e ! first post on the instance :rainbow: !\u003c/p\u003e",
+  "content": "<p>hello world! <a href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\">#<span>welcome</span></a> ! first post on the instance :rainbow: !</p>",
   "reblog": null,
   "application": {
     "name": "superseriousbusiness",
@@ -772,7 +770,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendHTMLContentWarning
       "manual_approval": []
     }
   }
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestStatusToFrontendApplicationDeleted() {
@@ -786,11 +784,11 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendApplicationDeleted
 
 	requestingAccount := suite.testAccounts["local_account_1"]
 	apiStatus, err := suite.typeconverter.StatusToAPIStatus(ctx, testStatus, requestingAccount)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(apiStatus, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(apiStatus)
 	suite.Equal(`{
   "id": "01F8MH75CBF9JFX4ZAD54N0W0R",
   "created_at": "2021-10-20T11:36:45.000Z",
@@ -811,7 +809,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendApplicationDeleted
   "muted": false,
   "bookmarked": true,
   "pinned": false,
-  "content": "\u003cp\u003ehello world! \u003ca href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\"\u003e#\u003cspan\u003ewelcome\u003c/span\u003e\u003c/a\u003e ! first post on the instance :rainbow: !\u003c/p\u003e",
+  "content": "<p>hello world! <a href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\">#<span>welcome</span></a> ! first post on the instance :rainbow: !</p>",
   "reblog": null,
   "application": {
     "name": "unknown application"
@@ -924,7 +922,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendApplicationDeleted
       "manual_approval": []
     }
   }
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestStatusToFrontendUnknownAttachments() {
@@ -932,11 +930,11 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendUnknownAttachments
 	requestingAccount := suite.testAccounts["admin_account"]
 
 	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requestingAccount)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(apiStatus, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(apiStatus)
 	suite.Equal(`{
   "id": "01HE7XJ1CG84TBKH5V9XKBVGF5",
   "created_at": "2023-11-02T10:44:25.000Z",
@@ -957,7 +955,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendUnknownAttachments
   "muted": false,
   "bookmarked": false,
   "pinned": false,
-  "content": "\u003cp\u003ehi \u003cspan class=\"h-card\"\u003e\u003ca href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e@\u003cspan\u003eadmin\u003c/span\u003e\u003c/a\u003e\u003c/span\u003e here's some media for ya\u003c/p\u003e\u003cdiv class=\"gts-system-message gts-placeholder-attachments\"\u003e\u003chr\u003e\u003cp\u003e\u003ci lang=\"en\"\u003eℹ️ Note from localhost:8080: 2 attachments in this status were not downloaded. Treat the following external links with care:\u003c/i\u003e\u003c/p\u003e\u003cul\u003e\u003cli\u003e\u003ca href=\"http://example.org/fileserver/01HE7Y659ZWZ02JM4AWYJZ176Q/attachment/original/01HE7ZGJYTSYMXF927GF9353KR.svg\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e01HE7ZGJYTSYMXF927GF9353KR.svg\u003c/a\u003e [SVG line art of a sloth, public domain] (error: unsupported media type)\u003c/li\u003e\u003cli\u003e\u003ca href=\"http://example.org/fileserver/01HE7Y659ZWZ02JM4AWYJZ176Q/attachment/original/01HE892Y8ZS68TQCNPX7J888P3.mp3\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e01HE892Y8ZS68TQCNPX7J888P3.mp3\u003c/a\u003e [Jolly salsa song, public domain.] (error: unsupported media type)\u003c/li\u003e\u003c/ul\u003e\u003c/div\u003e",
+  "content": "<p>hi <span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> here's some media for ya</p><div class=\"gts-system-message gts-placeholder-attachments\"><hr><p><i lang=\"en\">ℹ️ Note from localhost:8080: 2 attachments in this status were not downloaded. Treat the following external links with care:</i></p><ul><li><a href=\"http://example.org/fileserver/01HE7Y659ZWZ02JM4AWYJZ176Q/attachment/original/01HE7ZGJYTSYMXF927GF9353KR.svg\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">01HE7ZGJYTSYMXF927GF9353KR.svg</a> [SVG line art of a sloth, public domain] (error: unsupported media type)</li><li><a href=\"http://example.org/fileserver/01HE7Y659ZWZ02JM4AWYJZ176Q/attachment/original/01HE892Y8ZS68TQCNPX7J888P3.mp3\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">01HE892Y8ZS68TQCNPX7J888P3.mp3</a> [Jolly salsa song, public domain.] (error: unsupported media type)</li></ul></div>",
   "reblog": null,
   "account": {
     "id": "01FHMQX3GAABWSM0S2VZEC2SWC",
@@ -1051,18 +1049,20 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendUnknownAttachments
       "manual_approval": []
     }
   }
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestStatusToWebStatus() {
 	testStatus := suite.testStatuses["remote_account_2_status_1"]
 
-	apiStatus, err := suite.typeconverter.StatusToWebStatus(suite.T().Context(), testStatus)
-	suite.NoError(err)
+	webStatus, err := suite.typeconverter.StatusToWebStatus(suite.T().Context(), testStatus)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
 	// MediaAttachments should inherit
 	// the status's sensitive flag.
-	for _, a := range apiStatus.MediaAttachments {
+	for _, a := range webStatus.MediaAttachments {
 		if !a.Sensitive {
 			suite.FailNow("expected sensitive attachment")
 		}
@@ -1070,9 +1070,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToWebStatus() {
 
 	// We don't really serialize web statuses to JSON
 	// ever, but it *is* a nice way of checking it.
-	b, err := json.MarshalIndent(apiStatus, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(webStatus)
 	suite.Equal(`{
   "id": "01HE7XJ1CG84TBKH5V9XKBVGF5",
   "created_at": "2023-11-02T10:44:25.000Z",
@@ -1093,7 +1091,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToWebStatus() {
   "muted": false,
   "bookmarked": false,
   "pinned": false,
-  "content": "\u003cp\u003ehi \u003cspan class=\"h-card\"\u003e\u003ca href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e@\u003cspan\u003eadmin\u003c/span\u003e\u003c/a\u003e\u003c/span\u003e here's some media for ya\u003c/p\u003e",
+  "content": "<p>hi <span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> here's some media for ya</p>",
   "reblog": null,
   "mentions": [
     {
@@ -1229,7 +1227,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToWebStatus() {
   "ThreadLastMain": false,
   "ThreadContextStatus": false,
   "ThreadFirstReply": false
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestStatusToFrontendUnknownLanguage() {
@@ -1238,11 +1236,11 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendUnknownLanguage() 
 	testStatus.Language = ""
 	requestingAccount := suite.testAccounts["local_account_1"]
 	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requestingAccount)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(apiStatus, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(apiStatus)
 	suite.Equal(`{
   "id": "01F8MH75CBF9JFX4ZAD54N0W0R",
   "created_at": "2021-10-20T11:36:45.000Z",
@@ -1263,7 +1261,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendUnknownLanguage() 
   "muted": false,
   "bookmarked": true,
   "pinned": false,
-  "content": "\u003cp\u003ehello world! \u003ca href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\"\u003e#\u003cspan\u003ewelcome\u003c/span\u003e\u003c/a\u003e ! first post on the instance :rainbow: !\u003c/p\u003e",
+  "content": "<p>hello world! <a href=\"http://localhost:8080/tags/welcome\" class=\"mention hashtag\" rel=\"tag nofollow noreferrer noopener\" target=\"_blank\">#<span>welcome</span></a> ! first post on the instance :rainbow: !</p>",
   "reblog": null,
   "application": {
     "name": "superseriousbusiness",
@@ -1377,7 +1375,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendUnknownLanguage() 
       "manual_approval": []
     }
   }
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestStatusToFrontendPartialInteractions() {
@@ -1386,11 +1384,11 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendPartialInteraction
 	testStatus.Language = ""
 	requestingAccount := suite.testAccounts["admin_account"]
 	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requestingAccount)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(apiStatus, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(apiStatus)
 	suite.Equal(`{
   "id": "01F8MHBBN8120SYH7D5S050MGK",
   "created_at": "2021-10-20T10:40:37.000Z",
@@ -1411,7 +1409,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendPartialInteraction
   "muted": false,
   "bookmarked": false,
   "pinned": false,
-  "content": "\u003cp\u003ethis is a very personal post that I don't want anyone to interact with at all, and i only want mutuals to see it\u003c/p\u003e",
+  "content": "<p>this is a very personal post that I don't want anyone to interact with at all, and i only want mutuals to see it</p>",
   "reblog": null,
   "application": {
     "name": "really cool gts application",
@@ -1428,7 +1426,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendPartialInteraction
     "noindex": false,
     "bot": false,
     "created_at": "2022-05-20T11:09:18.000Z",
-    "note": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+    "note": "<p>hey yo this is my profile!</p>",
     "url": "http://localhost:8080/@the_mighty_zork",
     "avatar": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/original/01F8MH58A357CV5K7R7TJMSH6S.jpg",
     "avatar_static": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/small/01F8MH58A357CV5K7R7TJMSH6S.webp",
@@ -1475,7 +1473,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendPartialInteraction
       "manual_approval": []
     }
   }
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestStatusToFrontendMarkSensitive() {
@@ -1488,7 +1486,9 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendMarkSensitive() {
 	// There's a domain limit in place on fossbros-anonymous.io, so this
 	// status should be marked sensitive when serialized via the API.
 	apiStatus, err := suite.typeconverter.StatusToAPIStatus(ctx, testStatus, requestingAccount)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 	suite.True(apiStatus.Sensitive)
 }
 
@@ -1507,16 +1507,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToAPIStatusPendingApproval()
 		suite.FailNow(err.Error())
 	}
 
-	// We want to see the HTML in
-	// the status so don't escape it.
-	out := new(bytes.Buffer)
-	enc := json.NewEncoder(out)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(apiStatus); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONString(apiStatus)
 	suite.Equal(`{
   "id": "01J5QVB9VC76NPPRQ207GG4DRZ",
   "created_at": "2024-02-20T10:41:37.000Z",
@@ -1615,17 +1606,14 @@ func (suite *InternalToFrontendTestSuite) TestStatusToAPIStatusPendingApproval()
       "manual_approval": []
     }
   }
-}
-`, out.String())
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestVideoAttachmentToFrontend() {
 	testAttachment := suite.testAttachments["local_account_1_status_4_attachment_2"]
 	apiAttachment := typeutils.AttachmentToAPIAttachment(testAttachment)
 
-	b, err := json.MarshalIndent(apiAttachment, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(apiAttachment)
 	suite.Equal(`{
   "id": "01CDR64G398ADCHXK08WWTHEZ5",
   "type": "video",
@@ -1657,7 +1645,7 @@ func (suite *InternalToFrontendTestSuite) TestVideoAttachmentToFrontend() {
   },
   "description": "A cow adorably licking another cow!",
   "blurhash": "L9B|BBY8yZtS~AxZV@t6,njEjZV@"
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestInstanceV1ToFrontend() {
@@ -1673,17 +1661,14 @@ func (suite *InternalToFrontendTestSuite) TestInstanceV1ToFrontend() {
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(instance, "", "  ")
-	suite.NoError(err)
-
-	// FIXME: "rules" is empty from the database, because it's not fetched through db.GetInstance
+	out := testrig.MustJSONString(instance)
 	suite.Equal(`{
   "uri": "localhost:8080",
   "account_domain": "localhost:8080",
   "title": "GoToSocial Testrig Instance",
-  "description": "\u003cp\u003eHere's a fuller description of the GoToSocial testrig instance.\u003c/p\u003e\u003cp\u003eThis instance is for testing purposes only. It doesn't federate at all. Go check out \u003ca href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003ehttps://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\u003c/a\u003e and \u003ca href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003ehttps://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\u003c/a\u003e\u003c/p\u003e\u003cp\u003eUsers on this instance:\u003c/p\u003e\u003cul\u003e\u003cli\u003e\u003cspan class=\"h-card\"\u003e\u003ca href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e@\u003cspan\u003eadmin\u003c/span\u003e\u003c/a\u003e\u003c/span\u003e (admin!).\u003c/li\u003e\u003cli\u003e\u003cspan class=\"h-card\"\u003e\u003ca href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e@\u003cspan\u003e1happyturtle\u003c/span\u003e\u003c/a\u003e\u003c/span\u003e (posts about turtles, we don't know why).\u003c/li\u003e\u003cli\u003e\u003cspan class=\"h-card\"\u003e\u003ca href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e@\u003cspan\u003ethe_mighty_zork\u003c/span\u003e\u003c/a\u003e\u003c/span\u003e (who knows).\u003c/li\u003e\u003c/ul\u003e\u003cp\u003eIf you need to edit the models for the testrig, you can do so at \u003ccode\u003einternal/testmodels.go\u003c/code\u003e.\u003c/p\u003e",
-  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`"+`internal/testmodels.go`+"`"+`.",
-  "short_description": "\u003cp\u003eThis is the GoToSocial testrig. It doesn't federate or anything.\u003c/p\u003e\u003cp\u003eWhen the testrig is shut down, all data on it will be deleted.\u003c/p\u003e\u003cp\u003eDon't use this in production!\u003c/p\u003e",
+  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
+  "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`internal/testmodels.go`"+`.",
+  "short_description": "<p>This is the GoToSocial testrig. It doesn't federate or anything.</p><p>When the testrig is shut down, all data on it will be deleted.</p><p>Don't use this in production!</p>",
   "short_description_text": "This is the GoToSocial testrig. It doesn't federate or anything.\n\nWhen the testrig is shut down, all data on it will be deleted.\n\nDon't use this in production!",
   "email": "admin@example.org",
   "version": "0.0.0-testrig",
@@ -1804,9 +1789,9 @@ func (suite *InternalToFrontendTestSuite) TestInstanceV1ToFrontend() {
       "text": "Do crime"
     }
   ],
-  "terms": "\u003cp\u003eThis is where a list of terms and conditions might go.\u003c/p\u003e\u003cp\u003eFor example:\u003c/p\u003e\u003cp\u003eIf you want to sign up on this instance, you oughta know that we:\u003c/p\u003e\u003col\u003e\u003cli\u003eWill sell your data to whoever offers.\u003c/li\u003e\u003cli\u003eSecure the server with password \u003ccode\u003epassword\u003c/code\u003e wherever possible.\u003c/li\u003e\u003c/ol\u003e",
-  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`"+`password`+"`"+` wherever possible."
-}`, string(b))
+  "terms": "<p>This is where a list of terms and conditions might go.</p><p>For example:</p><p>If you want to sign up on this instance, you oughta know that we:</p><ol><li>Will sell your data to whoever offers.</li><li>Secure the server with password <code>password</code> wherever possible.</li></ol>",
+  "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`password`"+` wherever possible."
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestInstanceV2ToFrontend() {
@@ -1822,15 +1807,14 @@ func (suite *InternalToFrontendTestSuite) TestInstanceV2ToFrontend() {
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(instance, "", "  ")
-	suite.NoError(err)
+	out := testrig.MustJSONString(instance)
 
 	// The VAPID public key changes from run to run.
 	vapidKeyPair, err := suite.db.GetVAPIDKeyPair(ctx)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
-	s := strings.Replace(string(b), vapidKeyPair.Public, "VAPID_PUBLIC_KEY_PLACEHOLDER", 1)
+	s := strings.Replace(out, vapidKeyPair.Public, "VAPID_PUBLIC_KEY_PLACEHOLDER", 1)
 
 	suite.Equal(`{
   "domain": "localhost:8080",
@@ -1838,7 +1822,7 @@ func (suite *InternalToFrontendTestSuite) TestInstanceV2ToFrontend() {
   "title": "GoToSocial Testrig Instance",
   "version": "0.0.0-testrig",
   "source_url": "https://codeberg.org/superseriousbusiness/gotosocial",
-  "description": "\u003cp\u003eHere's a fuller description of the GoToSocial testrig instance.\u003c/p\u003e\u003cp\u003eThis instance is for testing purposes only. It doesn't federate at all. Go check out \u003ca href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003ehttps://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\u003c/a\u003e and \u003ca href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003ehttps://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\u003c/a\u003e\u003c/p\u003e\u003cp\u003eUsers on this instance:\u003c/p\u003e\u003cul\u003e\u003cli\u003e\u003cspan class=\"h-card\"\u003e\u003ca href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e@\u003cspan\u003eadmin\u003c/span\u003e\u003c/a\u003e\u003c/span\u003e (admin!).\u003c/li\u003e\u003cli\u003e\u003cspan class=\"h-card\"\u003e\u003ca href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e@\u003cspan\u003e1happyturtle\u003c/span\u003e\u003c/a\u003e\u003c/span\u003e (posts about turtles, we don't know why).\u003c/li\u003e\u003cli\u003e\u003cspan class=\"h-card\"\u003e\u003ca href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e@\u003cspan\u003ethe_mighty_zork\u003c/span\u003e\u003c/a\u003e\u003c/span\u003e (who knows).\u003c/li\u003e\u003c/ul\u003e\u003cp\u003eIf you need to edit the models for the testrig, you can do so at \u003ccode\u003einternal/testmodels.go\u003c/code\u003e.\u003c/p\u003e",
+  "description": "<p>Here's a fuller description of the GoToSocial testrig instance.</p><p>This instance is for testing purposes only. It doesn't federate at all. Go check out <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig</a> and <a href=\"https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing</a></p><p>Users on this instance:</p><ul><li><span class=\"h-card\"><a href=\"http://localhost:8080/@admin\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>admin</span></a></span> (admin!).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span> (posts about turtles, we don't know why).</li><li><span class=\"h-card\"><a href=\"http://localhost:8080/@the_mighty_zork\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>the_mighty_zork</span></a></span> (who knows).</li></ul><p>If you need to edit the models for the testrig, you can do so at <code>internal/testmodels.go</code>.</p>",
   "description_text": "Here's a fuller description of the GoToSocial testrig instance.\n\nThis instance is for testing purposes only. It doesn't federate at all. Go check out https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/testrig and https://codeberg.org/superseriousbusiness/gotosocial/src/branch/main/CONTRIBUTING.md#testing\n\nUsers on this instance:\n\n- @admin (admin!).\n- @1happyturtle (posts about turtles, we don't know why).\n- @the_mighty_zork (who knows).\n\nIf you need to edit the models for the testrig, you can do so at `+"`"+`internal/testmodels.go`+"`"+`.",
   "usage": {
     "users": {
@@ -1975,34 +1959,34 @@ func (suite *InternalToFrontendTestSuite) TestInstanceV2ToFrontend() {
       "text": "Do crime"
     }
   ],
-  "terms": "\u003cp\u003eThis is where a list of terms and conditions might go.\u003c/p\u003e\u003cp\u003eFor example:\u003c/p\u003e\u003cp\u003eIf you want to sign up on this instance, you oughta know that we:\u003c/p\u003e\u003col\u003e\u003cli\u003eWill sell your data to whoever offers.\u003c/li\u003e\u003cli\u003eSecure the server with password \u003ccode\u003epassword\u003c/code\u003e wherever possible.\u003c/li\u003e\u003c/ol\u003e",
+  "terms": "<p>This is where a list of terms and conditions might go.</p><p>For example:</p><p>If you want to sign up on this instance, you oughta know that we:</p><ol><li>Will sell your data to whoever offers.</li><li>Secure the server with password <code>password</code> wherever possible.</li></ol>",
   "terms_text": "This is where a list of terms and conditions might go.\n\nFor example:\n\nIf you want to sign up on this instance, you oughta know that we:\n\n1. Will sell your data to whoever offers.\n2. Secure the server with password `+"`"+`password`+"`"+` wherever possible."
 }`, s)
 }
 
 func (suite *InternalToFrontendTestSuite) TestEmojiToFrontend() {
 	emoji, err := suite.typeconverter.EmojiToAPIEmoji(suite.T().Context(), suite.testEmojis["rainbow"])
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(emoji, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(emoji)
 	suite.Equal(`{
   "shortcode": "rainbow",
   "url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/original/01F8MH9H8E4VG3KDYJR9EGPXCQ.png",
   "static_url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/static/01F8MH9H8E4VG3KDYJR9EGPXCQ.png",
   "visible_in_picker": true,
   "category": "reactions"
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestEmojiToFrontendAdmin1() {
 	emoji, err := suite.typeconverter.EmojiToAdminAPIEmoji(suite.T().Context(), suite.testEmojis["rainbow"])
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(emoji, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(emoji)
 	suite.Equal(`{
   "shortcode": "rainbow",
   "url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/original/01F8MH9H8E4VG3KDYJR9EGPXCQ.png",
@@ -2015,16 +1999,16 @@ func (suite *InternalToFrontendTestSuite) TestEmojiToFrontendAdmin1() {
   "total_file_size": 42794,
   "content_type": "image/png",
   "uri": "http://localhost:8080/emoji/01F8MH9H8E4VG3KDYJR9EGPXCQ"
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestEmojiToFrontendAdmin2() {
 	emoji, err := suite.typeconverter.EmojiToAdminAPIEmoji(suite.T().Context(), suite.testEmojis["yell"])
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(emoji, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(emoji)
 	suite.Equal(`{
   "shortcode": "yell",
   "url": "http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/original/01GD5KP5CQEE1R3X43Y1EHS2CW.png",
@@ -2037,16 +2021,16 @@ func (suite *InternalToFrontendTestSuite) TestEmojiToFrontendAdmin2() {
   "total_file_size": 19854,
   "content_type": "image/png",
   "uri": "http://fossbros-anonymous.io/emoji/01GD5KP5CQEE1R3X43Y1EHS2CW"
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestReportToFrontend1() {
 	report, err := suite.typeconverter.ReportToAPIReport(suite.T().Context(), suite.testReports["local_account_2_report_remote_account_1"])
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(report, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(report)
 	suite.Equal(`{
   "id": "01GP3AWY4CRDVRNZKW0TEAMB5R",
   "created_at": "2022-05-14T10:20:03.000Z",
@@ -2089,16 +2073,16 @@ func (suite *InternalToFrontendTestSuite) TestReportToFrontend1() {
     "fields": [],
     "group": false
   }
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestReportToFrontend2() {
 	report, err := suite.typeconverter.ReportToAPIReport(suite.T().Context(), suite.testReports["remote_account_1_report_local_account_2"])
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(report, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(report)
 	suite.Equal(`{
   "id": "01GP3DFY9XQ1TJMZT5BGAZPXX7",
   "created_at": "2022-05-15T14:20:12.000Z",
@@ -2121,7 +2105,7 @@ func (suite *InternalToFrontendTestSuite) TestReportToFrontend2() {
     "noindex": true,
     "bot": false,
     "created_at": "2022-06-04T13:12:00.000Z",
-    "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+    "note": "<p>i post about things that concern me</p>",
     "url": "http://localhost:8080/@1happyturtle",
     "avatar": "",
     "avatar_static": "",
@@ -2148,17 +2132,17 @@ func (suite *InternalToFrontendTestSuite) TestReportToFrontend2() {
     "hide_collections": true,
     "group": false
   }
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontend1() {
 	requestingAccount := suite.testAccounts["admin_account"]
 	adminReport, err := suite.typeconverter.ReportToAdminAPIReport(suite.T().Context(), suite.testReports["remote_account_1_report_local_account_2"], requestingAccount)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(adminReport, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(adminReport)
 	suite.Equal(`{
   "id": "01GP3DFY9XQ1TJMZT5BGAZPXX7",
   "action_taken": true,
@@ -2250,7 +2234,7 @@ func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontend1() {
       "noindex": true,
       "bot": false,
       "created_at": "2022-06-04T13:12:00.000Z",
-      "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+      "note": "<p>i post about things that concern me</p>",
       "url": "http://localhost:8080/@1happyturtle",
       "avatar": "",
       "avatar_static": "",
@@ -2398,17 +2382,17 @@ func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontend1() {
   "statuses": [],
   "rules": [],
   "action_taken_comment": "user was warned not to be a turtle anymore"
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontend2() {
 	requestingAccount := suite.testAccounts["admin_account"]
 	adminReport, err := suite.typeconverter.ReportToAdminAPIReport(suite.T().Context(), suite.testReports["local_account_2_report_remote_account_1"], requestingAccount)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(adminReport, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(adminReport)
 	suite.Equal(`{
   "id": "01GP3AWY4CRDVRNZKW0TEAMB5R",
   "action_taken": false,
@@ -2451,7 +2435,7 @@ func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontend2() {
       "noindex": true,
       "bot": false,
       "created_at": "2022-06-04T13:12:00.000Z",
-      "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+      "note": "<p>i post about things that concern me</p>",
       "url": "http://localhost:8080/@1happyturtle",
       "avatar": "",
       "avatar_static": "",
@@ -2552,7 +2536,7 @@ func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontend2() {
       "muted": false,
       "bookmarked": false,
       "pinned": false,
-      "content": "\u003cp\u003edark souls status bot: \"thoughts of dog\"\u003c/p\u003e",
+      "content": "<p>dark souls status bot: \"thoughts of dog\"</p>",
       "reblog": null,
       "account": {
         "id": "01F8MH5ZK5VRH73AKHQM6Y9VNX",
@@ -2652,7 +2636,7 @@ func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontend2() {
     }
   ],
   "action_taken_comment": null
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontendSuspendedLocalAccount() {
@@ -2680,11 +2664,11 @@ func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontendSuspendedLoca
 	}
 
 	adminReport, err := suite.typeconverter.ReportToAdminAPIReport(suite.T().Context(), suite.testReports["remote_account_1_report_local_account_2"], requestingAccount)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(adminReport, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(adminReport)
 	suite.Equal(`{
   "id": "01GP3DFY9XQ1TJMZT5BGAZPXX7",
   "action_taken": true,
@@ -2913,7 +2897,7 @@ func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontendSuspendedLoca
   "statuses": [],
   "rules": [],
   "action_taken_comment": "user was warned not to be a turtle anymore"
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestRelationshipFollowRequested() {
@@ -2947,11 +2931,7 @@ func (suite *InternalToFrontendTestSuite) TestRelationshipFollowRequested() {
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(relationship, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONString(relationship)
 	suite.Equal(`{
   "id": "01F8MH5NBDF2MV7CTC4Q5128HF",
   "following": false,
@@ -2967,7 +2947,7 @@ func (suite *InternalToFrontendTestSuite) TestRelationshipFollowRequested() {
   "domain_blocking": false,
   "endorsed": false,
   "note": ""
-}`, string(b))
+}`, out)
 
 	// Check relationship from the other side too.
 	dbRelationship, err = suite.state.DB.GetRelationship(ctx, account2.ID, account1.ID)
@@ -2981,11 +2961,7 @@ func (suite *InternalToFrontendTestSuite) TestRelationshipFollowRequested() {
 		suite.FailNow(err.Error())
 	}
 
-	b, err = json.MarshalIndent(relationship, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out = testrig.MustJSONString(relationship)
 	suite.Equal(`{
   "id": "01F8MH17FWEB39HZJ76B6VXSKF",
   "following": false,
@@ -3001,7 +2977,7 @@ func (suite *InternalToFrontendTestSuite) TestRelationshipFollowRequested() {
   "domain_blocking": false,
   "endorsed": false,
   "note": ""
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestIntReqToAPI() {
@@ -3015,11 +2991,7 @@ func (suite *InternalToFrontendTestSuite) TestIntReqToAPI() {
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(adminReport, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONString(adminReport)
 	suite.Equal(`{
   "id": "01J5QVXCCEATJYSXM9H6MZT4JR",
   "type": "reply",
@@ -3078,7 +3050,7 @@ func (suite *InternalToFrontendTestSuite) TestIntReqToAPI() {
     "muted": false,
     "bookmarked": false,
     "pinned": false,
-    "content": "\u003cp\u003e🐢 i don't mind people sharing and liking this one but I want to moderate replies to it 🐢\u003c/p\u003e",
+    "content": "<p>🐢 i don't mind people sharing and liking this one but I want to moderate replies to it 🐢</p>",
     "reblog": null,
     "application": {
       "name": "kindaweird",
@@ -3095,7 +3067,7 @@ func (suite *InternalToFrontendTestSuite) TestIntReqToAPI() {
       "noindex": true,
       "bot": false,
       "created_at": "2022-06-04T13:12:00.000Z",
-      "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+      "note": "<p>i post about things that concern me</p>",
       "url": "http://localhost:8080/@1happyturtle",
       "avatar": "",
       "avatar_static": "",
@@ -3176,7 +3148,7 @@ func (suite *InternalToFrontendTestSuite) TestIntReqToAPI() {
     "muted": false,
     "bookmarked": false,
     "pinned": false,
-    "content": "\u003cp\u003eHi \u003cspan class=\"h-card\"\u003e\u003ca href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\"\u003e@\u003cspan\u003e1happyturtle\u003c/span\u003e\u003c/a\u003e\u003c/span\u003e, can I reply?\u003c/p\u003e",
+    "content": "<p>Hi <span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span>, can I reply?</p>",
     "reblog": null,
     "application": {
       "name": "superseriousbusiness",
@@ -3255,7 +3227,7 @@ func (suite *InternalToFrontendTestSuite) TestIntReqToAPI() {
       }
     }
   }
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestConversationToAPISelfConvo() {
@@ -3285,13 +3257,9 @@ func (suite *InternalToFrontendTestSuite) TestConversationToAPISelfConvo() {
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(apiConvo, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
 	// No other accounts involved, so we should only
 	// have our own account in the "accounts" field.
+	out := testrig.MustJSONString(apiConvo)
 	suite.Equal(`{
   "id": "01J9C6K86PKZ5GY5WXV94DGH6R",
   "unread": false,
@@ -3307,7 +3275,7 @@ func (suite *InternalToFrontendTestSuite) TestConversationToAPISelfConvo() {
       "noindex": false,
       "bot": false,
       "created_at": "2022-05-20T11:09:18.000Z",
-      "note": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+      "note": "<p>hey yo this is my profile!</p>",
       "url": "http://localhost:8080/@the_mighty_zork",
       "avatar": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/original/01F8MH58A357CV5K7R7TJMSH6S.jpg",
       "avatar_static": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/small/01F8MH58A357CV5K7R7TJMSH6S.webp",
@@ -3347,7 +3315,7 @@ func (suite *InternalToFrontendTestSuite) TestConversationToAPISelfConvo() {
     "muted": false,
     "bookmarked": false,
     "pinned": false,
-    "content": "\u003cp\u003ehello everyone!\u003c/p\u003e",
+    "content": "<p>hello everyone!</p>",
     "reblog": null,
     "application": {
       "name": "really cool gts application",
@@ -3364,7 +3332,7 @@ func (suite *InternalToFrontendTestSuite) TestConversationToAPISelfConvo() {
       "noindex": false,
       "bot": false,
       "created_at": "2022-05-20T11:09:18.000Z",
-      "note": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+      "note": "<p>hey yo this is my profile!</p>",
       "url": "http://localhost:8080/@the_mighty_zork",
       "avatar": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/original/01F8MH58A357CV5K7R7TJMSH6S.jpg",
       "avatar_static": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/small/01F8MH58A357CV5K7R7TJMSH6S.webp",
@@ -3415,7 +3383,7 @@ func (suite *InternalToFrontendTestSuite) TestConversationToAPISelfConvo() {
       }
     }
   }
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestConversationToAPI() {
@@ -3447,13 +3415,9 @@ func (suite *InternalToFrontendTestSuite) TestConversationToAPI() {
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(apiConvo, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
 	// One other account is involved, so they
 	// should in the "accounts" field and not us.
+	out := testrig.MustJSONString(apiConvo)
 	suite.Equal(`{
   "id": "01J9C6K86PKZ5GY5WXV94DGH6R",
   "unread": true,
@@ -3469,7 +3433,7 @@ func (suite *InternalToFrontendTestSuite) TestConversationToAPI() {
       "noindex": true,
       "bot": false,
       "created_at": "2022-06-04T13:12:00.000Z",
-      "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
+      "note": "<p>i post about things that concern me</p>",
       "url": "http://localhost:8080/@1happyturtle",
       "avatar": "",
       "avatar_static": "",
@@ -3517,7 +3481,7 @@ func (suite *InternalToFrontendTestSuite) TestConversationToAPI() {
     "muted": false,
     "bookmarked": false,
     "pinned": false,
-    "content": "\u003cp\u003ehello everyone!\u003c/p\u003e",
+    "content": "<p>hello everyone!</p>",
     "reblog": null,
     "application": {
       "name": "really cool gts application",
@@ -3534,7 +3498,7 @@ func (suite *InternalToFrontendTestSuite) TestConversationToAPI() {
       "noindex": false,
       "bot": false,
       "created_at": "2022-05-20T11:09:18.000Z",
-      "note": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+      "note": "<p>hey yo this is my profile!</p>",
       "url": "http://localhost:8080/@the_mighty_zork",
       "avatar": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/original/01F8MH58A357CV5K7R7TJMSH6S.jpg",
       "avatar_static": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/small/01F8MH58A357CV5K7R7TJMSH6S.webp",
@@ -3585,7 +3549,7 @@ func (suite *InternalToFrontendTestSuite) TestConversationToAPI() {
       }
     }
   }
-}`, string(b))
+}`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestStatusToAPIEdits() {
@@ -3595,235 +3559,239 @@ func (suite *InternalToFrontendTestSuite) TestStatusToAPIEdits() {
 	statusID := suite.testStatuses["local_account_2_status_9"].ID
 
 	status, err := suite.state.DB.GetStatusByID(ctx, statusID)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
 	err = suite.state.DB.PopulateStatusEdits(ctx, status)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
 	apiEdits, err := suite.typeconverter.StatusToEditHistory(ctx, status)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(apiEdits, "", "    ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(apiEdits)
 	suite.Equal(`[
-    {
-        "content": "\u003cp\u003ethis is the original status\u003c/p\u003e",
-        "spoiler_text": "",
-        "sensitive": false,
-        "created_at": "2024-11-01T08:00:00.000Z",
-        "account": {
-            "id": "01F8MH5NBDF2MV7CTC4Q5128HF",
-            "username": "1happyturtle",
-            "acct": "1happyturtle",
-            "display_name": "happy little turtle :3",
-            "locked": true,
-            "discoverable": false,
-            "indexable": false,
-            "noindex": true,
-            "bot": false,
-            "created_at": "2022-06-04T13:12:00.000Z",
-            "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
-            "url": "http://localhost:8080/@1happyturtle",
-            "avatar": "",
-            "avatar_static": "",
-            "header": "http://localhost:8080/assets/default_header.webp",
-            "header_static": "http://localhost:8080/assets/default_header.webp",
-            "header_description": "Flat gray background (default header).",
-            "followers_count": 1,
-            "following_count": 1,
-            "statuses_count": 10,
-            "last_status_at": "2026-01-01",
-            "emojis": [],
-            "fields": [
-                {
-                    "name": "should you follow me?",
-                    "value": "maybe!",
-                    "verified_at": null
-                },
-                {
-                    "name": "age",
-                    "value": "120",
-                    "verified_at": null
-                }
-            ],
-            "hide_collections": true,
-            "group": false
+  {
+    "content": "<p>this is the original status</p>",
+    "spoiler_text": "",
+    "sensitive": false,
+    "created_at": "2024-11-01T08:00:00.000Z",
+    "account": {
+      "id": "01F8MH5NBDF2MV7CTC4Q5128HF",
+      "username": "1happyturtle",
+      "acct": "1happyturtle",
+      "display_name": "happy little turtle :3",
+      "locked": true,
+      "discoverable": false,
+      "indexable": false,
+      "noindex": true,
+      "bot": false,
+      "created_at": "2022-06-04T13:12:00.000Z",
+      "note": "<p>i post about things that concern me</p>",
+      "url": "http://localhost:8080/@1happyturtle",
+      "avatar": "",
+      "avatar_static": "",
+      "header": "http://localhost:8080/assets/default_header.webp",
+      "header_static": "http://localhost:8080/assets/default_header.webp",
+      "header_description": "Flat gray background (default header).",
+      "followers_count": 1,
+      "following_count": 1,
+      "statuses_count": 10,
+      "last_status_at": "2026-01-01",
+      "emojis": [],
+      "fields": [
+        {
+          "name": "should you follow me?",
+          "value": "maybe!",
+          "verified_at": null
         },
-        "poll": null,
-        "media_attachments": [],
-        "emojis": []
+        {
+          "name": "age",
+          "value": "120",
+          "verified_at": null
+        }
+      ],
+      "hide_collections": true,
+      "group": false
     },
-    {
-        "content": "\u003cp\u003enow edited to have some media!\u003c/p\u003e",
-        "spoiler_text": "edit with media attachments",
-        "sensitive": true,
-        "created_at": "2024-11-01T08:01:00.000Z",
-        "account": {
-            "id": "01F8MH5NBDF2MV7CTC4Q5128HF",
-            "username": "1happyturtle",
-            "acct": "1happyturtle",
-            "display_name": "happy little turtle :3",
-            "locked": true,
-            "discoverable": false,
-            "indexable": false,
-            "noindex": true,
-            "bot": false,
-            "created_at": "2022-06-04T13:12:00.000Z",
-            "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
-            "url": "http://localhost:8080/@1happyturtle",
-            "avatar": "",
-            "avatar_static": "",
-            "header": "http://localhost:8080/assets/default_header.webp",
-            "header_static": "http://localhost:8080/assets/default_header.webp",
-            "header_description": "Flat gray background (default header).",
-            "followers_count": 1,
-            "following_count": 1,
-            "statuses_count": 10,
-            "last_status_at": "2026-01-01",
-            "emojis": [],
-            "fields": [
-                {
-                    "name": "should you follow me?",
-                    "value": "maybe!",
-                    "verified_at": null
-                },
-                {
-                    "name": "age",
-                    "value": "120",
-                    "verified_at": null
-                }
-            ],
-            "hide_collections": true,
-            "group": false
+    "poll": null,
+    "media_attachments": [],
+    "emojis": []
+  },
+  {
+    "content": "<p>now edited to have some media!</p>",
+    "spoiler_text": "edit with media attachments",
+    "sensitive": true,
+    "created_at": "2024-11-01T08:01:00.000Z",
+    "account": {
+      "id": "01F8MH5NBDF2MV7CTC4Q5128HF",
+      "username": "1happyturtle",
+      "acct": "1happyturtle",
+      "display_name": "happy little turtle :3",
+      "locked": true,
+      "discoverable": false,
+      "indexable": false,
+      "noindex": true,
+      "bot": false,
+      "created_at": "2022-06-04T13:12:00.000Z",
+      "note": "<p>i post about things that concern me</p>",
+      "url": "http://localhost:8080/@1happyturtle",
+      "avatar": "",
+      "avatar_static": "",
+      "header": "http://localhost:8080/assets/default_header.webp",
+      "header_static": "http://localhost:8080/assets/default_header.webp",
+      "header_description": "Flat gray background (default header).",
+      "followers_count": 1,
+      "following_count": 1,
+      "statuses_count": 10,
+      "last_status_at": "2026-01-01",
+      "emojis": [],
+      "fields": [
+        {
+          "name": "should you follow me?",
+          "value": "maybe!",
+          "verified_at": null
         },
-        "poll": null,
-        "media_attachments": [
-            {
-                "id": "01JDQ164HM08SGJ7ZEK9003Z4B",
-                "type": "unknown",
-                "url": null,
-                "text_url": null,
-                "preview_url": null,
-                "remote_url": "http://example.org/fileserver/01HE7Y659ZWZ02JM4AWYJZ176Q/attachment/original/01HE892Y8ZS68TQCNPX7J888P3.mp3",
-                "preview_remote_url": null,
-                "meta": null,
-                "description": "Jolly salsa song, public domain.",
-                "blurhash": null,
-                "error": "unsupported media type"
-            }
-        ],
-        "emojis": []
+        {
+          "name": "age",
+          "value": "120",
+          "verified_at": null
+        }
+      ],
+      "hide_collections": true,
+      "group": false
     },
-    {
-        "content": "\u003cp\u003enow edited to remove the media\u003c/p\u003e",
-        "spoiler_text": "edit missing previous media attachments",
-        "sensitive": false,
-        "created_at": "2024-11-01T08:02:00.000Z",
-        "account": {
-            "id": "01F8MH5NBDF2MV7CTC4Q5128HF",
-            "username": "1happyturtle",
-            "acct": "1happyturtle",
-            "display_name": "happy little turtle :3",
-            "locked": true,
-            "discoverable": false,
-            "indexable": false,
-            "noindex": true,
-            "bot": false,
-            "created_at": "2022-06-04T13:12:00.000Z",
-            "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
-            "url": "http://localhost:8080/@1happyturtle",
-            "avatar": "",
-            "avatar_static": "",
-            "header": "http://localhost:8080/assets/default_header.webp",
-            "header_static": "http://localhost:8080/assets/default_header.webp",
-            "header_description": "Flat gray background (default header).",
-            "followers_count": 1,
-            "following_count": 1,
-            "statuses_count": 10,
-            "last_status_at": "2026-01-01",
-            "emojis": [],
-            "fields": [
-                {
-                    "name": "should you follow me?",
-                    "value": "maybe!",
-                    "verified_at": null
-                },
-                {
-                    "name": "age",
-                    "value": "120",
-                    "verified_at": null
-                }
-            ],
-            "hide_collections": true,
-            "group": false
+    "poll": null,
+    "media_attachments": [
+      {
+        "id": "01JDQ164HM08SGJ7ZEK9003Z4B",
+        "type": "unknown",
+        "url": null,
+        "text_url": null,
+        "preview_url": null,
+        "remote_url": "http://example.org/fileserver/01HE7Y659ZWZ02JM4AWYJZ176Q/attachment/original/01HE892Y8ZS68TQCNPX7J888P3.mp3",
+        "preview_remote_url": null,
+        "meta": null,
+        "description": "Jolly salsa song, public domain.",
+        "blurhash": null,
+        "error": "unsupported media type"
+      }
+    ],
+    "emojis": []
+  },
+  {
+    "content": "<p>now edited to remove the media</p>",
+    "spoiler_text": "edit missing previous media attachments",
+    "sensitive": false,
+    "created_at": "2024-11-01T08:02:00.000Z",
+    "account": {
+      "id": "01F8MH5NBDF2MV7CTC4Q5128HF",
+      "username": "1happyturtle",
+      "acct": "1happyturtle",
+      "display_name": "happy little turtle :3",
+      "locked": true,
+      "discoverable": false,
+      "indexable": false,
+      "noindex": true,
+      "bot": false,
+      "created_at": "2022-06-04T13:12:00.000Z",
+      "note": "<p>i post about things that concern me</p>",
+      "url": "http://localhost:8080/@1happyturtle",
+      "avatar": "",
+      "avatar_static": "",
+      "header": "http://localhost:8080/assets/default_header.webp",
+      "header_static": "http://localhost:8080/assets/default_header.webp",
+      "header_description": "Flat gray background (default header).",
+      "followers_count": 1,
+      "following_count": 1,
+      "statuses_count": 10,
+      "last_status_at": "2026-01-01",
+      "emojis": [],
+      "fields": [
+        {
+          "name": "should you follow me?",
+          "value": "maybe!",
+          "verified_at": null
         },
-        "poll": null,
-        "media_attachments": [],
-        "emojis": []
+        {
+          "name": "age",
+          "value": "120",
+          "verified_at": null
+        }
+      ],
+      "hide_collections": true,
+      "group": false
     },
-    {
-        "content": "\u003cp\u003enow edited to bring back the previous edit's media!\u003c/p\u003e",
-        "spoiler_text": "edit with media attachments",
-        "sensitive": false,
-        "created_at": "2024-11-01T08:03:00.000Z",
-        "account": {
-            "id": "01F8MH5NBDF2MV7CTC4Q5128HF",
-            "username": "1happyturtle",
-            "acct": "1happyturtle",
-            "display_name": "happy little turtle :3",
-            "locked": true,
-            "discoverable": false,
-            "indexable": false,
-            "noindex": true,
-            "bot": false,
-            "created_at": "2022-06-04T13:12:00.000Z",
-            "note": "\u003cp\u003ei post about things that concern me\u003c/p\u003e",
-            "url": "http://localhost:8080/@1happyturtle",
-            "avatar": "",
-            "avatar_static": "",
-            "header": "http://localhost:8080/assets/default_header.webp",
-            "header_static": "http://localhost:8080/assets/default_header.webp",
-            "header_description": "Flat gray background (default header).",
-            "followers_count": 1,
-            "following_count": 1,
-            "statuses_count": 10,
-            "last_status_at": "2026-01-01",
-            "emojis": [],
-            "fields": [
-                {
-                    "name": "should you follow me?",
-                    "value": "maybe!",
-                    "verified_at": null
-                },
-                {
-                    "name": "age",
-                    "value": "120",
-                    "verified_at": null
-                }
-            ],
-            "hide_collections": true,
-            "group": false
+    "poll": null,
+    "media_attachments": [],
+    "emojis": []
+  },
+  {
+    "content": "<p>now edited to bring back the previous edit's media!</p>",
+    "spoiler_text": "edit with media attachments",
+    "sensitive": false,
+    "created_at": "2024-11-01T08:03:00.000Z",
+    "account": {
+      "id": "01F8MH5NBDF2MV7CTC4Q5128HF",
+      "username": "1happyturtle",
+      "acct": "1happyturtle",
+      "display_name": "happy little turtle :3",
+      "locked": true,
+      "discoverable": false,
+      "indexable": false,
+      "noindex": true,
+      "bot": false,
+      "created_at": "2022-06-04T13:12:00.000Z",
+      "note": "<p>i post about things that concern me</p>",
+      "url": "http://localhost:8080/@1happyturtle",
+      "avatar": "",
+      "avatar_static": "",
+      "header": "http://localhost:8080/assets/default_header.webp",
+      "header_static": "http://localhost:8080/assets/default_header.webp",
+      "header_description": "Flat gray background (default header).",
+      "followers_count": 1,
+      "following_count": 1,
+      "statuses_count": 10,
+      "last_status_at": "2026-01-01",
+      "emojis": [],
+      "fields": [
+        {
+          "name": "should you follow me?",
+          "value": "maybe!",
+          "verified_at": null
         },
-        "poll": null,
-        "media_attachments": [
-            {
-                "id": "01JDQ164HM08SGJ7ZEK9003Z4B",
-                "type": "unknown",
-                "url": null,
-                "text_url": null,
-                "preview_url": null,
-                "remote_url": "http://example.org/fileserver/01HE7Y659ZWZ02JM4AWYJZ176Q/attachment/original/01HE892Y8ZS68TQCNPX7J888P3.mp3",
-                "preview_remote_url": null,
-                "meta": null,
-                "description": "Jolly salsa song, public domain.",
-                "blurhash": null,
-                "error": "unsupported media type"
-            }
-        ],
-        "emojis": []
-    }
-]`, string(b))
+        {
+          "name": "age",
+          "value": "120",
+          "verified_at": null
+        }
+      ],
+      "hide_collections": true,
+      "group": false
+    },
+    "poll": null,
+    "media_attachments": [
+      {
+        "id": "01JDQ164HM08SGJ7ZEK9003Z4B",
+        "type": "unknown",
+        "url": null,
+        "text_url": null,
+        "preview_url": null,
+        "remote_url": "http://example.org/fileserver/01HE7Y659ZWZ02JM4AWYJZ176Q/attachment/original/01HE892Y8ZS68TQCNPX7J888P3.mp3",
+        "preview_remote_url": null,
+        "meta": null,
+        "description": "Jolly salsa song, public domain.",
+        "blurhash": null,
+        "error": "unsupported media type"
+      }
+    ],
+    "emojis": []
+  }
+]`, out)
 }
 
 func (suite *InternalToFrontendTestSuite) TestDomainLimitToAPIDomainLimit() {
@@ -3834,22 +3802,20 @@ func (suite *InternalToFrontendTestSuite) TestDomainLimitToAPIDomainLimit() {
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(apiDomainLimit, "", "    ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(apiDomainLimit)
 	suite.Equal(`{
-    "id": "01K8TE4ES467FGYGRKVPDM6RF6",
-    "domain": "fossbros-anonymous.io",
-    "media_policy": "mark_sensitive",
-    "follows_policy": "reject_non_mutual",
-    "statuses_policy": "filter_warn",
-    "accounts_policy": "no_action",
-    "content_warning": "potentially annoying post ahead",
-    "public_comment": "they're kind of annoying",
-    "private_comment": "they're actually really annoying I just wanna be coy about it",
-    "created_by": "01F8MH17FWEB39HZJ76B6VXSKF",
-    "created_at": "2025-10-30T11:30:32.868Z"
-}`, string(b))
+  "id": "01K8TE4ES467FGYGRKVPDM6RF6",
+  "domain": "fossbros-anonymous.io",
+  "media_policy": "mark_sensitive",
+  "follows_policy": "reject_non_mutual",
+  "statuses_policy": "filter_warn",
+  "accounts_policy": "no_action",
+  "content_warning": "potentially annoying post ahead",
+  "public_comment": "they're kind of annoying",
+  "private_comment": "they're actually really annoying I just wanna be coy about it",
+  "created_by": "01F8MH17FWEB39HZJ76B6VXSKF",
+  "created_at": "2025-10-30T11:30:32.868Z"
+}`, out)
 }
 
 func TestInternalToFrontendTestSuite(t *testing.T) {

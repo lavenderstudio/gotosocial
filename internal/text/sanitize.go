@@ -19,7 +19,9 @@ package text
 
 import (
 	"regexp"
+	"strings"
 
+	"code.superseriousbusiness.org/gopkg/log"
 	"github.com/microcosm-cc/bluemonday"
 )
 
@@ -177,5 +179,17 @@ var strict *bluemonday.Policy = bluemonday.StrictPolicy()
 //
 // It returns an HTML string.
 func SanitizeHTML(html string) string {
-	return regular.Sanitize(html)
+	return sanitize(regular, html)
+}
+
+func sanitize(policy *bluemonday.Policy, in string) string {
+	buf := bufpool.Get()
+	err := policy.SanitizeReaderToWriter(strings.NewReader(in), buf)
+	if err != nil {
+		log.Errorf(nil, "error sanitizing: %v", err)
+		buf.B = buf.B[:0]
+	}
+	str := string(buf.B)
+	bufpool.Put(buf)
+	return str
 }

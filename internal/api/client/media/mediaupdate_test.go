@@ -21,11 +21,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	mediamodule "code.superseriousbusiness.org/gotosocial/internal/api/client/media"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
@@ -103,7 +104,7 @@ func (suite *MediaUpdateTestSuite) SetupTest() {
 	)
 
 	// setup module being tested
-	suite.mediaModule = mediamodule.New(suite.processor)
+	suite.mediaModule = mediamodule.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 
 	// setup test data
 	suite.testTokens = testrig.NewTestTokens()
@@ -126,16 +127,6 @@ func (suite *MediaUpdateTestSuite) TearDownTest() {
 func (suite *MediaUpdateTestSuite) TestUpdateImage() {
 	toUpdate := suite.testAttachments["local_account_1_unattached_1"]
 
-	// set up the context for the request
-	t := suite.testTokens["local_account_1"]
-	oauthToken := oauth.DBTokenToToken(t)
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-
 	// create the request
 	buf, w, err := testrig.CreateMultipartFormData(nil, map[string][]string{
 		"id":          {toUpdate.ID},
@@ -145,21 +136,32 @@ func (suite *MediaUpdateTestSuite) TestUpdateImage() {
 	if err != nil {
 		panic(err)
 	}
-	ctx.Request = httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:8080/api/v1/media/%s", toUpdate.ID), bytes.NewReader(buf.Bytes())) // the endpoint we're hitting
-	ctx.Request.Header.Set("Content-Type", w.FormDataContentType())
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.AddParam(apiutil.APIVersionKey, apiutil.APIv1)
-	ctx.AddParam(mediamodule.IDKey, toUpdate.ID)
+	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:8080/api/v1/media/%s", toUpdate.ID), bytes.NewReader(buf.Bytes())) // the endpoint we're hitting
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("accept", "application/json")
+
+	// set up the context for the request
+	t := suite.testTokens["local_account_1"]
+	oauthToken := oauth.DBTokenToToken(t)
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+
+	c.SetPathValue(apiutil.APIVersionKey, apiutil.APIv1)
+	c.SetPathValue(apiutil.IDKey, toUpdate.ID)
 
 	// do the actual request
-	suite.mediaModule.MediaPUTHandler(ctx)
+	suite.mediaModule.MediaPUTHandler(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	// reply should be an attachment
@@ -187,16 +189,6 @@ func (suite *MediaUpdateTestSuite) TestUpdateImageShortDescription() {
 
 	toUpdate := suite.testAttachments["local_account_1_unattached_1"]
 
-	// set up the context for the request
-	t := suite.testTokens["local_account_1"]
-	oauthToken := oauth.DBTokenToToken(t)
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-
 	// create the request
 	buf, w, err := testrig.CreateMultipartFormData(nil, map[string][]string{
 		"id":          {toUpdate.ID},
@@ -206,21 +198,32 @@ func (suite *MediaUpdateTestSuite) TestUpdateImageShortDescription() {
 	if err != nil {
 		panic(err)
 	}
-	ctx.Request = httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:8080/api/v1/media/%s", toUpdate.ID), bytes.NewReader(buf.Bytes())) // the endpoint we're hitting
-	ctx.Request.Header.Set("Content-Type", w.FormDataContentType())
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.AddParam(apiutil.APIVersionKey, apiutil.APIv1)
-	ctx.AddParam(mediamodule.IDKey, toUpdate.ID)
+	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:8080/api/v1/media/%s", toUpdate.ID), bytes.NewReader(buf.Bytes())) // the endpoint we're hitting
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("accept", "application/json")
+
+	// set up the context for the request
+	t := suite.testTokens["local_account_1"]
+	oauthToken := oauth.DBTokenToToken(t)
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+
+	c.SetPathValue(apiutil.APIVersionKey, apiutil.APIv1)
+	c.SetPathValue(apiutil.IDKey, toUpdate.ID)
 
 	// do the actual request
-	suite.mediaModule.MediaPUTHandler(ctx)
+	suite.mediaModule.MediaPUTHandler(c)
 
 	// check response
 	suite.EqualValues(http.StatusBadRequest, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	// reply should be an error message

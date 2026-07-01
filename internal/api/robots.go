@@ -18,19 +18,19 @@
 package api
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/robots"
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/router"
-	"github.com/gin-gonic/gin"
 )
 
 type Robots struct {
 	robots *robots.Module
 }
 
-func (rb *Robots) Route(r *router.Router, m ...gin.HandlerFunc) {
+func (rb *Robots) Route(r *router.Router, m ...httputil.Middleware) {
 	// Create a group so we can attach middlewares.
-	robotsGroup := r.AttachGroup("robots.txt")
+	robotsGroup := r.Group("robots.txt")
 
 	// Use passed-in middlewares.
 	robotsGroup.Use(m...)
@@ -44,7 +44,7 @@ func (rb *Robots) Route(r *router.Router, m ...gin.HandlerFunc) {
 		}),
 	)
 
-	rb.robots.Route(robotsGroup.Handle)
+	rb.robots.Route(robotsGroup)
 }
 
 func NewRobots() *Robots {

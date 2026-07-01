@@ -293,7 +293,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.String("protocol", cfg.Protocol, "Protocol to use for the REST api of the server (only use http if you are debugging; https should be used even if running behind a reverse proxy!)")
 	flags.String("bind-address", cfg.BindAddress, "Bind address to use for the GoToSocial server (eg., 0.0.0.0, 172.138.0.9, [::], localhost). For ipv6, enclose the address in square brackets, eg [2001:db8::fed1]. Default binds to all interfaces.")
 	flags.Int("port", cfg.Port, "Port to use for GoToSocial. Change this to 443 if you're running the binary directly on the host machine.")
-	flags.StringSlice("trusted-proxies", cfg.TrustedProxies, "Proxies to trust when parsing x-forwarded headers into real IPs.")
+	flags.StringSlice("trusted-proxies", cfg.TrustedProxies.Strings(), "Proxies to trust when parsing x-forwarded headers into real IPs.")
 	flags.String("software-version", cfg.SoftwareVersion, "")
 	flags.String("db-type", cfg.DbType, "Database type: eg., postgres")
 	flags.String("db-address", cfg.DbAddress, "Database ipv4 address, hostname, or filename")
@@ -407,8 +407,8 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Duration("http-server-send-ping-timeout", cfg.HTTPServer.SendPingTimeout, "")
 	flags.Duration("http-server-ping-timeout", cfg.HTTPServer.PingTimeout, "")
 	flags.Duration("http-server-write-byte-timeout", cfg.HTTPServer.WriteByteTimeout, "")
-	flags.StringSlice("http-client-allow-ips", cfg.HTTPClient.AllowIPs, "")
-	flags.StringSlice("http-client-block-ips", cfg.HTTPClient.BlockIPs, "")
+	flags.StringSlice("http-client-allow-ips", cfg.HTTPClient.AllowIPs.Strings(), "")
+	flags.StringSlice("http-client-block-ips", cfg.HTTPClient.BlockIPs.Strings(), "")
 	flags.Duration("http-client-timeout", cfg.HTTPClient.Timeout, "")
 	flags.Bool("http-client-tls-insecure-skip-verify", cfg.HTTPClient.TLSInsecureSkipVerify, "")
 	flags.Bool("http-client-insecure-outgoing", cfg.HTTPClient.InsecureOutgoing, "")
@@ -527,7 +527,7 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["protocol"] = cfg.Protocol
 	cfgmap["bind-address"] = cfg.BindAddress
 	cfgmap["port"] = cfg.Port
-	cfgmap["trusted-proxies"] = cfg.TrustedProxies
+	cfgmap["trusted-proxies"] = cfg.TrustedProxies.Strings()
 	cfgmap["software-version"] = cfg.SoftwareVersion
 	cfgmap["db-type"] = cfg.DbType
 	cfgmap["db-address"] = cfg.DbAddress
@@ -641,8 +641,8 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["http-server-send-ping-timeout"] = cfg.HTTPServer.SendPingTimeout
 	cfgmap["http-server-ping-timeout"] = cfg.HTTPServer.PingTimeout
 	cfgmap["http-server-write-byte-timeout"] = cfg.HTTPServer.WriteByteTimeout
-	cfgmap["http-client-allow-ips"] = cfg.HTTPClient.AllowIPs
-	cfgmap["http-client-block-ips"] = cfg.HTTPClient.BlockIPs
+	cfgmap["http-client-allow-ips"] = cfg.HTTPClient.AllowIPs.Strings()
+	cfgmap["http-client-block-ips"] = cfg.HTTPClient.BlockIPs.Strings()
 	cfgmap["http-client-timeout"] = cfg.HTTPClient.Timeout
 	cfgmap["http-client-tls-insecure-skip-verify"] = cfg.HTTPClient.TLSInsecureSkipVerify
 	cfgmap["http-client-insecure-outgoing"] = cfg.HTTPClient.InsecureOutgoing
@@ -874,10 +874,15 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 	}
 
 	if ival, ok := cfgmap["trusted-proxies"]; ok {
-		var err error
-		cfg.TrustedProxies, err = toStringSlice(ival)
+		t, err := toStringSlice(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> []string for 'trusted-proxies': %w", ival, err)
+		}
+		cfg.TrustedProxies = IPPrefixes{}
+		for _, in := range t {
+			if err := cfg.TrustedProxies.Set(in); err != nil {
+				return fmt.Errorf("error parsing %#v for 'trusted-proxies': %w", ival, err)
+			}
 		}
 	}
 
@@ -1840,18 +1845,28 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 	}
 
 	if ival, ok := cfgmap["http-client-allow-ips"]; ok {
-		var err error
-		cfg.HTTPClient.AllowIPs, err = toStringSlice(ival)
+		t, err := toStringSlice(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> []string for 'http-client-allow-ips': %w", ival, err)
+		}
+		cfg.HTTPClient.AllowIPs = IPPrefixes{}
+		for _, in := range t {
+			if err := cfg.HTTPClient.AllowIPs.Set(in); err != nil {
+				return fmt.Errorf("error parsing %#v for 'http-client-allow-ips': %w", ival, err)
+			}
 		}
 	}
 
 	if ival, ok := cfgmap["http-client-block-ips"]; ok {
-		var err error
-		cfg.HTTPClient.BlockIPs, err = toStringSlice(ival)
+		t, err := toStringSlice(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> []string for 'http-client-block-ips': %w", ival, err)
+		}
+		cfg.HTTPClient.BlockIPs = IPPrefixes{}
+		for _, in := range t {
+			if err := cfg.HTTPClient.BlockIPs.Set(in); err != nil {
+				return fmt.Errorf("error parsing %#v for 'http-client-block-ips': %w", ival, err)
+			}
 		}
 	}
 
@@ -3014,21 +3029,21 @@ func GetPort() int { return global.GetPort() }
 func SetPort(v int) { global.SetPort(v) }
 
 // GetTrustedProxies safely fetches the Configuration value for state's 'TrustedProxies' field
-func (st *ConfigState) GetTrustedProxies() (v []string) {
+func (st *ConfigState) GetTrustedProxies() (v IPPrefixes) {
 	return st.config.TrustedProxies
 }
 
 // SetTrustedProxies safely sets the Configuration value for state's 'TrustedProxies' field
-func (st *ConfigState) SetTrustedProxies(v []string) {
+func (st *ConfigState) SetTrustedProxies(v IPPrefixes) {
 	st.config.TrustedProxies = v
 	st.reloadToViper()
 }
 
 // GetTrustedProxies safely fetches the value for global configuration 'TrustedProxies' field
-func GetTrustedProxies() []string { return global.GetTrustedProxies() }
+func GetTrustedProxies() IPPrefixes { return global.GetTrustedProxies() }
 
 // SetTrustedProxies safely sets the value for global configuration 'TrustedProxies' field
-func SetTrustedProxies(v []string) { global.SetTrustedProxies(v) }
+func SetTrustedProxies(v IPPrefixes) { global.SetTrustedProxies(v) }
 
 // GetSoftwareVersion safely fetches the Configuration value for state's 'SoftwareVersion' field
 func (st *ConfigState) GetSoftwareVersion() (v string) {
@@ -5016,38 +5031,38 @@ func GetHTTPServerWriteByteTimeout() time.Duration { return global.GetHTTPServer
 func SetHTTPServerWriteByteTimeout(v time.Duration) { global.SetHTTPServerWriteByteTimeout(v) }
 
 // GetHTTPClientAllowIPs safely fetches the Configuration value for state's 'HTTPClient.AllowIPs' field
-func (st *ConfigState) GetHTTPClientAllowIPs() (v []string) {
+func (st *ConfigState) GetHTTPClientAllowIPs() (v IPPrefixes) {
 	return st.config.HTTPClient.AllowIPs
 }
 
 // SetHTTPClientAllowIPs safely sets the Configuration value for state's 'HTTPClient.AllowIPs' field
-func (st *ConfigState) SetHTTPClientAllowIPs(v []string) {
+func (st *ConfigState) SetHTTPClientAllowIPs(v IPPrefixes) {
 	st.config.HTTPClient.AllowIPs = v
 	st.reloadToViper()
 }
 
 // GetHTTPClientAllowIPs safely fetches the value for global configuration 'HTTPClient.AllowIPs' field
-func GetHTTPClientAllowIPs() []string { return global.GetHTTPClientAllowIPs() }
+func GetHTTPClientAllowIPs() IPPrefixes { return global.GetHTTPClientAllowIPs() }
 
 // SetHTTPClientAllowIPs safely sets the value for global configuration 'HTTPClient.AllowIPs' field
-func SetHTTPClientAllowIPs(v []string) { global.SetHTTPClientAllowIPs(v) }
+func SetHTTPClientAllowIPs(v IPPrefixes) { global.SetHTTPClientAllowIPs(v) }
 
 // GetHTTPClientBlockIPs safely fetches the Configuration value for state's 'HTTPClient.BlockIPs' field
-func (st *ConfigState) GetHTTPClientBlockIPs() (v []string) {
+func (st *ConfigState) GetHTTPClientBlockIPs() (v IPPrefixes) {
 	return st.config.HTTPClient.BlockIPs
 }
 
 // SetHTTPClientBlockIPs safely sets the Configuration value for state's 'HTTPClient.BlockIPs' field
-func (st *ConfigState) SetHTTPClientBlockIPs(v []string) {
+func (st *ConfigState) SetHTTPClientBlockIPs(v IPPrefixes) {
 	st.config.HTTPClient.BlockIPs = v
 	st.reloadToViper()
 }
 
 // GetHTTPClientBlockIPs safely fetches the value for global configuration 'HTTPClient.BlockIPs' field
-func GetHTTPClientBlockIPs() []string { return global.GetHTTPClientBlockIPs() }
+func GetHTTPClientBlockIPs() IPPrefixes { return global.GetHTTPClientBlockIPs() }
 
 // SetHTTPClientBlockIPs safely sets the value for global configuration 'HTTPClient.BlockIPs' field
-func SetHTTPClientBlockIPs(v []string) { global.SetHTTPClientBlockIPs(v) }
+func SetHTTPClientBlockIPs(v IPPrefixes) { global.SetHTTPClientBlockIPs(v) }
 
 // GetHTTPClientTimeout safely fetches the Configuration value for state's 'HTTPClient.Timeout' field
 func (st *ConfigState) GetHTTPClientTimeout() (v time.Duration) {

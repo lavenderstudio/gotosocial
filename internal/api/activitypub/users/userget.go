@@ -20,9 +20,9 @@ package users
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // UsersGETHandler should be served at https://example.org/users/:username.
@@ -34,45 +34,45 @@ import (
 //
 // And of course, the request should be refused if the account or server making the
 // request is blocked.
-func (m *Module) UsersGETHandler(c *gin.Context) {
+func (m *Module) UsersGETHandler(c *httputil.Context) {
 	username, contentType, errWithCode := m.parseCommon(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if contentType == apiutil.TextHTML {
 		// Redirect to account web view.
-		c.Redirect(http.StatusSeeOther, "/@"+username)
+		httputil.Redirect(c, http.StatusSeeOther, "/@"+username)
 		return
 	}
 
 	resp, errWithCode := m.processor.Fedi().UserGet(
-		c.Request.Context(),
+		c,
 		username,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSONType(c, http.StatusOK, contentType, resp)
+	httputil.JSONType(c, http.StatusOK, contentType, resp)
 }
 
 // InstanceActorGETHandler should be served at https://[hostname]/users/[hostname].
 // It returns the AP model of the instance account, *without* requiring a signed GET.
-func (m *Module) InstanceActorGETHandler(c *gin.Context) {
+func (m *Module) InstanceActorGETHandler(c *httputil.Context) {
 	contentType, err := apiutil.NegotiateAccept(c, apiutil.ActivityPubHeaders...)
 	if err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorNotAcceptable(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorNotAcceptable(err, err.Error()))
 		return
 	}
 
-	resp, errWithCode := m.processor.Fedi().InstanceActorGet(c.Request.Context())
+	resp, errWithCode := m.processor.Fedi().InstanceActorGet(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSONType(c, http.StatusOK, contentType, resp)
+	httputil.JSONType(c, http.StatusOK, contentType, resp)
 }

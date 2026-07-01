@@ -18,11 +18,10 @@
 package debug
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -40,27 +39,29 @@ const (
 
 type Module struct {
 	state     *state.State
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(state *state.State, processor *processing.Processor) *Module {
+func New(state *state.State, processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		state:     state,
+		templates: templates,
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
+func (m *Module) Route(g *httputil.RouteGroup) {
 	// activitypub debug endpoints.
-	attachHandler(http.MethodGet, APUrlPath, m.APUrlGETHandler)
+	g.GET(APUrlPath, m.APUrlGETHandler)
 
 	// cache debug endpoints.
-	attachHandler(http.MethodPost, ClearCachesPath, m.ClearCachesPOSTHandler)
+	g.POST(ClearCachesPath, m.ClearCachesPOSTHandler)
 
 	// status debug endpoints.
-	attachHandler(http.MethodGet, StatusVisibilityPath, m.StatusVisibilityGETHandler)
+	g.GET(StatusVisibilityPath, m.StatusVisibilityGETHandler)
 
 	// backwards compatibility endpoints
-	attachHandler(http.MethodGet, _CompatAPUrlPath, m.APUrlGETHandler)
-	attachHandler(http.MethodPost, _CompatClearCachesPath, m.ClearCachesPOSTHandler)
+	g.GET(_CompatAPUrlPath, m.APUrlGETHandler)
+	g.POST(_CompatClearCachesPath, m.ClearCachesPOSTHandler)
 }

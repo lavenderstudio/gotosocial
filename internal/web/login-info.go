@@ -18,43 +18,41 @@
 package web
 
 import (
-	"context"
+	"net/http"
 
-	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
+	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 )
 
 const (
 	loginPath = "/login"
 )
 
-func (m *Module) loginGETHandler(c *gin.Context) {
-	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
+func (m *Module) loginGETHandler(c *httputil.Context) {
+	instance, errWithCode := m.processor.InstanceGetV1(c)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
-	}
-
-	// Return instance we already got from the db,
-	// don't try to fetch it again when erroring.
-	instanceGet := func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-		return instance, nil
 	}
 
 	// We only serve text/html at this endpoint.
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextHTML); errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	page := apiutil.WebPage{
-		Template:    "login-info.tmpl",
-		Instance:    instance,
-		OGMeta:      apiutil.OGBase(instance),
-		Stylesheets: []string{cssAbout, cssLoginInfo},
-	}
-
-	apiutil.TemplateWebPage(c, page)
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template:    "login-info.tmpl",
+			Stylesheets: []string{cssAbout, cssLoginInfo},
+			Extra: map[string]any{
+				"instance": instance,
+				"ogMeta":   typeutils.OpenGraphBase(instance),
+			},
+		},
+	)
 }

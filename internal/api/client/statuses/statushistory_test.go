@@ -18,8 +18,6 @@
 package statuses_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,10 +25,11 @@ import (
 	"strings"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/statuses"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -52,22 +51,17 @@ func (suite *StatusHistoryTestSuite) TestGetHistory() {
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, target, nil)
 	request.Header.Set("accept", "application/json")
-	ctx, _ := testrig.CreateGinTestContext(recorder, request)
+	c := httputil.ToContext(recorder, request)
 
 	// Set auth + path params.
-	ctx.Set(oauth.SessionAuthorizedApplication, testApplication)
-	ctx.Set(oauth.SessionAuthorizedToken, testToken)
-	ctx.Set(oauth.SessionAuthorizedUser, testUser)
-	ctx.Set(oauth.SessionAuthorizedAccount, testAccount)
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   statuses.IDKey,
-			Value: targetStatusID,
-		},
-	}
+	c.V.Set(oauth.SessionAuthorizedApplication, testApplication)
+	c.V.Set(oauth.SessionAuthorizedToken, testToken)
+	c.V.Set(oauth.SessionAuthorizedUser, testUser)
+	c.V.Set(oauth.SessionAuthorizedAccount, testAccount)
+	c.SetPathValue(apiutil.IDKey, targetStatusID)
 
 	// Call the handler.
-	suite.statusModule.StatusHistoryGETHandler(ctx)
+	suite.statusModule.StatusHistoryGETHandler(c)
 
 	// Check code.
 	if code := recorder.Code; code != http.StatusOK {
@@ -83,53 +77,48 @@ func (suite *StatusHistoryTestSuite) TestGetHistory() {
 		suite.FailNow(err.Error())
 	}
 
-	// Indent nicely.
-	dst := new(bytes.Buffer)
-	if err := json.Indent(dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`[
   {
-    "content": "\u003cp\u003ehello everyone!\u003c/p\u003e",
-    "spoiler_text": "introduction post",
-    "sensitive": true,
-    "created_at": "2021-10-20T10:40:37.000Z",
     "account": {
-      "id": "01F8MH1H7YV1Z7D2C8K2730QBF",
-      "username": "the_mighty_zork",
       "acct": "the_mighty_zork",
-      "display_name": "original zork (he/they)",
-      "locked": false,
-      "discoverable": true,
-      "indexable": true,
-      "noindex": false,
-      "bot": false,
-      "created_at": "2022-05-20T11:09:18.000Z",
-      "note": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
-      "url": "http://localhost:8080/@the_mighty_zork",
       "avatar": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/original/01F8MH58A357CV5K7R7TJMSH6S.jpg",
-      "avatar_static": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/small/01F8MH58A357CV5K7R7TJMSH6S.webp",
       "avatar_description": "a green goblin looking nasty",
       "avatar_media_id": "01F8MH58A357CV5K7R7TJMSH6S",
-      "header": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/header/original/01PFPMWK2FF0D9WMHEJHR07C3Q.jpg",
-      "header_static": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/header/small/01PFPMWK2FF0D9WMHEJHR07C3Q.webp",
-      "header_description": "A very old-school screenshot of the original team fortress mod for quake",
-      "header_media_id": "01PFPMWK2FF0D9WMHEJHR07C3Q",
+      "avatar_static": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/avatar/small/01F8MH58A357CV5K7R7TJMSH6S.webp",
+      "bot": false,
+      "created_at": "2022-05-20T11:09:18.000Z",
+      "discoverable": true,
+      "display_name": "original zork (he/they)",
+      "emojis": [],
+      "enable_rss": true,
+      "fields": [],
       "followers_count": 2,
       "following_count": 2,
-      "statuses_count": 9,
+      "group": false,
+      "header": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/header/original/01PFPMWK2FF0D9WMHEJHR07C3Q.jpg",
+      "header_description": "A very old-school screenshot of the original team fortress mod for quake",
+      "header_media_id": "01PFPMWK2FF0D9WMHEJHR07C3Q",
+      "header_static": "http://localhost:8080/fileserver/01F8MH1H7YV1Z7D2C8K2730QBF/header/small/01PFPMWK2FF0D9WMHEJHR07C3Q.webp",
+      "id": "01F8MH1H7YV1Z7D2C8K2730QBF",
+      "indexable": true,
       "last_status_at": "2024-11-01",
-      "emojis": [],
-      "fields": [],
-      "enable_rss": true,
-      "group": false
+      "locked": false,
+      "noindex": false,
+      "note": "<p>hey yo this is my profile!</p>",
+      "statuses_count": 9,
+      "url": "http://localhost:8080/@the_mighty_zork",
+      "username": "the_mighty_zork"
     },
-    "poll": null,
+    "content": "<p>hello everyone!</p>",
+    "created_at": "2021-10-20T10:40:37.000Z",
+    "emojis": [],
     "media_attachments": [],
-    "emojis": []
+    "poll": null,
+    "sensitive": true,
+    "spoiler_text": "introduction post"
   }
-]`, dst.String())
+]`, out)
 }
 
 func TestStatusHistoryTestSuite(t *testing.T) {

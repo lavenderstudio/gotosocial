@@ -20,8 +20,8 @@ package push
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // PushSubscriptionGETHandler swagger:operation GET /api/v1/push/subscription pushSubscriptionGet
@@ -60,21 +60,27 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) PushSubscriptionGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopePush,
+func (m *Module) PushSubscriptionGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopePush},
+	})
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	apiSubscription, errWithCode := m.processor.Push().Get(
+		c,
+		authed.Token.GetAccess(),
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiSubscription, errWithCode := m.processor.Push().Get(c, authed.Token.GetAccess())
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
-		return
-	}
-
-	apiutil.JSON(c, http.StatusOK, apiSubscription)
+	httputil.JSON(c, http.StatusOK, apiSubscription)
 }

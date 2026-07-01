@@ -18,11 +18,10 @@
 package v2
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -48,33 +47,35 @@ const (
 
 // Module implements APIs for client-side aka "v1" filtering.
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, BasePath, m.FiltersGETHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(BasePath, m.FiltersGETHandler)
 
-	attachHandler(http.MethodPost, BasePath, m.FilterPOSTHandler)
-	attachHandler(http.MethodGet, BasePathWithID, m.FilterGETHandler)
-	attachHandler(http.MethodPut, BasePathWithID, m.FilterPUTHandler)
-	attachHandler(http.MethodDelete, BasePathWithID, m.FilterDELETEHandler)
+	g.POST(BasePath, m.FilterPOSTHandler)
+	g.GET(BasePathWithID, m.FilterGETHandler)
+	g.PUT(BasePathWithID, m.FilterPUTHandler)
+	g.DELETE(BasePathWithID, m.FilterDELETEHandler)
 
-	attachHandler(http.MethodGet, FilterKeywordsPathWithID, m.FilterKeywordsGETHandler)
-	attachHandler(http.MethodPost, FilterKeywordsPathWithID, m.FilterKeywordPOSTHandler)
+	g.GET(FilterKeywordsPathWithID, m.FilterKeywordsGETHandler)
+	g.POST(FilterKeywordsPathWithID, m.FilterKeywordPOSTHandler)
 
-	attachHandler(http.MethodGet, KeywordPathWithKeywordID, m.FilterKeywordGETHandler)
-	attachHandler(http.MethodPut, KeywordPathWithKeywordID, m.FilterKeywordPUTHandler)
-	attachHandler(http.MethodDelete, KeywordPathWithKeywordID, m.FilterKeywordDELETEHandler)
+	g.GET(KeywordPathWithKeywordID, m.FilterKeywordGETHandler)
+	g.PUT(KeywordPathWithKeywordID, m.FilterKeywordPUTHandler)
+	g.DELETE(KeywordPathWithKeywordID, m.FilterKeywordDELETEHandler)
 
-	attachHandler(http.MethodGet, FilterStatusesPathWithID, m.FilterStatusesGETHandler)
-	attachHandler(http.MethodPost, FilterStatusesPathWithID, m.FilterStatusPOSTHandler)
+	g.GET(FilterStatusesPathWithID, m.FilterStatusesGETHandler)
+	g.POST(FilterStatusesPathWithID, m.FilterStatusPOSTHandler)
 
-	attachHandler(http.MethodGet, StatusPathWithStatusID, m.FilterStatusGETHandler)
-	attachHandler(http.MethodDelete, StatusPathWithStatusID, m.FilterStatusDELETEHandler)
+	g.GET(StatusPathWithStatusID, m.FilterStatusGETHandler)
+	g.DELETE(StatusPathWithStatusID, m.FilterStatusDELETEHandler)
 }

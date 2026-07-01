@@ -21,35 +21,44 @@ import (
 	"context"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gopkg/httputil"
 )
 
 // Timeout provides gin middleware that times out
 // the request context after the given duration.
-func Timeout(timeout time.Duration) gin.HandlerFunc {
+func Timeout(timeout time.Duration) httputil.MiddlewareFunc {
 	if timeout <= 0 {
 		return nil
 	}
-	return func(c *gin.Context) {
-		if upgr := c.GetHeader("Upgrade"); upgr != "" {
-			// Upgrade to wss (probably).
-			// Leave well enough alone.
-			c.Next()
-			return
+	return func(h httputil.HandlerFunc) httputil.HandlerFunc {
+		if h == nil {
+			panic("nil func")
 		}
+		return func(c *httputil.Context) {
+			if c.R.Header.Get("Upgrade") != "" {
+				// Upgrade to wss (probably).
+				// Leave well enough alone.
+				h(c)
+				return
+			}
 
-		// Wrap request context with timeout.
-		ctx, cancel := context.WithTimeout(
-			c.Request.Context(),
-			timeout,
-		)
-		defer cancel()
+			// Wrap request context with timeout.
+			ctx, cancel := context.WithTimeout(
+				c.R.Context(),
+				timeout,
+			)
 
-		// Update request context with timeout.
-		c.Request = c.Request.WithContext(ctx)
+			// Cancel
+			// on return.
+			defer cancel()
 
-		// Process
-		// request!
-		c.Next()
+			// Update request
+			// context with timeout.
+			c.R = c.R.WithContext(ctx)
+
+			// Pass to
+			// next.
+			h(c)
+		}
 	}
 }

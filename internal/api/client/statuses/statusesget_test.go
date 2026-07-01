@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/statuses"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
@@ -45,8 +46,6 @@ func (suite *StatusesGetTestSuite) getStatuses(
 	expectedHTTPStatus int,
 	expectedBody string,
 ) ([]apimodel.Status, error) {
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
 
 	requestURL := testrig.URLMustParse("/api" + statuses.BasePath)
 	query := url.Values{}
@@ -55,21 +54,23 @@ func (suite *StatusesGetTestSuite) getStatuses(
 	}
 
 	requestURL.RawQuery = query.Encode()
-	ctx.Request = httptest.NewRequest(http.MethodGet, requestURL.String(), nil)
-	ctx.Request.Header.Set("accept", "application/json")
+	req := httptest.NewRequest(http.MethodGet, requestURL.String(), nil)
+	req.Header.Set("accept", "application/json")
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
 
 	if token != nil {
-		ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
-		ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+		c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
+		c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
 	}
 	if requestingAccount != nil {
-		ctx.Set(oauth.SessionAuthorizedAccount, requestingAccount)
+		c.V.Set(oauth.SessionAuthorizedAccount, requestingAccount)
 	}
 	if user != nil {
-		ctx.Set(oauth.SessionAuthorizedUser, user)
+		c.V.Set(oauth.SessionAuthorizedUser, user)
 	}
 
-	suite.statusModule.StatusesGETHandler(ctx)
+	suite.statusModule.StatusesGETHandler(c)
 
 	result := recorder.Result()
 	defer result.Body.Close()

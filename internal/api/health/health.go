@@ -19,9 +19,8 @@ package health
 
 import (
 	"context"
-	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gopkg/httputil"
 )
 
 const (
@@ -30,19 +29,19 @@ const (
 )
 
 type Module struct {
-	readyF func(context.Context) error
+	ready func(context.Context) error
 }
 
-func New(readyF func(context.Context) error) *Module {
+func New(ready func(context.Context) error) *Module {
 	return &Module{
-		readyF: readyF,
+		ready: ready,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, LivePath, m.LiveGETRequest)
-	attachHandler(http.MethodHead, LivePath, m.LiveHEADRequest)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(LivePath, m.LiveGETRequest)
+	g.HEAD(LivePath, m.LiveHEADRequest)
 
-	attachHandler(http.MethodGet, ReadyPath, m.ReadyGETRequest)
-	attachHandler(http.MethodHead, ReadyPath, m.ReadyHEADRequest)
+	g.GET(ReadyPath, m.ReadyGETRequest)
+	g.HEAD(ReadyPath, m.ReadyHEADRequest)
 }

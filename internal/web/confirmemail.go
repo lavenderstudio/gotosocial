@@ -18,32 +18,25 @@
 package web
 
 import (
-	"context"
 	"errors"
 	"net/http"
 
-	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
-func (m *Module) confirmEmailGETHandler(c *gin.Context) {
-	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
+func (m *Module) confirmEmailGETHandler(c *httputil.Context) {
+	instance, errWithCode := m.processor.InstanceGetV1(c)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
-	}
-
-	// Return instance we already got from the db,
-	// don't try to fetch it again when erroring.
-	instanceGet := func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-		return instance, nil
 	}
 
 	// We only serve text/html at this endpoint.
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextHTML); errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -52,14 +45,14 @@ func (m *Module) confirmEmailGETHandler(c *gin.Context) {
 	token := c.Query("token")
 	if token == "" {
 		errWithCode := gtserror.NewErrorNotFound(errors.New(http.StatusText(http.StatusNotFound)))
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Get user but don't confirm yet.
-	user, errWithCode := m.processor.User().EmailGetUserForConfirmToken(c.Request.Context(), token)
+	user, errWithCode := m.processor.User().EmailGetUserForConfirmToken(c, token)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -76,35 +69,31 @@ func (m *Module) confirmEmailGETHandler(c *gin.Context) {
 
 	// Serve page where user can click button
 	// to POST confirmation to same endpoint.
-	page := apiutil.WebPage{
-		Template: "confirm-email.tmpl",
-		Instance: instance,
-		Extra: map[string]any{
-			"email":    email,
-			"username": user.Account.Username,
-			"token":    token,
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template: "confirm-email.tmpl",
+			Extra: map[string]any{
+				"email":    email,
+				"username": user.Account.Username,
+				"token":    token,
+				"instance": instance,
+			},
 		},
-	}
-
-	apiutil.TemplateWebPage(c, page)
+	)
 }
 
-func (m *Module) confirmEmailPOSTHandler(c *gin.Context) {
-	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
+func (m *Module) confirmEmailPOSTHandler(c *httputil.Context) {
+	instance, errWithCode := m.processor.InstanceGetV1(c)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
-	}
-
-	// Return instance we already got from the db,
-	// don't try to fetch it again when erroring.
-	instanceGet := func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-		return instance, nil
 	}
 
 	// We only serve text/html at this endpoint.
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextHTML); errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -113,29 +102,32 @@ func (m *Module) confirmEmailPOSTHandler(c *gin.Context) {
 	token := c.Query("token")
 	if token == "" {
 		errWithCode := gtserror.NewErrorNotFound(errors.New(http.StatusText(http.StatusNotFound)))
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Confirm email address for real this time.
-	user, errWithCode := m.processor.User().EmailConfirm(c.Request.Context(), token)
+	user, errWithCode := m.processor.User().EmailConfirm(c, token)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Serve page informing user that their
 	// email address is now confirmed.
-	page := apiutil.WebPage{
-		Template: "confirmed-email.tmpl",
-		Instance: instance,
-		Extra: map[string]any{
-			"email":    user.Email,
-			"username": user.Account.Username,
-			"token":    token,
-			"approved": *user.Approved,
+	//
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template: "confirmed-email.tmpl",
+			Extra: map[string]any{
+				"email":    user.Email,
+				"username": user.Account.Username,
+				"token":    token,
+				"approved": *user.Approved,
+				"instance": instance,
+			},
 		},
-	}
-
-	apiutil.TemplateWebPage(c, page)
+	)
 }

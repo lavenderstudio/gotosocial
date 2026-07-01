@@ -18,8 +18,6 @@
 package auth_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"testing"
@@ -116,16 +114,11 @@ func (suite *RevokeTestSuite) TestRevokeWrongSecret() {
 		suite.FailNow(err.Error())
 	}
 
-	// Indent nicely.
-	dst := bytes.Buffer{}
-	if err := json.Indent(&dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
   "error": "unauthorized_client",
   "error_description": "Forbidden: You are not authorized to revoke this token"
-}`, dst.String())
+}`, out)
 
 	// Ensure token still there.
 	_, err = suite.state.DB.GetTokenByAccess(
@@ -174,16 +167,11 @@ func (suite *RevokeTestSuite) TestRevokeNoClientID() {
 		suite.FailNow(err.Error())
 	}
 
-	// Indent nicely.
-	dst := bytes.Buffer{}
-	if err := json.Indent(&dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
   "error": "invalid_request",
   "error_description": "Bad Request: client_id not set"
-}`, dst.String())
+}`, out)
 
 	// Ensure token still there.
 	_, err = suite.state.DB.GetTokenByAccess(

@@ -18,10 +18,9 @@
 package exports
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -35,20 +34,22 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, StatsPath, m.ExportStatsGETHandler)
-	attachHandler(http.MethodGet, FollowingPath, m.ExportFollowingGETHandler)
-	attachHandler(http.MethodGet, FollowersPath, m.ExportFollowersGETHandler)
-	attachHandler(http.MethodGet, ListsPath, m.ExportListsGETHandler)
-	attachHandler(http.MethodGet, BlocksPath, m.ExportBlocksGETHandler)
-	attachHandler(http.MethodGet, MutesPath, m.ExportMutesGETHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(StatsPath, m.ExportStatsGETHandler)
+	g.GET(FollowingPath, m.ExportFollowingGETHandler)
+	g.GET(FollowersPath, m.ExportFollowersGETHandler)
+	g.GET(ListsPath, m.ExportListsGETHandler)
+	g.GET(BlocksPath, m.ExportBlocksGETHandler)
+	g.GET(MutesPath, m.ExportMutesGETHandler)
 }

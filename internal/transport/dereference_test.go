@@ -18,8 +18,6 @@
 package transport_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"testing"
@@ -52,11 +50,7 @@ func (suite *DereferenceTestSuite) TestDerefLocalUser() {
 		suite.FailNow(err.Error())
 	}
 
-	dst := bytes.Buffer{}
-	if err := json.Indent(&dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -104,10 +98,10 @@ func (suite *DereferenceTestSuite) TestDerefLocalUser() {
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqtQQjwFLHPez+7uF9AX7\nuvLFHm3SyNIozhhVmGhxHIs0xdgRnZKmzmZkFdrFuXddBTAglU4C2u3dw10jJO1a\nWIFQF8bGkRHZG7Pd25/XmWWBRPmOJxNLeWBqpj0G+2zTMgnAV72hALSDFY2/QDsx\nUthenKw0Srpj1LUwvRbyVQQ8fGu4v0HACFnlOX2hCQwhfAnGrb0V70Y2IJu++MP7\n6i49md0vR0Mv3WbsEJUNp1fTIUzkgWB31icvfrNmaaAxw5FkAE+KfkkylhRxi5i5\nRR1XQUINWc2Kj2Kro+CJarKG+9zasMyN7+D230gpESi8rXv1SwRu865FR3gANdDS\nMwIDAQAB\n-----END PUBLIC KEY-----\n"
   },
   "published": "2022-05-20T11:09:18Z",
-  "summary": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+  "summary": "<p>hey yo this is my profile!</p>",
   "type": "Person",
   "url": "http://localhost:8080/@the_mighty_zork"
-}`, dst.String())
+}`, out)
 }
 
 func (suite *DereferenceTestSuite) TestDerefLocalStatus() {
@@ -129,11 +123,7 @@ func (suite *DereferenceTestSuite) TestDerefLocalStatus() {
 		suite.FailNow(err.Error())
 	}
 
-	dst := bytes.Buffer{}
-	if err := json.Indent(&dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -144,9 +134,9 @@ func (suite *DereferenceTestSuite) TestDerefLocalStatus() {
   ],
   "attributedTo": "http://localhost:8080/users/the_mighty_zork",
   "cc": "http://localhost:8080/users/the_mighty_zork/followers",
-  "content": "\u003cp\u003ehello everyone!\u003c/p\u003e",
+  "content": "<p>hello everyone!</p>",
   "contentMap": {
-    "en": "\u003cp\u003ehello everyone!\u003c/p\u003e"
+    "en": "<p>hello everyone!</p>"
   },
   "id": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY",
   "interactionPolicy": {
@@ -175,7 +165,7 @@ func (suite *DereferenceTestSuite) TestDerefLocalStatus() {
   "replies": {
     "first": {
       "id": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY/replies?page=true",
-      "next": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY/replies?page=true\u0026only_other_accounts=false",
+      "next": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY/replies?page=true&only_other_accounts=false",
       "partOf": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY/replies",
       "type": "CollectionPage"
     },
@@ -187,7 +177,7 @@ func (suite *DereferenceTestSuite) TestDerefLocalStatus() {
   "to": "https://www.w3.org/ns/activitystreams#Public",
   "type": "Note",
   "url": "http://localhost:8080/@the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY"
-}`, dst.String())
+}`, out)
 }
 
 func (suite *DereferenceTestSuite) TestDerefLocalFollowers() {
@@ -209,11 +199,7 @@ func (suite *DereferenceTestSuite) TestDerefLocalFollowers() {
 		suite.FailNow(err.Error())
 	}
 
-	dst := bytes.Buffer{}
-	if err := json.Indent(&dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "items": [
@@ -221,7 +207,7 @@ func (suite *DereferenceTestSuite) TestDerefLocalFollowers() {
     "http://localhost:8080/users/admin"
   ],
   "type": "Collection"
-}`, dst.String())
+}`, out)
 }
 
 func (suite *DereferenceTestSuite) TestDerefLocalFollowing() {
@@ -243,11 +229,7 @@ func (suite *DereferenceTestSuite) TestDerefLocalFollowing() {
 		suite.FailNow(err.Error())
 	}
 
-	dst := bytes.Buffer{}
-	if err := json.Indent(&dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "items": [
@@ -255,7 +237,7 @@ func (suite *DereferenceTestSuite) TestDerefLocalFollowing() {
     "http://localhost:8080/users/1happyturtle"
   ],
   "type": "Collection"
-}`, dst.String())
+}`, out)
 }
 
 func TestDereferenceTestSuite(t *testing.T) {

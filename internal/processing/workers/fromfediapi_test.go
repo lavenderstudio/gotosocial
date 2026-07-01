@@ -143,8 +143,7 @@ func (suite *FromFediAPITestSuite) TestProcessReplyMention() {
 	ap.AppendInReplyTo(replyingStatusable, testrig.URLMustParse(repliedStatus.URI))
 
 	// Open a websocket stream to later test the streamed status reply.
-	wssStream, errWithCode := testStructs.Processor.Stream().Open(suite.T().Context(), repliedAccount, stream.TimelineHome)
-	suite.NoError(errWithCode)
+	wssStream := testStructs.Processor.Stream().Open(suite.T().Context(), repliedAccount, stream.TimelineHome)
 
 	// Send the replied status off to the fedi worker to be further processed.
 	err = testStructs.Processor.Workers().ProcessFromFediAPI(suite.T().Context(), &messages.FromFediAPI{
@@ -202,8 +201,7 @@ func (suite *FromFediAPITestSuite) TestProcessFave() {
 	favedStatus := suite.testStatuses["local_account_1_status_1"]
 	favingAccount := suite.testAccounts["remote_account_1"]
 
-	wssStream, errWithCode := testStructs.Processor.Stream().Open(suite.T().Context(), favedAccount, stream.TimelineNotifications)
-	suite.NoError(errWithCode)
+	wssStream := testStructs.Processor.Stream().Open(suite.T().Context(), favedAccount, stream.TimelineNotifications)
 
 	fave := &gtsmodel.StatusFave{
 		ID:              "01FGKJPXFTVQPG9YSSZ95ADS7Q",
@@ -275,8 +273,7 @@ func (suite *FromFediAPITestSuite) TestProcessFaveWithDifferentReceivingAccount(
 	favedStatus := suite.testStatuses["local_account_1_status_1"]
 	favingAccount := suite.testAccounts["remote_account_1"]
 
-	wssStream, errWithCode := testStructs.Processor.Stream().Open(suite.T().Context(), receivingAccount, stream.TimelineHome)
-	suite.NoError(errWithCode)
+	wssStream := testStructs.Processor.Stream().Open(suite.T().Context(), receivingAccount, stream.TimelineHome)
 
 	fave := &gtsmodel.StatusFave{
 		ID:              "01FGKJPXFTVQPG9YSSZ95ADS7Q",
@@ -444,14 +441,10 @@ func (suite *FromFediAPITestSuite) TestProcessFollowRequestLocked() {
 	}
 
 	// Open notifs stream.
-	wssStream, errWithCode := testStructs.Processor.Stream().Open(
-		ctx,
+	wssStream := testStructs.Processor.Stream().Open(ctx,
 		targetAccount,
 		stream.TimelineHome,
 	)
-	if errWithCode != nil {
-		suite.FailNow(errWithCode.Error())
-	}
 
 	// Put follow req in the db as though it
 	// had passed through the federating db already.
@@ -601,14 +594,10 @@ func (suite *FromFediAPITestSuite) TestProcessFollowRequestManuallyApprove() {
 	}
 
 	// Open notifs stream.
-	wssStream, errWithCode := testStructs.Processor.Stream().Open(
-		ctx,
+	wssStream := testStructs.Processor.Stream().Open(ctx,
 		targetAccount,
 		stream.TimelineHome,
 	)
-	if errWithCode != nil {
-		suite.FailNow(errWithCode.Error())
-	}
 
 	// Put follow req in the db as though it
 	// had passed through the federating db already.
@@ -680,14 +669,10 @@ func (suite *FromFediAPITestSuite) TestProcessFollowRequestUnlocked() {
 	}
 
 	// Open notifs stream.
-	wssStream, errWithCode := testStructs.Processor.Stream().Open(
-		ctx,
+	wssStream := testStructs.Processor.Stream().Open(ctx,
 		targetAccount,
 		stream.TimelineHome,
 	)
-	if errWithCode != nil {
-		suite.FailNow(errWithCode.Error())
-	}
 
 	// Put follow req in the db as though it
 	// had passed through the federating db already.

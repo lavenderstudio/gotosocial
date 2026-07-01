@@ -18,10 +18,9 @@
 package instance
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -36,21 +35,22 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, InstanceInformationPathV1, m.InstanceInformationGETHandlerV1)
-	attachHandler(http.MethodGet, InstanceInformationPathV2, m.InstanceInformationGETHandlerV2)
-	attachHandler(http.MethodPatch, InstanceInformationPathV1, m.InstanceUpdatePATCHHandler)
-	attachHandler(http.MethodGet, InstancePeersPath, m.InstancePeersGETHandler)
-	attachHandler(http.MethodGet, InstanceRulesPath, m.InstanceRulesGETHandler)
-	attachHandler(http.MethodGet, InstanceBlocklistPath, m.InstanceDomainBlocksGETHandler)
-	attachHandler(http.MethodGet, InstanceAllowlistPath, m.InstanceDomainAllowsGETHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(InstanceInformationPathV1, m.InstanceInformationGETHandlerV1)
+	g.GET(InstanceInformationPathV2, m.InstanceInformationGETHandlerV2)
+	g.PATCH(InstanceInformationPathV1, m.InstanceUpdatePATCHHandler)
+	g.GET(InstancePeersPath, m.InstancePeersGETHandler)
+	g.GET(InstanceRulesPath, m.InstanceRulesGETHandler)
+	g.GET(InstanceBlocklistPath, m.InstanceDomainBlocksGETHandler)
+	g.GET(InstanceAllowlistPath, m.InstanceDomainAllowsGETHandler)
 }

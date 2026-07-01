@@ -20,11 +20,9 @@ package admin_test
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"testing"
 
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
@@ -377,22 +375,6 @@ func containsSerializable[T interface{ Serialize() ([]byte, error) }](expect []T
 	return fmt.Errorf("could not find %s in %s", string(bh), strings)
 }
 
-// urlStr simply returns u.String() or "" if nil.
-func urlStr(u *url.URL) string {
-	if u == nil {
-		return ""
-	}
-	return u.String()
-}
-
-// accountID simply returns account.ID or "" if nil.
-func accountID(account *gtsmodel.Account) string {
-	if account == nil {
-		return ""
-	}
-	return account.ID
-}
-
 // toRequest creates httpclient.Request from HTTP method, URL and body data.
 func toRequest(method string, url string, body []byte, hdr http.Header) *httpclient.Request {
 	var rbody io.Reader
@@ -409,13 +391,4 @@ func toRequest(method string, url string, body []byte, hdr http.Header) *httpcli
 		}
 	}
 	return httpclient.WrapRequest(req)
-}
-
-// toJSON marshals input type as JSON data.
-func toJSON(a any) []byte {
-	b, err := json.Marshal(a)
-	if err != nil {
-		panic(err)
-	}
-	return b
 }

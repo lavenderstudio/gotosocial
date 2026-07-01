@@ -21,11 +21,12 @@ import (
 	"errors"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin"
 )
 
 // RelayPushMatcherPOSTHandler swagger:operation POST /api/v1/relay_pushes/{id}/matchers relayPushMatcherPost
@@ -110,13 +111,16 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) RelayPushMatcherPOSTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteRelays,
-	)
+func (m *Module) RelayPushMatcherPOSTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteRelays},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -126,31 +130,31 @@ func (m *Module) RelayPushMatcherPOSTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	relayPushID, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+	relayPushID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form := new(apimodel.RelayMatcherCreateUpdateRequest)
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	// Ensure keyword is set.
 	if form.Keyword == nil || *form.Keyword == "" {
 		const errText = "keyword not provided"
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(errors.New(errText), errText), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(errors.New(errText), errText))
 		return
 	}
 
 	resp, errWithCode := m.processor.RelayPush().MatcherCreate(
-		c.Request.Context(),
+		c,
 		authed,
 		relayPushID,
 		*form.Keyword,
@@ -158,11 +162,11 @@ func (m *Module) RelayPushMatcherPOSTHandler(c *gin.Context) {
 		util.PtrOrZero(form.Exclude),
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp)
+	httputil.JSON(c, http.StatusOK, resp)
 }
 
 // RelayPushMatcherDELETEHandler swagger:operation DELETE /api/v1/relay_pushes/{id}/matchers/{matcher_id} relayPushMatcherDelete
@@ -222,13 +226,16 @@ func (m *Module) RelayPushMatcherPOSTHandler(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) RelayPushMatcherDELETEHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteRelays,
-	)
+func (m *Module) RelayPushMatcherDELETEHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteRelays},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -238,34 +245,34 @@ func (m *Module) RelayPushMatcherDELETEHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	relayID, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+	relayID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	matcherID, errWithCode := apiutil.ParseRelayMatcherID(c.Param(apiutil.RelayMatcherIDKey))
+	matcherID, errWithCode := apiutil.ParseRelayMatcherID(c.PathValue(apiutil.RelayMatcherIDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	resp, errWithCode := m.processor.RelayPush().MatcherDelete(
-		c.Request.Context(),
+		c,
 		authed,
 		relayID,
 		matcherID,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp)
+	httputil.JSON(c, http.StatusOK, resp)
 }
 
 // RelayPushMatcherPUTHandler swagger:operation PUT /api/v1/relay_pushes/{id}/matchers/{matcher_id} relayPushMatcherPut
@@ -358,13 +365,16 @@ func (m *Module) RelayPushMatcherDELETEHandler(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) RelayPushMatcherPUTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteRelays,
-	)
+func (m *Module) RelayPushMatcherPUTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteRelays},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -374,30 +384,30 @@ func (m *Module) RelayPushMatcherPUTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	relayID, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+	relayID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	matcherID, errWithCode := apiutil.ParseRelayMatcherID(c.Param(apiutil.RelayMatcherIDKey))
+	matcherID, errWithCode := apiutil.ParseRelayMatcherID(c.PathValue(apiutil.RelayMatcherIDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form := new(apimodel.RelayMatcherCreateUpdateRequest)
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	resp, errWithCode := m.processor.RelayPush().MatcherUpdate(
-		c.Request.Context(),
+		c,
 		authed,
 		relayID,
 		matcherID,
@@ -406,9 +416,9 @@ func (m *Module) RelayPushMatcherPUTHandler(c *gin.Context) {
 		form.Exclude,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp)
+	httputil.JSON(c, http.StatusOK, resp)
 }

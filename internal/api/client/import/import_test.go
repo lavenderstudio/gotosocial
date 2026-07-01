@@ -26,6 +26,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	importdata "code.superseriousbusiness.org/gotosocial/internal/api/client/import"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
@@ -87,7 +88,7 @@ func (suite *ImportTestSuite) SetupTest() {
 	)
 	testrig.StartWorkers(&suite.state, processor.Workers())
 
-	suite.importModule = importdata.New(processor)
+	suite.importModule = importdata.New(processor, testrig.LoadTemplates(&suite.state, ""))
 }
 
 func (suite *ImportTestSuite) TriggerHandler(
@@ -95,17 +96,6 @@ func (suite *ImportTestSuite) TriggerHandler(
 	importType string,
 	importMode string,
 ) {
-	// Set up request.
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-
-	// Authorize the request ctx as though it
-	// had passed through API auth handlers.
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-
 	// Create test request.
 	b, w, err := testrig.CreateMultipartFormData(
 		testrig.StringToDataF("data", "data.csv", importData),
@@ -119,12 +109,23 @@ func (suite *ImportTestSuite) TriggerHandler(
 	}
 
 	target := "http://localhost:8080/api/v1/import"
-	ctx.Request = httptest.NewRequest(http.MethodPost, target, bytes.NewReader(b.Bytes()))
-	ctx.Request.Header.Set("Accept", "application/json")
-	ctx.Request.Header.Set("Content-Type", w.FormDataContentType())
+	req := httptest.NewRequest(http.MethodPost, target, bytes.NewReader(b.Bytes()))
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", w.FormDataContentType())
+
+	// Set up request.
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+
+	// Authorize the request ctx as though it
+	// had passed through API auth handlers.
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
 
 	// Trigger handler.
-	suite.importModule.ImportPOSTHandler(ctx)
+	suite.importModule.ImportPOSTHandler(c)
 
 	if code := recorder.Code; code != http.StatusAccepted {
 		b, err := io.ReadAll(recorder.Body)

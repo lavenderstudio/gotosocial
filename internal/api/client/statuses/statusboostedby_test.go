@@ -18,16 +18,17 @@ package statuses_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/statuses"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -40,24 +41,24 @@ func (suite *StatusBoostedByTestSuite) TestRebloggedByOK() {
 	oauthToken := oauth.DBTokenToToken(t)
 	targetStatus := suite.testStatuses["local_account_1_status_1"]
 
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:8080%s", strings.Replace(statuses.RebloggedPath, ":id", targetStatus.ID, 1)), nil) // the endpoint we're hitting
+	req.Header.Set("accept", "application/json")
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Request = httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:8080%s", strings.Replace(statuses.RebloggedPath, ":id", targetStatus.ID, 1)), nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.AddParam("id", targetStatus.ID)
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.SetPathValue(apiutil.IDKey, targetStatus.ID)
 
-	suite.statusModule.StatusBoostedByGETHandler(ctx)
+	suite.statusModule.StatusBoostedByGETHandler(c)
 
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
 
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	accounts := []*gtsmodel.Account{}
@@ -76,24 +77,24 @@ func (suite *StatusBoostedByTestSuite) TestRebloggedByUseBoostWrapperID() {
 	oauthToken := oauth.DBTokenToToken(t)
 	targetStatus := suite.testStatuses["admin_account_status_4"] // admin_account_status_4 is a boost of local_account_1_status_1
 
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:8080%s", strings.Replace(statuses.RebloggedPath, ":id", targetStatus.ID, 1)), nil) // the endpoint we're hitting
+	req.Header.Set("accept", "application/json")
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauthToken)
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Request = httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:8080%s", strings.Replace(statuses.RebloggedPath, ":id", targetStatus.ID, 1)), nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.AddParam("id", targetStatus.ID)
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauthToken)
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.SetPathValue(apiutil.IDKey, targetStatus.ID)
 
-	suite.statusModule.StatusBoostedByGETHandler(ctx)
+	suite.statusModule.StatusBoostedByGETHandler(c)
 
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
 
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	accounts := []*gtsmodel.Account{}

@@ -29,12 +29,12 @@ import (
 	"testing"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/accounts"
 	"code.superseriousbusiness.org/gotosocial/internal/api/model"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"github.com/tomnomnom/linkheader"
@@ -46,23 +46,18 @@ type FollowTestSuite struct {
 
 func (suite *FollowTestSuite) TestFollowSelf() {
 	testAcct := suite.testAccounts["local_account_1"]
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:8080%s", strings.Replace(accounts.FollowPath, ":id", testAcct.ID, 1)), nil)
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, testAcct)
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Request = httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:8080%s", strings.Replace(accounts.FollowPath, ":id", testAcct.ID, 1)), nil)
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, testAcct)
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
 
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   accounts.IDKey,
-			Value: testAcct.ID,
-		},
-	}
+	c.SetPathValue(apiutil.IDKey, testAcct.ID)
 
 	// call the handler
-	suite.accountsModule.AccountFollowPOSTHandler(ctx)
+	suite.accountsModule.AccountFollowPOSTHandler(c)
 
 	// 1. status should be Not Acceptable due to self-follow attempt
 	suite.Equal(http.StatusNotAcceptable, recorder.Code)
@@ -171,13 +166,13 @@ func (suite *FollowTestSuite) testGetFollowersPage(limit int, direction string) 
 		// Prepare new request for endpoint
 		recorder := httptest.NewRecorder()
 		endpoint := fmt.Sprintf("/api/v1/accounts/%s/followers", requestingAccount.ID)
-		ctx := suite.newContext(recorder, http.MethodGet, []byte{}, endpoint, "")
-		ctx.Params = gin.Params{{Key: "id", Value: requestingAccount.ID}}
-		ctx.Request.URL.RawQuery = query // setting provided next query value
+		c := suite.newContext(recorder, http.MethodGet, []byte{}, endpoint, "")
+		c.SetPathValue("id", requestingAccount.ID)
+		c.R.URL.RawQuery = query // setting provided next query value
 
 		// call the handler and check for valid response code.
 		suite.T().Logf("direction=%q page=%d query=%q", direction, p, query)
-		suite.accountsModule.AccountFollowersGETHandler(ctx)
+		suite.accountsModule.AccountFollowersGETHandler(c)
 		suite.Equal(http.StatusOK, recorder.Code)
 
 		var accounts []*model.Account
@@ -373,13 +368,13 @@ func (suite *FollowTestSuite) testGetFollowingPage(limit int, direction string) 
 		// Prepare new request for endpoint
 		recorder := httptest.NewRecorder()
 		endpoint := fmt.Sprintf("/api/v1/accounts/%s/following", requestingAccount.ID)
-		ctx := suite.newContext(recorder, http.MethodGet, []byte{}, endpoint, "")
-		ctx.Params = gin.Params{{Key: "id", Value: requestingAccount.ID}}
-		ctx.Request.URL.RawQuery = query // setting provided next query value
+		c := suite.newContext(recorder, http.MethodGet, []byte{}, endpoint, "")
+		c.SetPathValue("id", requestingAccount.ID)
+		c.R.URL.RawQuery = query // setting provided next query value
 
 		// call the handler and check for valid response code.
 		suite.T().Logf("direction=%q page=%d query=%q", direction, p, query)
-		suite.accountsModule.AccountFollowingGETHandler(ctx)
+		suite.accountsModule.AccountFollowingGETHandler(c)
 		suite.Equal(http.StatusOK, recorder.Code)
 
 		var accounts []*model.Account

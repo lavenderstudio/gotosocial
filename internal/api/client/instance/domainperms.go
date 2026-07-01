@@ -21,10 +21,10 @@ import (
 	"errors"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // InstanceDomainBlocksGETHandler swagger:operation GET /api/v1/instance/domain_blocks instanceDomainBlocksGet
@@ -74,29 +74,33 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) InstanceDomainBlocksGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		false, false, false, false,
-	)
+func (m *Module) InstanceDomainBlocksGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   false,
+		App:     false,
+		User:    false,
+		Account: false,
+		Scope:   nil,
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if (authed.Account == nil || authed.User == nil) && !config.GetInstanceExposeBlocklist() {
 		const errText = "domain blocks endpoint requires an authenticated account/user"
 		errWithCode := gtserror.NewErrorUnauthorized(errors.New(errText), errText)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	data, errWithCode := m.processor.InstancePeersGet(
-		c.Request.Context(),
+		c,
 		true,  // Include blocked.
 		false, // Don't include allowed.
 		false, // Don't include open.
@@ -104,11 +108,11 @@ func (m *Module) InstanceDomainBlocksGETHandler(c *gin.Context) {
 		true,  // Include severity.
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, data)
+	httputil.JSON(c, http.StatusOK, data)
 }
 
 // InstanceDomainAllowsGETHandler swagger:operation GET /api/v1/instance/domain_allows instanceDomainAllowsGet
@@ -158,29 +162,33 @@ func (m *Module) InstanceDomainBlocksGETHandler(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) InstanceDomainAllowsGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		false, false, false, false,
-	)
+func (m *Module) InstanceDomainAllowsGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   false,
+		App:     false,
+		User:    false,
+		Account: false,
+		Scope:   nil,
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if (authed.Account == nil || authed.User == nil) && !config.GetInstanceExposeAllowlist() {
 		const errText = "domain allows endpoint requires an authenticated account/user"
 		errWithCode := gtserror.NewErrorUnauthorized(errors.New(errText), errText)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	data, errWithCode := m.processor.InstancePeersGet(
-		c.Request.Context(),
+		c,
 		false, // Don't include blocked.
 		true,  // Include allowed.
 		false, // Don't include open.
@@ -188,9 +196,9 @@ func (m *Module) InstanceDomainAllowsGETHandler(c *gin.Context) {
 		false, // Don't include severity.
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, data)
+	httputil.JSON(c, http.StatusOK, data)
 }

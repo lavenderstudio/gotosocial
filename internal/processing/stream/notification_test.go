@@ -18,12 +18,11 @@
 package stream_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"testing"
 
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
+	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -34,8 +33,7 @@ type NotificationTestSuite struct {
 func (suite *NotificationTestSuite) TestStreamNotification() {
 	account := suite.testAccounts["local_account_1"]
 
-	openStream, errWithCode := suite.streamProcessor.Open(suite.T().Context(), account, "user")
-	suite.NoError(errWithCode)
+	openStream := suite.streamProcessor.Open(suite.T().Context(), account, "user")
 
 	followAccount := suite.testAccounts["remote_account_1"]
 	followAccountAPIModel, err := typeutils.NewConverter(&suite.state).AccountToAPIAccountPublic(suite.T().Context(), followAccount)
@@ -53,40 +51,38 @@ func (suite *NotificationTestSuite) TestStreamNotification() {
 	msg, ok := openStream.Recv(suite.T().Context())
 	suite.True(ok)
 
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, []byte(msg.Payload), "", "  ")
-	suite.NoError(err)
+	out := testrig.MustJSONStringFromString(msg.Payload)
 	suite.Equal(`{
-  "id": "01FH57SJCMDWQGEAJ0X08CE3WV",
-  "type": "follow",
-  "created_at": "2021-10-04T08:52:36.000Z",
   "account": {
-    "id": "01F8MH5ZK5VRH73AKHQM6Y9VNX",
-    "username": "foss_satan",
     "acct": "foss_satan@fossbros-anonymous.io",
-    "display_name": "big gerald",
-    "locked": false,
-    "discoverable": true,
-    "indexable": true,
-    "noindex": false,
-    "bot": false,
-    "created_at": "2021-09-26T10:52:36.000Z",
-    "note": "i post about like, i dunno, stuff, or whatever!!!!",
-    "url": "http://fossbros-anonymous.io/@foss_satan",
     "avatar": "",
     "avatar_static": "",
-    "header": "http://localhost:8080/assets/default_header.webp",
-    "header_static": "http://localhost:8080/assets/default_header.webp",
-    "header_description": "Flat gray background (default header).",
-    "followers_count": 0,
-    "following_count": 0,
-    "statuses_count": 4,
-    "last_status_at": "2024-11-01",
+    "bot": false,
+    "created_at": "2021-09-26T10:52:36.000Z",
+    "discoverable": true,
+    "display_name": "big gerald",
     "emojis": [],
     "fields": [],
-    "group": false
-  }
-}`, dst.String())
+    "followers_count": 0,
+    "following_count": 0,
+    "group": false,
+    "header": "http://localhost:8080/assets/default_header.webp",
+    "header_description": "Flat gray background (default header).",
+    "header_static": "http://localhost:8080/assets/default_header.webp",
+    "id": "01F8MH5ZK5VRH73AKHQM6Y9VNX",
+    "indexable": true,
+    "last_status_at": "2024-11-01",
+    "locked": false,
+    "noindex": false,
+    "note": "i post about like, i dunno, stuff, or whatever!!!!",
+    "statuses_count": 4,
+    "url": "http://fossbros-anonymous.io/@foss_satan",
+    "username": "foss_satan"
+  },
+  "created_at": "2021-10-04T08:52:36.000Z",
+  "id": "01FH57SJCMDWQGEAJ0X08CE3WV",
+  "type": "follow"
+}`, out)
 }
 
 func TestNotificationTestSuite(t *testing.T) {

@@ -20,9 +20,9 @@ package search
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // SearchGETHandler swagger:operation GET /api/{api_version}/search searchGet
@@ -176,22 +176,25 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) SearchGETHandler(c *gin.Context) {
+func (m *Module) SearchGETHandler(c *httputil.Context) {
 	apiVersion, errWithCode := apiutil.ParseAPIVersion(
-		c.Param(apiutil.APIVersionKey),
+		c.PathValue(apiutil.APIVersionKey),
 		[]string{apiutil.APIv1, apiutil.APIv2}...,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadSearch,
-	)
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadSearch},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -203,48 +206,48 @@ func (m *Module) SearchGETHandler(c *gin.Context) {
 			Statuses: make([]*apimodel.Status, 0),
 			Hashtags: make([]any, 0),
 		}
-		apiutil.JSON(c, http.StatusOK, results)
+		httputil.JSON(c, http.StatusOK, results)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	limit, errWithCode := apiutil.ParseLimit(c.Query(apiutil.LimitKey), 20, 40, 1)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	offset, errWithCode := apiutil.ParseOffset(c.Query(apiutil.OffsetKey), 0, 10, 0)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	query, errWithCode := apiutil.ParseSearchQuery(c.Query(apiutil.SearchQueryKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	resolve, errWithCode := apiutil.ParseSearchResolve(c.Query(apiutil.SearchResolveKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	following, errWithCode := apiutil.ParseSearchFollowing(c.Query(apiutil.SearchFollowingKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	excludeUnreviewed, errWithCode := apiutil.ParseSearchExcludeUnreviewed(c.Query(apiutil.SearchExcludeUnreviewedKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -262,11 +265,11 @@ func (m *Module) SearchGETHandler(c *gin.Context) {
 		APIv1:             apiVersion == apiutil.APIv1,
 	}
 
-	results, errWithCode := m.processor.Search().Get(c.Request.Context(), authed.Account, searchRequest)
+	results, errWithCode := m.processor.Search().Get(c, authed.Account, searchRequest)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, results)
+	httputil.JSON(c, http.StatusOK, results)
 }

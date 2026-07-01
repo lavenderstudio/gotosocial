@@ -18,40 +18,54 @@
 package middleware
 
 import (
+	"net/url"
 	"time"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gopkg/httputil"
+	"github.com/rs/cors"
 )
 
 // CORS returns a new gin middleware which allows CORS requests to be processed.
 // This is necessary in order for web/browser-based clients like Semaphore to work.
-func CORS() gin.HandlerFunc {
-	cfg := cors.Config{
-		// todo: use config to customize this
-		AllowAllOrigins: true,
+func CORS() httputil.FlatMiddlewareFunc {
+	cors := cors.New(cors.Options{
+		// Allow all origins with expected schema.
+		AllowOriginFunc: func(origin string) bool {
+			u, err := url.Parse(origin)
+			if err != nil {
+				return false
+			}
+			switch u.Scheme {
+			case "http", "https":
+			case "chrome-extension":
+			case "safari-extension":
+			case "moz-extension":
+			case "ms-browser-extension":
+			case "ws", "wss":
+			default:
+				return false
+			}
+			return true
+		},
 
-		// adds the following:
-		// 	"chrome-extension://"
-		// 	"safari-extension://"
-		// 	"moz-extension://"
-		// 	"ms-browser-extension://"
-		AllowBrowserExtensions: true,
-		AllowMethods: []string{
+		AllowedMethods: []string{
+			"HEAD",
+			"GET",
 			"POST",
 			"PUT",
-			"DELETE",
-			"GET",
 			"PATCH",
+			"DELETE",
 			"OPTIONS",
 		},
-		AllowHeaders: []string{
+
+		AllowedHeaders: []string{
 			// basic cors stuff
-			"Origin",
 			"Content-Length",
 			"Content-Type",
+			"Origin",
 
-			// needed to pass oauth bearer tokens
+			// needed to pass
+			// oauth bearer tokens
 			"Authorization",
 
 			// Some clients require this; see:
@@ -67,9 +81,10 @@ func CORS() gin.HandlerFunc {
 			"Sec-WebSocket-Version",
 			"Connection",
 		},
-		AllowWebSockets: true,
-		ExposeHeaders: []string{
-			// needed for accessing next/prev links when making GET timeline requests
+
+		ExposedHeaders: []string{
+			// needed for accessing next/prev links
+			// when making GET timeline requests
 			"Link",
 
 			// needed so clients can handle rate limits
@@ -83,8 +98,15 @@ func CORS() gin.HandlerFunc {
 			"Sec-WebSocket-Accept",
 			"Upgrade",
 		},
-		MaxAge: 2 * time.Minute,
+
+		MaxAge: int((2 * time.Minute) / time.Second),
+	})
+
+	if cors == nil {
+		panic("nil cors")
 	}
 
-	return cors.New(cfg)
+	return func(c *httputil.Context) {
+		cors.HandlerFunc(&c.W, c.R)
+	}
 }

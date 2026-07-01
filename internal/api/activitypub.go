@@ -18,6 +18,7 @@
 package api
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/emoji"
 	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/publickey"
 	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/users"
@@ -26,20 +27,21 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/router"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 type ActivityPub struct {
-	emoji                    *emoji.Module
-	users                    *users.Module
-	publicKey                *publickey.Module
-	signatureCheckMiddleware gin.HandlerFunc
+	emoji     *emoji.Module
+	users     *users.Module
+	publicKey *publickey.Module
+	sigcheck  httputil.Middleware
 }
 
-func (a *ActivityPub) Route(r *router.Router, m ...gin.HandlerFunc) {
-	// create groupings for the 'emoji' and 'users' prefixes
-	emojiGroup := r.AttachGroup("emoji")
-	usersGroup := r.AttachGroup("users")
+func (a *ActivityPub) Route(r *router.Router, m ...httputil.Middleware) {
+	// create groupings for the
+	// 'emoji' and 'users' prefixes
+	emojiGroup := r.Group("emoji")
+	usersGroup := r.Group("users")
 
 	// Use provided middlewares.
 	emojiGroup.Use(m...)
@@ -56,18 +58,20 @@ func (a *ActivityPub) Route(r *router.Router, m ...gin.HandlerFunc) {
 	// so it doesn't require signature auth.
 	usersGroup.GET(config.GetHost(), a.users.InstanceActorGETHandler)
 
-	// *Now* add signature checking.
-	emojiGroup.Use(a.signatureCheckMiddleware)
-	usersGroup.Use(a.signatureCheckMiddleware)
+	// *Now* add sig checking.
+	emojiGroup.Use(a.sigcheck)
+	usersGroup.Use(a.sigcheck)
 
-	a.emoji.Route(emojiGroup.Handle)
-	a.users.Route(usersGroup.Handle)
+	a.emoji.Route(emojiGroup)
+	a.users.Route(usersGroup)
 }
 
 // Public key endpoint requires different middleware + cache policies from other AP endpoints.
-func (a *ActivityPub) RoutePublicKey(r *router.Router, m ...gin.HandlerFunc) {
-	// Create grouping for the 'users/[username]/main-key' prefix.
-	publicKeyGroup := r.AttachGroup(publickey.PublicKeyPath)
+func (a *ActivityPub) RoutePublicKey(r *router.Router, m ...httputil.Middleware) {
+
+	// Create grouping for the
+	// 'users/[username]/main-key' prefix.
+	publicKeyGroup := r.Group(publickey.PublicKeyPath)
 
 	// Attach middleware allowing public cacheing of main-key.
 	ccMiddleware := middleware.CacheControl(middleware.CacheControlConfig{
@@ -75,16 +79,16 @@ func (a *ActivityPub) RoutePublicKey(r *router.Router, m ...gin.HandlerFunc) {
 		Vary:       []string{"Accept", "Accept-Encoding"},
 	})
 	publicKeyGroup.Use(m...)
-	publicKeyGroup.Use(a.signatureCheckMiddleware, ccMiddleware)
+	publicKeyGroup.Use(a.sigcheck, ccMiddleware)
 
-	a.publicKey.Route(publicKeyGroup.Handle)
+	a.publicKey.Route(publicKeyGroup)
 }
 
-func NewActivityPub(db db.DB, p *processing.Processor) *ActivityPub {
+func NewActivityPub(db db.DB, processor *processing.Processor, templates *templates.Templates) *ActivityPub {
 	return &ActivityPub{
-		emoji:                    emoji.New(p),
-		users:                    users.New(p),
-		publicKey:                publickey.New(p),
-		signatureCheckMiddleware: middleware.SignatureCheck(db.IsURIBlocked),
+		emoji:     emoji.New(processor, templates),
+		users:     users.New(processor, templates),
+		publicKey: publickey.New(processor, templates),
+		sigcheck:  middleware.ExtractSignature(db.IsURIBlocked),
 	}
 }

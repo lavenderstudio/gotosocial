@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/polls"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
@@ -46,23 +47,23 @@ func (suite *PollCreateTestSuite) voteInPoll(
 	expectedHTTPStatus int,
 	expectedBody string,
 ) (*apimodel.Poll, error) {
+	// create the request
+	req := httptest.NewRequest(http.MethodPost, config.GetProtocol()+"://"+config.GetHost()+"/api/"+polls.BasePath+"/"+pollID, body)
+	req.Header.Set("accept", "application/json")
+	req.Header.Set("content-type", contentType)
+
 	// instantiate recorder + test context
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["admin_account"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["admin_account"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["admin_account"])
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["admin_account"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["admin_account"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["admin_account"])
 
-	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodPost, config.GetProtocol()+"://"+config.GetHost()+"/api/"+polls.BasePath+"/"+pollID, body)
-	ctx.Request.Header.Set("accept", "application/json")
-	ctx.Request.Header.Set("content-type", contentType)
-
-	ctx.AddParam("id", pollID)
+	c.SetPathValue("id", pollID)
 
 	// trigger the handler
-	suite.pollsModule.PollVotePOSTHandler(ctx)
+	suite.pollsModule.PollVotePOSTHandler(c)
 
 	// read the response
 	result := recorder.Result()
@@ -135,11 +136,7 @@ func (suite *PollCreateTestSuite) jsonVoteInPoll(
 ) (*apimodel.Poll, error) {
 	form := apimodel.PollVoteRequest{ChoicesI: choices}
 
-	b, err := json.Marshal(&form)
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	b := testrig.MustJSONBytes(&form)
 	suite.T().Log(string(b))
 
 	return suite.voteInPoll(

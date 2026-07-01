@@ -21,8 +21,9 @@ import (
 	"net/http"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 	"github.com/gorilla/websocket"
 )
 
@@ -36,28 +37,31 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
-	dTicker   time.Duration
-	wsUpgrade websocket.Upgrader
+	wsupgrade websocket.Upgrader
+	pingfreq  time.Duration
 }
 
-func New(processor *processing.Processor, dTicker time.Duration, wsBuf int) *Module {
-	// We expect CORS requests for websockets,
-	// (via eg., semaphore.social) so be lenient.
-	// TODO: make this customizable?
-	checkOrigin := func(r *http.Request) bool { return true }
-
+func New(processor *processing.Processor, templates *templates.Templates, pingFreq time.Duration) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
-		dTicker:   dTicker,
-		wsUpgrade: websocket.Upgrader{
-			ReadBufferSize:  wsBuf,
-			WriteBufferSize: wsBuf,
-			CheckOrigin:     checkOrigin,
+		pingfreq:  pingFreq,
+		wsupgrade: websocket.Upgrader{
+			ReadBufferSize:  4096,
+			WriteBufferSize: 4096,
+
+			// We expect CORS requests for websockets,
+			// (via eg., semaphore.social) so be lenient.
+			// TODO: make this customizable?
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
 		},
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, BasePath, m.StreamGETHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(BasePath, m.StreamGETHandler)
 }

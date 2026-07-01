@@ -23,134 +23,130 @@ import (
 	"strings"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/httputil/middleware"
 	"code.superseriousbusiness.org/gopkg/log"
-	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 	"codeberg.org/gruf/go-bytesize"
 	"codeberg.org/gruf/go-kv/v2"
-	"github.com/gin-gonic/gin"
 )
 
 // Logger returns a gin middleware which provides request logging and panic recovery.
-func Logger(logClientIP bool) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Determine pre-handler time
-		before := time.Now()
+func Logger(logClientIP bool) httputil.MiddlewareFunc {
+	return func(h func(*httputil.Context)) func(*httputil.Context) {
+		if h == nil {
+			panic("nil func")
+		}
 
-		// defer so that we log *after
-		// the request has completed*
-		defer func() {
+		return func(c *httputil.Context) {
+			// Determine time
+			// before pass-off.
+			before := time.Now()
 
-			// Get response status code.
-			code := c.Writer.Status()
+			// defer so that we log *after
+			// the request has completed*.
+			defer func() {
 
-			// Get request context.
-			ctx := c.Request.Context()
+				// Recover from any panics
+				// and dump stack to stderr.
+				if r := util.Recover(); r != nil {
 
-			// Recover from any panics
-			// and dump stack to stderr.
-			if r := util.Recover(); r != nil {
+					if c.W.StatusCode == 0 {
+						// No response written, send generic Internal Error.
+						c.W.WriteHeader(http.StatusInternalServerError)
+					}
 
-				if code == 0 {
-					// No response was written, send a generic Internal Error
-					c.Writer.WriteHeader(http.StatusInternalServerError)
+					// Append panic information to the request.
+					err := fmt.Errorf("recovered panic: %v", r)
+					c.Error(err)
 				}
 
-				// Append panic information to the request.
-				err := fmt.Errorf("recovered panic: %v", r)
-				_ = c.Error(err)
-			}
-
-			// Initialize the logging fields
-			fields := make(kv.Fields, 5, 8)
-			if len(fields) < 5 {
-				panic(gtserror.New("bound check elimination"))
-			}
-
-			// Set request logging fields
-			fields[0] = kv.Field{"latency", time.Since(before)}
-			fields[1] = kv.Field{"userAgent", c.Request.UserAgent()}
-			fields[2] = kv.Field{"method", c.Request.Method}
-			fields[3] = kv.Field{"statusCode", code}
-
-			// If the request contains sensitive query
-			// data only log path, else log entire URI.
-			if sensitiveQuery(c.Request.URL.RawQuery) {
-				path := c.Request.URL.Path
-				fields[4] = kv.Field{"uri", path}
-			} else {
-				uri := c.Request.RequestURI
-				fields[4] = kv.Field{"uri", uri}
-			}
-
-			if logClientIP {
-				// Append IP only if configured to.
-				fields = append(fields, kv.Field{
-					"clientIP", c.ClientIP(),
-				})
-			}
-
-			if pubKeyID := gtscontext.HTTPSignaturePubKeyID(ctx); pubKeyID != nil {
-				// Append public key ID if attached.
-				fields = append(fields, kv.Field{
-					"pubKeyID", pubKeyID.String(),
-				})
-			}
-
-			if len(c.Errors) > 0 {
-				// Append any extra log fields
-				// attached to request errors.
-				for _, err := range c.Errors {
-					extra := gtserror.LogFields(err.Err)
-					fields = append(fields, extra...)
+				// Initialize the logging fields.
+				fields := make(kv.Fields, 5, 8)
+				if len(fields) < 5 {
+					panic(gtserror.New("bound check elimination"))
 				}
 
-				// Always attach any found errors.
-				fields = append(fields, kv.Field{
-					"errors", c.Errors,
-				})
-			}
+				// Set request logging fields.
+				fields[0] = kv.Field{"latency", time.Since(before)}
+				fields[1] = kv.Field{"userAgent", c.R.UserAgent()}
+				fields[2] = kv.Field{"method", c.R.Method}
+				fields[3] = kv.Field{"statusCode", c.W.StatusCode}
 
-			// Create entry
-			// with fields.
-			l := log.New().
-				WithContext(ctx).
-				WithFields(fields...)
-
-			// Default is info
-			lvl := log.INFO
-
-			if code >= 500 {
-				// Actual error.
-				lvl = log.ERROR
-			}
-
-			// Get appropriate text for this code.
-			statusText := http.StatusText(code)
-			if statusText == "" {
-
-				// Look for
-				// custom codes.
-				switch code {
-				case gtserror.StatusClientClosedRequest:
-					statusText = gtserror.StatusTextClientClosedRequest
-				default:
-					statusText = "Unknown Status"
+				// If the request contains sensitive query
+				// data only log path, else log entire URI.
+				if sensitiveQuery(c.R.URL.RawQuery) {
+					path := c.R.URL.Path
+					fields[4] = kv.Field{"uri", path}
+				} else {
+					uri := c.R.RequestURI
+					fields[4] = kv.Field{"uri", uri}
 				}
-			}
 
-			// Generate a nicer looking bytecount.
-			sizeInt64 := max(0, c.Writer.Size())
-			size := bytesize.Size(sizeInt64) // #nosec G115 -- Just logging
+				if logClientIP {
+					if ip := middleware.GetClientIP(c); ip != nil {
+						// Append IP only if configured to.
+						fields = append(fields, kv.Field{
+							"clientIP", ip.String(),
+						})
+					}
+				}
 
-			// Write log entry with status text + body size.
-			l.Logf(lvl, "%s: wrote %s", statusText, size)
-		}()
+				if errs := c.Errors(); len(errs) > 0 {
+					// Append any extra log fields
+					// attached to request errors.
+					for _, err := range errs {
+						extra := gtserror.LogFields(err)
+						fields = append(fields, extra...)
+					}
 
-		// Process
-		// request.
-		c.Next()
+					// Always attach any found errors.
+					fields = append(fields, kv.Field{
+						"errors", errs,
+					})
+				}
+
+				// Create entry
+				// with fields.
+				l := log.New().
+					WithContext(c).
+					WithFields(fields...)
+
+				// Default level.
+				lvl := log.INFO
+
+				if c.W.StatusCode >= 500 {
+					// Actual error.
+					lvl = log.ERROR
+				}
+
+				// Get appropriate text for this status code.
+				statusText := http.StatusText(c.W.StatusCode)
+				if statusText == "" {
+
+					// Look for other codes.
+					switch c.W.StatusCode {
+					case gtserror.StatusClientClosedRequest:
+						statusText = gtserror.StatusTextClientClosedRequest
+					case httputil.StatusHijacked:
+						statusText = "Switching Protocols"
+					default:
+						statusText = "Unknown Status"
+					}
+				}
+
+				// Generate nice looking bytecount.
+				size := bytesize.Size(c.W.Written) // #nosec G115 -- Just logging
+
+				// Write log entry with status text + body size.
+				l.Logf(lvl, "%s: wrote %s", statusText, size)
+			}()
+
+			// Pass to
+			// next h.
+			h(c)
+		}
 	}
 }
 

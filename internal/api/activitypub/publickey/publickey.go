@@ -18,27 +18,28 @@
 package publickey
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/uris"
-	"github.com/gin-gonic/gin"
 )
 
 const PublicKeyPath = "users/:" + apiutil.UsernameKey + "/" + uris.PublicKeyPath
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, "", m.PublicKeyGETHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET("", m.PublicKeyGETHandler)
 }

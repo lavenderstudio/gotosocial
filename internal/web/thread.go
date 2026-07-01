@@ -18,42 +18,26 @@
 package web
 
 import (
-	"context"
 	"net/http"
 
-	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
+	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 )
 
-func (m *Module) threadGETHandler(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	// We'll need the instance later, and we can also use it
-	// before then to make it easier to return a web error.
-	instance, errWithCode := m.processor.InstanceGetV1(ctx)
-	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
-		return
-	}
-
-	// Return instance we already got from the db,
-	// don't try to fetch it again when erroring.
-	instanceGet := func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-		return instance, nil
-	}
-
+func (m *Module) threadGETHandler(c *httputil.Context) {
 	// Parse account requestedUser and status ID from the URL.
-	requestedUser, errWithCode := apiutil.ParseUsername(c.Param(apiutil.UsernameKey))
+	requestedUser, errWithCode := apiutil.ParseUsername(c.PathValue(apiutil.UsernameKey))
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	statusID, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+	statusID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -61,49 +45,49 @@ func (m *Module) threadGETHandler(c *gin.Context) {
 	// request on this endpoint we should render the AP representation instead.
 	accept, err := apiutil.NegotiateAccept(c, apiutil.HTMLOrActivityPubHeaders...)
 	if err != nil {
-		apiutil.WebErrorHandler(c, gtserror.NewErrorNotAcceptable(err, err.Error()), instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, gtserror.NewErrorNotAcceptable(err, err.Error()))
 		return
 	}
 
 	if apiutil.ASContentType(accept) {
 		// AP status representation has been requested.
-		status, errWithCode := m.processor.Fedi().StatusGet(c.Request.Context(), requestedUser, statusID)
+		status, errWithCode := m.processor.Fedi().StatusGet(c, requestedUser, statusID)
 		if errWithCode != nil {
-			apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+			apiutil.WebErrorHandler(c, m.templates, errWithCode)
 			return
 		}
 
-		apiutil.JSONType(c, http.StatusOK, accept, status)
+		httputil.JSONType(c, http.StatusOK, accept, status)
 		return
 	}
 
 	// text/html has been requested. Proceed with getting the web view of the status.
 
 	// Fetch the target account so we can do some checks on it.
-	acct, errWithCode := m.processor.Account().GetWeb(ctx, requestedUser)
+	acct, errWithCode := m.processor.Account().GetWeb(c, requestedUser)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// If requested account is suspended, this page should not be visible.
 	if acct.Suspended {
 		err := gtserror.Newf("account %s is suspended", requestedUser)
-		apiutil.WebErrorHandler(c, gtserror.NewErrorNotFound(err), instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, gtserror.NewErrorNotFound(err))
 		return
 	}
 
 	// Get the thread context. This will fetch the status as well.
-	context, errWithCode := m.processor.Status().WebContextGet(ctx, statusID)
+	context, errWithCode := m.processor.Status().WebContextGet(c, statusID)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Ensure status actually belongs to requested account.
 	if context.Status.Account.ID != acct.ID {
 		err := gtserror.Newf("account %s does not own status %s", requestedUser, statusID)
-		apiutil.WebErrorHandler(c, gtserror.NewErrorNotFound(err), instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, gtserror.NewErrorNotFound(err))
 		return
 	}
 
@@ -140,27 +124,36 @@ func (m *Module) threadGETHandler(c *gin.Context) {
 		"/@"+acct.Username+"/custom.css",
 	)
 
-	page := apiutil.WebPage{
-		Template:    "thread.tmpl",
-		Instance:    instance,
-		OGMeta:      apiutil.OGStatus(instance, acct, context.Status),
-		Stylesheets: stylesheets,
-		Javascript: []apiutil.JavascriptEntry{
-			{
-				Src:   jsFrontend,
-				Async: true,
-				Defer: true,
-			},
-			{
-				Bottom: true,
-				Src:    jsFrontendPrerender,
-			},
-		},
-		Extra: map[string]any{
-			"context":    context,
-			"robotsMeta": robotsMeta,
-		},
+	// Fetch instance details for status open graph details.
+	instance, errWithCode := m.processor.InstanceGetV1(c)
+	if errWithCode != nil {
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
+		return
 	}
 
-	apiutil.TemplateWebPage(c, page)
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template:    "thread.tmpl",
+			Stylesheets: stylesheets,
+			Javascript: []templates.JavascriptEntry{
+				{
+					Src:   jsFrontend,
+					Async: true,
+					Defer: true,
+				},
+				{
+					Bottom: true,
+					Src:    jsFrontendPrerender,
+				},
+			},
+			Extra: map[string]any{
+				"context":    context,
+				"robotsMeta": robotsMeta,
+				"instance":   instance,
+				"ogMeta":     typeutils.OpenGraphStatus(instance, acct, context.Status),
+			},
+		},
+	)
 }

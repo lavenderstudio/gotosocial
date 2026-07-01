@@ -23,7 +23,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"net"
@@ -4367,10 +4366,7 @@ func GetSignatureForActivity(activity pub.Activity, pubKeyID string, privkey *rs
 	if err != nil {
 		panic(err)
 	}
-	b, err := json.Marshal(m)
-	if err != nil {
-		panic(err)
-	}
+	b := MustJSONBytesUgly(m)
 
 	// Prepare HTTP request signer
 	sig, err := transport.NewPOSTSigner(120)

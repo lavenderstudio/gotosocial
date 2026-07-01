@@ -24,17 +24,17 @@ import (
 	"slices"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
-	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 )
 
-// ginMiddleware returns a middleware that
+// middleware returns a middleware that
 // records metrics for incoming requests.
-func ginMiddleware() gin.HandlerFunc {
+func middleware() httputil.MiddlewareFunc {
 	meter := otel.Meter("gin", metric.WithInstrumentationVersion(config.GetSoftwareVersion()))
 
 	activeReqs, _ := meter.Int64UpDownCounter(
@@ -65,64 +65,68 @@ func ginMiddleware() gin.HandlerFunc {
 		metric.WithUnit("ms"),
 	)
 
-	return func(c *gin.Context) {
-
-		ctx := c.Request.Context()
-		route := c.FullPath()
-		start := time.Now()
-
-		// Generate request attributes.
-		reqAttributes := []attribute.KeyValue{
-			semconv.HTTPServerNameKey.String("GoToSocial"),
-			semconv.HTTPMethodKey.String(c.Request.Method),
-			semconv.HTTPRouteKey.String(route),
+	return func(h httputil.HandlerFunc) httputil.HandlerFunc {
+		if h == nil {
+			panic("nil func")
 		}
 
-		// Increment active request count,
-		// decrement again when we're finished.
-		activeReqs.Add(ctx, 1, metric.WithAttributes(reqAttributes...))
-		defer activeReqs.Add(ctx, -1, metric.WithAttributes(reqAttributes...))
+		return func(c *httputil.Context) {
+			ctx := c
+			route := c.R.URL.Path
+			start := time.Now()
 
-		// Process request so we can
-		// record response metrics.
-		c.Next()
+			// Generate request attributes.
+			reqAttributes := []attribute.KeyValue{
+				semconv.HTTPServerNameKey.String("GoToSocial"),
+				semconv.HTTPMethodKey.String(c.R.Method),
+				semconv.HTTPRouteKey.String(route),
+			}
 
-		// Add HTTP response code to request
-		// attributes to create response attributes.
-		respAttributes := slices.Clone(reqAttributes)
-		respAttributes = append(
-			respAttributes,
-			semconv.HTTPStatusCodeKey.Int(c.Writer.Status()),
-		)
+			// Increment active request count,
+			activeReqs.Add(ctx, 1, metric.WithAttributes(reqAttributes...))
+			defer func() {
+				// Add HTTP response code to request
+				// attributes to create response attributes.
+				respAttributes := slices.Clone(reqAttributes)
+				respAttributes = append(
+					respAttributes,
+					semconv.HTTPStatusCodeKey.Int(c.W.StatusCode),
+				)
 
-		// Increment total requests.
-		totalReqs.Add(ctx, 1, metric.WithAttributes(respAttributes...))
+				// Increment total requests.
+				totalReqs.Add(ctx, 1, metric.WithAttributes(respAttributes...))
 
-		// Record request size.
-		reqSize.Record(
-			ctx,
-			computeApproximateRequestSize(c.Request),
-			metric.WithAttributes(respAttributes...),
-		)
+				// Record request size.
+				reqSize.Record(ctx,
+					computeApproximateRequestSize(c.R),
+					metric.WithAttributes(respAttributes...),
+				)
 
-		// Record response size.
-		respSize.Record(
-			ctx,
-			int64(c.Writer.Size()),
-			metric.WithAttributes(respAttributes...),
-		)
+				// Record response size.
+				respSize.Record(ctx,
+					c.W.Written,
+					metric.WithAttributes(respAttributes...),
+				)
 
-		// Record req + resp duration.
-		duration.Record(
-			ctx,
-			time.Since(start).Milliseconds(),
-			metric.WithAttributes(respAttributes...),
-		)
+				// Record req + resp duration.
+				duration.Record(ctx,
+					time.Since(start).Milliseconds(),
+					metric.WithAttributes(respAttributes...),
+				)
+
+				// decrement again when we're finished.
+				activeReqs.Add(ctx, -1, metric.WithAttributes(reqAttributes...))
+			}()
+
+			// Pass on
+			// to next
+			h(c)
+		}
 	}
 }
 
-func computeApproximateRequestSize(r *http.Request) (sz int64) {
-	len := func(s string) int64 { return int64(len(s)) }
+func computeApproximateRequestSize(r *http.Request) int64 {
+	var sz int
 
 	// First line
 	sz += len(r.Method)
@@ -148,7 +152,5 @@ func computeApproximateRequestSize(r *http.Request) (sz int64) {
 
 	// Finally, any request body (if set),
 	// this includes (multipart) form data.
-	sz += max(r.ContentLength, 0)
-
-	return
+	return int64(sz) + max(r.ContentLength, 0)
 }

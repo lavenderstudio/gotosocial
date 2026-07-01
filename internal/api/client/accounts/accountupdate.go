@@ -24,10 +24,10 @@ import (
 	"slices"
 	"strconv"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/form/v4"
 )
@@ -262,34 +262,37 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) AccountUpdateCredentialsPATCHHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteAccounts,
-	)
+func (m *Module) AccountUpdateCredentialsPATCHHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteAccounts},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form, err := parseUpdateAccountForm(c)
 	if err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
-	acctSensitive, errWithCode := m.processor.Account().Update(c.Request.Context(), authed.Account, form)
+	acctSensitive, errWithCode := m.processor.Account().Update(c, authed.Account, form)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, acctSensitive)
+	httputil.JSON(c, http.StatusOK, acctSensitive)
 }
 
 // fieldsAttributesFormBinding satisfies gin's binding.Binding interface.
@@ -314,7 +317,7 @@ func (fieldsAttributesFormBinding) Bind(req *http.Request, obj any) error {
 	return decoder.Decode(obj, req.Form)
 }
 
-func parseUpdateAccountForm(c *gin.Context) (*apimodel.UpdateCredentialsRequest, error) {
+func parseUpdateAccountForm(c *httputil.Context) (*apimodel.UpdateCredentialsRequest, error) {
 	form := &apimodel.UpdateCredentialsRequest{
 		Source: &apimodel.UpdateSource{},
 	}
@@ -322,7 +325,7 @@ func parseUpdateAccountForm(c *gin.Context) (*apimodel.UpdateCredentialsRequest,
 	switch ct := c.ContentType(); ct {
 	case binding.MIMEJSON:
 		// Bind with default json binding first.
-		if err := c.ShouldBindWith(form, binding.JSON); err != nil {
+		if err := httputil.ShouldBindWith(c, form, binding.JSON); err != nil {
 			return nil, err
 		}
 
@@ -335,24 +338,24 @@ func parseUpdateAccountForm(c *gin.Context) (*apimodel.UpdateCredentialsRequest,
 		}
 	case binding.MIMEPOSTForm:
 		// Bind with default form binding first.
-		if err := c.ShouldBindWith(form, binding.FormPost); err != nil {
+		if err := httputil.ShouldBindWith(c, form, binding.FormPost); err != nil {
 			return nil, err
 		}
 
 		// Now use custom form binding for
 		// field attributes in the form data.
-		if err := c.ShouldBindWith(form, fieldsAttributesFormBinding{}); err != nil {
+		if err := httputil.ShouldBindWith(c, form, fieldsAttributesFormBinding{}); err != nil {
 			return nil, fmt.Errorf("custom form binding failed: %w", err)
 		}
 	case binding.MIMEMultipartPOSTForm:
 		// Bind with default form binding first.
-		if err := c.ShouldBindWith(form, binding.FormMultipart); err != nil {
+		if err := httputil.ShouldBindWith(c, form, binding.FormMultipart); err != nil {
 			return nil, err
 		}
 
 		// Now use custom form binding for
 		// field attributes in the form data.
-		if err := c.ShouldBindWith(form, fieldsAttributesFormBinding{}); err != nil {
+		if err := httputil.ShouldBindWith(c, form, fieldsAttributesFormBinding{}); err != nil {
 			return nil, fmt.Errorf("custom form binding failed: %w", err)
 		}
 	default:

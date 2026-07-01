@@ -18,11 +18,12 @@
 package emoji_test
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/emoji"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
@@ -37,7 +38,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/storage"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -57,7 +57,7 @@ type EmojiGetTestSuite struct {
 
 	emojiModule *emoji.Module
 
-	signatureCheck gin.HandlerFunc
+	signatureCheck httputil.Middleware
 }
 
 func (suite *EmojiGetTestSuite) SetupSuite() {
@@ -89,11 +89,11 @@ func (suite *EmojiGetTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.emojiModule = emoji.New(suite.processor)
+	suite.emojiModule = emoji.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 	testrig.StandardDBSetup(suite.db, suite.testAccounts)
 	testrig.StandardStorageSetup(suite.storage, "../../../../testrig/media")
 
-	suite.signatureCheck = middleware.SignatureCheck(suite.db.IsURIBlocked)
+	suite.signatureCheck = middleware.ExtractSignature(suite.db.IsURIBlocked)
 }
 
 func (suite *EmojiGetTestSuite) TearDownTest() {
@@ -109,34 +109,26 @@ func (suite *EmojiGetTestSuite) TestGetEmoji() {
 	targetEmoji := suite.testEmojis["rainbow"]
 
 	// setup request
+	req := httptest.NewRequest(http.MethodGet, targetEmoji.URI, nil) // the endpoint we're hitting
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, targetEmoji.URI, nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/activity+json")
-	ctx.Request.Header.Set("Signature", signedRequest.SignatureHeader)
-	ctx.Request.Header.Set("Date", signedRequest.DateHeader)
-
-	// we need to pass the context through signature check first to set appropriate values on it
-	suite.signatureCheck(ctx)
+	c := httputil.ToContext(recorder, req)
+	c.R.Header.Set("accept", "application/activity+json")
+	c.R.Header.Set("Signature", signedRequest.SignatureHeader)
+	c.R.Header.Set("Date", signedRequest.DateHeader)
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.IDKey,
-			Value: targetEmoji.ID,
-		},
-	}
+	c.SetPathValue(apiutil.IDKey, targetEmoji.ID)
 
-	// trigger the function being tested
-	suite.emojiModule.EmojiGetHandler(ctx)
+	// trigger the function being tested, first passing through sigcheck.
+	suite.signatureCheck.Compile(suite.emojiModule.EmojiGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	suite.Contains(string(b), `"icon":{"mediaType":"image/png","type":"Image","url":"http://localhost:8080/fileserver/01AY6P665V14JJR0AFVRT7311Y/emoji/original/01F8MH9H8E4VG3KDYJR9EGPXCQ.png"},"id":"http://localhost:8080/emoji/01F8MH9H8E4VG3KDYJR9EGPXCQ","name":":rainbow:","type":"Emoji"`)

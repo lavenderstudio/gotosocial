@@ -19,16 +19,16 @@ package accounts_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/accounts"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -39,22 +39,18 @@ type BlockTestSuite struct {
 
 func (suite *BlockTestSuite) TestBlockSelf() {
 	testAcct := suite.testAccounts["local_account_1"]
+
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:8080%s", strings.Replace(accounts.BlockPath, ":id", testAcct.ID, 1)), nil)
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, testAcct)
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Request = httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:8080%s", strings.Replace(accounts.BlockPath, ":id", testAcct.ID, 1)), nil)
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, testAcct)
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
 
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   accounts.IDKey,
-			Value: testAcct.ID,
-		},
-	}
+	c.SetPathValue(apiutil.IDKey, testAcct.ID)
 
-	suite.accountsModule.AccountBlockPOSTHandler(ctx)
+	suite.accountsModule.AccountBlockPOSTHandler(c)
 
 	// 1. status should be Not Acceptable due to attempted self-block
 	suite.Equal(http.StatusNotAcceptable, recorder.Code)
@@ -63,7 +59,7 @@ func (suite *BlockTestSuite) TestBlockSelf() {
 	defer result.Body.Close()
 
 	// check the response
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	_ = b
 	assert.NoError(suite.T(), err)
 }

@@ -22,11 +22,11 @@ import (
 	"fmt"
 	"net/http/httptest"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -62,7 +62,7 @@ func (suite *InstanceStandardTestSuite) newContext(
 	body []byte,
 	contentType string,
 	auth bool,
-) *gin.Context {
+) *httputil.Context {
 	protocol := config.GetProtocol()
 	host := config.GetHost()
 
@@ -77,14 +77,14 @@ func (suite *InstanceStandardTestSuite) newContext(
 
 	req.Header.Set("accept", "application/json")
 
-	ctx, _ := testrig.CreateGinTestContext(recorder, req)
+	c := httputil.ToContext(recorder, req)
 
 	if auth {
-		ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["admin_account"])
-		ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["admin_account"]))
-		ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["admin_account"])
-		ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["admin_account"])
+		c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["admin_account"])
+		c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["admin_account"]))
+		c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["admin_account"])
+		c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["admin_account"])
 	}
 
-	return ctx
+	return c
 }

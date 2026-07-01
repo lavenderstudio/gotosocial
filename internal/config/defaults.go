@@ -18,6 +18,7 @@
 package config
 
 import (
+	"net/netip"
 	"time"
 
 	"code.superseriousbusiness.org/gotosocial/internal/language"
@@ -40,7 +41,10 @@ var Defaults = Configuration{
 	Protocol:           "https",
 	BindAddress:        "0.0.0.0",
 	Port:               8080,
-	TrustedProxies:     []string{"127.0.0.1/32", "::1"}, // localhost
+	TrustedProxies: []netip.Prefix{
+		MustParsePrefix("127.0.0.1/32"),
+		MustParsePrefix("::1"),
+	}, // localhost
 
 	DbType:                   "",
 	DbAddress:                "",
@@ -292,8 +296,8 @@ var Defaults = Configuration{
 	},
 
 	HTTPClient: HTTPClientConfiguration{
-		AllowIPs:              make([]string, 0),
-		BlockIPs:              make([]string, 0),
+		AllowIPs:              make([]netip.Prefix, 0),
+		BlockIPs:              make([]netip.Prefix, 0),
 		Timeout:               time.Minute,
 		TLSInsecureSkipVerify: false,
 		InsecureOutgoing:      false,

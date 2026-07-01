@@ -18,6 +18,7 @@
 package users_test
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/users"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
@@ -31,7 +32,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/storage"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -60,7 +60,7 @@ type UserStandardTestSuite struct {
 	// module being tested
 	userModule *users.Module
 
-	signatureCheck gin.HandlerFunc
+	signatureCheck httputil.Middleware
 }
 
 func (suite *UserStandardTestSuite) SetupSuite() {
@@ -100,11 +100,11 @@ func (suite *UserStandardTestSuite) SetupTest() {
 	)
 	testrig.StartWorkers(&suite.state, suite.processor.Workers())
 
-	suite.userModule = users.New(suite.processor)
+	suite.userModule = users.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 	testrig.StandardDBSetup(suite.db, suite.testAccounts)
 	testrig.StandardStorageSetup(suite.storage, "../../../../testrig/media")
 
-	suite.signatureCheck = middleware.SignatureCheck(suite.db.IsURIBlocked)
+	suite.signatureCheck = middleware.ExtractSignature(suite.db.IsURIBlocked)
 }
 
 func (suite *UserStandardTestSuite) TearDownTest() {

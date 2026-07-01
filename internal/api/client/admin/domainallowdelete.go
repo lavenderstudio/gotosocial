@@ -18,8 +18,8 @@
 package admin
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"github.com/gin-gonic/gin"
 )
 
 // DomainAllowDELETEHandler swagger:operation DELETE /api/v1/admin/domain_allows/{id} domainAllowDelete
@@ -81,6 +81,6 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) DomainAllowDELETEHandler(c *gin.Context) {
+func (m *Module) DomainAllowDELETEHandler(c *httputil.Context) {
 	m.deleteDomainPermission(c, gtsmodel.DomainPermissionAllow)
 }

@@ -27,6 +27,7 @@ import (
 	"strings"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/accounts"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
@@ -54,8 +55,6 @@ func (suite *AccountSearchTestSuite) getSearch(
 	expectedBody string,
 ) ([]*apimodel.Account, error) {
 	var (
-		recorder   = httptest.NewRecorder()
-		ctx, _     = testrig.CreateGinTestContext(recorder, nil)
 		requestURL = testrig.URLMustParse("/api" + accounts.BasePath + "/search")
 		queryParts []string
 	)
@@ -80,14 +79,17 @@ func (suite *AccountSearchTestSuite) getSearch(
 	}
 
 	requestURL.RawQuery = strings.Join(queryParts, "&")
-	ctx.Request = httptest.NewRequest(http.MethodGet, requestURL.String(), nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, requestingAccount)
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, user)
+	req := httptest.NewRequest(http.MethodGet, requestURL.String(), nil)
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+
+	c.V.Set(oauth.SessionAuthorizedAccount, requestingAccount)
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, user)
 
 	// Trigger the function being tested.
-	suite.accountsModule.AccountSearchGETHandler(ctx)
+	suite.accountsModule.AccountSearchGETHandler(c)
 
 	// Read the result.
 	result := recorder.Result()

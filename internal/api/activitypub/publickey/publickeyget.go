@@ -22,9 +22,9 @@ import (
 	"net/http"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // PublicKeyGETHandler should be served at eg https://example.org/users/:username/main-key.
@@ -32,41 +32,40 @@ import (
 // The goal here is to return a MINIMAL activitypub representation of an account
 // in the form of a vocab.ActivityStreamsPerson. The account will only contain the id,
 // public key, username, and type of the account.
-func (m *Module) PublicKeyGETHandler(c *gin.Context) {
+func (m *Module) PublicKeyGETHandler(c *httputil.Context) {
+
 	// usernames on our instance are always lowercase
-	requestedUser := strings.ToLower(c.Param(apiutil.UsernameKey))
-	if requestedUser == "" {
+	username := c.PathValue(apiutil.UsernameKey)
+	username = strings.ToLower(username)
+	if username == "" {
 		err := errors.New("no username specified in request")
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	contentType, err := apiutil.NegotiateAccept(c, apiutil.ActivityPubOrHTMLHeaders...)
 	if err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorNotAcceptable(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorNotAcceptable(err, err.Error()))
 		return
 	}
 
-	// If HTML is requested, redirect
-	// to user's profile instead.
+	// If HTML is requested, redirect to profile.
 	if contentType == string(apiutil.TextHTML) {
-		c.Redirect(http.StatusSeeOther, "/@"+requestedUser)
+		httputil.Redirect(c, http.StatusSeeOther, "/@"+username)
 		return
 	}
 
 	resp, errWithCode := m.processor.Fedi().UserGetMinimal(
-		c.Request.Context(),
-		requestedUser,
+		c,
+		username,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	// Encode JSON HTTP response.
-	apiutil.EncodeJSONResponse(
-		c.Writer,
-		c.Request,
+	// Encode JSON response.
+	httputil.JSONType(c,
 		http.StatusOK,
 		contentType,
 		resp,

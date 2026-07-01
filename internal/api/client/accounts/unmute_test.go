@@ -23,12 +23,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/accounts"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 )
 
 func (suite *MuteTestSuite) postUnmute(
@@ -36,22 +37,22 @@ func (suite *MuteTestSuite) postUnmute(
 	expectedHTTPStatus int,
 	expectedBody string,
 ) (*apimodel.Relationship, error) {
+	// create the request
+	req := httptest.NewRequest(http.MethodPut, config.GetProtocol()+"://"+config.GetHost()+"/api/"+accounts.BasePath+"/"+accountID+"/unmute", nil)
+	req.Header.Set("accept", "application/json")
+
 	// instantiate recorder + test context
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
 
-	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodPut, config.GetProtocol()+"://"+config.GetHost()+"/api/"+accounts.BasePath+"/"+accountID+"/unmute", nil)
-	ctx.Request.Header.Set("accept", "application/json")
-
-	ctx.AddParam("id", accountID)
+	c.SetPathValue(apiutil.IDKey, accountID)
 
 	// trigger the handler
-	suite.accountsModule.AccountUnmutePOSTHandler(ctx)
+	suite.accountsModule.AccountUnmutePOSTHandler(c)
 
 	// read the response
 	result := recorder.Result()
@@ -129,7 +130,10 @@ func (suite *MuteTestSuite) TestPostUnmuteSelf() {
 
 func (suite *MuteTestSuite) TestPostUnmuteNonexistentAccount() {
 	accountID := "not_even_a_real_ULID"
-	_, err := suite.postUnmute(accountID, http.StatusNotFound, `{"error":"Not Found: getMuteTarget: target account not_even_a_real_ULID not found in the db"}`)
+	// Even though we pass account ID as mixed-case,
+	// accountIDs always get converted to uppercase
+	// (since ULIDs are always uppercase) in apiutil.ParseID().
+	_, err := suite.postUnmute(accountID, http.StatusNotFound, `{"error":"Not Found: getMuteTarget: target account NOT_EVEN_A_REAL_ULID not found in the db"}`)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}

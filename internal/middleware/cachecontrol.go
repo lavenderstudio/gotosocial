@@ -20,7 +20,7 @@ package middleware
 import (
 	"strings"
 
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gopkg/httputil"
 )
 
 type CacheControlConfig struct {
@@ -48,28 +48,28 @@ type CacheControlConfig struct {
 
 // CacheControl returns a new gin middleware which allows
 // routes to control cache settings on response headers.
-func CacheControl(config CacheControlConfig) gin.HandlerFunc {
+func CacheControl(config CacheControlConfig) httputil.FlatMiddlewareFunc {
 	if len(config.Directives) == 0 {
 		// No Cache-Control directives provided,
 		// return empty/stub function.
 		return nil
 	}
 
-	// Cache control is usually done on hot paths so
-	// parse vars outside of the returned function.
 	var (
+		// Cache control is usually done on hot paths so
+		// parse vars outside of the returned function.
 		ccHeader   = strings.Join(config.Directives, ", ")
 		varyHeader = strings.Join(config.Vary, ", ")
 	)
 
 	if varyHeader == "" {
-		return func(c *gin.Context) {
-			c.Header("Cache-Control", ccHeader)
+		return func(c *httputil.Context) {
+			c.W.Header().Set("Cache-Control", ccHeader)
 		}
 	}
 
-	return func(c *gin.Context) {
-		c.Header("Cache-Control", ccHeader)
-		c.Header("Vary", varyHeader)
+	return func(c *httputil.Context) {
+		c.W.Header().Set("Cache-Control", ccHeader)
+		c.W.Header().Set("Vary", varyHeader)
 	}
 }

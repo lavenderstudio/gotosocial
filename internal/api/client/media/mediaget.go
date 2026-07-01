@@ -18,12 +18,10 @@
 package media
 
 import (
-	"errors"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // MediaGETHandler swagger:operation GET /api/v1/media/{id} mediaGet
@@ -74,43 +72,47 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) MediaGETHandler(c *gin.Context) {
+func (m *Module) MediaGETHandler(c *httputil.Context) {
 	if _, errWithCode := apiutil.ParseAPIVersion(
-		c.Param(apiutil.APIVersionKey),
+		c.PathValue(apiutil.APIVersionKey),
 		[]string{apiutil.APIv1, apiutil.APIv2}...,
 	); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		// This takes write even
-		// though it's a read.
-		apiutil.ScopeWriteMedia,
-	)
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope: []apiutil.Scope{
+			// This takes write even
+			// though it's a read.
+			apiutil.ScopeWriteMedia,
+		},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	attachmentID := c.Param(IDKey)
-	if attachmentID == "" {
-		err := errors.New("no attachment id specified")
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
-		return
-	}
-
-	attachment, errWithCode := m.processor.Media().Get(c.Request.Context(), authed.Account, attachmentID)
+	attachmentID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, attachment)
+	attachment, errWithCode := m.processor.Media().Get(c, authed.Account, attachmentID)
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	httputil.JSON(c, http.StatusOK, attachment)
 }

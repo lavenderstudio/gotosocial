@@ -18,8 +18,8 @@
 package admin
 
 import (
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"github.com/gin-gonic/gin"
 )
 
 // DomainAllowsGETHandler swagger:operation GET /api/v1/admin/domain_allows domainAllowsGet
@@ -80,6 +80,6 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) DomainAllowsGETHandler(c *gin.Context) {
+func (m *Module) DomainAllowsGETHandler(c *httputil.Context) {
 	m.getDomainPermissions(c, gtsmodel.DomainPermissionAllow)
 }

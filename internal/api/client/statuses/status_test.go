@@ -209,7 +209,7 @@ func (suite *StatusStandardTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.statusModule = statuses.New(suite.processor)
+	suite.statusModule = statuses.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 
 	testrig.StartWorkers(&suite.state, suite.processor.Workers())
 }

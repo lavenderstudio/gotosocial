@@ -20,8 +20,8 @@ package users
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // FeaturedCollectionGETHandler swagger:operation GET /users/{username}/collections/featured s2sFeaturedCollectionGet
@@ -70,24 +70,24 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: not found
-func (m *Module) FeaturedCollectionGETHandler(c *gin.Context) {
+func (m *Module) FeaturedCollectionGETHandler(c *httputil.Context) {
 	username, contentType, errWithCode := m.parseCommon(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if contentType == apiutil.TextHTML {
 		// Redirect to account web view.
-		c.Redirect(http.StatusSeeOther, "/@"+username)
+		httputil.Redirect(c, http.StatusSeeOther, "/@"+username)
 		return
 	}
 
-	resp, errWithCode := m.processor.Fedi().FeaturedCollectionGet(c.Request.Context(), username)
+	resp, errWithCode := m.processor.Fedi().FeaturedCollectionGet(c, username)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSONType(c, http.StatusOK, contentType, resp)
+	httputil.JSONType(c, http.StatusOK, contentType, resp)
 }

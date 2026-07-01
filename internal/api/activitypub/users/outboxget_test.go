@@ -18,9 +18,8 @@
 package users_test
 
 import (
-	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -28,9 +27,9 @@ import (
 
 	"code.superseriousbusiness.org/activity/streams"
 	"code.superseriousbusiness.org/activity/streams/vocab"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -45,45 +44,38 @@ func (suite *OutboxGetTestSuite) TestGetOutbox() {
 	targetAccount := suite.testAccounts["local_account_1"]
 
 	// setup request
+	req := httptest.NewRequest(http.MethodGet, targetAccount.OutboxURI, nil) // the endpoint we're hitting
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, targetAccount.OutboxURI, nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/activity+json")
-	ctx.Request.Header.Set("Signature", signedRequest.SignatureHeader)
-	ctx.Request.Header.Set("Date", signedRequest.DateHeader)
-
-	// we need to pass the context through signature check first to set appropriate values on it
-	suite.signatureCheck(ctx)
+	c := httputil.ToContext(recorder, req)
+	c.R.Header.Set("accept", "application/activity+json")
+	c.R.Header.Set("Signature", signedRequest.SignatureHeader)
+	c.R.Header.Set("Date", signedRequest.DateHeader)
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.UsernameKey,
-			Value: targetAccount.Username,
-		},
-	}
+	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
 
-	// trigger the function being tested
-	suite.userModule.OutboxGETHandler(ctx)
+	// trigger the function being tested, first passing through sigcheck.
+	suite.signatureCheck.Compile(suite.userModule.OutboxGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
-	suite.NoError(err)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	b, err := io.ReadAll(result.Body)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "first": "http://localhost:8080/users/the_mighty_zork/outbox?limit=40",
   "id": "http://localhost:8080/users/the_mighty_zork/outbox",
   "totalItems": 9,
   "type": "OrderedCollection"
-}`, dst.String())
+}`, out)
 
 	m := make(map[string]any)
 	err = json.Unmarshal(b, &m)
@@ -103,43 +95,35 @@ func (suite *OutboxGetTestSuite) TestGetOutboxFirstPage() {
 	targetAccount := suite.testAccounts["local_account_1"]
 
 	// setup request
+	req := httptest.NewRequest(http.MethodGet, targetAccount.OutboxURI+"?limit=40", nil) // the endpoint we're hitting
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, targetAccount.OutboxURI+"?limit=40", nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/activity+json")
-	ctx.Request.Header.Set("Signature", signedRequest.SignatureHeader)
-	ctx.Request.Header.Set("Date", signedRequest.DateHeader)
-
-	// we need to pass the context through signature check first to set appropriate values on it
-	suite.signatureCheck(ctx)
+	c := httputil.ToContext(recorder, req)
+	c.R.Header.Set("accept", "application/activity+json")
+	c.R.Header.Set("Signature", signedRequest.SignatureHeader)
+	c.R.Header.Set("Date", signedRequest.DateHeader)
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.UsernameKey,
-			Value: targetAccount.Username,
-		},
-	}
+	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
 
-	// trigger the function being tested
-	suite.userModule.OutboxGETHandler(ctx)
+	// trigger the function being tested, first passing through sigcheck.
+	suite.signatureCheck.Compile(suite.userModule.OutboxGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
-	suite.NoError(err)
+	b, err := io.ReadAll(result.Body)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 	b = checkDropPublished(suite.T(), b, "orderedItems")
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "http://localhost:8080/users/the_mighty_zork/outbox?limit=40",
-  "next": "http://localhost:8080/users/the_mighty_zork/outbox?limit=40\u0026max_id=01F8MHAMCHF6Y650WCRSCP4WMY",
+  "next": "http://localhost:8080/users/the_mighty_zork/outbox?limit=40&max_id=01F8MHAMCHF6Y650WCRSCP4WMY",
   "orderedItems": [
     {
       "actor": "http://localhost:8080/users/the_mighty_zork",
@@ -167,14 +151,16 @@ func (suite *OutboxGetTestSuite) TestGetOutboxFirstPage() {
     }
   ],
   "partOf": "http://localhost:8080/users/the_mighty_zork/outbox",
-  "prev": "http://localhost:8080/users/the_mighty_zork/outbox?limit=40\u0026min_id=01JDPZC707CKDN8N4QVWM4Z1NR",
+  "prev": "http://localhost:8080/users/the_mighty_zork/outbox?limit=40&min_id=01JDPZC707CKDN8N4QVWM4Z1NR",
   "totalItems": 9,
   "type": "OrderedCollectionPage"
-}`, dst.String())
+}`, out)
 
 	m := make(map[string]any)
 	err = json.Unmarshal(b, &m)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
 	t, err := streams.ToType(suite.T().Context(), m)
 	suite.NoError(err)
@@ -190,42 +176,32 @@ func (suite *OutboxGetTestSuite) TestGetOutboxNextPage() {
 	targetAccount := suite.testAccounts["local_account_1"]
 
 	// setup request
+	req := httptest.NewRequest(http.MethodGet, targetAccount.OutboxURI+"?limit=40&max_id=01F8MHAMCHF6Y650WCRSCP4WMY", nil) // the endpoint we're hitting
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, targetAccount.OutboxURI+"?limit=40&max_id=01F8MHAMCHF6Y650WCRSCP4WMY", nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/activity+json")
-	ctx.Request.Header.Set("Signature", signedRequest.SignatureHeader)
-	ctx.Request.Header.Set("Date", signedRequest.DateHeader)
-
-	// we need to pass the context through signature check first to set appropriate values on it
-	suite.signatureCheck(ctx)
+	c := httputil.ToContext(recorder, req)
+	c.R.Header.Set("accept", "application/activity+json")
+	c.R.Header.Set("Signature", signedRequest.SignatureHeader)
+	c.R.Header.Set("Date", signedRequest.DateHeader)
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.UsernameKey,
-			Value: targetAccount.Username,
-		},
-		gin.Param{
-			Key:   apiutil.MaxIDKey,
-			Value: "01F8MHAMCHF6Y650WCRSCP4WMY",
-		},
-	}
+	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
+	c.SetPathValue(apiutil.MaxIDKey, "01F8MHAMCHF6Y650WCRSCP4WMY")
 
-	// trigger the function being tested
-	suite.userModule.OutboxGETHandler(ctx)
+	// trigger the function being tested, first passing through sigcheck.
+	suite.signatureCheck.Compile(suite.userModule.OutboxGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
-	suite.NoError(err)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	b, err := io.ReadAll(result.Body)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "http://localhost:8080/users/the_mighty_zork/outbox?limit=40&max_id=01F8MHAMCHF6Y650WCRSCP4WMY",
@@ -233,7 +209,7 @@ func (suite *OutboxGetTestSuite) TestGetOutboxNextPage() {
   "partOf": "http://localhost:8080/users/the_mighty_zork/outbox",
   "totalItems": 9,
   "type": "OrderedCollectionPage"
-}`, dst.String())
+}`, out)
 
 	m := make(map[string]any)
 	err = json.Unmarshal(b, &m)
@@ -279,10 +255,5 @@ func checkDropPublished(t *testing.T, b []byte, at ...string) []byte {
 		delete(entry, "published")
 	}
 
-	b, err := json.Marshal(m)
-	if err != nil {
-		t.Fatalf("error remarshaling json: %v", err)
-	}
-
-	return b
+	return testrig.MustJSONBytes(m)
 }

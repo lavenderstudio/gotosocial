@@ -18,35 +18,34 @@
 package scheduledstatuses
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
-	// IDKey is for status UUIDs
-	IDKey = "id"
 	// BasePath is the base path for serving the scheduled statuses API, minus the 'api' prefix
 	BasePath = "/v1/scheduled_statuses"
 	// BasePathWithID is just the base path with the ID key in it.
 	// Use this anywhere you need to know the ID of the scheduled status being queried.
-	BasePathWithID = BasePath + "/:" + IDKey
+	BasePathWithID = BasePath + "/:" + apiutil.IDKey
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, BasePath, m.ScheduledStatusesGETHandler)
-	attachHandler(http.MethodGet, BasePathWithID, m.ScheduledStatusGETHandler)
-	attachHandler(http.MethodPut, BasePathWithID, m.ScheduledStatusPUTHandler)
-	attachHandler(http.MethodDelete, BasePathWithID, m.ScheduledStatusDELETEHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(BasePath, m.ScheduledStatusesGETHandler)
+	g.GET(BasePathWithID, m.ScheduledStatusGETHandler)
+	g.PUT(BasePathWithID, m.ScheduledStatusPUTHandler)
+	g.DELETE(BasePathWithID, m.ScheduledStatusDELETEHandler)
 }

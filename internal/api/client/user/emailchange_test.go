@@ -47,7 +47,7 @@ func (suite *EmailChangeTestSuite) TestEmailChangePOST() {
 	webPushSender := testrig.NewNoopWebPushSender()
 	processor := testrig.NewTestProcessor(state, suite.federator, emailSender, webPushSender, suite.mediaManager)
 	testrig.StartWorkers(state, processor.Workers())
-	userModule := user.New(processor)
+	userModule := user.New(processor, testrig.LoadTemplates(&suite.state, ""))
 	testrig.StandardDBSetup(state.DB, suite.testAccounts)
 	testrig.StandardStorageSetup(storage, "../../../../testrig/media")
 

@@ -24,6 +24,7 @@ import (
 	"strings"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db/bundb"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
@@ -32,7 +33,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 )
 
 func TestHeaderFilter(t *testing.T) {
@@ -251,32 +251,26 @@ func testHeaderFilter(t *testing.T, allow, block []filter, input http.Header, ex
 		}
 	}
 
-	// Gin test http engine
-	// (used for ctx init).
-	e := gin.New()
+	// Test http router.
+	r := httputil.Router{}
 
 	// Create new filter middleware to test against.
 	middleware := middleware.HeaderFilter(&state)
-	if middleware == nil {
+	r.Use(middleware)
 
-		// if nil, use an empty handler func.
-		middleware = func(ctx *gin.Context) {}
-	}
-	e.Use(middleware)
+	// Set the empty request handler (always returns okay).
+	r.Handle("GET", "/", func(c *httputil.Context) { c.W.WriteHeader(200) })
 
-	// Set the empty gin handler (always returns okay).
-	e.Handle("GET", "/", func(ctx *gin.Context) { ctx.Status(200) })
-
-	// Prepare a gin test context.
-	r := httptest.NewRequest("GET", "/", nil)
+	// Prepare an httputil test context.
+	req := httptest.NewRequest("GET", "/", nil)
 	rw := httptest.NewRecorder()
 
 	// Set input headers.
-	r.Header = input
+	req.Header = input
 
-	// Pass req through
-	// engine handler.
-	e.ServeHTTP(rw, r)
+	// Pass req
+	// through http router.
+	r.ServeHTTP(rw, req)
 
 	// Get http result.
 	res := rw.Result()

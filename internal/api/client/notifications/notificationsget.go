@@ -21,11 +21,11 @@ import (
 	"context"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
-	"github.com/gin-gonic/gin"
 )
 
 // NotificationsGETHandler swagger:operation GET /api/v1/notifications notifications
@@ -150,18 +150,21 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) NotificationsGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadNotifications,
-	)
+func (m *Module) NotificationsGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadNotifications},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -171,28 +174,26 @@ func (m *Module) NotificationsGETHandler(c *gin.Context) {
 		20, // no limit
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	ctx := c.Request.Context()
-	resp, errWithCode := m.processor.Timeline().NotificationsGet(
-		ctx,
+	resp, errWithCode := m.processor.Timeline().NotificationsGet(c,
 		authed.Account,
 		page,
-		parseNotificationTypes(ctx, c.QueryArray(TypesKey)),        // Include types.
-		parseNotificationTypes(ctx, c.QueryArray(ExcludeTypesKey)), // Exclude types.
+		parseNotificationTypes(c, c.QueryArray(TypesKey)),        // Include types.
+		parseNotificationTypes(c, c.QueryArray(ExcludeTypesKey)), // Exclude types.
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if resp.LinkHeader != "" {
-		c.Header("Link", resp.LinkHeader)
+		c.W.Header().Set("Link", resp.LinkHeader)
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp.Items)
+	httputil.JSON(c, http.StatusOK, resp.Items)
 }
 
 // parseNotificationTypes converts the given slice of string values

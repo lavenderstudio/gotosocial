@@ -19,7 +19,6 @@ package workers_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -208,12 +207,7 @@ func (suite *FromClientAPITestSuite) statusJSON(
 		suite.FailNow(err.Error())
 	}
 
-	statusJSON, err := json.Marshal(apiStatus)
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
-	return string(statusJSON)
+	return testrig.MustJSONStringUgly(apiStatus)
 }
 
 func (suite *FromClientAPITestSuite) conversationJSON(
@@ -231,12 +225,7 @@ func (suite *FromClientAPITestSuite) conversationJSON(
 		suite.FailNow(err.Error())
 	}
 
-	conversationJSON, err := json.Marshal(apiConversation)
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
-	return string(conversationJSON)
+	return testrig.MustJSONStringUgly(apiConversation)
 }
 
 func (suite *FromClientAPITestSuite) TestProcessCreateStatusWithNotification() {
@@ -347,16 +336,11 @@ func (suite *FromClientAPITestSuite) TestProcessCreateStatusWithNotification() {
 		suite.FailNow(err.Error())
 	}
 
-	notifJSON, err := json.Marshal(apiNotif)
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
 	// Check message in notification stream.
 	suite.checkStreamed(
 		notifStream,
 		true,
-		string(notifJSON),
+		testrig.MustJSONStringUgly(apiNotif),
 		stream.EventTypeNotification,
 	)
 
@@ -1958,11 +1942,7 @@ func (suite *FromClientAPITestSuite) TestProcessCreateStatusWithAuthorOnExclusiv
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
-
-	notifJSON, err := json.Marshal(apiNotif)
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
+	notifJSON := testrig.MustJSONStringUgly(apiNotif)
 
 	// Check message in notification stream.
 	suite.checkStreamed(
@@ -2144,16 +2124,11 @@ func (suite *FromClientAPITestSuite) TestProcessUpdateStatusInteractedWith() {
 		suite.FailNow(err.Error())
 	}
 
-	notifJSON, err := json.Marshal(apiNotif)
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
 	// Check notif in stream.
 	suite.checkStreamed(
 		notifStream,
 		true,
-		string(notifJSON),
+		testrig.MustJSONStringUgly(apiNotif),
 		stream.EventTypeNotification,
 	)
 }

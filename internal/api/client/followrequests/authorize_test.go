@@ -18,18 +18,16 @@
 package followrequests_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"code.superseriousbusiness.org/gotosocial/internal/api/client/followrequests"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -55,17 +53,11 @@ func (suite *AuthorizeTestSuite) TestAuthorize() {
 	suite.NoError(err)
 
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, []byte{}, fmt.Sprintf("/api/v1/follow_requests/%s/authorize", requestingAccount.ID), "")
-
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   followrequests.IDKey,
-			Value: requestingAccount.ID,
-		},
-	}
+	c := suite.newContext(recorder, http.MethodPost, []byte{}, fmt.Sprintf("/api/v1/follow_requests/%s/authorize", requestingAccount.ID), "")
+	c.SetPathValue(apiutil.IDKey, requestingAccount.ID)
 
 	// call the handler
-	suite.followRequestModule.FollowRequestAuthorizePOSTHandler(ctx)
+	suite.followRequestModule.FollowRequestAuthorizePOSTHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -75,44 +67,39 @@ func (suite *AuthorizeTestSuite) TestAuthorize() {
 	defer result.Body.Close()
 
 	// check the response
-	b, err := ioutil.ReadAll(result.Body)
-	suite.NoError(err)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	b, err := io.ReadAll(result.Body)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`{
-  "id": "01FHMQX3GAABWSM0S2VZEC2SWC",
-  "following": false,
-  "showing_reblogs": false,
-  "notifying": false,
-  "followed_by": true,
-  "blocking": false,
   "blocked_by": false,
-  "muting": false,
-  "muting_notifications": false,
-  "requested": false,
-  "requested_by": false,
+  "blocking": false,
   "domain_blocking": false,
   "endorsed": false,
-  "note": ""
-}`, dst.String())
+  "followed_by": true,
+  "following": false,
+  "id": "01FHMQX3GAABWSM0S2VZEC2SWC",
+  "muting": false,
+  "muting_notifications": false,
+  "note": "",
+  "notifying": false,
+  "requested": false,
+  "requested_by": false,
+  "showing_reblogs": false
+}`, out)
 }
 
 func (suite *AuthorizeTestSuite) TestAuthorizeNoFR() {
 	requestingAccount := suite.testAccounts["remote_account_2"]
 
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodPost, []byte{}, fmt.Sprintf("/api/v1/follow_requests/%s/authorize", requestingAccount.ID), "")
-
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   followrequests.IDKey,
-			Value: requestingAccount.ID,
-		},
-	}
+	c := suite.newContext(recorder, http.MethodPost, []byte{}, fmt.Sprintf("/api/v1/follow_requests/%s/authorize", requestingAccount.ID), "")
+	c.SetPathValue(apiutil.IDKey, requestingAccount.ID)
 
 	// call the handler
-	suite.followRequestModule.FollowRequestAuthorizePOSTHandler(ctx)
+	suite.followRequestModule.FollowRequestAuthorizePOSTHandler(c)
 
 	suite.Equal(http.StatusNotFound, recorder.Code)
 
@@ -120,7 +107,7 @@ func (suite *AuthorizeTestSuite) TestAuthorizeNoFR() {
 	defer result.Body.Close()
 
 	// check the response
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	suite.Equal(`{"error":"Not Found"}`, string(b))

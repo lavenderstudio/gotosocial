@@ -19,8 +19,6 @@ package testrig
 
 import (
 	"bytes"
-	"encoding/json"
-	"encoding/xml"
 	"io"
 	"net/http"
 	"strings"
@@ -146,10 +144,7 @@ func NewMockHTTPClient(do func(req *http.Request) (*http.Response, error), relat
 			if err != nil {
 				panic(err)
 			}
-			noteJSON, err := json.Marshal(noteI)
-			if err != nil {
-				panic(err)
-			}
+			noteJSON := MustJSONBytes(noteI)
 			responseCode = http.StatusOK
 			responseBytes = noteJSON
 			responseContentType = applicationActivityJSON
@@ -160,10 +155,7 @@ func NewMockHTTPClient(do func(req *http.Request) (*http.Response, error), relat
 			if err != nil {
 				panic(err)
 			}
-			personJSON, err := json.Marshal(personI)
-			if err != nil {
-				panic(err)
-			}
+			personJSON := MustJSONBytes(personI)
 			responseCode = http.StatusOK
 			responseBytes = personJSON
 			responseContentType = applicationActivityJSON
@@ -174,10 +166,7 @@ func NewMockHTTPClient(do func(req *http.Request) (*http.Response, error), relat
 			if err != nil {
 				panic(err)
 			}
-			groupJSON, err := json.Marshal(groupI)
-			if err != nil {
-				panic(err)
-			}
+			groupJSON := MustJSONBytes(groupI)
 			responseCode = http.StatusOK
 			responseBytes = groupJSON
 			responseContentType = applicationActivityJSON
@@ -187,10 +176,7 @@ func NewMockHTTPClient(do func(req *http.Request) (*http.Response, error), relat
 			if err != nil {
 				panic(err)
 			}
-			serviceJSON, err := json.Marshal(serviceI)
-			if err != nil {
-				panic(err)
-			}
+			serviceJSON := MustJSONBytes(serviceI)
 			responseCode = http.StatusOK
 			responseBytes = serviceJSON
 			responseContentType = applicationActivityJSON
@@ -200,10 +186,7 @@ func NewMockHTTPClient(do func(req *http.Request) (*http.Response, error), relat
 			if err != nil {
 				panic(err)
 			}
-			emojiJSON, err := json.Marshal(emojiI)
-			if err != nil {
-				panic(err)
-			}
+			emojiJSON := MustJSONBytes(emojiI)
 			responseCode = http.StatusOK
 			responseBytes = emojiJSON
 			responseContentType = applicationActivityJSON
@@ -237,10 +220,7 @@ func NewMockHTTPClient(do func(req *http.Request) (*http.Response, error), relat
 					if err != nil {
 						panic(err)
 					}
-					personJSON, err := json.Marshal(personI)
-					if err != nil {
-						panic(err)
-					}
+					personJSON := MustJSONBytes(personI)
 					responseCode = http.StatusOK
 					responseBytes = personJSON
 					responseContentType = applicationActivityJSON
@@ -312,10 +292,7 @@ func HostMetaResponse(req *http.Request) (
 		return
 	}
 
-	hmXML, err := xml.Marshal(hm)
-	if err != nil {
-		panic(err)
-	}
+	hmXML := MustXMLBytes(hm)
 	responseCode = http.StatusOK
 	responseBytes = hmXML
 	responseContentType = "application/xml"
@@ -370,10 +347,7 @@ func WellKnownNodeInfoResponse(req *http.Request) (
 		return
 	}
 
-	niJSON, err := json.Marshal(wkr)
-	if err != nil {
-		panic(err)
-	}
+	niJSON := MustJSONBytes(wkr)
 	responseCode = http.StatusOK
 	responseBytes = niJSON
 	responseContentType = "application/json"
@@ -434,10 +408,7 @@ func NodeInfoResponse(req *http.Request) (
 		return
 	}
 
-	niJSON, err := json.Marshal(ni)
-	if err != nil {
-		panic(err)
-	}
+	niJSON := MustJSONBytes(ni)
 	responseCode = http.StatusOK
 	responseBytes = niJSON
 	responseContentType = "application/json"
@@ -599,10 +570,7 @@ func WebfingerResponse(req *http.Request) (
 		return
 	}
 
-	wfrJSON, err := json.Marshal(wfr)
-	if err != nil {
-		panic(err)
-	}
+	wfrJSON := MustJSONBytes(wfr)
 	responseCode = http.StatusOK
 	responseBytes = wfrJSON
 	responseContentType = applicationJSON

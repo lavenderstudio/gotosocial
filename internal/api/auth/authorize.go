@@ -22,12 +22,14 @@ import (
 	"net/url"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/middleware"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 	"github.com/google/uuid"
 )
 
@@ -38,13 +40,13 @@ import (
 // page to the user, informing them of the scopes
 // the application is requesting, with a button
 // that they have to click to give it permission.
-func (m *Module) AuthorizeGETHandler(c *gin.Context) {
+func (m *Module) AuthorizeGETHandler(c *httputil.Context) {
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.HTMLAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	s := sessions.Default(c)
+	s := middleware.GetSession(c)
 
 	// UserID will be set in the session by
 	// AuthorizePOSTHandler if the caller has
@@ -53,7 +55,7 @@ func (m *Module) AuthorizeGETHandler(c *gin.Context) {
 	// If it's not set, then we don't yet know
 	// yet who the user is, so send them to the
 	// sign in page first.
-	if userID, ok := s.Get(sessionUserID).(string); !ok || userID == "" {
+	if userID, ok := s.Values[sessionUserID].(string); !ok || userID == "" {
 		m.redirectAuthFormToSignIn(c)
 		return
 	}
@@ -74,12 +76,6 @@ func (m *Module) AuthorizeGETHandler(c *gin.Context) {
 	}
 
 	// Everything looks OK.
-	// Start preparing to render the html template.
-	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
-		return
-	}
 
 	redirectURI := m.mustStringFromSession(c, s, sessionRedirectURI)
 	if redirectURI == "" {
@@ -108,17 +104,18 @@ func (m *Module) AuthorizeGETHandler(c *gin.Context) {
 	// and the scope of the request. They can then
 	// approve it if it looks OK to them, which
 	// will POST to the AuthorizePOSTHandler.
-	apiutil.TemplateWebPage(c, apiutil.WebPage{
-		Template: "authorize.tmpl",
-		Instance: instance,
-		Extra: map[string]any{
-			"appname":    app.Name,
-			"appwebsite": app.Website,
-			"redirect":   redirectURI,
-			"scope":      scope,
-			"user":       user.Account.Username,
+	m.templates.RenderPage(c, http.StatusOK,
+		templates.WebPage{
+			Template: "authorize.tmpl",
+			Extra: map[string]any{
+				"appname":    app.Name,
+				"appwebsite": app.Website,
+				"redirect":   redirectURI,
+				"scope":      scope,
+				"user":       user.Account.Username,
+			},
 		},
-	})
+	)
 }
 
 // AuthorizePOSTHandler should be served as
@@ -128,13 +125,13 @@ func (m *Module) AuthorizeGETHandler(c *gin.Context) {
 // in and permitted the app to act on their behalf.
 // We should proceed with the authentication flow
 // and generate an oauth code at the redirect URI.
-func (m *Module) AuthorizePOSTHandler(c *gin.Context) {
+func (m *Module) AuthorizePOSTHandler(c *httputil.Context) {
 
 	// We need to use the session cookie to
 	// recreate the original form submitted
 	// to the authorizeGEThandler so that it
 	// can be validated by the oauth2 library.
-	s := sessions.Default(c)
+	s := middleware.GetSession(c)
 
 	responseType := m.mustStringFromSession(c, s, sessionResponseType)
 	if responseType == "" {
@@ -172,14 +169,14 @@ func (m *Module) AuthorizePOSTHandler(c *gin.Context) {
 	}
 
 	// Force login is optional with default of "false".
-	forceLogin, ok := s.Get(sessionForceLogin).(string)
+	forceLogin, ok := s.Values[sessionForceLogin].(string)
 	if !ok || forceLogin == "" {
 		forceLogin = "false"
 	}
 
 	// Client state is optional with default of "".
 	var clientState string
-	if cs, ok := s.Get(sessionClientState).(string); ok {
+	if cs, ok := s.Values[sessionClientState].(string); ok {
 		clientState = cs
 	}
 
@@ -197,12 +194,12 @@ func (m *Module) AuthorizePOSTHandler(c *gin.Context) {
 	// we're going to be redirecting somewhere else
 	// so we can safely clear the session now.
 	if redirectURI != oauth.OOBURI {
-		m.mustClearSession(s)
+		m.mustClearSession(c, s)
 	}
 
 	// Set values on the request form so that
 	// they're picked up by the oauth server.
-	c.Request.Form = url.Values{
+	c.R.Form = url.Values{
 		sessionResponseType: {responseType},
 		sessionClientID:     {clientID},
 		sessionRedirectURI:  {redirectURI},
@@ -216,26 +213,26 @@ func (m *Module) AuthorizePOSTHandler(c *gin.Context) {
 		// set it on the form so it can be
 		// fed back to the client via a query
 		// param at the eventual redirect URL.
-		c.Request.Form.Set("state", clientState)
+		c.R.Form.Set("state", clientState)
 	}
 
 	// If OAuthHandleAuthorizeRequest is successful,
 	// it'll handle any further redirects for us,
 	// but we do still need to handle any errors.
-	errWithCode := m.processor.OAuthHandleAuthorizeRequest(c.Writer, c.Request)
+	errWithCode := m.processor.OAuthHandleAuthorizeRequest(&c.W, c.R)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 	}
 }
 
 // redirectAuthFormToSignIn binds an OAuthAuthorize form,
 // presumed to be set as url query params, stores the values
 // into the session, and redirects the user to the sign in page.
-func (m *Module) redirectAuthFormToSignIn(c *gin.Context) {
-	s := sessions.Default(c)
+func (m *Module) redirectAuthFormToSignIn(c *httputil.Context) {
+	s := middleware.GetSession(c)
 
 	form := &apimodel.OAuthAuthorize{}
-	if err := c.ShouldBind(form); err != nil {
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		m.clearSessionWithBadRequest(c, s, err, err.Error(), oauth.HelpfulAdvice)
 		return
 	}
@@ -252,16 +249,16 @@ func (m *Module) redirectAuthFormToSignIn(c *gin.Context) {
 
 	// Save these values from the form so we
 	// can use them elsewhere in the session.
-	s.Set(sessionForceLogin, form.ForceLogin)
-	s.Set(sessionResponseType, form.ResponseType)
-	s.Set(sessionClientID, form.ClientID)
-	s.Set(sessionRedirectURI, form.RedirectURI)
-	s.Set(sessionScope, form.Scope)
-	s.Set(sessionInternalState, uuid.NewString())
-	s.Set(sessionClientState, form.State)
+	s.Values[sessionForceLogin] = form.ForceLogin
+	s.Values[sessionResponseType] = form.ResponseType
+	s.Values[sessionClientID] = form.ClientID
+	s.Values[sessionRedirectURI] = form.RedirectURI
+	s.Values[sessionScope] = form.Scope
+	s.Values[sessionInternalState] = uuid.NewString()
+	s.Values[sessionClientState] = form.State
 
-	m.mustSaveSession(s)
-	c.Redirect(http.StatusSeeOther, "/auth"+AuthSignInPath)
+	m.mustSaveSession(c, s)
+	httputil.Redirect(c, http.StatusSeeOther, "/auth"+AuthSignInPath)
 }
 
 // validateUser checks if the given user:
@@ -273,26 +270,26 @@ func (m *Module) redirectAuthFormToSignIn(c *gin.Context) {
 // If all looks OK, returns true. Otherwise,
 // redirects to a help page and returns false.
 func (m *Module) validateUser(
-	c *gin.Context,
+	c *httputil.Context,
 	user *gtsmodel.User,
 ) bool {
 	switch {
 	case user.ConfirmedAt.IsZero():
 		// User email not confirmed yet.
 		const redirectTo = "/auth" + AuthCheckYourEmailPath
-		c.Redirect(http.StatusSeeOther, redirectTo)
+		httputil.Redirect(c, http.StatusSeeOther, redirectTo)
 		return false
 
 	case !*user.Approved:
 		// User signup not approved yet.
 		const redirectTo = "/auth" + AuthWaitForApprovalPath
-		c.Redirect(http.StatusSeeOther, redirectTo)
+		httputil.Redirect(c, http.StatusSeeOther, redirectTo)
 		return false
 
 	case *user.Disabled || !user.Account.SuspendedAt.IsZero():
 		// User disabled or suspended.
 		const redirectTo = "/auth" + AuthAccountDisabledPath
-		c.Redirect(http.StatusSeeOther, redirectTo)
+		httputil.Redirect(c, http.StatusSeeOther, redirectTo)
 		return false
 
 	default:

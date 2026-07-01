@@ -24,12 +24,13 @@ import (
 	"mime/multipart"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin"
 )
 
 type singleDomainPermCreate func(
@@ -58,7 +59,7 @@ type multiDomainPermCreate func(
 // Handling the creation of both types of permissions in
 // one function in this way reduces code duplication.
 func (m *Module) createDomainPermissions(
-	c *gin.Context,
+	c *httputil.Context,
 	permType gtsmodel.DomainPermissionType,
 	single singleDomainPermCreate,
 	multi multiDomainPermCreate,
@@ -71,18 +72,21 @@ func (m *Module) createDomainPermissions(
 		requireScope = apiutil.ScopeAdminWriteDomainAllows
 	}
 
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		requireScope,
-	)
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{requireScope},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if !*authed.User.Admin {
 		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
 		return
 	}
 
@@ -92,20 +96,20 @@ func (m *Module) createDomainPermissions(
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	importing, errWithCode := apiutil.ParseDomainPermissionImport(c.Query(apiutil.DomainPermissionImportKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Parse + validate form.
 	form := new(apimodel.DomainPermissionRequest)
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
@@ -117,7 +121,7 @@ func (m *Module) createDomainPermissions(
 	}
 
 	if err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
@@ -126,13 +130,13 @@ func (m *Module) createDomainPermissions(
 		// so we can pass bad request if it's not.
 		form.Domain, err = util.PunifySafely(form.Domain)
 		if err != nil {
-			apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 			return
 		}
 
 		// Single domain permission creation.
 		perm, _, errWithCode := single(
-			c.Request.Context(),
+			c,
 			permType,
 			authed.Account,
 			form.Domain,
@@ -143,24 +147,24 @@ func (m *Module) createDomainPermissions(
 		)
 
 		if errWithCode != nil {
-			apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, errWithCode)
 			return
 		}
 
-		apiutil.JSON(c, http.StatusOK, perm)
+		httputil.JSON(c, http.StatusOK, perm)
 		return
 	}
 
 	// We're importing multiple domain permissions,
 	// so we're looking at a multi-status response.
 	multiStatus, errWithCode := multi(
-		c.Request.Context(),
+		c,
 		permType,
 		authed.Account,
 		form.Domains, // Pass the file through.
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -173,7 +177,7 @@ func (m *Module) createDomainPermissions(
 		}
 
 		err := fmt.Errorf("one or more errors importing domain %ss: %+v", permType.String(), failures)
-		apiutil.ErrorHandler(c, gtserror.NewErrorUnprocessableEntity(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorUnprocessableEntity(err, err.Error()))
 		return
 	}
 
@@ -183,11 +187,11 @@ func (m *Module) createDomainPermissions(
 		domainPerms = append(domainPerms, entry.Resource)
 	}
 
-	apiutil.JSON(c, http.StatusOK, domainPerms)
+	httputil.JSON(c, http.StatusOK, domainPerms)
 }
 
 func (m *Module) updateDomainPermission(
-	c *gin.Context,
+	c *httputil.Context,
 	permType gtsmodel.DomainPermissionType,
 ) {
 	// Scope differs based on permType.
@@ -198,18 +202,21 @@ func (m *Module) updateDomainPermission(
 		requireScope = apiutil.ScopeAdminWriteDomainAllows
 	}
 
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		requireScope,
-	)
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{requireScope},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if !*authed.User.Admin {
 		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
 		return
 	}
 
@@ -219,20 +226,20 @@ func (m *Module) updateDomainPermission(
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	permID, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+	permID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Parse + validate form.
 	form := new(apimodel.DomainPermissionRequest)
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
@@ -241,12 +248,12 @@ func (m *Module) updateDomainPermission(
 		form.PublicComment == nil {
 		const errText = "empty form submitted"
 		errWithCode := gtserror.NewErrorBadRequest(errors.New(errText), errText)
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	perm, errWithCode := m.processor.Admin().DomainPermissionUpdate(
-		c.Request.Context(),
+		c,
 		permType,
 		permID,
 		form.Obfuscate,
@@ -255,16 +262,16 @@ func (m *Module) updateDomainPermission(
 		nil, // Can't update perm sub ID this way yet.
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, perm)
+	httputil.JSON(c, http.StatusOK, perm)
 }
 
 // deleteDomainPermission deletes a single domain permission (block or allow).
 func (m *Module) deleteDomainPermission(
-	c *gin.Context,
+	c *httputil.Context,
 	permType gtsmodel.DomainPermissionType, // block/allow
 ) {
 	// Scope differs based on permType.
@@ -275,18 +282,21 @@ func (m *Module) deleteDomainPermission(
 		requireScope = apiutil.ScopeAdminWriteDomainAllows
 	}
 
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		requireScope,
-	)
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{requireScope},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if !*authed.User.Admin {
 		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
 		return
 	}
 
@@ -296,33 +306,33 @@ func (m *Module) deleteDomainPermission(
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	domainPermID, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+	domainPermID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	domainPerm, _, errWithCode := m.processor.Admin().DomainPermissionDelete(
-		c.Request.Context(),
+		c,
 		permType,
 		authed.Account,
 		domainPermID,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, domainPerm)
+	httputil.JSON(c, http.StatusOK, domainPerm)
 }
 
 // getDomainPermission gets a single domain permission (block or allow).
 func (m *Module) getDomainPermission(
-	c *gin.Context,
+	c *httputil.Context,
 	permType gtsmodel.DomainPermissionType,
 ) {
 	// Scope differs based on permType.
@@ -333,55 +343,58 @@ func (m *Module) getDomainPermission(
 		requireScope = apiutil.ScopeAdminReadDomainAllows
 	}
 
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		requireScope,
-	)
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{requireScope},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if !*authed.User.Admin {
 		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	domainPermID, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+	domainPermID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	export, errWithCode := apiutil.ParseDomainPermissionExport(c.Query(apiutil.DomainPermissionExportKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	domainPerm, errWithCode := m.processor.Admin().DomainPermissionGet(
-		c.Request.Context(),
+		c,
 		permType,
 		domainPermID,
 		export,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, domainPerm)
+	httputil.JSON(c, http.StatusOK, domainPerm)
 }
 
 // getDomainPermissions gets all domain permissions of the given type (block, allow).
 func (m *Module) getDomainPermissions(
-	c *gin.Context,
+	c *httputil.Context,
 	permType gtsmodel.DomainPermissionType,
 ) {
 	// Scope differs based on permType.
@@ -392,44 +405,47 @@ func (m *Module) getDomainPermissions(
 		requireScope = apiutil.ScopeAdminReadDomainAllows
 	}
 
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		requireScope,
-	)
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{requireScope},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if !*authed.User.Admin {
 		err := fmt.Errorf("user %s not an admin", authed.User.ID)
-		apiutil.ErrorHandler(c, gtserror.NewErrorForbidden(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	export, errWithCode := apiutil.ParseDomainPermissionExport(c.Query(apiutil.DomainPermissionExportKey), false)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	domainPerm, errWithCode := m.processor.Admin().DomainPermissionsGet(
-		c.Request.Context(),
+		c,
 		permType,
 		authed.Account,
 		export,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, domainPerm)
+	httputil.JSON(c, http.StatusOK, domainPerm)
 }
 
 // parseDomainPermissionType is a util function to parse i

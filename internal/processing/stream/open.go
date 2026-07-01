@@ -21,18 +21,13 @@ import (
 	"context"
 
 	"code.superseriousbusiness.org/gopkg/log"
-	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/stream"
 	"codeberg.org/gruf/go-kv/v2"
 )
 
 // Open returns a new Stream for the given account, which will contain a channel for passing messages back to the caller.
-func (p *Processor) Open(ctx context.Context, account *gtsmodel.Account, streamType string) (*stream.Stream, gtserror.WithCode) {
-	l := log.WithContext(ctx).WithFields(kv.Fields{
-		{"account", account.ID},
-		{"streamType", streamType},
-	}...)
-	l.Debug("received open stream request")
-	return p.streams.Open(account.ID, streamType), nil
+func (p *Processor) Open(ctx context.Context, account *gtsmodel.Account, streamType string) *stream.Stream {
+	log.TraceKVs(ctx, kv.Fields{{"account", account.ID}, {"streamType", streamType}, {"msg", "received open stream request"}}...)
+	return p.streams.Open(account.ID, streamType)
 }

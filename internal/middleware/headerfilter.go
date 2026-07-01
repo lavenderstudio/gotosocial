@@ -20,12 +20,12 @@ package middleware
 import (
 	"errors"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/headerfilter"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
-	"github.com/gin-gonic/gin"
 )
 
 var (
@@ -36,7 +36,7 @@ var (
 
 // HeaderFilter returns a gin middleware handler that provides HTTP
 // request blocking (filtering) based on database allow / block filters.
-func HeaderFilter(state *state.State) gin.HandlerFunc {
+func HeaderFilter(state *state.State) httputil.MiddlewareFunc {
 	switch mode := config.GetAdvancedHeaderFilterMode(); mode {
 	case config.RequestHeaderFilterModeDisabled:
 		return nil
@@ -52,69 +52,23 @@ func HeaderFilter(state *state.State) gin.HandlerFunc {
 	}
 }
 
-func headerFilterAllowMode(state *state.State) func(c *gin.Context) {
-	if state == nil {
-		panic(gtserror.New("nil check elimination"))
-	}
-
-	// Allowlist mode: explicit block takes
-	// precedence over explicit allow.
-	//
-	// Headers that have neither block
-	// or allow entries are blocked.
-	return func(c *gin.Context) {
-
-		// Check if header is explicitly blocked.
-		block, err := isHeaderBlocked(state, c)
-		if err != nil {
-			respondInternalServerError(c, err)
-			return
+func headerFilterAllowMode(state *state.State) httputil.MiddlewareFunc {
+	return func(h func(*httputil.Context)) func(*httputil.Context) {
+		if state == nil {
+			panic("nil state")
 		}
 
-		if block {
-			_ = c.Error(errHeaderBlocked)
-			respondBlocked(c)
-			return
+		if h == nil {
+			panic("nil func")
 		}
 
-		// Check if header is missing explicit allow.
-		notAllow, err := isHeaderNotAllowed(state, c)
-		if err != nil {
-			respondInternalServerError(c, err)
-			return
-		}
+		// Allowlist mode: explicit block takes
+		// precedence over explicit allow.
+		//
+		// Headers that have neither block
+		// or allow entries are blocked.
+		return func(c *httputil.Context) {
 
-		if notAllow {
-			_ = c.Error(errHeaderNotAllowed)
-			respondBlocked(c)
-			return
-		}
-
-		// Allowed!
-		c.Next()
-	}
-}
-
-func headerFilterBlockMode(state *state.State) func(c *gin.Context) {
-	if state == nil {
-		panic(gtserror.New("nil check elimination"))
-	}
-
-	// Blocklist/default mode: explicit allow
-	// takes precedence over explicit block.
-	//
-	// Headers that have neither block
-	// or allow entries are allowed.
-	return func(c *gin.Context) {
-
-		// Check if header is explicitly allowed.
-		allow, err := isHeaderAllowed(state, c)
-		if err != nil {
-			respondInternalServerError(c, err)
-			return
-		}
-
-		if !allow {
 			// Check if header is explicitly blocked.
 			block, err := isHeaderBlocked(state, c)
 			if err != nil {
@@ -123,21 +77,81 @@ func headerFilterBlockMode(state *state.State) func(c *gin.Context) {
 			}
 
 			if block {
-				_ = c.Error(errHeaderBlocked)
+				c.Error(errHeaderBlocked)
 				respondBlocked(c)
 				return
 			}
-		}
 
-		// Allowed!
-		c.Next()
+			// Check if header is missing explicit allow.
+			notAllow, err := isHeaderNotAllowed(state, c)
+			if err != nil {
+				respondInternalServerError(c, err)
+				return
+			}
+
+			if notAllow {
+				c.Error(errHeaderNotAllowed)
+				respondBlocked(c)
+				return
+			}
+
+			// Pass on
+			// to next.
+			h(c)
+		}
 	}
 }
 
-func isHeaderBlocked(state *state.State, c *gin.Context) (bool, error) {
+func headerFilterBlockMode(state *state.State) httputil.MiddlewareFunc {
+	return func(h func(*httputil.Context)) func(*httputil.Context) {
+		if state == nil {
+			panic("nil state")
+		}
+
+		if h == nil {
+			panic("nil func")
+		}
+
+		// Blocklist/default mode: explicit allow
+		// takes precedence over explicit block.
+		//
+		// Headers that have neither block
+		// or allow entries are allowed.
+		return func(c *httputil.Context) {
+
+			// Check if header is explicitly allowed.
+			allow, err := isHeaderAllowed(state, c)
+			if err != nil {
+				respondInternalServerError(c, err)
+				return
+			}
+
+			if !allow {
+				// Check if header is explicitly blocked.
+				block, err := isHeaderBlocked(state, c)
+				if err != nil {
+					respondInternalServerError(c, err)
+					return
+				}
+
+				if block {
+					c.Error(errHeaderBlocked)
+					respondBlocked(c)
+					return
+				}
+			}
+
+			// Pass on
+			// to next.
+			h(c)
+		}
+	}
+}
+
+func isHeaderBlocked(state *state.State, c *httputil.Context) (bool, error) {
 	var (
-		ctx = c.Request.Context()
-		hdr = c.Request.Header
+		ctx = c
+		hdr = c.R.Header
 	)
 
 	// Perform an explicit is-blocked check on request header.
@@ -164,10 +178,10 @@ func isHeaderBlocked(state *state.State, c *gin.Context) (bool, error) {
 	return false, nil
 }
 
-func isHeaderAllowed(state *state.State, c *gin.Context) (bool, error) {
+func isHeaderAllowed(state *state.State, c *httputil.Context) (bool, error) {
 	var (
-		ctx = c.Request.Context()
-		hdr = c.Request.Header
+		ctx = c
+		hdr = c.R.Header
 	)
 
 	// Perform an explicit is-allowed check on request header.
@@ -194,10 +208,10 @@ func isHeaderAllowed(state *state.State, c *gin.Context) (bool, error) {
 	return false, nil
 }
 
-func isHeaderNotAllowed(state *state.State, c *gin.Context) (bool, error) {
+func isHeaderNotAllowed(state *state.State, c *httputil.Context) (bool, error) {
 	var (
-		ctx = c.Request.Context()
-		hdr = c.Request.Header
+		ctx = c
+		hdr = c.R.Header
 	)
 
 	// Perform an explicit is-NOT-allowed check on request header.

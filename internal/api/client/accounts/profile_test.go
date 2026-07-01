@@ -26,12 +26,11 @@ import (
 	"strings"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/accounts"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -42,23 +41,22 @@ type AccountProfileTestSuite struct {
 func (suite *AccountProfileTestSuite) deleteProfileAttachment(
 	testAccountFixtureName string,
 	profileSubpath string,
-	handler func(*gin.Context),
+	handler func(*httputil.Context),
 	expectedHTTPStatus int,
 ) (*apimodel.Account, error) {
 	// instantiate recorder + test context
+	req := httptest.NewRequest(http.MethodDelete, config.GetProtocol()+"://"+config.GetHost()+"/api"+accounts.ProfileBasePath+"/"+profileSubpath, nil)
+	req.Header.Set("accept", "application/json")
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[testAccountFixtureName])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[testAccountFixtureName]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers[testAccountFixtureName])
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts[testAccountFixtureName])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens[testAccountFixtureName]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers[testAccountFixtureName])
 
-	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodDelete, config.GetProtocol()+"://"+config.GetHost()+"/api"+accounts.ProfileBasePath+"/"+profileSubpath, nil)
-	ctx.Request.Header.Set("accept", "application/json")
-
-	// trigger the handler
-	handler(ctx)
+	// trigger
+	// handler
+	handler(c)
 
 	// read the response
 	result := recorder.Result()

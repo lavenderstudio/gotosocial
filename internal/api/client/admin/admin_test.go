@@ -20,9 +20,9 @@ package admin_test
 import (
 	"bytes"
 	"fmt"
-	"net/http"
 	"net/http/httptest"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	adminactions "code.superseriousbusiness.org/gotosocial/internal/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
@@ -31,7 +31,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -99,7 +98,7 @@ func (suite *AdminStandardTestSuite) SetupTest() {
 		testrig.NewTestMediaManager(&suite.state),
 	)
 	testrig.StartWorkers(&suite.state, suite.processor.Workers())
-	suite.adminModule = admin.New(&suite.state, suite.processor)
+	suite.adminModule = admin.New(&suite.state, suite.processor, testrig.LoadTemplates(&suite.state, ""))
 }
 
 func (suite *AdminStandardTestSuite) TearDownTest() {
@@ -108,27 +107,27 @@ func (suite *AdminStandardTestSuite) TearDownTest() {
 	testrig.StopWorkers(&suite.state)
 }
 
-func (suite *AdminStandardTestSuite) newContext(recorder *httptest.ResponseRecorder, requestMethod string, requestBody []byte, requestPath string, bodyContentType string) *gin.Context {
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["admin_account"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["admin_account"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["admin_account"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["admin_account"])
-
+func (suite *AdminStandardTestSuite) newContext(recorder *httptest.ResponseRecorder, requestMethod string, requestBody []byte, requestPath string, bodyContentType string) *httputil.Context {
 	protocol := config.GetProtocol()
 	host := config.GetHost()
 
 	baseURI := fmt.Sprintf("%s://%s", protocol, host)
 	requestURI := fmt.Sprintf("%s/%s", baseURI, requestPath)
 
-	ctx.Request = httptest.NewRequest(http.MethodPatch, requestURI, bytes.NewReader(requestBody)) // the endpoint we're hitting
+	req := httptest.NewRequest(requestMethod, requestURI, bytes.NewReader(requestBody)) // the endpoint we're hitting
+
+	c := httputil.ToContext(recorder, req)
+
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["admin_account"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["admin_account"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["admin_account"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["admin_account"])
 
 	if bodyContentType != "" {
-		ctx.Request.Header.Set("Content-Type", bodyContentType)
+		c.R.Header.Set("Content-Type", bodyContentType)
 	}
 
-	ctx.Request.Header.Set("accept", "application/json")
+	c.R.Header.Set("accept", "application/json")
 
-	return ctx
+	return c
 }

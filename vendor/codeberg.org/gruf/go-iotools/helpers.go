@@ -2,13 +2,6 @@ package iotools
 
 import "io"
 
-// AtEOF returns true when reader at EOF,
-// this is checked with a 0 length read.
-func AtEOF(r io.Reader) bool {
-	_, err := r.Read(nil)
-	return (err == io.EOF)
-}
-
 // GetReadCloserLimit attempts to cast io.Reader to access its io.LimitedReader with limit.
 func GetReaderLimit(r io.Reader) (*io.LimitedReader, int64) {
 	lr, ok := r.(*io.LimitedReader)

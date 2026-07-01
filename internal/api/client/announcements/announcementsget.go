@@ -20,8 +20,8 @@ package announcements
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 // AnnouncementsGETHandler swagger:operation GET /api/v1/announcements announcementsGet
@@ -63,19 +63,23 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) AnnouncementsGETHandler(c *gin.Context) {
-	_, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-	)
+func (m *Module) AnnouncementsGETHandler(c *httputil.Context) {
+	_, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   nil,
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, apiutil.EmptyJSONArray)
+	httputil.JSON(c, http.StatusOK, apiutil.EmptyJSONArray)
 }

@@ -53,9 +53,7 @@ func putMap(m map[string]any) {
 }
 
 // _TypeOrIRI wraps a vocab.Type to implement TypeOrIRI.
-type _TypeOrIRI struct {
-	vocab.Type
-}
+type _TypeOrIRI struct{ vocab.Type }
 
 func (t *_TypeOrIRI) GetType() vocab.Type {
 	return t.Type

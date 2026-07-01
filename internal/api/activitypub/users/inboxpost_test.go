@@ -19,7 +19,6 @@ package users_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -30,6 +29,7 @@ import (
 	"code.superseriousbusiness.org/activity/pub"
 	"code.superseriousbusiness.org/activity/streams"
 	"code.superseriousbusiness.org/activity/streams/vocab"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
@@ -37,7 +37,6 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -51,24 +50,20 @@ func (suite *InboxPostTestSuite) inboxPost(
 	targetAccount *gtsmodel.Account,
 	expectedHTTPStatus int,
 	expectedBody string,
-	middlewares ...func(*gin.Context),
+	middlewares ...httputil.Middleware,
 ) {
-	var (
-		recorder = httptest.NewRecorder()
-		ctx, _   = testrig.CreateGinTestContext(recorder, nil)
-	)
-
 	// Prepare the requst body bytes.
 	bodyI, err := ap.Serialize(activity)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(bodyI, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
+	b := testrig.MustJSONBytes(bodyI)
 	suite.T().Logf("prepared POST body:\n%s", string(b))
+
+	req := httptest.NewRequest(http.MethodPost, targetAccount.InboxURI, bytes.NewReader(b))
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
 
 	// Prepare signature headers for this Activity.
 	signature, digestHeader, dateHeader := testrig.GetSignatureForActivity(
@@ -79,20 +74,23 @@ func (suite *InboxPostTestSuite) inboxPost(
 	)
 
 	// Put the request together.
-	ctx.AddParam(apiutil.UsernameKey, targetAccount.Username)
-	ctx.Request = httptest.NewRequest(http.MethodPost, targetAccount.InboxURI, bytes.NewReader(b))
-	ctx.Request.Header.Set("Signature", signature)
-	ctx.Request.Header.Set("Date", dateHeader)
-	ctx.Request.Header.Set("Digest", digestHeader)
-	ctx.Request.Header.Set("Content-Type", "application/activity+json")
+	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
+	c.R.Header.Set("Signature", signature)
+	c.R.Header.Set("Date", dateHeader)
+	c.R.Header.Set("Digest", digestHeader)
+	c.R.Header.Set("Content-Type", "application/activity+json")
 
-	// Pass the context through provided middlewares.
+	// Base http handler function to use.
+	h := suite.userModule.InboxPOSTHandler
+
+	// Wrap handler func in given middlewares.
 	for _, middleware := range middlewares {
-		middleware(ctx)
+		h = middleware.Compile(h)
 	}
 
-	// Trigger the function being tested.
-	suite.userModule.InboxPOSTHandler(ctx)
+	// Trigger
+	// handler
+	h(c)
 
 	// Read the result.
 	result := recorder.Result()

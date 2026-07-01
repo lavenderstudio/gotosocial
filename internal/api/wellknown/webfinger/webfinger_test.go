@@ -92,7 +92,7 @@ func (suite *WebfingerStandardTestSuite) SetupTest() {
 		testrig.NewNoopWebPushSender(),
 		suite.mediaManager,
 	)
-	suite.webfingerModule = webfinger.New(suite.processor)
+	suite.webfingerModule = webfinger.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 	suite.oauthServer = testrig.NewTestOauthServer(&suite.state)
 	testrig.StandardDBSetup(suite.db, suite.testAccounts)
 	testrig.StandardStorageSetup(suite.storage, "../../../../testrig/media")

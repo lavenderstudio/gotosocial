@@ -21,10 +21,10 @@ import (
 	"errors"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // AccountRelationshipsGETHandler swagger:operation GET /api/v1/accounts/relationships accountRelationships
@@ -81,18 +81,21 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) AccountRelationshipsGETHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeReadAccounts,
-	)
+func (m *Module) AccountRelationshipsGETHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeReadAccounts},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -102,7 +105,7 @@ func (m *Module) AccountRelationshipsGETHandler(c *gin.Context) {
 		id := c.Query("id")
 		if id == "" {
 			err := errors.New("no account id(s) specified in query")
-			apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 			return
 		}
 		targetAccountIDs = append(targetAccountIDs, id)
@@ -111,13 +114,13 @@ func (m *Module) AccountRelationshipsGETHandler(c *gin.Context) {
 	relationships := []apimodel.Relationship{}
 
 	for _, targetAccountID := range targetAccountIDs {
-		r, errWithCode := m.processor.Account().RelationshipGet(c.Request.Context(), authed.Account, targetAccountID)
+		r, errWithCode := m.processor.Account().RelationshipGet(c, authed.Account, targetAccountID)
 		if errWithCode != nil {
-			apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+			apiutil.ErrorHandler(c, m.templates, errWithCode)
 			return
 		}
 		relationships = append(relationships, *r)
 	}
 
-	apiutil.JSON(c, http.StatusOK, relationships)
+	httputil.JSON(c, http.StatusOK, relationships)
 }

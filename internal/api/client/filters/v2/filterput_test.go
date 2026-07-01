@@ -27,85 +27,86 @@ import (
 	"strconv"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	filtersV2 "code.superseriousbusiness.org/gotosocial/internal/api/client/filters/v2"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/internal/stream"
-	"code.superseriousbusiness.org/gotosocial/testrig"
 )
 
 func (suite *FiltersTestSuite) putFilter(filterID string, title *string, context *[]string, action *string, expiresIn *int, expiresInStr *string, keywordsAttributesKeyword *[]string, keywordsAttributesWholeWord *[]bool, keywordsAttributesDestroy *[]bool, statusesAttributesID *[]string, statusesAttributesStatusID *[]string, statusesAttributesDestroy *[]bool, requestJson *string, expectedHTTPStatus int, expectedBody string, keywordsAttributesID *[]string) (*apimodel.FilterV2, error) {
+	// create the request
+	req := httptest.NewRequest(http.MethodPut, config.GetProtocol()+"://"+config.GetHost()+"/api/"+filtersV2.BasePath+"/"+filterID, nil)
+	req.Header.Set("accept", "application/json")
+
 	// instantiate recorder + test context
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
 
-	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodPut, config.GetProtocol()+"://"+config.GetHost()+"/api/"+filtersV2.BasePath+"/"+filterID, nil)
-	ctx.Request.Header.Set("accept", "application/json")
 	if requestJson != nil {
-		ctx.Request.Header.Set("content-type", "application/json")
-		ctx.Request.Body = io.NopCloser(strings.NewReader(*requestJson))
+		c.R.Header.Set("content-type", "application/json")
+		c.R.Body = io.NopCloser(strings.NewReader(*requestJson))
 	} else {
-		ctx.Request.Form = make(url.Values)
+		c.R.Form = make(url.Values)
 		if title != nil {
-			ctx.Request.Form["title"] = []string{*title}
+			c.R.Form["title"] = []string{*title}
 		}
 		if context != nil {
-			ctx.Request.Form["context[]"] = *context
+			c.R.Form["context[]"] = *context
 		}
 		if action != nil {
-			ctx.Request.Form["filter_action"] = []string{*action}
+			c.R.Form["filter_action"] = []string{*action}
 		}
 		if expiresIn != nil {
-			ctx.Request.Form["expires_in"] = []string{strconv.Itoa(*expiresIn)}
+			c.R.Form["expires_in"] = []string{strconv.Itoa(*expiresIn)}
 		} else if expiresInStr != nil {
-			ctx.Request.Form["expires_in"] = []string{*expiresInStr}
+			c.R.Form["expires_in"] = []string{*expiresInStr}
 		}
 		if keywordsAttributesID != nil {
-			ctx.Request.Form["keywords_attributes[][id]"] = *keywordsAttributesID
+			c.R.Form["keywords_attributes[][id]"] = *keywordsAttributesID
 		}
 		if keywordsAttributesKeyword != nil {
-			ctx.Request.Form["keywords_attributes[][keyword]"] = *keywordsAttributesKeyword
+			c.R.Form["keywords_attributes[][keyword]"] = *keywordsAttributesKeyword
 		}
 		if keywordsAttributesWholeWord != nil {
 			formatted := []string{}
 			for _, value := range *keywordsAttributesWholeWord {
 				formatted = append(formatted, strconv.FormatBool(value))
 			}
-			ctx.Request.Form["keywords_attributes[][whole_word]"] = formatted
+			c.R.Form["keywords_attributes[][whole_word]"] = formatted
 		}
 		if keywordsAttributesWholeWord != nil {
 			formatted := []string{}
 			for _, value := range *keywordsAttributesDestroy {
 				formatted = append(formatted, strconv.FormatBool(value))
 			}
-			ctx.Request.Form["keywords_attributes[][_destroy]"] = formatted
+			c.R.Form["keywords_attributes[][_destroy]"] = formatted
 		}
 		if statusesAttributesID != nil {
-			ctx.Request.Form["statuses_attributes[][id]"] = *statusesAttributesID
+			c.R.Form["statuses_attributes[][id]"] = *statusesAttributesID
 		}
 		if statusesAttributesStatusID != nil {
-			ctx.Request.Form["statuses_attributes[][status_id]"] = *statusesAttributesStatusID
+			c.R.Form["statuses_attributes[][status_id]"] = *statusesAttributesStatusID
 		}
 		if statusesAttributesDestroy != nil {
 			formatted := []string{}
 			for _, value := range *statusesAttributesDestroy {
 				formatted = append(formatted, strconv.FormatBool(value))
 			}
-			ctx.Request.Form["statuses_attributes[][_destroy]"] = formatted
+			c.R.Form["statuses_attributes[][_destroy]"] = formatted
 		}
 	}
 
-	ctx.AddParam("id", filterID)
+	c.SetPathValue("id", filterID)
 
 	// trigger the handler
-	suite.filtersModule.FilterPUTHandler(ctx)
+	suite.filtersModule.FilterPUTHandler(c)
 
 	// read the response
 	result := recorder.Result()

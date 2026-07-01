@@ -60,7 +60,7 @@ func (suite *ResolveTestSuite) TestResolveHTMLAsAccountable() {
 		suite.T().Context(), io.NopCloser(bytes.NewReader(b)),
 	)
 	suite.True(gtserror.IsWrongType(err))
-	suite.EqualError(err, "ResolveAccountable: error decoding into json: invalid character '<' looking for beginning of value")
+	suite.EqualError(err, "ResolveAccountable: error decoding json: invalid character '<' looking for beginning of value")
 	suite.Nil(accountable)
 }
 

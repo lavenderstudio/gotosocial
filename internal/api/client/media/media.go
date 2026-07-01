@@ -18,31 +18,30 @@
 package media
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
-	IDKey            = "id"                                    // IDKey is the key for media attachment IDs
 	BasePath         = "/:" + apiutil.APIVersionKey + "/media" // BasePath is the base API path for making media requests through v1 or v2 of the api (for mastodon API compatibility)
-	AttachmentWithID = BasePath + "/:" + IDKey                 // BasePathWithID corresponds to a media attachment with the given ID
+	AttachmentWithID = BasePath + "/:" + apiutil.IDKey         // BasePathWithID corresponds to a media attachment with the given ID
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodPost, BasePath, m.MediaCreatePOSTHandler)
-	attachHandler(http.MethodGet, AttachmentWithID, m.MediaGETHandler)
-	attachHandler(http.MethodPut, AttachmentWithID, m.MediaPUTHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.POST(BasePath, m.MediaCreatePOSTHandler)
+	g.GET(AttachmentWithID, m.MediaGETHandler)
+	g.PUT(AttachmentWithID, m.MediaPUTHandler)
 }

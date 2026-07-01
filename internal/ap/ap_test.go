@@ -377,12 +377,7 @@ func (suite *APTestSuite) typeToJson(t vocab.Type) string {
 		suite.FailNow(err.Error())
 	}
 
-	b, err := json.MarshalIndent(m, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
-	return string(b)
+	return testrig.MustJSONString(m)
 }
 
 func (suite *APTestSuite) SetupTest() {

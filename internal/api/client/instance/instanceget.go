@@ -20,11 +20,10 @@ package instance
 import (
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-
-	"github.com/gin-gonic/gin"
 )
 
 // InstanceInformationV1GETHandlerV1 swagger:operation GET /api/v1/instance instanceGetV1
@@ -51,15 +50,15 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal error
-func (m *Module) InstanceInformationGETHandlerV1(c *gin.Context) {
+func (m *Module) InstanceInformationGETHandlerV1(c *httputil.Context) {
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	instance, errWithCode := m.processor.InstanceGetV1(c.Request.Context())
+	instance, errWithCode := m.processor.InstanceGetV1(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -80,7 +79,7 @@ func (m *Module) InstanceInformationGETHandlerV1(c *gin.Context) {
 		// Leave stats alone.
 	}
 
-	apiutil.JSON(c, http.StatusOK, instance)
+	httputil.JSON(c, http.StatusOK, instance)
 }
 
 // InstanceInformationGETHandlerV2 swagger:operation GET /api/v2/instance instanceGetV2
@@ -107,15 +106,15 @@ func (m *Module) InstanceInformationGETHandlerV1(c *gin.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal error
-func (m *Module) InstanceInformationGETHandlerV2(c *gin.Context) {
+func (m *Module) InstanceInformationGETHandlerV2(c *httputil.Context) {
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	instance, errWithCode := m.processor.InstanceGetV2(c.Request.Context())
+	instance, errWithCode := m.processor.InstanceGetV2(c)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -134,5 +133,5 @@ func (m *Module) InstanceInformationGETHandlerV2(c *gin.Context) {
 		// Leave stats alone.
 	}
 
-	apiutil.JSON(c, http.StatusOK, instance)
+	httputil.JSON(c, http.StatusOK, instance)
 }

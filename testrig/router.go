@@ -19,11 +19,8 @@ package testrig
 
 import (
 	"context"
-	"os"
 	"path/filepath"
-	"strconv"
 
-	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/router"
 	"github.com/gin-gonic/gin"
@@ -34,27 +31,10 @@ import (
 // If the environment variable GTS_WEB_TEMPLATE_BASE_DIR set, it will take that
 // value as the template base directory instead.
 func NewTestRouter(db db.DB) *router.Router {
-	if alternativeTemplateBaseDir := os.Getenv("GTS_WEB_TEMPLATE_BASE_DIR"); alternativeTemplateBaseDir != "" {
-		config.Config(func(cfg *config.Configuration) {
-			cfg.WebTemplateBaseDir = alternativeTemplateBaseDir
-		})
-	}
-
-	if alternativeBindAddress := os.Getenv("GTS_BIND_ADDRESS"); alternativeBindAddress != "" {
-		config.SetBindAddress(alternativeBindAddress)
-	}
-
-	if alternativePortStr := os.Getenv("GTS_PORT"); alternativePortStr != "" {
-		if alternativePort, err := strconv.Atoi(alternativePortStr); err == nil {
-			config.SetPort(alternativePort)
-		}
-	}
-
 	r, err := router.New(context.Background(), router.Config{})
 	if err != nil {
 		panic(err)
 	}
-
 	return r
 }
 

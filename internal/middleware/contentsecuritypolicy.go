@@ -20,17 +20,16 @@ package middleware
 import (
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"codeberg.org/gruf/go-debug"
-	"github.com/gin-gonic/gin"
 )
 
-func ContentSecurityPolicy(extraURIs ...string) gin.HandlerFunc {
+func ContentSecurityPolicy(extraURIs ...string) httputil.FlatMiddlewareFunc {
 	csp := BuildContentSecurityPolicy(extraURIs...)
-
-	return func(c *gin.Context) {
+	return func(c *httputil.Context) {
 		// Inform the browser we only load
 		// CSS/JS/media using the given policy.
-		c.Header("Content-Security-Policy", csp)
+		c.W.Header().Set("Content-Security-Policy", csp)
 	}
 }
 

@@ -18,7 +18,6 @@
 package text
 
 import (
-	"bytes"
 	"context"
 	gohtml "html"
 	"strings"
@@ -177,21 +176,23 @@ func (f *Formatter) fromPlain(
 	// avoid interpreting them as escape characters.
 	input = strings.ReplaceAll(input, "\\", "\\\\")
 
-	// Convert input string to bytes
-	// without performing any allocs.
-	bInput := byteutil.S2B(input)
+	// Get byte buffer.
+	buf := bufpool.Get()
 
 	// Parse input into HTML.
-	var htmlBytes bytes.Buffer
 	if err := md.Convert(
-		bInput,
-		&htmlBytes,
+		byteutil.S2B(input),
+		buf,
 	); err != nil {
 		log.Errorf(ctx, "error formatting plaintext input to HTML: %s", err)
+		buf.B = buf.B[:0] // reset buffer
 	}
 
+	// Copy data and release.
+	result.HTML = string(buf.B)
+	bufpool.Put(buf)
+
 	// Clean and shrink HTML.
-	result.HTML = byteutil.B2S(htmlBytes.Bytes())
 	result.HTML = SanitizeHTML(result.HTML)
 	result.HTML = MinifyHTML(result.HTML)
 
@@ -233,8 +234,8 @@ func StripHTMLFromText(text string) string {
 	// Unescape first to catch any tricky critters.
 	content := gohtml.UnescapeString(text)
 
-	// Remove all detected HTML.
-	content = strict.Sanitize(content)
+	// Remove all detected HTML w/ strict.
+	content = sanitize(strict, content)
 
 	// Unescape again to return plaintext.
 	content = gohtml.UnescapeString(content)

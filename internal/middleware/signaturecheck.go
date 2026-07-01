@@ -22,21 +22,24 @@ import (
 	"net/http"
 	"net/url"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 
 	"code.superseriousbusiness.org/httpsig"
-	"github.com/gin-gonic/gin"
 )
 
 const (
 	sigHeader  = string(httpsig.Signature)
 	authHeader = string(httpsig.Authorization)
+
 	// untyped error returned by httpsig when no signature is present
 	noSigError = "neither \"" + sigHeader + "\" nor \"" + authHeader + "\" have signature parameters"
 )
 
-// SignatureCheck returns a gin middleware for checking http signatures.
+// ExtractSignature returns a middleware for extracting and validating HTTP signatures,
+// NOTE: validate, not authenticate. It extracts signature details into the context and checks for
+// blocked URIs. authentication happens in: ./internal/federation.Federator{}.AuthenticateFederatedRequest().
 //
 // The middleware first checks whether an incoming http request has been
 // http-signed with a well-formed signature. If so, it will check if the
@@ -47,73 +50,86 @@ const (
 // context for use down the line.
 //
 // In case of an error, the request will be aborted with http code 500.
-func SignatureCheck(uriBlocked func(context.Context, *url.URL) (bool, error)) func(*gin.Context) {
-	return func(c *gin.Context) {
-		ctx := c.Request.Context()
+func ExtractSignature(uriBlocked func(context.Context, *url.URL) (bool, error)) httputil.MiddlewareFunc {
+	return func(h httputil.HandlerFunc) httputil.HandlerFunc {
+		if h == nil {
+			panic("nil func")
+		}
 
-		// Create the signature verifier from the request;
-		// this will error if the request wasn't signed.
-		verifier, err := httpsig.NewVerifier(c.Request)
-		if err != nil {
-			// Only actually *abort* the request with 401
-			// if a signature was present but malformed.
-			// Otherwise proceed with an unsigned request;
-			// it's up to other functions to reject this.
-			if err.Error() != noSigError {
-				log.Debugf(ctx, "http signature was present but invalid: %s", err)
-				c.AbortWithStatus(http.StatusUnauthorized)
+		return func(c *httputil.Context) {
+			// Create the signature verifier from the request;
+			// this will error if the request wasn't signed.
+			verifier, err := httpsig.NewVerifier(c.R)
+			if err != nil {
+
+				// Only actually *abort* the request with 401
+				// if a signature was present but malformed.
+				// Otherwise proceed with an unsigned request;
+				// it's up to other functions to reject this.
+				if err.Error() != noSigError {
+					log.Warnf(c, "invalid signature scheme: %v", err)
+					c.W.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+
+				// Pass on
+				// to next.
+				h(c)
+				return
 			}
 
-			return
+			// The request was signed! The key ID should be given
+			// in the signature so that we know where to fetch it
+			// from the remote server. This will be something like:
+			// https://example.org/users/some_remote_user#main-key
+			pubKeyIDStr := verifier.KeyId()
+
+			// Key can sometimes be nil, according to url parse
+			// func: 'Trying to parse a hostname and path without
+			// a scheme is invalid but may not necessarily return
+			// an error, due to parsing ambiguities'. Catch this.
+			pubKeyID, err := url.Parse(pubKeyIDStr)
+			if err != nil || pubKeyID == nil {
+				log.Warnf(c, "invalid pubkey id url: %s", pubKeyIDStr)
+				c.W.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			// If the domain is blocked we want to bail as fast as
+			// possible without the request proceeding further.
+			blocked, err := uriBlocked(c, pubKeyID)
+			if err != nil {
+				log.Errorf(c, "db error checking domain block %s: %s", pubKeyID.Host, err)
+				c.W.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			if blocked {
+				log.Infof(c, "domain %s is blocked", pubKeyID.Host)
+				c.W.WriteHeader(http.StatusForbidden)
+				return
+			}
+
+			// Assume signature was set on Signature header,
+			// but fall back to Authorization header if necessary.
+			signature := c.R.Header.Get(sigHeader)
+			if signature == "" {
+				signature = c.R.Header.Get(authHeader)
+			}
+
+			// Set relevant values in the request context
+			// for later signature checking down the line.
+			//
+			// Note since we're passing in an httputil.Context{}
+			// here, the value will get set in httputil.Context{}.V,
+			// which is why we can ignore the return value here.
+			_ = gtscontext.SetHTTPSignatureVerifier(c, verifier)
+			_ = gtscontext.SetHTTPSignature(c, signature)
+			_ = gtscontext.SetHTTPSignaturePubKeyID(c, pubKeyID)
+
+			// Pass on
+			// to next.
+			h(c)
 		}
-
-		// The request was signed! The key ID should be given
-		// in the signature so that we know where to fetch it
-		// from the remote server. This will be something like:
-		// https://example.org/users/some_remote_user#main-key
-		pubKeyIDStr := verifier.KeyId()
-
-		// Key can sometimes be nil, according to url parse
-		// func: 'Trying to parse a hostname and path without
-		// a scheme is invalid but may not necessarily return
-		// an error, due to parsing ambiguities'. Catch this.
-		pubKeyID, err := url.Parse(pubKeyIDStr)
-		if err != nil || pubKeyID == nil {
-			log.Warnf(ctx, "pubkey id %s could not be parsed as a url", pubKeyIDStr)
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-
-		// If the domain is blocked we want to bail as fast as
-		// possible without the request proceeding further.
-		blocked, err := uriBlocked(ctx, pubKeyID)
-		if err != nil {
-			log.Errorf(ctx, "error checking block for domain %s: %s", pubKeyID.Host, err)
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-
-		if blocked {
-			log.Infof(ctx, "domain %s is blocked", pubKeyID.Host)
-			c.AbortWithStatus(http.StatusForbidden)
-			return
-		}
-
-		// Assume signature was set on Signature header,
-		// but fall back to Authorization header if necessary.
-		signature := c.GetHeader(sigHeader)
-		if signature == "" {
-			signature = c.GetHeader(authHeader)
-		}
-
-		// Set relevant values on the request context
-		// to save some work further down the line.
-		ctx = gtscontext.SetHTTPSignatureVerifier(ctx, verifier)
-		ctx = gtscontext.SetHTTPSignature(ctx, signature)
-		ctx = gtscontext.SetHTTPSignaturePubKeyID(ctx, pubKeyID)
-
-		// Replace request with a shallow
-		// copy with the new context.
-		c.Request = c.Request.WithContext(ctx)
 	}
 }

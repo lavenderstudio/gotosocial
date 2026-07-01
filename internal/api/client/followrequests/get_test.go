@@ -18,7 +18,6 @@
 package followrequests_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -32,7 +31,7 @@ import (
 
 	"code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"github.com/stretchr/testify/assert"
+	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 	"github.com/tomnomnom/linkheader"
 )
@@ -62,10 +61,10 @@ func (suite *GetTestSuite) TestGet() {
 	suite.NoError(err)
 
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodGet, []byte{}, "/api/v1/follow_requests", "")
+	c := suite.newContext(recorder, http.MethodGet, []byte{}, "/api/v1/follow_requests", "")
 
 	// call the handler
-	suite.followRequestModule.FollowRequestGETHandler(ctx)
+	suite.followRequestModule.FollowRequestGETHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -76,38 +75,39 @@ func (suite *GetTestSuite) TestGet() {
 
 	// check the response
 	b, err := io.ReadAll(result.Body)
-	assert.NoError(suite.T(), err)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`[
   {
-    "id": "01FHMQX3GAABWSM0S2VZEC2SWC",
-    "username": "Some_User",
     "acct": "Some_User@example.org",
-    "display_name": "some user",
-    "locked": true,
-    "discoverable": true,
-    "indexable": true,
-    "noindex": false,
-    "bot": false,
-    "created_at": "2020-08-10T12:13:28.000Z",
-    "note": "i'm a real son of a gun",
-    "url": "http://example.org/@Some_User",
     "avatar": "",
     "avatar_static": "",
-    "header": "http://localhost:8080/assets/default_header.webp",
-    "header_static": "http://localhost:8080/assets/default_header.webp",
-    "header_description": "Flat gray background (default header).",
-    "followers_count": 0,
-    "following_count": 0,
-    "statuses_count": 1,
-    "last_status_at": "2023-11-02",
+    "bot": false,
+    "created_at": "2020-08-10T12:13:28.000Z",
+    "discoverable": true,
+    "display_name": "some user",
     "emojis": [],
     "fields": [],
-    "group": false
+    "followers_count": 0,
+    "following_count": 0,
+    "group": false,
+    "header": "http://localhost:8080/assets/default_header.webp",
+    "header_description": "Flat gray background (default header).",
+    "header_static": "http://localhost:8080/assets/default_header.webp",
+    "id": "01FHMQX3GAABWSM0S2VZEC2SWC",
+    "indexable": true,
+    "last_status_at": "2023-11-02",
+    "locked": true,
+    "noindex": false,
+    "note": "i'm a real son of a gun",
+    "statuses_count": 1,
+    "url": "http://example.org/@Some_User",
+    "username": "Some_User"
   }
-]`, dst.String())
+]`, out)
 }
 
 func (suite *GetTestSuite) TestGetPageNewestToOldestLimit2() {
@@ -204,12 +204,12 @@ func (suite *GetTestSuite) testGetPage(limit int, direction string) {
 	for p := 0; ; p++ {
 		// Prepare new request for endpoint
 		recorder := httptest.NewRecorder()
-		ctx := suite.newContext(recorder, http.MethodGet, []byte{}, "/api/v1/follow_requests", "")
-		ctx.Request.URL.RawQuery = query // setting provided next query value
+		c := suite.newContext(recorder, http.MethodGet, []byte{}, "/api/v1/follow_requests", "")
+		c.R.URL.RawQuery = query // setting provided next query value
 
 		// call the handler and check for valid response code.
 		suite.T().Logf("direction=%q page=%d query=%q", direction, p, query)
-		suite.followRequestModule.FollowRequestGETHandler(ctx)
+		suite.followRequestModule.FollowRequestGETHandler(c)
 		suite.Equal(http.StatusOK, recorder.Code)
 
 		var accounts []*model.Account

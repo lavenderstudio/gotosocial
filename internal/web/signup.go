@@ -18,123 +18,113 @@
 package web
 
 import (
-	"context"
 	"errors"
-	"net"
+	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
+	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
+	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 	"code.superseriousbusiness.org/gotosocial/internal/validate"
-	"github.com/gin-gonic/gin"
 )
 
-func (m *Module) signupGETHandler(c *gin.Context) {
-	ctx := c.Request.Context()
-
+func (m *Module) signupGETHandler(c *httputil.Context) {
 	// We'll need the instance later, and we can also use it
 	// before then to make it easier to return a web error.
-	instance, errWithCode := m.processor.InstanceGetV1(ctx)
+	instance, errWithCode := m.processor.InstanceGetV1(c)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
-	}
-
-	// Return instance we already got from the db,
-	// don't try to fetch it again when erroring.
-	instanceGet := func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-		return instance, nil
 	}
 
 	// We only serve text/html at this endpoint.
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextHTML); errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	page := apiutil.WebPage{
-		Template: "sign-up.tmpl",
-		Instance: instance,
-		OGMeta:   apiutil.OGBase(instance),
-		Extra: map[string]any{
-			"oidcEnabled":      config.GetOIDCEnabled(),
-			"registrationOpen": config.GetAccountsRegistrationOpen(),
-			"reasonRequired":   config.GetAccountsReasonRequired(),
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template: "sign-up.tmpl",
+			Extra: map[string]any{
+				"oidcEnabled":      config.GetOIDCEnabled(),
+				"registrationOpen": config.GetAccountsRegistrationOpen(),
+				"reasonRequired":   config.GetAccountsReasonRequired(),
+				"instance":         instance,
+				"ogMeta":           typeutils.OpenGraphBase(instance),
+			},
 		},
-	}
-
-	apiutil.TemplateWebPage(c, page)
+	)
 }
 
-func (m *Module) signupPOSTHandler(c *gin.Context) {
-	ctx := c.Request.Context()
-
+func (m *Module) signupPOSTHandler(c *httputil.Context) {
 	// We'll need the instance later, and we can also use it
 	// before then to make it easier to return a web error.
-	instance, errWithCode := m.processor.InstanceGetV1(ctx)
+	instance, errWithCode := m.processor.InstanceGetV1(c)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
-	}
-
-	// Return instance we already got from the db,
-	// don't try to fetch it again when erroring.
-	instanceGet := func(ctx context.Context) (*apimodel.InstanceV1, gtserror.WithCode) {
-		return instance, nil
 	}
 
 	// We only serve text/html at this endpoint.
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.TextHTML); errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form := &apimodel.AccountCreateRequest{}
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.WebErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), instanceGet)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.WebErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if err := validate.CreateAccount(form); err != nil {
-		apiutil.WebErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
-	clientIP := c.ClientIP()
-	signUpIP := net.ParseIP(clientIP)
-	if signUpIP == nil {
+	clientIP := gtscontext.ClientIP(c)
+	if clientIP == nil {
 		err := errors.New("ip address could not be parsed from request")
-		apiutil.WebErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
-	form.IP = signUpIP
+
+	form.IP = clientIP.AsSlice()
 
 	// We have all the info we need, call user+account create
 	// (this will also trigger side effects like sending emails etc).
 	user, errWithCode := m.processor.User().Create(
-		c.Request.Context(),
+		c,
 		// nil to use
 		// instance app.
 		nil,
 		form,
 	)
 	if errWithCode != nil {
-		apiutil.WebErrorHandler(c, errWithCode, instanceGet)
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	// Serve a page informing the
 	// user that they've signed up.
-	page := apiutil.WebPage{
-		Template: "signed-up.tmpl",
-		Instance: instance,
-		OGMeta:   apiutil.OGBase(instance),
-		Extra: map[string]any{
-			"email":    user.UnconfirmedEmail,
-			"username": user.Account.Username,
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template: "signed-up.tmpl",
+			Extra: map[string]any{
+				"email":    user.UnconfirmedEmail,
+				"username": user.Account.Username,
+				"instance": instance,
+				"ogMeta":   typeutils.OpenGraphBase(instance),
+			},
 		},
-	}
-
-	apiutil.TemplateWebPage(c, page)
+	)
 }

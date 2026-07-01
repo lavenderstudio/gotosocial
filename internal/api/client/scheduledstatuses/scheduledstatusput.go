@@ -21,11 +21,11 @@ import (
 	"net/http"
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-
-	"github.com/gin-gonic/gin"
 )
 
 // ScheduledStatusPUTHandler swagger:operation PUT /api/v1/scheduled_statuses/{id} updateScheduledStatus
@@ -89,13 +89,16 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) ScheduledStatusPUTHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteStatuses,
-	)
+func (m *Module) ScheduledStatusPUTHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteStatuses},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -105,39 +108,39 @@ func (m *Module) ScheduledStatusPUTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	targetScheduledStatusID, errWithCode := apiutil.ParseID(c.Param(apiutil.IDKey))
+	targetScheduledStatusID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form := &apimodel.ScheduledStatusUpdateRequest{}
-	if err := c.ShouldBind(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	now := time.Now()
 	if !now.Add(5 * time.Minute).Before(*form.ScheduledAt) {
 		const errText = "scheduled_at must be at least 5 minutes in the future"
-		apiutil.ErrorHandler(c, gtserror.NewErrorUnprocessableEntity(gtserror.New(errText), errText), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorUnprocessableEntity(gtserror.New(errText), errText))
 		return
 	}
 
 	scheduledStatus, errWithCode := m.processor.Status().ScheduledStatusesUpdate(
-		c.Request.Context(),
+		c,
 		authed.Account,
 		targetScheduledStatusID,
 		form.ScheduledAt,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, scheduledStatus)
+	httputil.JSON(c, http.StatusOK, scheduledStatus)
 }

@@ -18,8 +18,6 @@
 package admin_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -30,7 +28,7 @@ import (
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -69,16 +67,11 @@ func (suite *DomainPermissionSubscriptionTestTestSuite) TestDomainPermissionSubs
 	)
 	path := "/api" + subPath
 	recorder := httptest.NewRecorder()
-	ginCtx := suite.newContext(recorder, http.MethodPost, nil, path, "application/json")
-	ginCtx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.IDKey,
-			Value: permSub.ID,
-		},
-	}
+	c := suite.newContext(recorder, http.MethodPost, nil, path, "application/json")
+	c.SetPathValue(apiutil.IDKey, permSub.ID)
 
 	// Trigger the handler.
-	suite.adminModule.DomainPermissionSubscriptionTestPOSTHandler(ginCtx)
+	suite.adminModule.DomainPermissionSubscriptionTestPOSTHandler(c)
 	suite.Equal(http.StatusOK, recorder.Code)
 
 	// Read the body back.
@@ -87,32 +80,27 @@ func (suite *DomainPermissionSubscriptionTestTestSuite) TestDomainPermissionSubs
 		suite.FailNow(err.Error())
 	}
 
-	dst := new(bytes.Buffer)
-	if err := json.Indent(dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
-	// Ensure expected.
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`[
   {
     "domain": "bumfaces.net",
-    "public_comment": "big jerks",
     "obfuscate": false,
-    "private_comment": ""
+    "private_comment": "",
+    "public_comment": "big jerks"
   },
   {
     "domain": "peepee.poopoo",
-    "public_comment": "harassment",
     "obfuscate": false,
-    "private_comment": ""
+    "private_comment": "",
+    "public_comment": "harassment"
   },
   {
     "domain": "nothanks.com",
-    "public_comment": "",
     "obfuscate": false,
-    "private_comment": ""
+    "private_comment": "",
+    "public_comment": ""
   }
-]`, dst.String())
+]`, out)
 
 	// No permissions should be created
 	// since this is a dry run / test.
@@ -157,16 +145,11 @@ func (suite *DomainPermissionSubscriptionTestTestSuite) TestDomainPermissionSubs
 	)
 	path := "/api" + subPath
 	recorder := httptest.NewRecorder()
-	ginCtx := suite.newContext(recorder, http.MethodPost, nil, path, "application/json")
-	ginCtx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.IDKey,
-			Value: permSub.ID,
-		},
-	}
+	c := suite.newContext(recorder, http.MethodPost, nil, path, "application/json")
+	c.SetPathValue(apiutil.IDKey, permSub.ID)
 
 	// Trigger the handler.
-	suite.adminModule.DomainPermissionSubscriptionTestPOSTHandler(ginCtx)
+	suite.adminModule.DomainPermissionSubscriptionTestPOSTHandler(c)
 	suite.Equal(http.StatusOK, recorder.Code)
 
 	// Read the body back.
@@ -175,32 +158,27 @@ func (suite *DomainPermissionSubscriptionTestTestSuite) TestDomainPermissionSubs
 		suite.FailNow(err.Error())
 	}
 
-	dst := new(bytes.Buffer)
-	if err := json.Indent(dst, b, "", "  "); err != nil {
-		suite.FailNow(err.Error())
-	}
-
-	// Ensure expected.
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`[
   {
     "domain": "bumfaces.net",
-    "public_comment": "",
     "obfuscate": false,
-    "private_comment": ""
+    "private_comment": "",
+    "public_comment": ""
   },
   {
     "domain": "peepee.poopoo",
-    "public_comment": "",
     "obfuscate": false,
-    "private_comment": ""
+    "private_comment": "",
+    "public_comment": ""
   },
   {
     "domain": "nothanks.com",
-    "public_comment": "",
     "obfuscate": false,
-    "private_comment": ""
+    "private_comment": "",
+    "public_comment": ""
   }
-]`, dst.String())
+]`, out)
 
 	// No permissions should be created
 	// since this is a dry run / test.

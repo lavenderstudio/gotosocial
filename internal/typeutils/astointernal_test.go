@@ -224,10 +224,6 @@ func (suite *ASToInternalTestSuite) TestParseOwncastService() {
 	apiAcct, err := suite.typeconverter.AccountToAPIAccountPublic(suite.T().Context(), acct)
 	suite.NoError(err)
 	suite.NotNil(apiAcct)
-
-	b, err := json.Marshal(apiAcct)
-	suite.NoError(err)
-	suite.NotNil(b)
 }
 
 func (suite *ASToInternalTestSuite) TestParseBookwyrmStatus() {

@@ -18,20 +18,18 @@
 package instance_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/instance"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin/render"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -42,17 +40,16 @@ type InstancePeersGetTestSuite struct {
 func (suite *InstancePeersGetTestSuite) TestInstancePeersGetNoParams() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
-
-	recorder := httptest.NewRecorder()
-	ctx, r := testrig.CreateGinTestContext(recorder, nil)
-	r.HTMLRender = render.HTMLDebug{}
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	baseURI := fmt.Sprintf("%s://%s", config.GetProtocol(), config.GetHost())
 	requestURI := fmt.Sprintf("%s/%s", baseURI, instance.InstancePeersPath)
-	ctx.Request = httptest.NewRequest(http.MethodGet, requestURI, nil)
+	req := httptest.NewRequest(http.MethodGet, requestURI, nil)
 
-	instanceModule.InstancePeersGETHandler(ctx)
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+
+	instanceModule.InstancePeersGETHandler(c)
 
 	suite.Equal(http.StatusOK, recorder.Code)
 
@@ -60,22 +57,23 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetNoParams() {
 	defer result.Body.Close()
 
 	b, err := io.ReadAll(result.Body)
-	suite.NoError(err)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`[
   "example.org",
   "fossbros-anonymous.io",
   "thequeenisstillalive.technology",
   "ëxample.org"
-]`, dst.String())
+]`, out)
 }
 
 func (suite *InstancePeersGetTestSuite) TestInstancePeersGetNoParamsUnauthorized() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	config.SetInstanceExposePeers(false)
 
@@ -100,7 +98,7 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetNoParamsUnauthorized
 func (suite *InstancePeersGetTestSuite) TestInstancePeersGetNoParamsAuthorized() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	config.SetInstanceExposePeers(false)
 
@@ -117,22 +115,23 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetNoParamsAuthorized()
 	defer result.Body.Close()
 
 	b, err := io.ReadAll(result.Body)
-	suite.NoError(err)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`[
   "example.org",
   "fossbros-anonymous.io",
   "thequeenisstillalive.technology",
   "ëxample.org"
-]`, dst.String())
+]`, out)
 }
 
 func (suite *InstancePeersGetTestSuite) TestInstancePeersGetOnlySuspended() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	recorder := httptest.NewRecorder()
 	baseURI := fmt.Sprintf("%s://%s", config.GetProtocol(), config.GetHost())
@@ -147,24 +146,25 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetOnlySuspended() {
 	defer result.Body.Close()
 
 	b, err := io.ReadAll(result.Body)
-	suite.NoError(err)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`[
   {
-    "domain": "replyguys.com",
-    "suspended_at": "2020-05-13T13:29:12.000Z",
     "comment": "reply-guying to tech posts",
-    "severity": "suspend"
+    "domain": "replyguys.com",
+    "severity": "suspend",
+    "suspended_at": "2020-05-13T13:29:12.000Z"
   }
-]`, dst.String())
+]`, out)
 }
 
 func (suite *InstancePeersGetTestSuite) TestInstancePeersGetOnlySuspendedUnauthorized() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	config.SetInstanceExposeBlocklist(false)
 
@@ -189,7 +189,7 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetOnlySuspendedUnautho
 func (suite *InstancePeersGetTestSuite) TestInstancePeersGetOnlySuspendedAuthorized() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	config.SetInstanceExposeBlocklist(false)
 
@@ -206,24 +206,25 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetOnlySuspendedAuthori
 	defer result.Body.Close()
 
 	b, err := io.ReadAll(result.Body)
-	suite.NoError(err)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`[
   {
-    "domain": "replyguys.com",
-    "suspended_at": "2020-05-13T13:29:12.000Z",
     "comment": "reply-guying to tech posts",
-    "severity": "suspend"
+    "domain": "replyguys.com",
+    "severity": "suspend",
+    "suspended_at": "2020-05-13T13:29:12.000Z"
   }
-]`, dst.String())
+]`, out)
 }
 
 func (suite *InstancePeersGetTestSuite) TestInstancePeersGetAll() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	recorder := httptest.NewRecorder()
 	baseURI := fmt.Sprintf("%s://%s", config.GetProtocol(), config.GetHost())
@@ -238,10 +239,11 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetAll() {
 	defer result.Body.Close()
 
 	b, err := io.ReadAll(result.Body)
-	suite.NoError(err)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`[
   {
     "domain": "example.org"
@@ -250,10 +252,10 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetAll() {
     "domain": "fossbros-anonymous.io"
   },
   {
-    "domain": "replyguys.com",
-    "suspended_at": "2020-05-13T13:29:12.000Z",
     "comment": "reply-guying to tech posts",
-    "severity": "suspend"
+    "domain": "replyguys.com",
+    "severity": "suspend",
+    "suspended_at": "2020-05-13T13:29:12.000Z"
   },
   {
     "domain": "thequeenisstillalive.technology"
@@ -261,13 +263,13 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetAll() {
   {
     "domain": "ëxample.org"
   }
-]`, dst.String())
+]`, out)
 }
 
 func (suite *InstancePeersGetTestSuite) TestInstancePeersGetAllowed() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	recorder := httptest.NewRecorder()
 	baseURI := fmt.Sprintf("%s://%s", config.GetProtocol(), config.GetHost())
@@ -282,17 +284,18 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetAllowed() {
 	defer result.Body.Close()
 
 	b, err := io.ReadAll(result.Body)
-	suite.NoError(err)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
-	suite.Equal(`[]`, dst.String())
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
+	suite.Equal(`[]`, out)
 }
 
 func (suite *InstancePeersGetTestSuite) TestInstancePeersGetAllWithObfuscated() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	err := testStructs.State.DB.Put(suite.T().Context(), &gtsmodel.DomainBlock{
 		ID:                 "01G633XTNK51GBADQZFZQDP6WR",
@@ -318,10 +321,11 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetAllWithObfuscated() 
 	defer result.Body.Close()
 
 	b, err := io.ReadAll(result.Body)
-	suite.NoError(err)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`[
   {
     "domain": "example.org"
@@ -330,16 +334,16 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetAllWithObfuscated() 
     "domain": "fossbros-anonymous.io"
   },
   {
-    "domain": "o*g.*u**.t**.*or*t.*r**ev**",
-    "suspended_at": "2021-06-09T10:34:55.000Z",
     "comment": "just absolutely the worst, wowza",
-    "severity": "suspend"
+    "domain": "o*g.*u**.t**.*or*t.*r**ev**",
+    "severity": "suspend",
+    "suspended_at": "2021-06-09T10:34:55.000Z"
   },
   {
-    "domain": "replyguys.com",
-    "suspended_at": "2020-05-13T13:29:12.000Z",
     "comment": "reply-guying to tech posts",
-    "severity": "suspend"
+    "domain": "replyguys.com",
+    "severity": "suspend",
+    "suspended_at": "2020-05-13T13:29:12.000Z"
   },
   {
     "domain": "thequeenisstillalive.technology"
@@ -347,13 +351,13 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetAllWithObfuscated() 
   {
     "domain": "ëxample.org"
   }
-]`, dst.String())
+]`, out)
 }
 
 func (suite *InstancePeersGetTestSuite) TestInstancePeersGetAllWithObfuscatedFlat() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	err := testStructs.State.DB.Put(suite.T().Context(), &gtsmodel.DomainBlock{
 		ID:                 "01G633XTNK51GBADQZFZQDP6WR",
@@ -379,10 +383,11 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetAllWithObfuscatedFla
 	defer result.Body.Close()
 
 	b, err := io.ReadAll(result.Body)
-	suite.NoError(err)
-	dst := new(bytes.Buffer)
-	err = json.Indent(dst, b, "", "  ")
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONStringFromBytes(b)
 	suite.Equal(`[
   "example.org",
   "fossbros-anonymous.io",
@@ -390,13 +395,13 @@ func (suite *InstancePeersGetTestSuite) TestInstancePeersGetAllWithObfuscatedFla
   "replyguys.com",
   "thequeenisstillalive.technology",
   "ëxample.org"
-]`, dst.String())
+]`, out)
 }
 
 func (suite *InstancePeersGetTestSuite) TestInstancePeersGetFunkyParams() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
-	instanceModule := instance.New(testStructs.Processor)
+	instanceModule := instance.New(testStructs.Processor, testStructs.Templates)
 
 	recorder := httptest.NewRecorder()
 	baseURI := fmt.Sprintf("%s://%s", config.GetProtocol(), config.GetHost())

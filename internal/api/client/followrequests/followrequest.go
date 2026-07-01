@@ -18,20 +18,18 @@
 package followrequests
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
-	// IDKey is for account IDs
-	IDKey = "id"
 	// BasePath is the base path for serving the follow request API, minus the 'api' prefix
 	BasePath = "/v1/follow_requests"
 	// BasePathWithID is just the base path with the ID key in it.
 	// Use this anywhere you need to know the ID of the account that owns the follow request being queried.
-	BasePathWithID = BasePath + "/:" + IDKey
+	BasePathWithID = BasePath + "/:" + apiutil.IDKey
 	// AuthorizePath is used for authorizing follow requests
 	AuthorizePath = BasePathWithID + "/authorize"
 	// RejectPath is used for rejecting follow requests
@@ -41,18 +39,20 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, BasePath, m.FollowRequestGETHandler)
-	attachHandler(http.MethodGet, OutgoingPath, m.OutgoingFollowRequestGETHandler)
-	attachHandler(http.MethodPost, AuthorizePath, m.FollowRequestAuthorizePOSTHandler)
-	attachHandler(http.MethodPost, RejectPath, m.FollowRequestRejectPOSTHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(BasePath, m.FollowRequestGETHandler)
+	g.GET(OutgoingPath, m.OutgoingFollowRequestGETHandler)
+	g.POST(AuthorizePath, m.FollowRequestAuthorizePOSTHandler)
+	g.POST(RejectPath, m.FollowRequestRejectPOSTHandler)
 }

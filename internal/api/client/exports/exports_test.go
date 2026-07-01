@@ -18,20 +18,18 @@
 package exports_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/exports"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -89,11 +87,11 @@ func (suite *ExportsTestSuite) SetupTest() {
 		mediaManager,
 	)
 
-	suite.exportsModule = exports.New(processor)
+	suite.exportsModule = exports.New(processor, testrig.LoadTemplates(&suite.state, ""))
 }
 
 func (suite *ExportsTestSuite) TriggerHandler(
-	handler gin.HandlerFunc,
+	handler httputil.HandlerFunc,
 	path string,
 	contentType string,
 	application *gtsmodel.Application,
@@ -102,23 +100,21 @@ func (suite *ExportsTestSuite) TriggerHandler(
 	account *gtsmodel.Account,
 ) *httptest.ResponseRecorder {
 	// Set up request.
+	target := "http://localhost:8080/api" + path
+	req := httptest.NewRequest(http.MethodGet, target, nil)
+	req.Header.Set("Accept", contentType)
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
+	c := httputil.ToContext(recorder, req)
 
 	// Authorize the request ctx as though it
 	// had passed through API auth handlers.
-	ctx.Set(oauth.SessionAuthorizedApplication, application)
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
-	ctx.Set(oauth.SessionAuthorizedUser, user)
-	ctx.Set(oauth.SessionAuthorizedAccount, account)
-
-	// Create test request.
-	target := "http://localhost:8080/api" + path
-	ctx.Request = httptest.NewRequest(http.MethodGet, target, nil)
-	ctx.Request.Header.Set("Accept", contentType)
+	c.V.Set(oauth.SessionAuthorizedApplication, application)
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
+	c.V.Set(oauth.SessionAuthorizedUser, user)
+	c.V.Set(oauth.SessionAuthorizedAccount, account)
 
 	// Trigger handler.
-	handler(ctx)
+	handler(c)
 
 	return recorder
 }
@@ -131,7 +127,7 @@ func (suite *ExportsTestSuite) TearDownTest() {
 
 func (suite *ExportsTestSuite) TestExports() {
 	type testCase struct {
-		handler     gin.HandlerFunc
+		handler     httputil.HandlerFunc
 		path        string
 		contentType string
 		application *gtsmodel.Application
@@ -217,13 +213,13 @@ Cool Ass Posters From This Instance,admin@localhost:8080
 			user:        suite.testUsers["local_account_1"],
 			account:     suite.testAccounts["local_account_1"],
 			expect: `{
-  "media_storage": "",
+  "blocks_count": 0,
   "followers_count": 2,
   "following_count": 2,
-  "statuses_count": 9,
   "lists_count": 1,
-  "blocks_count": 0,
-  "mutes_count": 0
+  "media_storage": "",
+  "mutes_count": 0,
+  "statuses_count": 9
 }`,
 		},
 	}
@@ -250,11 +246,7 @@ Cool Ass Posters From This Instance,admin@localhost:8080
 
 		// If json response, indent it nicely.
 		if recorder.Result().Header.Get("Content-Type") == "application/json" {
-			dst := &bytes.Buffer{}
-			if err := json.Indent(dst, b, "", "  "); err != nil {
-				suite.FailNow(err.Error())
-			}
-			b = dst.Bytes()
+			b = testrig.MustJSONBytesFromBytes(b)
 		}
 
 		suite.Equal(test.expect, string(b))

@@ -18,11 +18,11 @@
 package typeutils_test
 
 import (
-	"encoding/json"
 	"testing"
 
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
+	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -43,9 +43,7 @@ func (suite *WrapTestSuite) TestWrapNoteInCreateIRIOnly() {
 	createI, err := ap.Serialize(create)
 	suite.NoError(err)
 
-	bytes, err := json.MarshalIndent(createI, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(createI)
 	suite.Equal(`{
   "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "http://localhost:8080/users/the_mighty_zork",
@@ -55,25 +53,24 @@ func (suite *WrapTestSuite) TestWrapNoteInCreateIRIOnly() {
   "published": "2021-10-20T12:40:37+02:00",
   "to": "https://www.w3.org/ns/activitystreams#Public",
   "type": "Create"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *WrapTestSuite) TestWrapNoteInCreate() {
 	testStatus := suite.testStatuses["local_account_1_status_1"]
 
 	note, err := suite.typeconverter.StatusToAS(suite.T().Context(), testStatus)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
 	create := typeutils.WrapStatusableInCreate(note)
-	suite.NoError(err)
-	suite.NotNil(create)
-
 	createI, err := ap.Serialize(create)
-	suite.NoError(err)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	bytes, err := json.MarshalIndent(createI, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(createI)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -88,9 +85,9 @@ func (suite *WrapTestSuite) TestWrapNoteInCreate() {
   "object": {
     "attributedTo": "http://localhost:8080/users/the_mighty_zork",
     "cc": "http://localhost:8080/users/the_mighty_zork/followers",
-    "content": "\u003cp\u003ehello everyone!\u003c/p\u003e",
+    "content": "<p>hello everyone!</p>",
     "contentMap": {
-      "en": "\u003cp\u003ehello everyone!\u003c/p\u003e"
+      "en": "<p>hello everyone!</p>"
     },
     "id": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY",
     "interactionPolicy": {
@@ -119,7 +116,7 @@ func (suite *WrapTestSuite) TestWrapNoteInCreate() {
     "replies": {
       "first": {
         "id": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY/replies?page=true",
-        "next": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY/replies?page=true\u0026only_other_accounts=false",
+        "next": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY/replies?page=true&only_other_accounts=false",
         "partOf": "http://localhost:8080/users/the_mighty_zork/statuses/01F8MHAMCHF6Y650WCRSCP4WMY/replies",
         "type": "CollectionPage"
       },
@@ -135,7 +132,7 @@ func (suite *WrapTestSuite) TestWrapNoteInCreate() {
   "published": "2021-10-20T12:40:37+02:00",
   "to": "https://www.w3.org/ns/activitystreams#Public",
   "type": "Create"
-}`, string(bytes))
+}`, out)
 }
 
 func (suite *WrapTestSuite) TestWrapAccountableInUpdate() {
@@ -159,11 +156,7 @@ func (suite *WrapTestSuite) TestWrapAccountableInUpdate() {
 	// Get the ID as it's not determinate.
 	createID := ap.GetJSONLDId(create)
 
-	bytes, err := json.MarshalIndent(createI, "", "  ")
-	if err != nil {
-		suite.FailNow(err.Error())
-	}
-
+	out := testrig.MustJSONString(createI)
 	suite.Equal(`{
   "@context": [
     "https://gotosocial.org/ns",
@@ -215,13 +208,13 @@ func (suite *WrapTestSuite) TestWrapAccountableInUpdate() {
       "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqtQQjwFLHPez+7uF9AX7\nuvLFHm3SyNIozhhVmGhxHIs0xdgRnZKmzmZkFdrFuXddBTAglU4C2u3dw10jJO1a\nWIFQF8bGkRHZG7Pd25/XmWWBRPmOJxNLeWBqpj0G+2zTMgnAV72hALSDFY2/QDsx\nUthenKw0Srpj1LUwvRbyVQQ8fGu4v0HACFnlOX2hCQwhfAnGrb0V70Y2IJu++MP7\n6i49md0vR0Mv3WbsEJUNp1fTIUzkgWB31icvfrNmaaAxw5FkAE+KfkkylhRxi5i5\nRR1XQUINWc2Kj2Kro+CJarKG+9zasMyN7+D230gpESi8rXv1SwRu865FR3gANdDS\nMwIDAQAB\n-----END PUBLIC KEY-----\n"
     },
     "published": "2022-05-20T11:09:18Z",
-    "summary": "\u003cp\u003ehey yo this is my profile!\u003c/p\u003e",
+    "summary": "<p>hey yo this is my profile!</p>",
     "type": "Person",
     "url": "http://localhost:8080/@the_mighty_zork"
   },
   "to": "https://www.w3.org/ns/activitystreams#Public",
   "type": "Update"
-}`, string(bytes))
+}`, out)
 }
 
 func TestWrapTestSuite(t *testing.T) {

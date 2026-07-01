@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/form/v4"
 )
@@ -219,38 +219,41 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) PoliciesDefaultsPATCHHandler(c *gin.Context) {
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteAccounts,
-	)
+func (m *Module) PoliciesDefaultsPATCHHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteAccounts},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form, err := parseUpdatePoliciesForm(c)
 	if err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	resp, errWithCode := m.processor.Account().DefaultInteractionPoliciesUpdate(
-		c.Request.Context(),
+		c,
 		authed.Account,
 		form,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	apiutil.JSON(c, http.StatusOK, resp)
+	httputil.JSON(c, http.StatusOK, resp)
 }
 
 // intPolicyFormBinding satisfies gin's binding.Binding interface.
@@ -280,7 +283,7 @@ func (intPolicyFormBinding) Bind(req *http.Request, obj any) error {
 // customBind does custom form binding for
 // each visibility in the form data.
 func customBind(
-	c *gin.Context,
+	c *httputil.Context,
 	form *apimodel.UpdateInteractionPoliciesRequest,
 ) error {
 	for _, vis := range []string{
@@ -289,7 +292,7 @@ func customBind(
 		"Unlisted",
 		"Public",
 	} {
-		if err := c.ShouldBindWith(
+		if err := httputil.ShouldBindWith(c,
 			form,
 			intPolicyFormBinding{
 				visibility: vis,
@@ -302,19 +305,19 @@ func customBind(
 	return nil
 }
 
-func parseUpdatePoliciesForm(c *gin.Context) (*apimodel.UpdateInteractionPoliciesRequest, error) {
+func parseUpdatePoliciesForm(c *httputil.Context) (*apimodel.UpdateInteractionPoliciesRequest, error) {
 	form := new(apimodel.UpdateInteractionPoliciesRequest)
 
 	switch ct := c.ContentType(); ct {
 	case binding.MIMEJSON:
 		// Just bind with default json binding.
-		if err := c.ShouldBindWith(form, binding.JSON); err != nil {
+		if err := httputil.ShouldBindWith(c, form, binding.JSON); err != nil {
 			return nil, err
 		}
 
 	case binding.MIMEPOSTForm:
 		// Bind with default form binding first.
-		if err := c.ShouldBindWith(form, binding.FormPost); err != nil {
+		if err := httputil.ShouldBindWith(c, form, binding.FormPost); err != nil {
 			return nil, err
 		}
 
@@ -325,7 +328,7 @@ func parseUpdatePoliciesForm(c *gin.Context) (*apimodel.UpdateInteractionPolicie
 
 	case binding.MIMEMultipartPOSTForm:
 		// Bind with default form binding first.
-		if err := c.ShouldBindWith(form, binding.FormMultipart); err != nil {
+		if err := httputil.ShouldBindWith(c, form, binding.FormMultipart); err != nil {
 			return nil, err
 		}
 

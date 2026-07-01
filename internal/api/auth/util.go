@@ -20,21 +20,21 @@ package auth
 import (
 	"errors"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-gonic/gin"
+	"github.com/gorilla/sessions"
 )
 
-func (m *Module) mustClearSession(s sessions.Session) {
-	s.Clear()
-	m.mustSaveSession(s)
+func (m *Module) mustClearSession(c *httputil.Context, s *sessions.Session) {
+	clear(s.Values)
+	m.mustSaveSession(c, s)
 }
 
-func (m *Module) mustSaveSession(s sessions.Session) {
-	if err := s.Save(); err != nil {
+func (m *Module) mustSaveSession(c *httputil.Context, s *sessions.Session) {
+	if err := s.Save(c.R, &c.W); err != nil {
 		panic(err)
 	}
 }
@@ -46,8 +46,8 @@ func (m *Module) mustSaveSession(s sessions.Session) {
 // error to the response writer, and returns nil. Callers should always
 // return immediately if receiving nil back from this function!
 func (m *Module) mustUserFromSession(
-	c *gin.Context,
-	s sessions.Session,
+	c *httputil.Context,
+	s *sessions.Session,
 ) *gtsmodel.User {
 	// Try "userid" key first, fall
 	// back to "userid_awaiting_2fa".
@@ -56,9 +56,8 @@ func (m *Module) mustUserFromSession(
 		sessionUserID,
 		sessionUserIDAwaiting2FA,
 	} {
-		var ok bool
-		userID, ok = s.Get(key).(string)
-		if ok && userID != "" {
+		userID, _ = s.Values[key].(string)
+		if userID != "" {
 			// Got it.
 			break
 		}
@@ -70,7 +69,7 @@ func (m *Module) mustUserFromSession(
 		return nil
 	}
 
-	user, err := m.state.DB.GetUserByID(c.Request.Context(), userID)
+	user, err := m.state.DB.GetUserByID(c, userID)
 	if err != nil {
 		safe := "db error getting user " + userID
 		m.clearSessionWithInternalError(c, s, err, safe, oauth.HelpfulAdvice)
@@ -87,17 +86,17 @@ func (m *Module) mustUserFromSession(
 // error to the response writer, and returns nil. Callers should always
 // return immediately if receiving nil back from this function!
 func (m *Module) mustAppFromSession(
-	c *gin.Context,
-	s sessions.Session,
+	c *httputil.Context,
+	s *sessions.Session,
 ) *gtsmodel.Application {
-	clientID, ok := s.Get(sessionClientID).(string)
+	clientID, ok := s.Values[sessionClientID].(string)
 	if !ok {
 		const safe = "key client_id not found in session"
 		m.clearSessionWithInternalError(c, s, errors.New(safe), safe, oauth.HelpfulAdvice)
 		return nil
 	}
 
-	app, err := m.state.DB.GetApplicationByClientID(c.Request.Context(), clientID)
+	app, err := m.state.DB.GetApplicationByClientID(c, clientID)
 	if err != nil {
 		safe := "db error getting app for clientID " + clientID
 		m.clearSessionWithInternalError(c, s, err, safe, oauth.HelpfulAdvice)
@@ -115,38 +114,37 @@ func (m *Module) mustAppFromSession(
 // and returns nil. Callers should always return immediately
 // if receiving nil back from this function!
 func (m *Module) mustStringFromSession(
-	c *gin.Context,
-	s sessions.Session,
+	c *httputil.Context,
+	s *sessions.Session,
 	key string,
 ) string {
-	v, ok := s.Get(key).(string)
+	v, ok := s.Values[key].(string)
 	if !ok {
 		safe := "key " + key + " not found in session"
 		m.clearSessionWithInternalError(c, s, errors.New(safe), safe, oauth.HelpfulAdvice)
 		return ""
 	}
-
 	return v
 }
 
 func (m *Module) clearSessionWithInternalError(
-	c *gin.Context,
-	s sessions.Session,
+	c *httputil.Context,
+	s *sessions.Session,
 	err error,
 	helpText ...string,
 ) {
-	m.mustClearSession(s)
+	m.mustClearSession(c, s)
 	errWithCode := gtserror.NewErrorInternalError(err, helpText...)
-	apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+	apiutil.ErrorHandler(c, m.templates, errWithCode)
 }
 
 func (m *Module) clearSessionWithBadRequest(
-	c *gin.Context,
-	s sessions.Session,
+	c *httputil.Context,
+	s *sessions.Session,
 	err error,
 	helpText ...string,
 ) {
-	m.mustClearSession(s)
+	m.mustClearSession(c, s)
 	errWithCode := gtserror.NewErrorBadRequest(err, helpText...)
-	apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+	apiutil.ErrorHandler(c, m.templates, errWithCode)
 }

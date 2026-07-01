@@ -18,11 +18,10 @@
 package interactionrequests
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
@@ -33,18 +32,19 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
-	attachHandler(http.MethodGet, BasePath, m.InteractionRequestsGETHandler)
-	attachHandler(http.MethodGet, BasePathWithID, m.InteractionRequestGETHandler)
-	attachHandler(http.MethodPost, AuthorizePath, m.InteractionRequestAuthorizePOSTHandler)
-	attachHandler(http.MethodPost, RejectPath, m.InteractionRequestRejectPOSTHandler)
+func (m *Module) Route(g *httputil.RouteGroup) {
+	g.GET(BasePath, m.InteractionRequestsGETHandler)
+	g.GET(BasePathWithID, m.InteractionRequestGETHandler)
+	g.POST(AuthorizePath, m.InteractionRequestAuthorizePOSTHandler)
+	g.POST(RejectPath, m.InteractionRequestRejectPOSTHandler)
 }

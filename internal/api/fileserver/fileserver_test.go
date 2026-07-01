@@ -107,7 +107,7 @@ func (suite *FileserverTestSuite) SetupTest() {
 	suite.oauthServer = testrig.NewTestOauthServer(&suite.state)
 	suite.emailSender = testrig.NewEmailSender("../../../web/template/", nil)
 
-	suite.fileServer = fileserver.New(suite.processor)
+	suite.fileServer = fileserver.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 
 	suite.testTokens = testrig.NewTestTokens()
 	suite.testApplications = testrig.NewTestApplications()

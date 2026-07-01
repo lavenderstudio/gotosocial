@@ -20,15 +20,14 @@ package accounts_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"code.superseriousbusiness.org/gotosocial/internal/api/client/accounts"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/oauth"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -41,16 +40,11 @@ func (suite *AccountStatusesTestSuite) TestGetStatusesPublicOnly() {
 	// we're getting statuses of admin
 	targetAccount := suite.testAccounts["admin_account"]
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodGet, nil, fmt.Sprintf("/api/v1/accounts/%s/statuses?limit=20&only_media=false&only_public=true", targetAccount.ID), "")
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   accounts.IDKey,
-			Value: targetAccount.ID,
-		},
-	}
+	c := suite.newContext(recorder, http.MethodGet, nil, fmt.Sprintf("/api/v1/accounts/%s/statuses?limit=20&only_media=false&only_public=true", targetAccount.ID), "")
+	c.SetPathValue(apiutil.IDKey, targetAccount.ID)
 
 	// call the handler
-	suite.accountsModule.AccountStatusesGETHandler(ctx)
+	suite.accountsModule.AccountStatusesGETHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -60,7 +54,7 @@ func (suite *AccountStatusesTestSuite) TestGetStatusesPublicOnly() {
 	defer result.Body.Close()
 
 	// check the response
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	// unmarshal the returned statuses
@@ -81,16 +75,11 @@ func (suite *AccountStatusesTestSuite) TestGetStatusesPublicOnlyMediaOnly() {
 	// we're getting statuses of admin
 	targetAccount := suite.testAccounts["admin_account"]
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodGet, nil, fmt.Sprintf("/api/v1/accounts/%s/statuses?limit=20&only_media=true&only_public=true", targetAccount.ID), "")
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   accounts.IDKey,
-			Value: targetAccount.ID,
-		},
-	}
+	c := suite.newContext(recorder, http.MethodGet, nil, fmt.Sprintf("/api/v1/accounts/%s/statuses?limit=20&only_media=true&only_public=true", targetAccount.ID), "")
+	c.SetPathValue(apiutil.IDKey, targetAccount.ID)
 
 	// call the handler
-	suite.accountsModule.AccountStatusesGETHandler(ctx)
+	suite.accountsModule.AccountStatusesGETHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -100,7 +89,7 @@ func (suite *AccountStatusesTestSuite) TestGetStatusesPublicOnlyMediaOnly() {
 	defer result.Body.Close()
 
 	// check the response
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	// unmarshal the returned statuses
@@ -122,16 +111,11 @@ func (suite *AccountStatusesTestSuite) TestGetStatusesPinnedOnlyPublicPins() {
 	// we're getting pinned statuses of admin, as local account 1
 	targetAccount := suite.testAccounts["admin_account"]
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodGet, nil, fmt.Sprintf("/api/v1/accounts/%s/statuses?pinned=true", targetAccount.ID), "")
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   accounts.IDKey,
-			Value: targetAccount.ID,
-		},
-	}
+	c := suite.newContext(recorder, http.MethodGet, nil, fmt.Sprintf("/api/v1/accounts/%s/statuses?pinned=true", targetAccount.ID), "")
+	c.SetPathValue(apiutil.IDKey, targetAccount.ID)
 
 	// call the handler
-	suite.accountsModule.AccountStatusesGETHandler(ctx)
+	suite.accountsModule.AccountStatusesGETHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -141,7 +125,7 @@ func (suite *AccountStatusesTestSuite) TestGetStatusesPinnedOnlyPublicPins() {
 	defer result.Body.Close()
 
 	// check the response
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	// unmarshal the returned statuses
@@ -163,20 +147,15 @@ func (suite *AccountStatusesTestSuite) TestGetStatusesPinnedOnlyNotFollowing() {
 	// we're getting pinned statuses of local account 2 with an account that doesn't follow it
 	targetAccount := suite.testAccounts["local_account_2"]
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodGet, nil, fmt.Sprintf("/api/v1/accounts/%s/statuses?pinned=true", targetAccount.ID), "")
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["admin_account"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["admin_account"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["admin_account"])
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   accounts.IDKey,
-			Value: targetAccount.ID,
-		},
-	}
+	c := suite.newContext(recorder, http.MethodGet, nil, fmt.Sprintf("/api/v1/accounts/%s/statuses?pinned=true", targetAccount.ID), "")
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["admin_account"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["admin_account"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["admin_account"])
+	c.SetPathValue(apiutil.IDKey, targetAccount.ID)
 
 	// call the handler
-	suite.accountsModule.AccountStatusesGETHandler(ctx)
+	suite.accountsModule.AccountStatusesGETHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -186,7 +165,7 @@ func (suite *AccountStatusesTestSuite) TestGetStatusesPinnedOnlyNotFollowing() {
 	defer result.Body.Close()
 
 	// check the response
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	// unmarshal the returned statuses
@@ -202,20 +181,15 @@ func (suite *AccountStatusesTestSuite) TestGetStatusesPinnedOnlyFollowing() {
 	// we're getting pinned statuses of local account 2 with an account that *DOES* follow it
 	targetAccount := suite.testAccounts["local_account_2"]
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodGet, nil, fmt.Sprintf("/api/v1/accounts/%s/statuses?pinned=true", targetAccount.ID), "")
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   accounts.IDKey,
-			Value: targetAccount.ID,
-		},
-	}
+	c := suite.newContext(recorder, http.MethodGet, nil, fmt.Sprintf("/api/v1/accounts/%s/statuses?pinned=true", targetAccount.ID), "")
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_1"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_1"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_1"])
+	c.SetPathValue(apiutil.IDKey, targetAccount.ID)
 
 	// call the handler
-	suite.accountsModule.AccountStatusesGETHandler(ctx)
+	suite.accountsModule.AccountStatusesGETHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -225,7 +199,7 @@ func (suite *AccountStatusesTestSuite) TestGetStatusesPinnedOnlyFollowing() {
 	defer result.Body.Close()
 
 	// check the response
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	// unmarshal the returned statuses
@@ -247,20 +221,15 @@ func (suite *AccountStatusesTestSuite) TestGetStatusesPinnedOnlyGetOwn() {
 	// we're getting pinned statuses of local account 2 with local account 2!
 	targetAccount := suite.testAccounts["local_account_2"]
 	recorder := httptest.NewRecorder()
-	ctx := suite.newContext(recorder, http.MethodGet, nil, fmt.Sprintf("/api/v1/accounts/%s/statuses?pinned=true", targetAccount.ID), "")
-	ctx.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_2"])
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_2"]))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_2"])
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   accounts.IDKey,
-			Value: targetAccount.ID,
-		},
-	}
+	c := suite.newContext(recorder, http.MethodGet, nil, fmt.Sprintf("/api/v1/accounts/%s/statuses?pinned=true", targetAccount.ID), "")
+	c.V.Set(oauth.SessionAuthorizedAccount, suite.testAccounts["local_account_2"])
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(suite.testTokens["local_account_2"]))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, suite.testUsers["local_account_2"])
+	c.SetPathValue(apiutil.IDKey, targetAccount.ID)
 
 	// call the handler
-	suite.accountsModule.AccountStatusesGETHandler(ctx)
+	suite.accountsModule.AccountStatusesGETHandler(c)
 
 	// 1. we should have OK because our request was valid
 	suite.Equal(http.StatusOK, recorder.Code)
@@ -270,7 +239,7 @@ func (suite *AccountStatusesTestSuite) TestGetStatusesPinnedOnlyGetOwn() {
 	defer result.Body.Close()
 
 	// check the response
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	// unmarshal the returned statuses

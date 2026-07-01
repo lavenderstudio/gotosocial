@@ -19,13 +19,13 @@ package delivery_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"testing"
 
 	"code.superseriousbusiness.org/gotosocial/internal/httpclient"
 	"code.superseriousbusiness.org/gotosocial/internal/transport/delivery"
+	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,7 +40,7 @@ var deliveryCases = []struct {
 			TargetID: "https://askjeeves.com/users/smallboy",
 			Request:  toRequest("POST", "https://askjeeves.com/users/smallboy/inbox", []byte("data!"), http.Header{"Hello": {"world1", "world2"}}),
 		},
-		data: toJSON(map[string]any{
+		data: testrig.MustJSONBytes(map[string]any{
 			"actor_id":  "https://google.com/users/bigboy",
 			"object_id": "https://google.com/users/bigboy/follow/1",
 			"target_id": "https://askjeeves.com/users/smallboy",
@@ -54,7 +54,7 @@ var deliveryCases = []struct {
 		msg: delivery.Delivery{
 			Request: toRequest("GET", "https://google.com", []byte("uwu im just a wittle seawch engwin"), nil),
 		},
-		data: toJSON(map[string]any{
+		data: testrig.MustJSONBytes(map[string]any{
 			"method": "GET",
 			"url":    "https://google.com",
 			"body":   []byte("uwu im just a wittle seawch engwin"),
@@ -121,15 +121,6 @@ func readBody(r io.ReadCloser) []byte {
 		return nil
 	}
 	b, err := io.ReadAll(r)
-	if err != nil {
-		panic(err)
-	}
-	return b
-}
-
-// toJSON marshals input type as JSON data.
-func toJSON(a any) []byte {
-	b, err := json.Marshal(a)
 	if err != nil {
 		panic(err)
 	}

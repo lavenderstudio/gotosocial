@@ -20,12 +20,13 @@ package reports_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/reports"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
@@ -53,14 +54,6 @@ func (suite *ReportsGetTestSuite) getReports(
 	minID string,
 	limit int,
 ) ([]*apimodel.Report, string, error) {
-	// instantiate recorder + test context
-	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Set(oauth.SessionAuthorizedAccount, account)
-	ctx.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
-	ctx.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
-	ctx.Set(oauth.SessionAuthorizedUser, user)
-
 	// create the request URI
 	requestPath := reports.BasePath + "?" + apiutil.LimitKey + "=" + strconv.Itoa(limit)
 	if resolved != nil {
@@ -82,11 +75,19 @@ func (suite *ReportsGetTestSuite) getReports(
 	requestURI := baseURI + "/api/" + requestPath
 
 	// create the request
-	ctx.Request = httptest.NewRequest(http.MethodGet, requestURI, nil)
-	ctx.Request.Header.Set("accept", "application/json")
+	req := httptest.NewRequest(http.MethodGet, requestURI, nil)
+	req.Header.Set("accept", "application/json")
+
+	// instantiate recorder + test context
+	recorder := httptest.NewRecorder()
+	c := httputil.ToContext(recorder, req)
+	c.V.Set(oauth.SessionAuthorizedAccount, account)
+	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
+	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
+	c.V.Set(oauth.SessionAuthorizedUser, user)
 
 	// trigger the handler
-	suite.reportsModule.ReportsGETHandler(ctx)
+	suite.reportsModule.ReportsGETHandler(c)
 
 	// read the response
 	result := recorder.Result()
@@ -96,7 +97,7 @@ func (suite *ReportsGetTestSuite) getReports(
 		return nil, "", fmt.Errorf("expected %d got %d", expectedHTTPStatus, resultCode)
 	}
 
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	if err != nil {
 		return nil, "", err
 	}
@@ -118,9 +119,7 @@ func (suite *ReportsGetTestSuite) TestGetReports() {
 	suite.NoError(err)
 	suite.NotEmpty(reports)
 
-	b, err := json.MarshalIndent(&reports, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(reports)
 	suite.Equal(`[
   {
     "id": "01GP3AWY4CRDVRNZKW0TEAMB5R",
@@ -165,7 +164,7 @@ func (suite *ReportsGetTestSuite) TestGetReports() {
       "group": false
     }
   }
-]`, string(b))
+]`, out)
 
 	suite.Equal(`<http://localhost:8080/api/v1/reports?limit=20&max_id=01GP3AWY4CRDVRNZKW0TEAMB5R>; rel="next", <http://localhost:8080/api/v1/reports?limit=20&min_id=01GP3AWY4CRDVRNZKW0TEAMB5R>; rel="prev"`, link)
 }
@@ -176,13 +175,12 @@ func (suite *ReportsGetTestSuite) TestGetReports2() {
 	testUser := suite.testUsers["local_account_2"]
 
 	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, nil, "", "01GP3AWY4CRDVRNZKW0TEAMB5R", "", "", 20)
-	suite.NoError(err)
-	suite.Empty(reports)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(&reports, "", "  ")
-	suite.NoError(err)
-
-	suite.Equal(`[]`, string(b))
+	out := testrig.MustJSONString(reports)
+	suite.Equal(`[]`, out)
 	suite.Empty(link)
 }
 
@@ -192,13 +190,12 @@ func (suite *ReportsGetTestSuite) TestGetReports3() {
 	testUser := suite.testUsers["local_account_1"]
 
 	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, nil, "", "", "", "", 20)
-	suite.NoError(err)
-	suite.Empty(reports)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(&reports, "", "  ")
-	suite.NoError(err)
-
-	suite.Equal(`[]`, string(b))
+	out := testrig.MustJSONString(reports)
+	suite.Equal(`[]`, out)
 	suite.Empty(link)
 }
 
@@ -209,12 +206,11 @@ func (suite *ReportsGetTestSuite) TestGetReports4() {
 	resolved := util.Ptr(false)
 
 	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, resolved, "", "", "", "", 20)
-	suite.NoError(err)
-	suite.NotEmpty(reports)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(&reports, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(reports)
 	suite.Equal(`[
   {
     "id": "01GP3AWY4CRDVRNZKW0TEAMB5R",
@@ -259,7 +255,7 @@ func (suite *ReportsGetTestSuite) TestGetReports4() {
       "group": false
     }
   }
-]`, string(b))
+]`, out)
 
 	suite.Equal(`<http://localhost:8080/api/v1/reports?limit=20&max_id=01GP3AWY4CRDVRNZKW0TEAMB5R&resolved=false>; rel="next", <http://localhost:8080/api/v1/reports?limit=20&min_id=01GP3AWY4CRDVRNZKW0TEAMB5R&resolved=false>; rel="prev"`, link)
 }
@@ -271,13 +267,12 @@ func (suite *ReportsGetTestSuite) TestGetReports5() {
 	resolved := util.Ptr(true)
 
 	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, resolved, "", "", "", "", 20)
-	suite.NoError(err)
-	suite.Empty(reports)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(&reports, "", "  ")
-	suite.NoError(err)
-
-	suite.Equal(`[]`, string(b))
+	out := testrig.MustJSONString(reports)
+	suite.Equal(`[]`, out)
 	suite.Empty(link)
 }
 
@@ -287,12 +282,11 @@ func (suite *ReportsGetTestSuite) TestGetReports6() {
 	testUser := suite.testUsers["local_account_2"]
 
 	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, nil, "01F8MH5ZK5VRH73AKHQM6Y9VNX", "", "", "", 20)
-	suite.NoError(err)
-	suite.NotEmpty(reports)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(&reports, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(reports)
 	suite.Equal(`[
   {
     "id": "01GP3AWY4CRDVRNZKW0TEAMB5R",
@@ -337,7 +331,7 @@ func (suite *ReportsGetTestSuite) TestGetReports6() {
       "group": false
     }
   }
-]`, string(b))
+]`, out)
 
 	suite.Equal(`<http://localhost:8080/api/v1/reports?limit=20&max_id=01GP3AWY4CRDVRNZKW0TEAMB5R&target_account_id=01F8MH5ZK5VRH73AKHQM6Y9VNX>; rel="next", <http://localhost:8080/api/v1/reports?limit=20&min_id=01GP3AWY4CRDVRNZKW0TEAMB5R&target_account_id=01F8MH5ZK5VRH73AKHQM6Y9VNX>; rel="prev"`, link)
 }
@@ -349,12 +343,11 @@ func (suite *ReportsGetTestSuite) TestGetReports7() {
 	resolved := util.Ptr(false)
 
 	reports, link, err := suite.getReports(testAccount, testToken, testUser, http.StatusOK, resolved, "01F8MH5ZK5VRH73AKHQM6Y9VNX", "", "", "", 20)
-	suite.NoError(err)
-	suite.NotEmpty(reports)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
 
-	b, err := json.MarshalIndent(&reports, "", "  ")
-	suite.NoError(err)
-
+	out := testrig.MustJSONString(reports)
 	suite.Equal(`[
   {
     "id": "01GP3AWY4CRDVRNZKW0TEAMB5R",
@@ -399,7 +392,7 @@ func (suite *ReportsGetTestSuite) TestGetReports7() {
       "group": false
     }
   }
-]`, string(b))
+]`, out)
 
 	suite.Equal(`<http://localhost:8080/api/v1/reports?limit=20&max_id=01GP3AWY4CRDVRNZKW0TEAMB5R&resolved=false&target_account_id=01F8MH5ZK5VRH73AKHQM6Y9VNX>; rel="next", <http://localhost:8080/api/v1/reports?limit=20&min_id=01GP3AWY4CRDVRNZKW0TEAMB5R&resolved=false&target_account_id=01F8MH5ZK5VRH73AKHQM6Y9VNX>; rel="prev"`, link)
 }

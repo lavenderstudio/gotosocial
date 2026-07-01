@@ -18,20 +18,18 @@
 package statuses
 
 import (
-	"net/http"
-
+	"code.superseriousbusiness.org/gopkg/httputil"
+	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 const (
-	// IDKey is for status UUIDs
-	IDKey = "id"
 	// BasePath is the base path for serving the statuses API, minus the 'api' prefix
 	BasePath = "/v1/statuses"
 	// BasePathWithID is just the base path with the ID key in it.
 	// Use this anywhere you need to know the ID of the status being queried.
-	BasePathWithID = BasePath + "/:" + IDKey
+	BasePathWithID = BasePath + "/:" + apiutil.IDKey
 
 	// FavouritedPath is for seeing who's faved a given status
 	FavouritedPath = BasePathWithID + "/favourited_by"
@@ -73,47 +71,48 @@ const (
 )
 
 type Module struct {
+	templates *templates.Templates
 	processor *processing.Processor
 }
 
-func New(processor *processing.Processor) *Module {
+func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
 		processor: processor,
 	}
 }
 
-func (m *Module) Route(attachHandler func(method string, path string, f ...gin.HandlerFunc) gin.IRoutes) {
+func (m *Module) Route(g *httputil.RouteGroup) {
 	// create / get / edit / delete status
-	attachHandler(http.MethodPost, BasePath, m.StatusCreatePOSTHandler)
-	attachHandler(http.MethodGet, BasePathWithID, m.StatusGETHandler)
-	attachHandler(http.MethodGet, BasePath, m.StatusesGETHandler)
-	attachHandler(http.MethodPut, BasePathWithID, m.StatusEditPUTHandler)
-	attachHandler(http.MethodDelete, BasePathWithID, m.StatusDELETEHandler)
+	g.POST(BasePath, m.StatusCreatePOSTHandler)
+	g.GET(BasePathWithID, m.StatusGETHandler)
+	g.GET(BasePath, m.StatusesGETHandler)
+	g.PUT(BasePathWithID, m.StatusEditPUTHandler)
+	g.DELETE(BasePathWithID, m.StatusDELETEHandler)
 
 	// fave stuff
-	attachHandler(http.MethodPost, FavouritePath, m.StatusFavePOSTHandler)
-	attachHandler(http.MethodPost, UnfavouritePath, m.StatusUnfavePOSTHandler)
-	attachHandler(http.MethodGet, FavouritedPath, m.StatusFavedByGETHandler)
+	g.POST(FavouritePath, m.StatusFavePOSTHandler)
+	g.POST(UnfavouritePath, m.StatusUnfavePOSTHandler)
+	g.GET(FavouritedPath, m.StatusFavedByGETHandler)
 
 	// pin stuff
-	attachHandler(http.MethodPost, PinPath, m.StatusPinPOSTHandler)
-	attachHandler(http.MethodPost, UnpinPath, m.StatusUnpinPOSTHandler)
+	g.POST(PinPath, m.StatusPinPOSTHandler)
+	g.POST(UnpinPath, m.StatusUnpinPOSTHandler)
 
 	// mute stuff
-	attachHandler(http.MethodPost, MutePath, m.StatusMutePOSTHandler)
-	attachHandler(http.MethodPost, UnmutePath, m.StatusUnmutePOSTHandler)
+	g.POST(MutePath, m.StatusMutePOSTHandler)
+	g.POST(UnmutePath, m.StatusUnmutePOSTHandler)
 
 	// reblog stuff
-	attachHandler(http.MethodPost, ReblogPath, m.StatusBoostPOSTHandler)
-	attachHandler(http.MethodPost, UnreblogPath, m.StatusUnboostPOSTHandler)
-	attachHandler(http.MethodGet, RebloggedPath, m.StatusBoostedByGETHandler)
-	attachHandler(http.MethodPost, BookmarkPath, m.StatusBookmarkPOSTHandler)
-	attachHandler(http.MethodPost, UnbookmarkPath, m.StatusUnbookmarkPOSTHandler)
+	g.POST(ReblogPath, m.StatusBoostPOSTHandler)
+	g.POST(UnreblogPath, m.StatusUnboostPOSTHandler)
+	g.GET(RebloggedPath, m.StatusBoostedByGETHandler)
+	g.POST(BookmarkPath, m.StatusBookmarkPOSTHandler)
+	g.POST(UnbookmarkPath, m.StatusUnbookmarkPOSTHandler)
 
 	// context / status thread
-	attachHandler(http.MethodGet, ContextPath, m.StatusContextGETHandler)
+	g.GET(ContextPath, m.StatusContextGETHandler)
 
 	// history/edit stuff
-	attachHandler(http.MethodGet, HistoryPath, m.StatusHistoryGETHandler)
-	attachHandler(http.MethodGet, SourcePath, m.StatusSourceGETHandler)
+	g.GET(HistoryPath, m.StatusHistoryGETHandler)
+	g.GET(SourcePath, m.StatusSourceGETHandler)
 }

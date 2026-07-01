@@ -19,7 +19,7 @@ package users_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -27,9 +27,9 @@ import (
 
 	"code.superseriousbusiness.org/activity/streams"
 	"code.superseriousbusiness.org/activity/streams/vocab"
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/testrig"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -45,38 +45,27 @@ func (suite *StatusGetTestSuite) TestGetStatus() {
 	targetStatus := suite.testStatuses["local_account_1_status_1"]
 
 	// setup request
+	req := httptest.NewRequest(http.MethodGet, targetStatus.URI, nil) // the endpoint we're hitting
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, targetStatus.URI, nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/activity+json")
-	ctx.Request.Header.Set("Signature", signedRequest.SignatureHeader)
-	ctx.Request.Header.Set("Date", signedRequest.DateHeader)
-
-	// we need to pass the context through signature check first to set appropriate values on it
-	suite.signatureCheck(ctx)
+	c := httputil.ToContext(recorder, req)
+	c.R.Header.Set("accept", "application/activity+json")
+	c.R.Header.Set("Signature", signedRequest.SignatureHeader)
+	c.R.Header.Set("Date", signedRequest.DateHeader)
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.UsernameKey,
-			Value: targetAccount.Username,
-		},
-		gin.Param{
-			Key:   apiutil.IDKey,
-			Value: targetStatus.ID,
-		},
-	}
+	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
+	c.SetPathValue(apiutil.IDKey, targetStatus.ID)
 
-	// trigger the function being tested
-	suite.userModule.StatusGETHandler(ctx)
+	// trigger the function being tested, first passing through sigcheck.
+	suite.signatureCheck.Compile(suite.userModule.StatusGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	// should be a Note
@@ -104,38 +93,27 @@ func (suite *StatusGetTestSuite) TestGetStatusLowercase() {
 	targetStatus := suite.testStatuses["local_account_1_status_1"]
 
 	// setup request
+	req := httptest.NewRequest(http.MethodGet, strings.ToLower(targetStatus.URI), nil) // the endpoint we're hitting
 	recorder := httptest.NewRecorder()
-	ctx, _ := testrig.CreateGinTestContext(recorder, nil)
-	ctx.Request = httptest.NewRequest(http.MethodGet, strings.ToLower(targetStatus.URI), nil) // the endpoint we're hitting
-	ctx.Request.Header.Set("accept", "application/activity+json")
-	ctx.Request.Header.Set("Signature", signedRequest.SignatureHeader)
-	ctx.Request.Header.Set("Date", signedRequest.DateHeader)
-
-	// we need to pass the context through signature check first to set appropriate values on it
-	suite.signatureCheck(ctx)
+	c := httputil.ToContext(recorder, req)
+	c.R.Header.Set("accept", "application/activity+json")
+	c.R.Header.Set("Signature", signedRequest.SignatureHeader)
+	c.R.Header.Set("Date", signedRequest.DateHeader)
 
 	// normally the router would populate these params from the path values,
 	// but because we're calling the function directly, we need to set them manually.
-	ctx.Params = gin.Params{
-		gin.Param{
-			Key:   apiutil.UsernameKey,
-			Value: strings.ToLower(targetAccount.Username),
-		},
-		gin.Param{
-			Key:   apiutil.IDKey,
-			Value: strings.ToLower(targetStatus.ID),
-		},
-	}
+	c.SetPathValue(apiutil.UsernameKey, strings.ToLower(targetAccount.Username))
+	c.SetPathValue(apiutil.IDKey, strings.ToLower(targetStatus.ID))
 
-	// trigger the function being tested
-	suite.userModule.StatusGETHandler(ctx)
+	// trigger the function being tested, first passing through sigcheck.
+	suite.signatureCheck.Compile(suite.userModule.StatusGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
 
 	result := recorder.Result()
 	defer result.Body.Close()
-	b, err := ioutil.ReadAll(result.Body)
+	b, err := io.ReadAll(result.Body)
 	suite.NoError(err)
 
 	// should be a Note

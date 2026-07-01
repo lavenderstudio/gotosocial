@@ -18,9 +18,7 @@
 package text
 
 import (
-	"bytes"
 	"context"
-	"regexp"
 	"strings"
 
 	"code.superseriousbusiness.org/gopkg/log"
@@ -161,28 +159,28 @@ func (f *Formatter) fromMarkdown(
 		),
 	)
 
-	// Convert input string to bytes
-	// without performing any allocs.
-	bInput := byteutil.S2B(input)
+	// Get byte buffer.
+	buf := bufpool.Get()
 
 	// Parse input into HTML.
-	var htmlBytes bytes.Buffer
 	if err := md.Convert(
-		bInput,
-		&htmlBytes,
+		byteutil.S2B(input),
+		buf,
 	); err != nil {
 		log.Errorf(ctx, "error formatting markdown input to HTML: %s", err)
+		buf.B = buf.B[:0] // reset buffer
 	}
 
+	// Copy data and release.
+	result.HTML = string(buf.B)
+	bufpool.Put(buf)
+
 	// Clean and shrink HTML.
-	result.HTML = byteutil.B2S(htmlBytes.Bytes())
 	result.HTML = SanitizeHTML(result.HTML)
 	result.HTML = MinifyHTML(result.HTML)
 
 	return result
 }
-
-var parasRegexp = regexp.MustCompile(`</?p>`)
 
 // unwrapParagraph removes opening and closing paragraph tags
 // of input HTML, if input html is a single paragraph only.
@@ -201,7 +199,7 @@ func unwrapParagraph(html string) string {
 
 	// If there are still other paragraph tags left
 	// inside the substring, return html unchanged.
-	containsOtherParas := parasRegexp.MatchString(sub)
+	containsOtherParas := strings.Contains(sub, "<p>")
 	if containsOtherParas {
 		return html
 	}

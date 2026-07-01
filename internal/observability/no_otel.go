@@ -22,8 +22,8 @@ package observability
 import (
 	"context"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
-	"github.com/gin-gonic/gin"
 	"github.com/uptrace/bun"
 )
 
@@ -35,11 +35,11 @@ func InitializeTracing(ctx context.Context) error {
 	return nil
 }
 
-func MetricsMiddleware() gin.HandlerFunc {
+func MetricsMiddleware() httputil.FlatMiddlewareFunc {
 	return nil
 }
 
-func TracingMiddleware() gin.HandlerFunc {
+func TracingMiddleware() httputil.FlatMiddlewareFunc {
 	return nil
 }
 

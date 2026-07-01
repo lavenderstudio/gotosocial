@@ -22,11 +22,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin"
 )
 
 // MediaCreatePOSTHandler swagger:operation POST /api/{api_version}/media mediaCreate
@@ -99,23 +99,26 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) MediaCreatePOSTHandler(c *gin.Context) {
+func (m *Module) MediaCreatePOSTHandler(c *httputil.Context) {
 	_, errWithCode := apiutil.ParseAPIVersion(
-		c.Param(apiutil.APIVersionKey),
+		c.PathValue(apiutil.APIVersionKey),
 		apiutil.APIv1,
 		apiutil.APIv2,
 	)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	authed, errWithCode := apiutil.TokenAuth(c,
-		true, true, true, true,
-		apiutil.ScopeWriteMedia,
-	)
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeWriteMedia},
+	})
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -125,24 +128,24 @@ func (m *Module) MediaCreatePOSTHandler(c *gin.Context) {
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	form := &apimodel.AttachmentRequest{}
-	if err := c.ShouldBind(&form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+	if err := httputil.ShouldBind(c, &form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
 	if err := validateCreateMedia(form); err != nil {
-		apiutil.ErrorHandler(c, gtserror.NewErrorBadRequest(err, err.Error()), m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
-	apiAttachment, errWithCode := m.processor.Media().Create(c.Request.Context(), authed.Account, form)
+	apiAttachment, errWithCode := m.processor.Media().Create(c, authed.Account, form)
 	if errWithCode != nil {
-		apiutil.ErrorHandler(c, errWithCode, m.processor.InstanceGetV1)
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
@@ -154,7 +157,7 @@ func (m *Module) MediaCreatePOSTHandler(c *gin.Context) {
 	//
 	// https://docs.joinmastodon.org/methods/media/#v2
 
-	apiutil.JSON(c, http.StatusOK, apiAttachment)
+	httputil.JSON(c, http.StatusOK, apiAttachment)
 }
 
 func validateCreateMedia(form *apimodel.AttachmentRequest) error {

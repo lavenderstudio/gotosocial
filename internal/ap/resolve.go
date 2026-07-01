@@ -28,6 +28,7 @@ import (
 	"code.superseriousbusiness.org/activity/pub"
 	"code.superseriousbusiness.org/activity/streams"
 	"code.superseriousbusiness.org/activity/streams/vocab"
+	"code.superseriousbusiness.org/gopkg/xencoding"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 )
 
@@ -198,11 +199,6 @@ func ResolveCollectionPage(ctx context.Context, body io.ReadCloser) (CollectionP
 	return ToCollectionPageIterator(t)
 }
 
-// emptydest is an empty JSON decode
-// destination useful for "noop" decodes
-// to check underlying reader is empty.
-var emptydest = &struct{}{}
-
 // decodeType is the package-internal version of DecodeType.
 //
 // The given map pointer will also be populated with
@@ -213,7 +209,7 @@ func decodeType(
 	raw map[string]any,
 ) (vocab.Type, error) {
 
-	// Wrap body in JSON decoder.
+	// Perform json decode of body into "raw" JSON map.
 	//
 	// We do this instead of using json.Unmarshal()
 	// so we can take advantage of the decoder's streamed
@@ -221,20 +217,8 @@ func decodeType(
 	// in the cases of garbage input, or even just fallback
 	// HTML responses that were incorrectly content-type'd,
 	// we can error-out as soon as possible.
-	dec := json.NewDecoder(body)
-
-	// Unmarshal JSON source data into "raw" map.
-	if err := dec.Decode(&raw); err != nil {
-		_ = body.Close() // ensure closed.
-		return nil, gtserror.NewfAt(3, "error decoding into json: %w", err)
-	}
-
-	// Perform a secondary decode just to ensure we drained the
-	// entirety of the data source. Error indicates either extra
-	// trailing garbage, or multiple JSON values (invalid data).
-	if err := dec.Decode(emptydest); err != io.EOF {
-		_ = body.Close() // ensure closed.
-		return nil, gtserror.NewfAt(3, "data remaining after json")
+	if err := xencoding.Decode(body, json.NewDecoder, &raw); err != nil {
+		return nil, gtserror.NewfAt(3, "error decoding json: %w", err)
 	}
 
 	// Done with body.

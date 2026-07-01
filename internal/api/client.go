@@ -20,6 +20,7 @@ package api
 import (
 	"time"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/accounts"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/admin"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/announcements"
@@ -66,7 +67,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/router"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
-	"github.com/gin-gonic/gin"
+	"code.superseriousbusiness.org/gotosocial/internal/templates"
 )
 
 type Client struct {
@@ -116,11 +117,13 @@ type Client struct {
 	user                *user.Module                // api/v1/user
 }
 
-func (c *Client) Route(r *router.Router, m ...gin.HandlerFunc) {
-	// create a new group on the top level client 'api' prefix
-	apiGroup := r.AttachGroup("api")
+func (c *Client) Route(r *router.Router, m ...httputil.Middleware) {
+	// create a new group on the
+	// top level client 'api' prefix
+	apiGroup := r.Group("api")
 
-	// attach non-global middlewares appropriate to the client api
+	// attach non-global middlewares
+	// appropriate to the client api
 	apiGroup.Use(m...)
 	apiGroup.Use(
 		middleware.TokenCheck(c.db, c.processor.OAuthValidateBearerToken),
@@ -130,97 +133,94 @@ func (c *Client) Route(r *router.Router, m ...gin.HandlerFunc) {
 		}),
 	)
 
-	// for each client api module, pass it the Handle function
-	// so that the module can attach its routes to this group
-	h := apiGroup.Handle
-	c.accounts.Route(h)
-	c.admin.Route(h)
-	c.announcements.Route(h)
-	c.apps.Route(h)
-	c.blocks.Route(h)
-	c.bookmarks.Route(h)
-	c.conversations.Route(h)
-	c.customEmojis.Route(h)
-	c.debug.Route(h)
-	c.directory.Route(h)
-	c.exports.Route(h)
-	c.favourites.Route(h)
-	c.featuredTags.Route(h)
-	c.filtersV1.Route(h)
-	c.filtersV2.Route(h)
-	c.followRequests.Route(h)
-	c.followedTags.Route(h)
-	c.importData.Route(h)
-	c.instance.Route(h)
-	c.interactionPolicies.Route(h)
-	c.interactionRequests.Route(h)
-	c.lists.Route(h)
-	c.markers.Route(h)
-	c.media.Route(h)
-	c.mutes.Route(h)
-	c.notifications.Route(h)
-	c.polls.Route(h)
-	c.preferences.Route(h)
-	c.push.Route(h)
-	c.relayPushes.Route(h)
-	c.reports.Route(h)
-	c.scheduledStatuses.Route(h)
-	c.search.Route(h)
-	c.statuses.Route(h)
-	c.streaming.Route(h)
-	c.suggestions.Route(h)
-	c.tags.Route(h)
-	c.timelines.Route(h)
-	c.tokens.Route(h)
-	c.trends.Route(h)
-	c.user.Route(h)
+	c.accounts.Route(apiGroup)
+	c.admin.Route(apiGroup)
+	c.announcements.Route(apiGroup)
+	c.apps.Route(apiGroup)
+	c.blocks.Route(apiGroup)
+	c.bookmarks.Route(apiGroup)
+	c.conversations.Route(apiGroup)
+	c.customEmojis.Route(apiGroup)
+	c.debug.Route(apiGroup)
+	c.directory.Route(apiGroup)
+	c.exports.Route(apiGroup)
+	c.favourites.Route(apiGroup)
+	c.featuredTags.Route(apiGroup)
+	c.filtersV1.Route(apiGroup)
+	c.filtersV2.Route(apiGroup)
+	c.followRequests.Route(apiGroup)
+	c.followedTags.Route(apiGroup)
+	c.importData.Route(apiGroup)
+	c.instance.Route(apiGroup)
+	c.interactionPolicies.Route(apiGroup)
+	c.interactionRequests.Route(apiGroup)
+	c.lists.Route(apiGroup)
+	c.markers.Route(apiGroup)
+	c.media.Route(apiGroup)
+	c.mutes.Route(apiGroup)
+	c.notifications.Route(apiGroup)
+	c.polls.Route(apiGroup)
+	c.preferences.Route(apiGroup)
+	c.push.Route(apiGroup)
+	c.relayPushes.Route(apiGroup)
+	c.reports.Route(apiGroup)
+	c.scheduledStatuses.Route(apiGroup)
+	c.search.Route(apiGroup)
+	c.statuses.Route(apiGroup)
+	c.streaming.Route(apiGroup)
+	c.suggestions.Route(apiGroup)
+	c.tags.Route(apiGroup)
+	c.timelines.Route(apiGroup)
+	c.tokens.Route(apiGroup)
+	c.trends.Route(apiGroup)
+	c.user.Route(apiGroup)
 }
 
-func NewClient(state *state.State, p *processing.Processor) *Client {
+func NewClient(state *state.State, process *processing.Processor, templates *templates.Templates) *Client {
 	return &Client{
-		processor: p,
+		processor: process,
 		db:        state.DB,
 
-		accounts:            accounts.New(p),
-		admin:               admin.New(state, p),
-		announcements:       announcements.New(p),
-		apps:                apps.New(p),
-		blocks:              blocks.New(p),
-		bookmarks:           bookmarks.New(p),
-		conversations:       conversations.New(p),
-		customEmojis:        customemojis.New(p),
-		debug:               debug.New(state, p),
-		directory:           directory.New(p),
-		exports:             exports.New(p),
-		favourites:          favourites.New(p),
-		featuredTags:        featuredtags.New(p),
-		filtersV1:           filtersV1.New(p),
-		filtersV2:           filtersV2.New(p),
-		followRequests:      followrequests.New(p),
-		followedTags:        followedtags.New(p),
-		importData:          importdata.New(p),
-		instance:            instance.New(p),
-		interactionPolicies: interactionpolicies.New(p),
-		interactionRequests: interactionrequests.New(p),
-		lists:               lists.New(p),
-		markers:             markers.New(p),
-		media:               media.New(p),
-		mutes:               mutes.New(p),
-		notifications:       notifications.New(p),
-		polls:               polls.New(p),
-		preferences:         preferences.New(p),
-		push:                push.New(p),
-		relayPushes:         relaypushes.New(p),
-		reports:             reports.New(p),
-		scheduledStatuses:   scheduledstatuses.New(p),
-		search:              search.New(p),
-		statuses:            statuses.New(p),
-		streaming:           streaming.New(p, time.Second*30, 4096),
-		suggestions:         suggestions.New(p),
-		tags:                tags.New(p),
-		timelines:           timelines.New(p),
-		tokens:              tokens.New(p),
-		trends:              trends.New(p),
-		user:                user.New(p),
+		accounts:            accounts.New(process, templates),
+		admin:               admin.New(state, process, templates),
+		announcements:       announcements.New(process, templates),
+		apps:                apps.New(process, templates),
+		blocks:              blocks.New(process, templates),
+		bookmarks:           bookmarks.New(process, templates),
+		conversations:       conversations.New(process, templates),
+		customEmojis:        customemojis.New(process, templates),
+		debug:               debug.New(state, process, templates),
+		directory:           directory.New(process, templates),
+		exports:             exports.New(process, templates),
+		favourites:          favourites.New(process, templates),
+		featuredTags:        featuredtags.New(process, templates),
+		filtersV1:           filtersV1.New(process, templates),
+		filtersV2:           filtersV2.New(process, templates),
+		followRequests:      followrequests.New(process, templates),
+		followedTags:        followedtags.New(process, templates),
+		importData:          importdata.New(process, templates),
+		instance:            instance.New(process, templates),
+		interactionPolicies: interactionpolicies.New(process, templates),
+		interactionRequests: interactionrequests.New(process, templates),
+		lists:               lists.New(process, templates),
+		markers:             markers.New(process, templates),
+		media:               media.New(process, templates),
+		mutes:               mutes.New(process, templates),
+		notifications:       notifications.New(process, templates),
+		polls:               polls.New(process, templates),
+		preferences:         preferences.New(process, templates),
+		push:                push.New(process, templates),
+		relayPushes:         relaypushes.New(process, templates),
+		reports:             reports.New(process, templates),
+		scheduledStatuses:   scheduledstatuses.New(process, templates),
+		search:              search.New(process, templates),
+		statuses:            statuses.New(process, templates),
+		streaming:           streaming.New(process, templates, time.Second*30),
+		suggestions:         suggestions.New(process, templates),
+		tags:                tags.New(process, templates),
+		timelines:           timelines.New(process, templates),
+		tokens:              tokens.New(process, templates),
+		trends:              trends.New(process, templates),
+		user:                user.New(process, templates),
 	}
 }
