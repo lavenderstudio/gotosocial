@@ -48,9 +48,14 @@ var (
 	_ action.GTSAction = Password
 )
 
-func initState(ctx context.Context) (*state.State, error) {
+func prepare(ctx context.Context) (*state.State, error) {
 	var state state.State
 	state.Caches.Init()
+
+	// Setup logging
+	// for CLI output.
+	log.SetOutputCLI()
+
 	if err := state.Caches.Start(); err != nil {
 		return nil, fmt.Errorf("error starting caches: %w", err)
 	}
@@ -66,7 +71,7 @@ func initState(ctx context.Context) (*state.State, error) {
 	return &state, nil
 }
 
-func stopState(state *state.State) error {
+func stop(state *state.State) error {
 	err := state.DB.Close()
 	state.Caches.Stop()
 	return err
@@ -75,14 +80,14 @@ func stopState(state *state.State) error {
 // Create creates a new account and user
 // in the database using the provided flags.
 func Create(ctx context.Context) error {
-	state, err := initState(ctx)
+	state, err := prepare(ctx)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
 		// Ensure state gets stopped on return.
-		if err := stopState(state); err != nil {
+		if err := stop(state); err != nil {
 			log.Error(ctx, err)
 		}
 	}()
@@ -132,7 +137,7 @@ func Create(ctx context.Context) error {
 
 // List returns all existing local accounts.
 func List(ctx context.Context) error {
-	state, err := initState(ctx)
+	state, err := prepare(ctx)
 	if err != nil {
 		return err
 	}
@@ -170,14 +175,14 @@ func List(ctx context.Context) error {
 // Confirm sets a user to Approved, sets Email to the current
 // UnconfirmedEmail value, and sets ConfirmedAt to now.
 func Confirm(ctx context.Context) error {
-	state, err := initState(ctx)
+	state, err := prepare(ctx)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
 		// Ensure state gets stopped on return.
-		if err := stopState(state); err != nil {
+		if err := stop(state); err != nil {
 			log.Error(ctx, err)
 		}
 	}()
@@ -212,14 +217,14 @@ func Confirm(ctx context.Context) error {
 
 // Promote sets admin + moderator flags on a user to true.
 func Promote(ctx context.Context) error {
-	state, err := initState(ctx)
+	state, err := prepare(ctx)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
 		// Ensure state gets stopped on return.
-		if err := stopState(state); err != nil {
+		if err := stop(state); err != nil {
 			log.Error(ctx, err)
 		}
 	}()
@@ -249,14 +254,14 @@ func Promote(ctx context.Context) error {
 
 // Demote sets admin + moderator flags on a user to false.
 func Demote(ctx context.Context) error {
-	state, err := initState(ctx)
+	state, err := prepare(ctx)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
 		// Ensure state gets stopped on return.
-		if err := stopState(state); err != nil {
+		if err := stop(state); err != nil {
 			log.Error(ctx, err)
 		}
 	}()
@@ -286,14 +291,14 @@ func Demote(ctx context.Context) error {
 
 // Disable sets Disabled to true on a user.
 func Disable(ctx context.Context) error {
-	state, err := initState(ctx)
+	state, err := prepare(ctx)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
 		// Ensure state gets stopped on return.
-		if err := stopState(state); err != nil {
+		if err := stop(state); err != nil {
 			log.Error(ctx, err)
 		}
 	}()
@@ -322,14 +327,14 @@ func Disable(ctx context.Context) error {
 
 // Enable sets Disabled to false on a user.
 func Enable(ctx context.Context) error {
-	state, err := initState(ctx)
+	state, err := prepare(ctx)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
 		// Ensure state gets stopped on return.
-		if err := stopState(state); err != nil {
+		if err := stop(state); err != nil {
 			log.Error(ctx, err)
 		}
 	}()
@@ -358,14 +363,14 @@ func Enable(ctx context.Context) error {
 
 // Password sets the password of target account.
 func Password(ctx context.Context) error {
-	state, err := initState(ctx)
+	state, err := prepare(ctx)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
 		// Ensure state gets stopped on return.
-		if err := stopState(state); err != nil {
+		if err := stop(state); err != nil {
 			log.Error(ctx, err)
 		}
 	}()
@@ -405,14 +410,14 @@ func Password(ctx context.Context) error {
 
 // Disable2FA disables 2FA for target account.
 func Disable2FA(ctx context.Context) error {
-	state, err := initState(ctx)
+	state, err := prepare(ctx)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
 		// Ensure state gets stopped on return.
-		if err := stopState(state); err != nil {
+		if err := stop(state); err != nil {
 			log.Error(ctx, err)
 		}
 	}()

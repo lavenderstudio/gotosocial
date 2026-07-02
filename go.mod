@@ -11,7 +11,7 @@ replace github.com/gin-gonic/gin => codeberg.org/superseriousbusiness/gin v1.11.
 require (
 	code.superseriousbusiness.org/activity v1.19.0
 	code.superseriousbusiness.org/exif-terminator v0.11.4
-	code.superseriousbusiness.org/gopkg v0.0.0-20260623123713-4ead213a2d22
+	code.superseriousbusiness.org/gopkg v0.0.0-20260702123554-dcd2292f09dc
 	code.superseriousbusiness.org/httpsig v1.5.0
 	code.superseriousbusiness.org/oauth2/v4 v4.5.4-0.20250812115401-3961e46a7384
 	codeberg.org/gruf/go-bytesize v1.0.4
@@ -27,12 +27,12 @@ require (
 	codeberg.org/gruf/go-kv/v2 v2.0.10
 	codeberg.org/gruf/go-list v0.0.0-20240425093752-494db03d641f
 	codeberg.org/gruf/go-longdur v0.1.3
-	codeberg.org/gruf/go-mempool v0.0.0-20251205182607-a05549c9a993
+	codeberg.org/gruf/go-mempool v0.0.0-20260530133944-e6f484a974a1
 	codeberg.org/gruf/go-mmap v0.0.0-20251111184116-345a42dab154
 	codeberg.org/gruf/go-mutexes v1.5.9
 	codeberg.org/gruf/go-runners v1.7.0
 	codeberg.org/gruf/go-sched v1.3.1
-	codeberg.org/gruf/go-split v1.2.0
+	codeberg.org/gruf/go-split v1.2.1
 	codeberg.org/gruf/go-storage v0.6.0
 	codeberg.org/gruf/go-structr v0.9.16
 	github.com/DmitriyVTitov/size v1.5.0
@@ -51,10 +51,10 @@ require (
 	github.com/hashicorp/cronexpr v1.1.3
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/k3a/html2text v1.4.0
-	github.com/klauspost/compress v1.18.6
+	github.com/klauspost/compress v1.19.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/miekg/dns v1.1.72
-	github.com/minio/minio-go/v7 v7.2.0
+	github.com/minio/minio-go/v7 v7.2.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/ncruces/go-sqlite3 v0.35.1
 	github.com/oklog/ulid/v2 v2.1.1

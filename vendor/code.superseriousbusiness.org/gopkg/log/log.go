@@ -84,6 +84,21 @@ func SetOutput(fn func(lvl LEVEL, line []byte)) {
 	state.output = fn
 }
 
+// SetOutputCLI prepares the logger for more CLI command oriented
+// logging. It replaces output func to output all levelled logging
+// to stderr, and UNSET (i.e. Printf etc) to stdout. It also updates
+// the formatting func to drop timestamp and caller on UNSET entries.
+func SetOutputCLI() {
+	state.format = (format.CLI{FormatFunc: state.format}).Format
+	state.output = func(lvl level.LEVEL, line []byte) {
+		if lvl == UNSET {
+			_, _ = os.Stdout.Write(line)
+		} else {
+			_, _ = os.Stderr.Write(line)
+		}
+	}
+}
+
 // New starts a new log entry.
 func New() Entry {
 	return Entry{}

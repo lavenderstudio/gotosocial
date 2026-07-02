@@ -76,7 +76,7 @@ func (cfg *ProxyConfiguration) GetTrustedRemoteIP(hdrvalue string) netip.Addr {
 // IsTrustedProxy returns whether given netip.Addr{} is a trusted
 // proxy according to receiving trusted IP prefixes configuration.
 func (cfg *ProxyConfiguration) IsTrustedProxy(addr netip.Addr) bool {
-	return isTrustedProxy(cfg.TrustedPrefixes, addr)
+	return doPrefixesContain(cfg.TrustedPrefixes, addr)
 }
 
 func getTrustedRemoteIP(prefixes []netip.Prefix, value string) netip.Addr {
@@ -84,14 +84,22 @@ func getTrustedRemoteIP(prefixes []netip.Prefix, value string) netip.Addr {
 		var each string
 
 		// Split string by comma delimiters.
-		i := strings.LastIndex(value, ",")
+		i := strings.LastIndexByte(value, ',')
 		if i >= 0 {
 
-			// Trim trailing whitespace and reslice
-			// value up to are last delimiter index.
-			each = strings.TrimRight(value[i+1:], " ")
+			// Reslice up to delim.
+			each = value[i+1:]
 			value = value[:i]
+		} else {
+
+			// Each is the
+			// entire string.
+			each = value
+			value = ""
 		}
+
+		// Trim extra spaces.
+		each = trimSpace(each)
 
 		// Attempt to parse IP from string.
 		ip, err := netip.ParseAddr(each)
@@ -99,9 +107,9 @@ func getTrustedRemoteIP(prefixes []netip.Prefix, value string) netip.Addr {
 			break
 		}
 
-		// Check if IP is trusted
-		// proxy, if so keep looking.
-		if isTrustedProxy(prefixes, ip) {
+		// Check if IP is trusted proxy,
+		// if so keep looking for next IP.
+		if doPrefixesContain(prefixes, ip) {
 			continue
 		}
 
@@ -112,11 +120,23 @@ func getTrustedRemoteIP(prefixes []netip.Prefix, value string) netip.Addr {
 	return netip.Addr{}
 }
 
-func isTrustedProxy(prefixes []netip.Prefix, addr netip.Addr) bool {
+// doPrefixesContain returns whether addr is contained within prefixes.
+func doPrefixesContain(prefixes []netip.Prefix, addr netip.Addr) bool {
 	for _, prefix := range prefixes {
 		if prefix.Contains(addr) {
 			return true
 		}
 	}
 	return false
+}
+
+// trimSpace trims leading and trailing ' ' from s.
+func trimSpace(s string) string {
+	for len(s) > 0 && s[0] == ' ' {
+		s = s[1:]
+	}
+	for len(s) > 0 && s[len(s)-1] == ' ' {
+		s = s[:len(s)-1]
+	}
+	return s
 }

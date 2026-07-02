@@ -6,8 +6,8 @@ code.superseriousbusiness.org/go-jpeg-image-structure/v2 v2.3.0 h1:r9uq8StaSHYKJ
 code.superseriousbusiness.org/go-jpeg-image-structure/v2 v2.3.0/go.mod h1:IK1OlR6APjVB3E9tuYGvf0qXMrwP+TrzcHS5rf4wffQ=
 code.superseriousbusiness.org/go-png-image-structure/v2 v2.3.0 h1:I512jiIeXDC4//2BeSPrRM2ZS4wpBKUaPeTPxakMNGA=
 code.superseriousbusiness.org/go-png-image-structure/v2 v2.3.0/go.mod h1:SNHomXNW88o1pFfLHpD4KsCZLfcr4z5dm+xcX5SV10A=
-code.superseriousbusiness.org/gopkg v0.0.0-20260623123713-4ead213a2d22 h1:Pz5KlaHuNUpuJzIcnqmvsnJ68MrB35gffvFs2NGJfZo=
-code.superseriousbusiness.org/gopkg v0.0.0-20260623123713-4ead213a2d22/go.mod h1:f2KFg2HOM6YHEXR4wjnab9xPY2PmphjZaz7S6/+Y1Xc=
+code.superseriousbusiness.org/gopkg v0.0.0-20260702123554-dcd2292f09dc h1:TxeN/ONvwL0nKn7IgjzFwKij2Yq+Uo46BFY5wk59FB8=
+code.superseriousbusiness.org/gopkg v0.0.0-20260702123554-dcd2292f09dc/go.mod h1:AD1avVa199qs4jWAHsvqg350UKrph0HE3gpTjfigEqo=
 code.superseriousbusiness.org/httpsig v1.5.0 h1:jw/qc//yYWSoOYytTZXHvW7yh8kceCipNIBfUeXQghA=
 code.superseriousbusiness.org/httpsig v1.5.0/go.mod h1:i2AKpj/WbA/o/UTvia9TAREzt0jP1AH3T1Uxjyhdzlw=
 code.superseriousbusiness.org/oauth2/v4 v4.5.4-0.20250812115401-3961e46a7384 h1:eJzULGUyhHGk2DdQxX/jbH9FKZOyoIF90p3dzukCfLA=
@@ -46,8 +46,8 @@ codeberg.org/gruf/go-mangler/v2 v2.0.9 h1:Zb4YCVQxM48bhV3bPBd4DWk3/7VwWnO79EXyMH
 codeberg.org/gruf/go-mangler/v2 v2.0.9/go.mod h1:ejdBLpjExcFg+klBof99tYotTQgoSOWEpzGTlAWv+fk=
 codeberg.org/gruf/go-maps v1.0.4 h1:K+Ww4vvR3TZqm5jqrKVirmguZwa3v1VUvmig2SE8uxY=
 codeberg.org/gruf/go-maps v1.0.4/go.mod h1:ASX7osM7kFwt5O8GfGflcFjrwYGD8eIuRLl/oMjhEi8=
-codeberg.org/gruf/go-mempool v0.0.0-20251205182607-a05549c9a993 h1:TtU8vQ1yuX//VYVFAH5fUSTpv93u9JYiumA6QlmIM8c=
-codeberg.org/gruf/go-mempool v0.0.0-20251205182607-a05549c9a993/go.mod h1:761koiXmqfgzvu5mez2Rk7YlwWilpqJ/zv5hIA6NoNI=
+codeberg.org/gruf/go-mempool v0.0.0-20260530133944-e6f484a974a1 h1:NT6oBLdxopyVX3BPTbFp/4ouGhrPJGx/vRVkWhekkec=
+codeberg.org/gruf/go-mempool v0.0.0-20260530133944-e6f484a974a1/go.mod h1:761koiXmqfgzvu5mez2Rk7YlwWilpqJ/zv5hIA6NoNI=
 codeberg.org/gruf/go-mmap v0.0.0-20251111184116-345a42dab154 h1:2SSyx/7XgOOC9nKdlrgpxenz7oZlvUeLR+YEfjM6iS8=
 codeberg.org/gruf/go-mmap v0.0.0-20251111184116-345a42dab154/go.mod h1:kaHx5xHuLNf13iALbHiFpXmLeO33Ll/aW3mGkW8sI40=
 codeberg.org/gruf/go-mutexes v1.5.9 h1:sQWz7VwvkAADMY5xHn25ak2hnw0+UhiLR+i/tqVKk2c=
@@ -56,8 +56,8 @@ codeberg.org/gruf/go-runners v1.7.0 h1:Z+8Qne4H9nAdZZbA4cij0PWhhJxtigUGA4Mp7griY
 codeberg.org/gruf/go-runners v1.7.0/go.mod h1:1xBodiyuPfosJga+NYTfeepQYUrlBGCAa4NuQTbtiBw=
 codeberg.org/gruf/go-sched v1.3.1 h1:9PKL9i9tI+EbIagOZB/2ar54+yEJo5ZPCCIs1+Ylu+E=
 codeberg.org/gruf/go-sched v1.3.1/go.mod h1:qL9MdPdBFaNXzSfumpQ18TStBAwnRddCTD+wlrZUEgI=
-codeberg.org/gruf/go-split v1.2.0 h1:PmzL23nVEVHm8VxjsJmv4m4wGQz2bGgQw52dgSSj65c=
-codeberg.org/gruf/go-split v1.2.0/go.mod h1:0rejWJpqvOoFAd7nwm5tIXYKaAqjtFGOXmTqQV+VO38=
+codeberg.org/gruf/go-split v1.2.1 h1:UeKyJRpPA/neY8JYocJVHkKUCVYnWxf3NULH7P3dih8=
+codeberg.org/gruf/go-split v1.2.1/go.mod h1:0rejWJpqvOoFAd7nwm5tIXYKaAqjtFGOXmTqQV+VO38=
 codeberg.org/gruf/go-storage v0.6.0 h1:xL5lProzy3y/bewWkEmoHnTwifdkjabzgL7TyUJ5sPs=
 codeberg.org/gruf/go-storage v0.6.0/go.mod h1:Zk/kpUMCikXQNJBHSjxygKwv7N/t8mJvg17sMjl29Xw=
 codeberg.org/gruf/go-structr v0.9.16 h1:DeVbp4hBunbuDvW43/SYDyaLrlBFeTu5aI5nmh8rpZM=
@@ -320,8 +320,8 @@ github.com/julienschmidt/httprouter v1.3.0 h1:U0609e9tgbseu3rBINet9P48AI/D3oJs4d
 github.com/julienschmidt/httprouter v1.3.0/go.mod h1:JR6WtHb+2LUe8TCKY3cZOxFyyO8IZAc4RVcycCCAKdM=
 github.com/k3a/html2text v1.4.0 h1:e4xarrVgZST+h+5C/fbA6AI49VFDSlEWMmIcDWcxsd0=
 github.com/k3a/html2text v1.4.0/go.mod h1:ieEXykM67iT8lTvEWBh6fhpH4B23kB9OMKPdIBmgUqA=
-github.com/klauspost/compress v1.18.6 h1:2jupLlAwFm95+YDR+NwD2MEfFO9d4z4Prjl1XXDjuao=
-github.com/klauspost/compress v1.18.6/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
+github.com/klauspost/compress v1.19.0 h1:sXLILfc9jV2QYWkzFOPWStmcUVH2RHEB1JCdY2oVvCQ=
+github.com/klauspost/compress v1.19.0/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
 github.com/klauspost/cpuid/v2 v2.0.1/go.mod h1:FInQzS24/EEf25PyTYn52gqo7WaD8xa0213Md/qVLRg=
 github.com/klauspost/cpuid/v2 v2.3.0 h1:S4CRMLnYUhGeDFDqkGriYKdfoFlDnMtqTiI/sFzhA9Y=
 github.com/klauspost/cpuid/v2 v2.3.0/go.mod h1:hqwkgyIinND0mEev00jJYCxPNVRVXFQeu1XKlok6oO0=
@@ -347,8 +347,8 @@ github.com/minio/crc64nvme v1.1.1 h1:8dwx/Pz49suywbO+auHCBpCtlW1OfpcLN7wYgVR6wAI
 github.com/minio/crc64nvme v1.1.1/go.mod h1:eVfm2fAzLlxMdUGc0EEBGSMmPwmXD5XiNRpnu9J3bvg=
 github.com/minio/md5-simd v1.1.2 h1:Gdi1DZK69+ZVMoNHRXJyNcxrMA4dSxoYHZSQbirFg34=
 github.com/minio/md5-simd v1.1.2/go.mod h1:MzdKDxYpY2BT9XQFocsiZf/NKVtR7nkE4RoEpN+20RM=
-github.com/minio/minio-go/v7 v7.2.0 h1:RCJM0R1XOsRs+A3x3UCaf3ZYbByDaLjFeAi+YCQEPhs=
-github.com/minio/minio-go/v7 v7.2.0/go.mod h1:EU9hENAStx/xXduNdrGO5e4X5vk19NtgB+RIPjZO8o0=
+github.com/minio/minio-go/v7 v7.2.1 h1:PfBfwvKB/MmqyN8Vb1G9voWisaM9OrLv+WwOvMwS9Dw=
+github.com/minio/minio-go/v7 v7.2.1/go.mod h1:EU9hENAStx/xXduNdrGO5e4X5vk19NtgB+RIPjZO8o0=
 github.com/mitchellh/copystructure v1.2.0 h1:vpKXTN4ewci03Vljg/q9QvCGUDttBOGBIa15WveJJGw=
 github.com/mitchellh/copystructure v1.2.0/go.mod h1:qLl+cE2AmVv+CoeAwDPye/v+N2HKCj9FbZEVFJRxO9s=
 github.com/mitchellh/go-wordwrap v1.0.1 h1:TLuKupo69TCn6TQSyGxwI1EblZZEsQ0vMlAFQflz0v0=

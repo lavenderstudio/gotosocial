@@ -62,6 +62,10 @@ type pruner struct {
 func do(ctx context.Context, do func(*pruner) error) error {
 	var state state.State
 
+	// Setup logging
+	// for CLI output.
+	log.SetOutputCLI()
+
 	defer func() {
 		if state.DB != nil {
 			// Lastly, if database service was started,

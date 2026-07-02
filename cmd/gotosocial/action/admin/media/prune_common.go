@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 
+	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/cleaner"
 	"code.superseriousbusiness.org/gotosocial/internal/db/bundb"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
@@ -37,6 +38,10 @@ type prune struct {
 func setupPrune(ctx context.Context) (*prune, error) {
 	var state state.State
 	state.Caches.Init()
+
+	// Setup logging
+	// for CLI output.
+	log.SetOutputCLI()
 
 	err := state.Caches.Start()
 	if err != nil {

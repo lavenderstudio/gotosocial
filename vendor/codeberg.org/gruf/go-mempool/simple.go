@@ -5,7 +5,7 @@ import (
 )
 
 // SimplePool provides a type-safe form
-// of UnsafePool using generics.
+// of UnsafeSimplePool using generics.
 //
 // Note it is NOT safe for concurrent
 // use, you must protect it yourself!

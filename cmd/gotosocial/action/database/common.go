@@ -37,6 +37,10 @@ func Ping(ctx context.Context) error {
 func do(ctx context.Context, do func(db *bun.DB) error) error {
 	var state state.State
 
+	// Setup logging
+	// for CLI output.
+	log.SetOutputCLI()
+
 	defer func() {
 		if state.DB != nil {
 			// Lastly, if database service was started,

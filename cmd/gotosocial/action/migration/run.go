@@ -34,6 +34,10 @@ var _ action.GTSAction = Run
 func Run(ctx context.Context) error {
 	var state state.State
 
+	// Setup logging
+	// for CLI output.
+	log.SetOutputCLI()
+
 	defer func() {
 		if state.DB != nil {
 			// Lastly, if database service was started,

@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 
+	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/cmd/gotosocial/action"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db/bundb"
@@ -35,6 +36,10 @@ var _ action.GTSAction = Import
 // Import imports info from a file into the database
 func Import(ctx context.Context) error {
 	var state state.State
+
+	// Setup logging
+	// for CLI output.
+	log.SetOutputCLI()
 
 	// Only set state DB connection.
 	// Don't need Actions or Workers for this.

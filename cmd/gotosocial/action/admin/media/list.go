@@ -210,6 +210,10 @@ func setupList(ctx context.Context) (*list, error) {
 		)
 	}
 
+	// Setup logging
+	// for CLI output.
+	log.SetOutputCLI()
+
 	// Initialize caches.
 	state.Caches.Init()
 
