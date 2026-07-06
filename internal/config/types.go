@@ -28,7 +28,32 @@ import (
 // Deprecated is a placeholder type
 // for use with config fields that have
 // the "deprecated-by" field tag set.
-type Deprecated string
+type Deprecated struct{ set bool }
+
+func (d *Deprecated) Set(in string) error {
+	if in != "" {
+		d.set = true
+	}
+	return nil
+}
+
+func (d *Deprecated) String() string {
+	if d.set {
+		return "1"
+	}
+	return ""
+}
+
+func (d *Deprecated) MarshalText() ([]byte, error) {
+	return []byte(d.String()), nil
+}
+
+func (d *Deprecated) UnmarshalText(text []byte) error {
+	if len(text) > 0 {
+		d.set = true
+	}
+	return nil
+}
 
 // CronExpression is a wrapper for cronexpr.Expression
 // to allow parsing by CLI "flag"-like utilities.
@@ -99,7 +124,7 @@ func MustParsePrefix(in string) netip.Prefix {
 }
 
 // ParsePrefix attempts to parse a netip.Prefix, catching the
-// case where a single address was provided, and handling as /0.
+// case where a single address was provided, and handling as /32.
 func ParsePrefix(in string) (prefix netip.Prefix, err error) {
 	prefix, err = netip.ParsePrefix(in)
 	switch {
@@ -110,7 +135,7 @@ func ParsePrefix(in string) (prefix netip.Prefix, err error) {
 		if err != nil {
 			return prefix, err
 		}
-		prefix, err = addr.Prefix(0)
+		prefix, err = addr.Prefix(32)
 	}
 	return prefix, err
 }

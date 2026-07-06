@@ -188,6 +188,9 @@ func (t *Templates) renderPage(
 	// with "-page", so "index.tmpl" gets class "page index-page".
 	data["pageClass"] = template[:len(template)-5]
 
+	// So the template knows if the account directory is enabled
+	data["showAcctDir"] = config.GetInstanceDirectoryWebEnabled()
+
 	// Render the page.
 	httputil.RenderHTML(c,
 		statusCode,
