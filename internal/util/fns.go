@@ -32,7 +32,11 @@ func Must(fn func()) {
 		panic("nil func")
 	}
 	for !func() (done bool) {
-		defer Recover()
+		defer func() {
+			if r := recover(); r != nil {
+				DumpStack(r)
+			}
+		}()
 		fn()
 		done = true
 		return
@@ -40,21 +44,15 @@ func Must(fn func()) {
 	}
 }
 
-// Recover wraps runtime.recover() to dump the current
-// stack to stderr on panic and return the panic value.
-func Recover() any {
-	if r := recover(); r != nil {
-
-		// Gather calling funcs.
-		pcs := make([]uintptr, 10)
-		n := runtime.Callers(3, pcs)
-		i := runtime.CallersFrames(pcs[:n])
-		_, _ = fmt.Fprintf(os.Stderr,
-			"recovered panic: %v\n\n%s\n",
-			r, gatherFrames(i, n).String())
-		return r
-	}
-	return nil
+// DumpStack writes a panic recovery message
+// and dumps the call stack of panic to stderr.
+func DumpStack(r any) {
+	pcs := make([]uintptr, 10)
+	n := runtime.Callers(4, pcs)
+	i := runtime.CallersFrames(pcs[:n])
+	_, _ = fmt.Fprintf(os.Stderr,
+		"recovered panic: %v\n\n%s\n",
+		r, gatherFrames(i, n).String())
 }
 
 // gatherFrames collates runtime frames from a frame iterator.

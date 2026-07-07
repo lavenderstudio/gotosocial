@@ -50,7 +50,8 @@ func Logger(logClientIP bool) httputil.MiddlewareFunc {
 
 				// Recover from any panics
 				// and dump stack to stderr.
-				if r := util.Recover(); r != nil {
+				if r := recover(); r != nil {
+					util.DumpStack(r)
 
 					if c.W.StatusCode == 0 {
 						// No response written, send generic Internal Error.

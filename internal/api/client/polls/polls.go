@@ -38,6 +38,7 @@ type Module struct {
 
 func New(processor *processing.Processor, templates *templates.Templates) *Module {
 	return &Module{
+		templates: templates,
 		processor: processor,
 	}
 }
