@@ -123,8 +123,8 @@ func MustParsePrefix(in string) netip.Prefix {
 	return prefix
 }
 
-// ParsePrefix attempts to parse a netip.Prefix, catching the
-// case where a single address was provided, and handling as /32.
+// ParsePrefix attempts to parse a netip.Prefix, catching the case where
+// a single address was provided, and handling as /32 | /128 accordingly.
 func ParsePrefix(in string) (prefix netip.Prefix, err error) {
 	prefix, err = netip.ParsePrefix(in)
 	switch {
@@ -135,7 +135,10 @@ func ParsePrefix(in string) (prefix netip.Prefix, err error) {
 		if err != nil {
 			return prefix, err
 		}
-		prefix, err = addr.Prefix(32)
+		// i.e. ipv4 = {ip}/32
+		//      ipv6 = {ip}/128
+		len := addr.BitLen()
+		prefix, err = addr.Prefix(len)
 	}
 	return prefix, err
 }
