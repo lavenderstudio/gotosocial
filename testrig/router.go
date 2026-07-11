@@ -19,11 +19,9 @@ package testrig
 
 import (
 	"context"
-	"path/filepath"
 
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/router"
-	"github.com/gin-gonic/gin"
 )
 
 // NewTestRouter returns a Router suitable for testing
@@ -36,9 +34,4 @@ func NewTestRouter(db db.DB) *router.Router {
 		panic(err)
 	}
 	return r
-}
-
-// ConfigureTemplatesWithGin will panic on any errors related to template loading during tests
-func ConfigureTemplatesWithGin(engine *gin.Engine, templatePath string) {
-	engine.LoadHTMLGlob(filepath.Join(templatePath, "*"))
 }

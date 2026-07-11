@@ -28,55 +28,7 @@ import (
 	"strconv"
 
 	"code.superseriousbusiness.org/gopkg/log"
-	"code.superseriousbusiness.org/gopkg/xencoding"
-	"github.com/gin-gonic/gin/binding"
 )
-
-// ShouldBind ...
-func ShouldBind(c *Context, dst any, maxMemory int64) error {
-	if maxMemory < 1 {
-		// Set a default of 10MiB memory.
-		maxMemory = 10 * 1024 * 1024
-	}
-
-	// First, populate form and query form,
-	// results are stored in context request.
-	_, _, err := c.ReadForm(maxMemory)
-	if err != nil {
-		return err
-	}
-
-	// GET can only bind with
-	// query form parameters.
-	if c.R.Method == "GET" {
-		return ShouldBindWith(c, dst, binding.Form)
-	}
-
-	// Handle binding based on content-type.
-	switch ct, _, _ := c.GetMediaType(); ct {
-	case binding.MIMEJSON:
-		body := io.LimitReader(c.R.Body, maxMemory)
-		err := xencoding.Decode(body, json.NewDecoder, dst)
-		_ = c.R.Body.Close()
-		return err
-	case binding.MIMEXML, binding.MIMEXML2:
-		body := io.LimitReader(c.R.Body, maxMemory)
-		err := xencoding.Decode(body, xml.NewDecoder, dst)
-		_ = c.R.Body.Close()
-		return err
-	case binding.MIMEMultipartPOSTForm:
-		return ShouldBindWith(c, dst, binding.FormMultipart)
-	case binding.MIMEPOSTForm, "":
-		return ShouldBindWith(c, dst, binding.Form)
-	default:
-		return fmt.Errorf("unexpected content-type: %s", ct)
-	}
-}
-
-// ShouldBindWith ...
-func ShouldBindWith(c *Context, dst any, b binding.Binding) error {
-	return b.Bind(c.R, dst)
-}
 
 // Redirect is a wrapper around http.Redirect() for httputil.Context{}.
 func Redirect(c *Context, code int, url string) { http.Redirect(&c.W, c.R, url, code) }

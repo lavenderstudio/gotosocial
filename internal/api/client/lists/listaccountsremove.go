@@ -22,6 +22,7 @@ import (
 	"net/http"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/httputil/binding"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
@@ -123,7 +124,7 @@ func (m *Module) ListAccountsDELETEHandler(c *httputil.Context) {
 	// parsing in order to be compatible with Mastodon's client API conventions.
 	oldMethod := c.R.Method
 	c.R.Method = "POST"
-	err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())) //nolint
+	err := binding.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())) //nolint
 	c.R.Method = oldMethod
 
 	if err != nil {

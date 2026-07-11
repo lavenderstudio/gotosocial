@@ -23,6 +23,7 @@ import (
 	"strconv"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/httputil/binding"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
@@ -146,7 +147,7 @@ func (m *Module) PollVotePOSTHandler(c *httputil.Context) {
 func bindChoices(c *httputil.Context) ([]int, error) {
 	form := &apimodel.PollVoteRequest{}
 
-	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+	if err := binding.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		return nil, err
 	}
 

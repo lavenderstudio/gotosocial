@@ -24,11 +24,12 @@ import (
 	"time"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/httputil/binding"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/form/v4"
 )
 
@@ -356,7 +357,7 @@ func parseStatusCreateForm(c *httputil.Context) (*apimodel.StatusCreateRequest, 
 	switch ct := c.ContentType(); ct {
 	case binding.MIMEJSON:
 		// Just bind with default json binding.
-		if err := httputil.ShouldBindWith(c, form, binding.JSON); err != nil {
+		if err := binding.BindJSON(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { //nolint
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),
@@ -365,7 +366,7 @@ func parseStatusCreateForm(c *httputil.Context) (*apimodel.StatusCreateRequest, 
 
 	case binding.MIMEPOSTForm:
 		// Bind with default form binding first.
-		if err := httputil.ShouldBindWith(c, form, binding.FormPost); err != nil {
+		if err := binding.BindForm(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { //nolint
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),
@@ -374,7 +375,7 @@ func parseStatusCreateForm(c *httputil.Context) (*apimodel.StatusCreateRequest, 
 
 		// Now do custom binding.
 		intReqForm := new(apimodel.StatusInteractionPolicyForm)
-		if err := httputil.ShouldBindWith(c, intReqForm, intPolicyFormBinding{}); err != nil {
+		if err := (intPolicyFormBinding{}).Bind(c.R, intReqForm); err != nil {
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),
@@ -385,7 +386,7 @@ func parseStatusCreateForm(c *httputil.Context) (*apimodel.StatusCreateRequest, 
 
 	case binding.MIMEMultipartPOSTForm:
 		// Bind with default form binding first.
-		if err := httputil.ShouldBindWith(c, form, binding.FormMultipart); err != nil {
+		if err := binding.BindFormMultipart(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { //nolint
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),
@@ -394,7 +395,7 @@ func parseStatusCreateForm(c *httputil.Context) (*apimodel.StatusCreateRequest, 
 
 		// Now do custom binding.
 		intReqForm := new(apimodel.StatusInteractionPolicyForm)
-		if err := httputil.ShouldBindWith(c, intReqForm, intPolicyFormBinding{}); err != nil {
+		if err := (intPolicyFormBinding{}).Bind(c.R, intReqForm); err != nil {
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),

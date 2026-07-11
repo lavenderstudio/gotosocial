@@ -21,6 +21,7 @@ import (
 	"net/http"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/httputil/binding"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
@@ -96,7 +97,7 @@ func (m *Module) TokenRevokePOSTHandler(c *httputil.Context) {
 		ClientSecret string `form:"client_secret"`
 		Token        string `form:"token"`
 	}{}
-	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+	if err := binding.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		errWithCode := gtserror.NewErrorBadRequest(err, err.Error())
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return

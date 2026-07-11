@@ -23,11 +23,12 @@ import (
 	"net/http"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/httputil/binding"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"github.com/gin-gonic/gin/binding"
 )
 
 // StatusEditPUTHandler swagger:operation PUT /api/v1/statuses/{id} statusEdit
@@ -226,7 +227,7 @@ func parseStatusEditForm(c *httputil.Context) (*apimodel.StatusEditRequest, gtse
 	switch ct := c.ContentType(); ct {
 	case binding.MIMEJSON:
 		// Just bind with default json binding.
-		if err := httputil.ShouldBindWith(c, form, binding.JSON); err != nil {
+		if err := binding.BindJSON(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { //nolint
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),
@@ -235,7 +236,7 @@ func parseStatusEditForm(c *httputil.Context) (*apimodel.StatusEditRequest, gtse
 
 	case binding.MIMEPOSTForm:
 		// Bind with default form binding first.
-		if err := httputil.ShouldBindWith(c, form, binding.FormPost); err != nil {
+		if err := binding.BindForm(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { //nolint
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),
@@ -244,7 +245,7 @@ func parseStatusEditForm(c *httputil.Context) (*apimodel.StatusEditRequest, gtse
 
 	case binding.MIMEMultipartPOSTForm:
 		// Bind with default form binding first.
-		if err := httputil.ShouldBindWith(c, form, binding.FormMultipart); err != nil {
+		if err := binding.BindFormMultipart(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { //nolint
 			return nil, gtserror.NewErrorBadRequest(
 				err,
 				err.Error(),

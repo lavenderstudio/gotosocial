@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/httputil/binding"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
@@ -185,7 +186,7 @@ func (m *Module) FinalizePOSTHandler(c *httputil.Context) {
 	s := middleware.GetSession(c)
 
 	form := &extraInfo{}
-	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+	if err := binding.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		m.mustClearSession(c, s)
 		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, oauth.HelpfulAdvice))
 		return

@@ -28,10 +28,10 @@ import (
 	"code.superseriousbusiness.org/gopkg/log"
 )
 
-// ServeFile ...
-func ServeFile(
+// ServeRange ...
+func ServeRange(
 	c *Context,
-	file io.Reader,
+	reader io.Reader,
 	size int64,
 	write bool,
 ) {
@@ -43,9 +43,9 @@ func ServeFile(
 	rng := c.R.Header.Get("Range")
 	if rng == "" {
 
-		// Ensure reader only returns given size.
-		if lr, ok := file.(*io.LimitedReader); !ok {
-			file = io.LimitReader(file, size)
+		// Ensure reader only returns max given size.
+		if lr, ok := reader.(*io.LimitedReader); !ok {
+			reader = io.LimitReader(reader, size)
 		} else if lr.N > size {
 			lr.N = size
 		}
@@ -58,8 +58,8 @@ func ServeFile(
 		c.W.WriteHeader(http.StatusOK)
 
 		if write {
-			// Read the entire file contents into writer.
-			if _, err := c.W.ReadFrom(file); err != nil {
+			// Read the entire reader contents into writer.
+			if _, err := c.W.ReadFrom(reader); err != nil {
 				log.Errorf(c, "error reading whole: %v", err)
 			}
 		}
@@ -161,7 +161,7 @@ func ServeFile(
 		return
 	}
 
-	if rs, ok := file.(io.ReadSeeker); ok {
+	if rs, ok := reader.(io.ReadSeeker); ok {
 		// Source supports seeking (usually *os.File),
 		// seek to the 'start' byte position in file.
 		if _, err := rs.Seek(start, 0); err != nil {
@@ -171,7 +171,7 @@ func ServeFile(
 	} else {
 		// Compat for when no seek call is implemented,
 		// dump the first 'start' many bytes into void.
-		src, dst := io.LimitReader(file, start), discard
+		src, dst := io.LimitReader(reader, start), discard
 		if _, err := dst.ReadFrom(src); err != nil {
 			log.Errorf(c, "error reading start: %v", err)
 			return
@@ -180,86 +180,81 @@ func ServeFile(
 
 	if end < size-1 {
 		// Range end < file end, limit it.
-		file = io.LimitReader(file, length)
+		reader = io.LimitReader(reader, length)
 
 		// Else, even if it is within range,
 		// ensure we only write up to size.
-	} else if lr, ok := file.(*io.LimitedReader); !ok {
-		file = io.LimitReader(file, size)
+	} else if lr, ok := reader.(*io.LimitedReader); !ok {
+		reader = io.LimitReader(reader, size)
 	} else if lr.N > size {
 		lr.N = size
 	}
 
 	// Read the "seeked" source file into writer.
-	if _, err := c.W.ReadFrom(file); err != nil {
+	if _, err := c.W.ReadFrom(reader); err != nil {
 		log.Errorf(c, "error reading after seek: %v", err)
 	}
 }
 
-// StaticFS serves the given http.FileSystem{} as a static directory (i.e. no index.html handling, no generated
-// directory listings), with appropriate range handling and by-extension content-type matching. The given 'pathValue'
-// is used as the router path parameter to access to determine the filesystem path to access. i.e. if you register
-// this StaticFS() under http.ServeMux{} pattern "GET /{filepath...}", then provide "filepath" as the pathValue.
-// 'notFound' allows setting a custom file-not-found handler to be used when request filepath cannot be opened.
-func StaticFS(fs http.FileSystem, pathValue string, notFound HandlerFunc) HandlerFunc {
-	if notFound == nil {
-		notFound = func(c *Context) { Error(c, http.StatusNotFound, "file not found") }
+// StaticFS serves the given http.FileSystem{} as a static directory (i.e. no index.html handling, no
+// generated directory listings), with appropriate range handling and by-extension content-type matching.
+type StaticFS struct {
+	http.FileSystem
+	NotFound HandlerFunc
+}
+
+func (fs StaticFS) ServeFile(c *Context, filepath string) {
+	if !strings.HasPrefix(filepath, "/") {
+		filepath = "/" + filepath
 	}
-	return func(c *Context) {
-		// Get path from router path params.
-		filepath := c.PathValue(pathValue)
-		if !strings.HasPrefix(filepath, "/") {
-			filepath = "/" + filepath
-		}
 
-		// Attempt to open file at path.
-		file, err := fs.Open(filepath)
-		if err != nil {
-			notFound(c)
-			return
-		}
-
-		// Close on return.
-		defer file.Close()
-
-		// Stat file for more info.
-		stat, err := file.Stat()
-		if err != nil {
-			notFound(c)
-			return
-		}
-
-		// Only interested in regular.
-		if !stat.Mode().IsRegular() {
-			notFound(c)
-			return
-		}
-
-		// Try to determine content-type by its file extension.
-		contentType := mime.TypeByExtension(path.Ext(filepath))
-		if contentType == "" {
-			contentType = "application/octet-stream"
-		}
-
-		// Get rw header.
-		h := c.W.Header()
-
-		// Indicate content-type and
-		// that we accept range requests.
-		h.Set("Accept-Ranges", "bytes")
-		h.Set("Content-Type", contentType)
-
-		// Serve
-		// the file.
-		ServeFile(c,
-			file,
-			stat.Size(),
-
-			// Only write response
-			// if not HEAD request.
-			c.R.Method != "HEAD",
-		)
+	// Attempt to open file at path.
+	file, err := fs.Open(filepath)
+	if err != nil {
+		fs.NotFound(c)
+		return
 	}
+
+	// Close on return.
+	defer file.Close()
+
+	// Stat file for more info.
+	stat, err := file.Stat()
+	if err != nil {
+		fs.NotFound(c)
+		return
+	}
+
+	// Only interested in regular.
+	if !stat.Mode().IsRegular() {
+		fs.NotFound(c)
+		return
+	}
+
+	// Try to determine content-type by its file extension.
+	contentType := mime.TypeByExtension(path.Ext(filepath))
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	// Get rw header.
+	h := c.W.Header()
+
+	// Indicate content-type and
+	// that we accept range requests.
+	h.Set("Accept-Ranges", "bytes")
+	h.Set("Content-Type", contentType)
+
+	// Serve
+	// the file.
+	ServeRange(c,
+		file,
+		stat.Size(),
+
+		// Only write response
+		// if not HEAD request.
+		c.R.Method != "HEAD",
+	)
 }
 
 // discard is io.Discard casted to the interfaces it supports.

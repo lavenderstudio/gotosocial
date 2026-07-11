@@ -23,6 +23,7 @@ import (
 	"net/http"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/httputil/binding"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
@@ -139,7 +140,7 @@ func (m *Module) createHeaderFilter(c *httputil.Context, create func(context.Con
 
 	var form apimodel.HeaderFilterRequest
 
-	if err := httputil.ShouldBind(c, &form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+	if err := binding.ShouldBind(c, &form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		errWithCode := gtserror.NewErrorBadRequest(err, err.Error())
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return

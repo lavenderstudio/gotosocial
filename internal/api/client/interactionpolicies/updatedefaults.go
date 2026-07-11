@@ -22,10 +22,11 @@ import (
 	"net/http"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/httputil/binding"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/form/v4"
 )
 
@@ -292,12 +293,7 @@ func customBind(
 		"Unlisted",
 		"Public",
 	} {
-		if err := httputil.ShouldBindWith(c,
-			form,
-			intPolicyFormBinding{
-				visibility: vis,
-			},
-		); err != nil {
+		if err := (intPolicyFormBinding{visibility: vis}).Bind(c.R, form); err != nil {
 			return fmt.Errorf("custom form binding failed: %w", err)
 		}
 	}
@@ -311,13 +307,13 @@ func parseUpdatePoliciesForm(c *httputil.Context) (*apimodel.UpdateInteractionPo
 	switch ct := c.ContentType(); ct {
 	case binding.MIMEJSON:
 		// Just bind with default json binding.
-		if err := httputil.ShouldBindWith(c, form, binding.JSON); err != nil {
+		if err := binding.BindJSON(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { //nolint
 			return nil, err
 		}
 
 	case binding.MIMEPOSTForm:
 		// Bind with default form binding first.
-		if err := httputil.ShouldBindWith(c, form, binding.FormPost); err != nil {
+		if err := binding.BindForm(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { //nolint
 			return nil, err
 		}
 
@@ -328,7 +324,7 @@ func parseUpdatePoliciesForm(c *httputil.Context) (*apimodel.UpdateInteractionPo
 
 	case binding.MIMEMultipartPOSTForm:
 		// Bind with default form binding first.
-		if err := httputil.ShouldBindWith(c, form, binding.FormMultipart); err != nil {
+		if err := binding.BindFormMultipart(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { //nolint
 			return nil, err
 		}
 

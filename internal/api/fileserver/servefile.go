@@ -101,7 +101,7 @@ func (m *Module) ServeFile(c *httputil.Context) {
 	defer func() {
 		// Close content when we're done, catch errors.
 		if err := content.Content.Close(); err != nil {
-			log.Errorf(c, "ServeFile: error closing readcloser: %s", err)
+			log.Errorf(c, "error closing readcloser %#v: %s", log.Formatted(content.Content), err)
 		}
 	}()
 
@@ -125,7 +125,7 @@ func (m *Module) ServeFile(c *httputil.Context) {
 
 	// Set known media content type and serve the file.
 	c.W.Header().Set("Content-Type", content.ContentType)
-	httputil.ServeFile(c,
+	httputil.ServeRange(c,
 		content.Content,
 		content.ContentLength,
 

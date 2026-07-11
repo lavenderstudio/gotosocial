@@ -397,6 +397,7 @@ func (m *Media) FixCacheStates(ctx context.Context) (int, error) {
 		if err != nil && !errors.Is(err, db.ErrNoEntries) {
 			return total, gtserror.Newf("error getting remote attachments: %w", err)
 		}
+
 		// Get current max ID.
 		maxID := page.Max.Value
 

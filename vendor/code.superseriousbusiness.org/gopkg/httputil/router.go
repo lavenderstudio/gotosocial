@@ -225,7 +225,7 @@ func (r *Router) StaticFS(pattern string, fs http.FileSystem) {
 	if r == nil {
 		panic("nil router")
 	}
-	h := StaticFS(fs, "filepath", func(c *Context) {
+	staticfs := &StaticFS{FileSystem: fs, NotFound: func(c *Context) {
 		if r.NotFound != nil {
 			r.NotFound(c)
 			return
@@ -233,7 +233,8 @@ func (r *Router) StaticFS(pattern string, fs http.FileSystem) {
 			Error(c, 404, "Not Found")
 			return
 		}
-	})
+	}}
+	h := func(c *Context) { staticfs.ServeFile(c, c.PathValue("filepath")) }
 	pattern = path.Join(pattern, "*filepath")
 	r.Handle("HEAD", pattern, h)
 	r.Handle("GET", pattern, h)
@@ -295,7 +296,7 @@ func (g *RouteGroup) Static(pattern, path string) {
 func (g *RouteGroup) StaticFS(pattern string, fs http.FileSystem) {
 	g.check()
 	r := g.r
-	h := StaticFS(fs, "filepath", func(c *Context) {
+	staticfs := &StaticFS{FileSystem: fs, NotFound: func(c *Context) {
 		if r.NotFound != nil {
 			r.NotFound(c)
 			return
@@ -303,7 +304,8 @@ func (g *RouteGroup) StaticFS(pattern string, fs http.FileSystem) {
 			Error(c, 404, "Not Found")
 			return
 		}
-	})
+	}}
+	h := func(c *Context) { staticfs.ServeFile(c, c.PathValue("filepath")) }
 	pattern = path.Join(pattern, "*filepath")
 	g.Handle("HEAD", pattern, h)
 	g.Handle("GET", pattern, h)

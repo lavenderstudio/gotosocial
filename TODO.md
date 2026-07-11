@@ -13,9 +13,9 @@ things noted down by the maintainers that could do with being done!
 - [performance] add multi-delete queries for mentions, statuses (+boosts), etc
 
 ## miscellaneous
+- [chore] update our libraries list on the README
 - [chore] move dereferencer hooks to Ingester{} type that handles calling appropriate hooks for any ingested model
 - [chore] finish code commenting where missing (search for '// (\w+\b)?...')
-- [chore] move away from using Gin, they're all-in on "AI", blegh
 - [chore] deinterface the database somehow (where possible given dependency cycling 😭), have a single DB type so all bundb/*.go can access all other internal funcs
 - kim: [chore/docs] update support matrix given go-sqlite3 dropped wazero usage, (potentially) remove modernc.org/sqlite dependency
 - kim: [supported platforms] update ffmpreg to use ncruces/wasm2go (?)

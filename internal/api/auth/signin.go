@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/httputil/binding"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
@@ -96,7 +97,7 @@ func (m *Module) SignInPOSTHandler(c *httputil.Context) {
 		Email    string `form:"username" binding:"required"`
 		Password string `form:"password" binding:"required"`
 	}{}
-	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+	if err := binding.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		m.clearSessionWithBadRequest(c, s, err, oauth.HelpfulAdvice)
 		return
 	}
@@ -227,7 +228,7 @@ func (m *Module) TwoFactorCodePOSTHandler(c *httputil.Context) {
 	form := &struct {
 		Code string `form:"code" binding:"required"`
 	}{}
-	if err := httputil.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+	if err := binding.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		m.clearSessionWithBadRequest(c, s, err, oauth.HelpfulAdvice)
 		return
 	}
