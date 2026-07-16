@@ -474,6 +474,7 @@ func (d *Dereferencer) rejectedByPolicy(
 		// we should generate a URI for the Reject,
 		// else just use an implicit (empty) URI.
 		rejectURI = uris.GenerateURIForReject(
+			inReplyTo.Account.PathPrefix(),
 			inReplyTo.Account.Username,
 			rejectID,
 		)

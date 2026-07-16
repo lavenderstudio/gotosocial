@@ -217,8 +217,11 @@ func (p *Processor) ProcessFromClientAPI(ctx context.Context, cMsg *messages.Fro
 		case ap.ObjectNote:
 			return p.clientAPI.DeleteStatus(ctx, cMsg)
 
-		// DELETE REMOTE ACCOUNT or LOCAL USER+ACCOUNT
-		case ap.ActorPerson, ap.ObjectProfile:
+		// DELETE REMOTE ACCOUNT
+		// or LOCAL (USER) ACCOUNT
+		case ap.ActorPerson,
+			ap.ActorService,
+			ap.ObjectProfile:
 			return p.clientAPI.DeleteAccountOrUser(ctx, cMsg)
 		}
 
@@ -295,18 +298,22 @@ func (p *clientAPI) CreateReplyRequest(ctx context.Context, cMsg *messages.FromC
 	// Create a polite reply request.
 	intReqID := id.NewULIDFromTime(reply.CreatedAt)
 	intReq := &gtsmodel.InteractionRequest{
-		ID:                    intReqID,
-		TargetStatusID:        reply.InReplyToID,
-		TargetStatus:          reply.InReplyTo,
-		TargetAccountID:       reply.InReplyToAccountID,
-		TargetAccount:         reply.InReplyToAccount,
-		InteractingAccountID:  reply.AccountID,
-		InteractingAccount:    reply.Account,
-		InteractionRequestURI: uris.GenerateURIForReplyRequest(reply.Account.Username, intReqID),
-		InteractionURI:        reply.URI,
-		InteractionType:       gtsmodel.InteractionReply,
-		Polite:                util.Ptr(true),
-		Reply:                 reply,
+		ID:                   intReqID,
+		TargetStatusID:       reply.InReplyToID,
+		TargetStatus:         reply.InReplyTo,
+		TargetAccountID:      reply.InReplyToAccountID,
+		TargetAccount:        reply.InReplyToAccount,
+		InteractingAccountID: reply.AccountID,
+		InteractingAccount:   reply.Account,
+		InteractionRequestURI: uris.GenerateURIForReplyRequest(
+			reply.Account.PathPrefix(),
+			reply.Account.Username,
+			intReqID,
+		),
+		InteractionURI:  reply.URI,
+		InteractionType: gtsmodel.InteractionReply,
+		Polite:          util.Ptr(true),
+		Reply:           reply,
 	}
 
 	if !reply.PreApproved {
@@ -499,18 +506,22 @@ func (p *clientAPI) CreateLikeRequest(ctx context.Context, cMsg *messages.FromCl
 	// Create a polite like request.
 	intReqID := id.NewULIDFromTime(fave.CreatedAt)
 	intReq := &gtsmodel.InteractionRequest{
-		ID:                    intReqID,
-		TargetStatusID:        fave.StatusID,
-		TargetStatus:          fave.Status,
-		TargetAccountID:       fave.TargetAccountID,
-		TargetAccount:         fave.TargetAccount,
-		InteractingAccountID:  fave.AccountID,
-		InteractingAccount:    fave.Account,
-		InteractionRequestURI: uris.GenerateURIForLikeRequest(fave.Account.Username, intReqID),
-		InteractionURI:        fave.URI,
-		InteractionType:       gtsmodel.InteractionLike,
-		Polite:                util.Ptr(true),
-		Like:                  fave,
+		ID:                   intReqID,
+		TargetStatusID:       fave.StatusID,
+		TargetStatus:         fave.Status,
+		TargetAccountID:      fave.TargetAccountID,
+		TargetAccount:        fave.TargetAccount,
+		InteractingAccountID: fave.AccountID,
+		InteractingAccount:   fave.Account,
+		InteractionRequestURI: uris.GenerateURIForLikeRequest(
+			fave.Account.PathPrefix(),
+			fave.Account.Username,
+			intReqID,
+		),
+		InteractionURI:  fave.URI,
+		InteractionType: gtsmodel.InteractionLike,
+		Polite:          util.Ptr(true),
+		Like:            fave,
 	}
 
 	if !fave.PreApproved {
@@ -619,18 +630,22 @@ func (p *clientAPI) CreateAnnounceRequest(ctx context.Context, cMsg *messages.Fr
 	// Create a polite reply request.
 	intReqID := id.NewULIDFromTime(boost.CreatedAt)
 	intReq := &gtsmodel.InteractionRequest{
-		ID:                    intReqID,
-		TargetStatusID:        boost.BoostOfID,
-		TargetStatus:          boost.BoostOf,
-		TargetAccountID:       boost.BoostOfAccountID,
-		TargetAccount:         boost.BoostOfAccount,
-		InteractingAccountID:  boost.AccountID,
-		InteractingAccount:    boost.Account,
-		InteractionRequestURI: uris.GenerateURIForAnnounceRequest(boost.Account.Username, intReqID),
-		InteractionURI:        boost.URI,
-		InteractionType:       gtsmodel.InteractionAnnounce,
-		Polite:                util.Ptr(true),
-		Announce:              boost,
+		ID:                   intReqID,
+		TargetStatusID:       boost.BoostOfID,
+		TargetStatus:         boost.BoostOf,
+		TargetAccountID:      boost.BoostOfAccountID,
+		TargetAccount:        boost.BoostOfAccount,
+		InteractingAccountID: boost.AccountID,
+		InteractingAccount:   boost.Account,
+		InteractionRequestURI: uris.GenerateURIForAnnounceRequest(
+			boost.Account.PathPrefix(),
+			boost.Account.Username,
+			intReqID,
+		),
+		InteractionURI:  boost.URI,
+		InteractionType: gtsmodel.InteractionAnnounce,
+		Polite:          util.Ptr(true),
+		Announce:        boost,
 	}
 
 	if !boost.PreApproved {

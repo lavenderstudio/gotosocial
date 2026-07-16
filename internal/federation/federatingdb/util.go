@@ -90,7 +90,11 @@ func (f *DB) NewID(ctx context.Context, t vocab.Type) (idURL *url.URL, err error
 		if uri := ap.GetActorIRIs(follow); len(uri) == 1 {
 			if actorAccount, err := f.state.DB.GetAccountByURI(ctx, uri[0].String()); err == nil {
 				newID := id.NewRandomULID()
-				uri := uris.GenerateURIForFollow(actorAccount.Username, newID)
+				uri := uris.GenerateURIForFollow(
+					actorAccount.PathPrefix(),
+					actorAccount.Username,
+					newID,
+				)
 				return url.Parse(uri)
 			}
 		}

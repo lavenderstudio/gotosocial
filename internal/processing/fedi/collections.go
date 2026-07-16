@@ -81,13 +81,17 @@ func (p *Processor) OutboxGet(
 	var params ap.CollectionParams
 	params.ID = collectionID
 
-	switch {
+	// Instance and relay actor accounts,
+	// and user accounts who hide collections,
+	// all hide their outbox.
+	hideOutbox := receiver.IsInstance() ||
+		receiver.IsRelayActor() ||
+		*receiver.Settings.HideCollections
 
-	case receiver.IsInstance() ||
-		*receiver.Settings.HideCollections:
-		// If account that hides collections, or instance
-		// account (ie., can't post / have relationships),
-		// just return barest stub of collection.
+	switch {
+	case hideOutbox:
+		// If hiding outbox, just
+		// return stub of collection.
 		obj = ap.NewASOrderedCollection(params)
 
 	case page == nil || auth.handshakingURI != nil:
@@ -221,13 +225,19 @@ func (p *Processor) FollowersGet(
 	var params ap.CollectionParams
 	params.ID = collectionID
 
-	switch {
+	// Any account that's not a relay actor
+	// account can choose to hide followers.
+	// Instance accounts can't have followers.
+	hideFollowers := false
+	if !receiver.IsRelayActor() {
+		hideFollowers = receiver.IsInstance() ||
+			*receiver.Settings.HideCollections
+	}
 
-	case receiver.IsInstance() ||
-		*receiver.Settings.HideCollections:
-		// If account that hides collections, or instance
-		// account (ie., can't post / have relationships),
-		// just return barest stub of collection.
+	switch {
+	case hideFollowers:
+		// If hiding followers, just
+		// return stub of collection.
 		obj = ap.NewASOrderedCollection(params)
 
 	case page == nil || auth.handshakingURI != nil:
@@ -334,10 +344,12 @@ func (p *Processor) FollowingGet(ctx context.Context, requestedUser string, page
 	params.ID = collectionID
 
 	switch {
+
 	case receiver.IsInstance() ||
+		receiver.IsRelayActor() ||
 		*receiver.Settings.HideCollections:
-		// If account that hides collections, or instance
-		// account (ie., can't post / have relationships),
+		// If account that hides collections,
+		// or instance or relay actor account,
 		// just return barest stub of collection.
 		obj = ap.NewASOrderedCollection(params)
 

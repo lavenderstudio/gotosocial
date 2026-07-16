@@ -281,7 +281,11 @@ func (p *Processor) MoveSelf(
 	} else {
 		// Move not stored yet, create it.
 		moveID := id.NewULID()
-		moveURIStr := uris.GenerateURIForMove(originAcct.Username, moveID)
+		moveURIStr := uris.GenerateURIForMove(
+			originAcct.PathPrefix(),
+			originAcct.Username,
+			moveID,
+		)
 
 		// We might have selected the target
 		// using the URL and not the URI.

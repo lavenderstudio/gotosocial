@@ -15,45 +15,38 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users
+package actor
 
 import (
 	"net/http"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/log"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"code.superseriousbusiness.org/gotosocial/internal/paging"
+	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
+
+	errorsv2 "codeberg.org/gruf/go-errors/v2"
 )
 
-// FollowersGETHandler returns a collection of URIs for followers of the target user, formatted so that other AP servers can understand it.
-func (m *Module) FollowersGETHandler(c *httputil.Context) {
-	username, contentType, errWithCode := m.parseCommon(c)
-	if errWithCode != nil {
+// InboxPOSTHandler deals with incoming POST requests to an actor's inbox.
+// Eg., POST to https://example.org/users/whatever/inbox.
+func (m *Module) InboxPOSTHandler(c *httputil.Context) {
+	_, err := m.processor.Fedi().InboxPost(c, &c.W, c.R)
+	if err != nil {
+		errWithCode := errorsv2.AsV2[gtserror.WithCode](err)
+
+		if errWithCode == nil {
+			// Something else went wrong, and someone forgot to return
+			// an errWithCode! It's chill though. Log the error but don't
+			// return it as-is to the caller, to avoid leaking internals.
+			log.Errorf(c, "returning Bad Request to caller, err was: %q", err)
+			errWithCode = gtserror.NewErrorBadRequest(err)
+		}
+
+		// Pass along confirmed error with code to the main error handler
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	if contentType == apiutil.TextHTML {
-		// Redirect to account web view.
-		httputil.Redirect(c, http.StatusSeeOther, "/@"+username)
-		return
-	}
-
-	page, errWithCode := paging.ParseIDPage(c,
-		1,  // min limit
-		80, // max limit
-		0,  // default = disabled
-	)
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, m.templates, errWithCode)
-		return
-	}
-
-	resp, errWithCode := m.processor.Fedi().FollowersGet(c, username, page)
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, m.templates, errWithCode)
-		return
-	}
-
-	httputil.JSONType(c, http.StatusOK, contentType, resp)
+	httputil.Data(c, http.StatusAccepted, apiutil.AppJSON, apiutil.StatusAcceptedJSON)
 }

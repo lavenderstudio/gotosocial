@@ -22,7 +22,6 @@ import (
 
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/cache"
-	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 )
@@ -113,8 +112,8 @@ func (f *Filter) isAccountVisible(ctx context.Context, account *gtsmodel.Account
 	if account.IsLocal() {
 		// This is a local account.
 
-		if account.Username == config.GetHost() {
-			// This is the instance actor account.
+		if account.IsInstance() || account.IsRelayActor() {
+			// Always visible.
 			return true, nil
 		}
 

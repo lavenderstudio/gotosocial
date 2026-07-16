@@ -29,6 +29,7 @@ import (
 
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
+	"code.superseriousbusiness.org/gotosocial/internal/uris"
 )
 
 // Account represents either a local or a remote ActivityPub actor.
@@ -270,7 +271,7 @@ type Account struct {
 
 	// gtsmodel.AccountSettings for this account.
 	//
-	// Local, non-instance-actor accounts only.
+	// Local user accounts only (not instance or relay actors).
 	Settings *AccountSettings `bun:"-"`
 
 	// gtsmodel.AccountStats for this account.
@@ -328,6 +329,25 @@ func (a *Account) IsInstance() bool {
 		a.FollowingURI == "" ||
 		(a.Username == "internal.fetch" && strings.Contains(a.Note, "internal service actor")) ||
 		a.Username == "instance.actor" // <- misskey
+}
+
+// PathPrefix returns the appropriate PathComponent
+// for the prefix of this account's ActivityPub
+// URI paths (either `users` or `relays`).
+//
+// Should be used for LOCAL ACCOUNTS ONLY.
+func (a *Account) PathPrefix() uris.PathComponent {
+	if strings.HasPrefix(a.Username, uris.RelayUsernamePrefix) {
+		return uris.RelaysPath
+	} else { //nolint
+		return uris.UsersPath
+	}
+}
+
+// IsRelayActor returns true if this
+// is a *local relay actor* account.
+func (a *Account) IsRelayActor() bool {
+	return a.IsLocal() && strings.HasPrefix(a.Username, uris.RelayUsernamePrefix)
 }
 
 // EmojisPopulated returns whether emojis are

@@ -910,7 +910,10 @@ func (f *federate) UpdateAccount(ctx context.Context, account *gtsmodel.Account)
 	}
 
 	// Use Accountable as Object of Update.
-	update, err := f.converter.WrapAccountableInUpdate(accountable)
+	update, err := f.converter.WrapAccountableInUpdate(
+		account.PathPrefix(),
+		accountable,
+	)
 	if err != nil {
 		return gtserror.Newf("error wrapping Person in Update: %w", err)
 	}

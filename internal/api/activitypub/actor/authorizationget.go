@@ -15,19 +15,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users
+package actor
 
 import (
 	"net/http"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"code.superseriousbusiness.org/gotosocial/internal/paging"
 )
 
-// FollowingGETHandler returns a collection of URIs for accounts that the target user follows, formatted so that other AP servers can understand it.
-func (m *Module) FollowingGETHandler(c *httputil.Context) {
-	username, contentType, errWithCode := m.parseCommon(c)
+// AuthorizationGETHandler serves an accepted interaction request as a
+// LikeAuthorization, ReplyAuthorization, or AnnounceAuthorization type.
+func (m *Module) AuthorizationGETHandler(c *httputil.Context) {
+	_, username, id, contentType, errWithCode := m.parseCommonWithID(c)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
@@ -39,17 +39,7 @@ func (m *Module) FollowingGETHandler(c *httputil.Context) {
 		return
 	}
 
-	page, errWithCode := paging.ParseIDPage(c,
-		1,  // min limit
-		80, // max limit
-		0,  // default = disabled
-	)
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, m.templates, errWithCode)
-		return
-	}
-
-	resp, errWithCode := m.processor.Fedi().FollowingGet(c, username, page)
+	resp, errWithCode := m.processor.Fedi().AuthorizationGet(c, username, id)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return

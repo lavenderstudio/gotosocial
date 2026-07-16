@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users
+package actor
 
 import (
 	"net/http"
@@ -25,17 +25,10 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 )
 
-// UsersGETHandler should be served at https://example.org/users/:username.
-//
-// The goal here is to return the activitypub representation of an account
-// in the form of a vocab.ActivityStreamsPerson. This should only be served
-// to REMOTE SERVERS that present a valid signature on the GET request, on
-// behalf of a user, otherwise we risk leaking information about users publicly.
-//
-// And of course, the request should be refused if the account or server making the
-// request is blocked.
-func (m *Module) UsersGETHandler(c *httputil.Context) {
-	username, contentType, errWithCode := m.parseCommon(c)
+// ActorGETHandler should be served at https://example.org/{users|relays}/:username.
+// It returns the AP model of the given actor, requiring signed GET.
+func (m *Module) ActorGETHandler(c *httputil.Context) {
+	_, username, contentType, errWithCode := m.parseCommon(c)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
@@ -47,7 +40,7 @@ func (m *Module) UsersGETHandler(c *httputil.Context) {
 		return
 	}
 
-	resp, errWithCode := m.processor.Fedi().UserGet(
+	resp, errWithCode := m.processor.Fedi().ActorGet(
 		c,
 		username,
 	)

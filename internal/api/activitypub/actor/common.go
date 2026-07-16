@@ -15,12 +15,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users
+package actor
 
 import (
+	"strings"
+
 	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
+	"code.superseriousbusiness.org/gotosocial/internal/uris"
 )
 
 // SwaggerCollection represents an ActivityPub Collection.
@@ -86,6 +89,7 @@ type SwaggerFeaturedCollection struct {
 }
 
 func (m *Module) parseCommon(c *httputil.Context) (
+	relay bool,
 	username string,
 	contentType string,
 	errWithCode gtserror.WithCode,
@@ -94,6 +98,14 @@ func (m *Module) parseCommon(c *httputil.Context) (
 	username, errWithCode = apiutil.ParseUsername(c.PathValue(apiutil.UsernameKey))
 	if errWithCode != nil {
 		return
+	}
+
+	// If this is a relay path, prefix the username with
+	// `relay.` to differentiate it from an ordinary user.
+	pathTrimmed := strings.TrimPrefix(c.R.URL.Path, "/")
+	if strings.HasPrefix(pathTrimmed, uris.RelaysPath) {
+		relay = true
+		username = uris.RelayUsernamePrefix + username
 	}
 
 	// Get content type.
@@ -108,13 +120,14 @@ func (m *Module) parseCommon(c *httputil.Context) (
 }
 
 func (m *Module) parseCommonWithID(c *httputil.Context) (
+	relay bool,
 	username string,
 	id string,
 	contentType string,
 	errWithCode gtserror.WithCode,
 ) {
 	// Do parsecommon to get username + content type.
-	username, contentType, errWithCode = m.parseCommon(c)
+	relay, username, contentType, errWithCode = m.parseCommon(c)
 	if errWithCode != nil {
 		return
 	}

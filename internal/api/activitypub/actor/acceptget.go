@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users
+package actor
 
 import (
 	"net/http"
@@ -24,21 +24,22 @@ import (
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 )
 
-// StatusGETHandler serves the target status as an activitystreams NOTE so that other AP servers can parse it.
-func (m *Module) StatusGETHandler(c *httputil.Context) {
-	username, statusID, contentType, errWithCode := m.parseCommonWithID(c)
+// AcceptGETHandler serves an approved interaction
+// request as an ActivityStreams Accept activity.
+func (m *Module) AcceptGETHandler(c *httputil.Context) {
+	_, username, id, contentType, errWithCode := m.parseCommonWithID(c)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
 	if contentType == apiutil.TextHTML {
-		// Redirect to status web view.
-		httputil.Redirect(c, http.StatusSeeOther, "/@"+username+"/statuses/"+statusID)
+		// Redirect to account web view.
+		httputil.Redirect(c, http.StatusSeeOther, "/@"+username)
 		return
 	}
 
-	resp, errWithCode := m.processor.Fedi().StatusGet(c, username, statusID)
+	resp, errWithCode := m.processor.Fedi().AcceptGet(c, username, id)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return

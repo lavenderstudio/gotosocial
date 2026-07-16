@@ -44,10 +44,14 @@ func (suite *RejectTestSuite) TestRejectFollowRequest() {
 
 	// put the follow request in the database
 	fr := &gtsmodel.FollowRequest{
-		ID:              "01FJ1S8DX3STJJ6CEYPMZ1M0R3",
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
-		URI:             uris.GenerateURIForFollow(followingAccount.Username, "01FJ1S8DX3STJJ6CEYPMZ1M0R3"),
+		ID:        "01FJ1S8DX3STJJ6CEYPMZ1M0R3",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		URI: uris.GenerateURIForFollow(
+			uris.UsersPath,
+			followingAccount.Username,
+			"01FJ1S8DX3STJJ6CEYPMZ1M0R3",
+		),
 		AccountID:       followingAccount.ID,
 		TargetAccountID: followedAccount.ID,
 	}

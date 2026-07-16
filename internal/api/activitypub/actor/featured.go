@@ -15,23 +15,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users
+package actor
 
 import (
 	"net/http"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"code.superseriousbusiness.org/gotosocial/internal/paging"
 )
 
-// OutboxGETHandler swagger:operation GET /users/{username}/outbox s2sOutboxGet
+// FeaturedCollectionGETHandler swagger:operation GET /users/{username}/collections/featured s2sFeaturedCollectionGet
 //
-// Get the public outbox collection for an actor.
+// Get the featured collection (pinned posts) for an actor.
 //
-// Note that the response will be a Collection with a page as `first`, as shown below, if `page` is `false`.
+// The response will contain an ordered collection of Note URIs in the `items` property.
 //
-// If `page` is `true`, then the response will be a single `CollectionPage` without the wrapping `Collection`.
+// It is up to the caller to dereference the provided Note URIs (or not, if they already have them cached).
 //
 // HTTP signature is required on the request.
 //
@@ -46,31 +45,15 @@ import (
 //	-
 //		name: username
 //		type: string
-//		description: Username of the account.
+//		description: Account name of the actor
 //		in: path
 //		required: true
-//	-
-//		name: page
-//		type: boolean
-//		description: Return response as a CollectionPage.
-//		in: query
-//		default: false
-//	-
-//		name: min_id
-//		type: string
-//		description: Minimum ID of the next status, used for paging.
-//		in: query
-//	-
-//		name: max_id
-//		type: string
-//		description: Maximum ID of the next status, used for paging.
-//		in: query
 //
 //	responses:
 //		'200':
 //			in: body
 //			schema:
-//				"$ref": "#/definitions/swaggerCollection"
+//				"$ref": "#/definitions/swaggerFeaturedCollection"
 //		'400':
 //			schema:
 //				"$ref": "#/definitions/error"
@@ -87,8 +70,8 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: not found
-func (m *Module) OutboxGETHandler(c *httputil.Context) {
-	username, contentType, errWithCode := m.parseCommon(c)
+func (m *Module) FeaturedCollectionGETHandler(c *httputil.Context) {
+	_, username, contentType, errWithCode := m.parseCommon(c)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
@@ -100,17 +83,7 @@ func (m *Module) OutboxGETHandler(c *httputil.Context) {
 		return
 	}
 
-	page, errWithCode := paging.ParseIDPage(c,
-		1,  // min limit
-		80, // max limit
-		0,  // default = disabled
-	)
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, m.templates, errWithCode)
-		return
-	}
-
-	resp, errWithCode := m.processor.Fedi().OutboxGet(c, username, page)
+	resp, errWithCode := m.processor.Fedi().FeaturedCollectionGet(c, username)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return

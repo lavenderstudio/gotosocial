@@ -166,10 +166,14 @@ func (ir *InteractionRequest) IsAccepted() bool {
 func (ir *InteractionRequest) MarkAccepted() {
 	ir.AcceptedAt = time.Now()
 	ir.ResponseURI = uris.GenerateURIForAccept(
-		ir.TargetAccount.Username, ir.ID,
+		ir.TargetAccount.PathPrefix(),
+		ir.TargetAccount.Username,
+		ir.ID,
 	)
 	ir.AuthorizationURI = uris.GenerateURIForAuthorization(
-		ir.TargetAccount.Username, ir.ID,
+		ir.TargetAccount.PathPrefix(),
+		ir.TargetAccount.Username,
+		ir.ID,
 	)
 }
 
@@ -187,7 +191,9 @@ func (ir *InteractionRequest) IsRejected() bool {
 func (ir *InteractionRequest) MarkRejected() {
 	ir.RejectedAt = time.Now()
 	ir.ResponseURI = uris.GenerateURIForReject(
-		ir.TargetAccount.Username, ir.ID,
+		ir.TargetAccount.PathPrefix(),
+		ir.TargetAccount.Username,
+		ir.ID,
 	)
 }
 

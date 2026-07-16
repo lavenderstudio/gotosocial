@@ -521,9 +521,15 @@ func (p *fediAPI) CreateReplyRequest(ctx context.Context, fMsg *messages.FromFed
 	// Mark the request as accepted.
 	req.AcceptedAt = time.Now()
 	req.ResponseURI = uris.GenerateURIForAccept(
-		req.TargetAccount.Username, req.ID)
+		req.TargetAccount.PathPrefix(),
+		req.TargetAccount.Username,
+		req.ID,
+	)
 	req.AuthorizationURI = uris.GenerateURIForAuthorization(
-		req.TargetAccount.Username, req.ID)
+		req.TargetAccount.PathPrefix(),
+		req.TargetAccount.Username,
+		req.ID,
+	)
 
 	// Update in the db.
 	if err := p.state.DB.UpdateInteractionRequest(
@@ -912,10 +918,14 @@ func (p *fediAPI) CreateLikeRequest(ctx context.Context, fMsg *messages.FromFedi
 	// Mark the request as accepted.
 	req.AcceptedAt = time.Now()
 	req.ResponseURI = uris.GenerateURIForAccept(
-		req.TargetAccount.Username, req.ID,
+		req.TargetAccount.PathPrefix(),
+		req.TargetAccount.Username,
+		req.ID,
 	)
 	req.AuthorizationURI = uris.GenerateURIForAuthorization(
-		req.TargetAccount.Username, req.ID,
+		req.TargetAccount.PathPrefix(),
+		req.TargetAccount.Username,
+		req.ID,
 	)
 
 	// Update in the db.
@@ -1198,9 +1208,15 @@ func (p *fediAPI) CreateAnnounceRequest(ctx context.Context, fMsg *messages.From
 	// mark the request as accepted.
 	req.AcceptedAt = time.Now()
 	req.ResponseURI = uris.GenerateURIForAccept(
-		req.TargetAccount.Username, req.ID)
+		req.TargetAccount.PathPrefix(),
+		req.TargetAccount.Username,
+		req.ID,
+	)
 	req.AuthorizationURI = uris.GenerateURIForAuthorization(
-		req.TargetAccount.Username, req.ID)
+		req.TargetAccount.PathPrefix(),
+		req.TargetAccount.Username,
+		req.ID,
+	)
 
 	// Update in the db.
 	if err := p.state.DB.UpdateInteractionRequest(ctx,

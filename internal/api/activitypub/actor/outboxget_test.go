@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users_test
+package actor_test
 
 import (
 	"encoding/json"
@@ -34,7 +34,7 @@ import (
 )
 
 type OutboxGetTestSuite struct {
-	UserStandardTestSuite
+	ActorStandardTestSuite
 }
 
 func (suite *OutboxGetTestSuite) TestGetOutbox() {
@@ -56,7 +56,7 @@ func (suite *OutboxGetTestSuite) TestGetOutbox() {
 	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
 
 	// trigger the function being tested, first passing through sigcheck.
-	suite.signatureCheck.Compile(suite.userModule.OutboxGETHandler)(c)
+	suite.signatureCheck.Compile(suite.actorModule.OutboxGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
@@ -107,7 +107,7 @@ func (suite *OutboxGetTestSuite) TestGetOutboxFirstPage() {
 	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
 
 	// trigger the function being tested, first passing through sigcheck.
-	suite.signatureCheck.Compile(suite.userModule.OutboxGETHandler)(c)
+	suite.signatureCheck.Compile(suite.actorModule.OutboxGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
@@ -189,7 +189,7 @@ func (suite *OutboxGetTestSuite) TestGetOutboxNextPage() {
 	c.SetPathValue(apiutil.MaxIDKey, "01F8MHAMCHF6Y650WCRSCP4WMY")
 
 	// trigger the function being tested, first passing through sigcheck.
-	suite.signatureCheck.Compile(suite.userModule.OutboxGETHandler)(c)
+	suite.signatureCheck.Compile(suite.actorModule.OutboxGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)

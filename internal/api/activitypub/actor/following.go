@@ -15,17 +15,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users
+package actor
 
 import (
 	"net/http"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/paging"
 )
 
-func (m *Module) LikeRequestsGETHandler(c *httputil.Context) {
-	username, id, contentType, errWithCode := m.parseCommonWithID(c)
+// FollowingGETHandler returns a collection of URIs for accounts that the
+// target actor follows, formatted so that other AP servers can understand it.
+func (m *Module) FollowingGETHandler(c *httputil.Context) {
+	_, username, contentType, errWithCode := m.parseCommon(c)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
@@ -37,51 +40,17 @@ func (m *Module) LikeRequestsGETHandler(c *httputil.Context) {
 		return
 	}
 
-	resp, errWithCode := m.processor.Fedi().LikeRequestGet(c, username, id)
+	page, errWithCode := paging.ParseIDPage(c,
+		1,  // min limit
+		80, // max limit
+		0,  // default = disabled
+	)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	httputil.JSONType(c, http.StatusOK, contentType, resp)
-}
-
-func (m *Module) ReplyRequestsGETHandler(c *httputil.Context) {
-	username, id, contentType, errWithCode := m.parseCommonWithID(c)
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, m.templates, errWithCode)
-		return
-	}
-
-	if contentType == apiutil.TextHTML {
-		// Redirect to account web view.
-		httputil.Redirect(c, http.StatusSeeOther, "/@"+username)
-		return
-	}
-
-	resp, errWithCode := m.processor.Fedi().ReplyRequestGet(c, username, id)
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, m.templates, errWithCode)
-		return
-	}
-
-	httputil.JSONType(c, http.StatusOK, contentType, resp)
-}
-
-func (m *Module) AnnounceRequestsGETHandler(c *httputil.Context) {
-	username, id, contentType, errWithCode := m.parseCommonWithID(c)
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, m.templates, errWithCode)
-		return
-	}
-
-	if contentType == apiutil.TextHTML {
-		// Redirect to account web view.
-		httputil.Redirect(c, http.StatusSeeOther, "/@"+username)
-		return
-	}
-
-	resp, errWithCode := m.processor.Fedi().AnnounceRequestGet(c, username, id)
+	resp, errWithCode := m.processor.Fedi().FollowingGet(c, username, page)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return

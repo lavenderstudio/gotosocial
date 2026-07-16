@@ -78,7 +78,7 @@ func (m *Module) prepareProfile(c *httputil.Context) *profile {
 	if apiutil.ASContentType(accept) {
 		// AP account representation has
 		// been requested, return that.
-		user, errWithCode := m.processor.Fedi().UserGet(c, requestedUser)
+		user, errWithCode := m.processor.Fedi().ActorGet(c, requestedUser)
 		if errWithCode != nil {
 			apiutil.WebErrorHandler(c, m.templates, errWithCode)
 			return nil

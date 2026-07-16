@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users
+package actor
 
 import (
 	"code.superseriousbusiness.org/gopkg/httputil"
@@ -55,7 +55,7 @@ func New(processor *processing.Processor, templates *templates.Templates) *Modul
 }
 
 func (m *Module) Route(g *httputil.RouteGroup) {
-	g.GET(BasePath, m.UsersGETHandler)
+	g.GET(BasePath, m.ActorGETHandler)
 	g.POST(InboxPath, m.InboxPOSTHandler)
 	g.GET(FollowersPath, m.FollowersGETHandler)
 	g.GET(FollowingPath, m.FollowingGETHandler)

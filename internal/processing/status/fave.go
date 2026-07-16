@@ -149,7 +149,11 @@ func (p *Processor) FaveCreate(
 		TargetAccount:   status.Account,
 		StatusID:        status.ID,
 		Status:          status,
-		URI:             uris.GenerateURIForLike(requester.Username, faveID),
+		URI: uris.GenerateURIForLike(
+			requester.PathPrefix(),
+			requester.Username,
+			faveID,
+		),
 		PreApproved:     preApproved,
 		PendingApproval: &pendingApproval,
 	}

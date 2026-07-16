@@ -59,7 +59,7 @@ func (f *DB) Get(ctx context.Context, id *url.URL) (value vocab.Type, err error)
 		return nil, gtserror.Newf("%s was not for our host", id)
 	}
 
-	if username, _ := uris.ParseUserPath(id); username != "" {
+	if _, username, _ := uris.ParseActorPath(id); username != "" {
 		acct, err := f.state.DB.GetAccountByUsernameDomain(
 			gtscontext.SetBarebones(ctx),
 			username,
@@ -70,14 +70,14 @@ func (f *DB) Get(ctx context.Context, id *url.URL) (value vocab.Type, err error)
 		}
 		return f.converter.AccountToAS(ctx, acct)
 
-	} else if _, statusID, _ := uris.ParseStatusesPath(id); statusID != "" {
+	} else if _, _, statusID, _ := uris.ParseStatusesPath(id); statusID != "" {
 		status, err := f.state.DB.GetStatusByID(ctx, statusID)
 		if err != nil {
 			return nil, err
 		}
 		return f.converter.StatusToAS(ctx, status)
 
-	} else if username, _ := uris.ParseFollowersPath(id); username != "" {
+	} else if _, username, _ := uris.ParseFollowersPath(id); username != "" {
 		acct, err := f.state.DB.GetAccountByUsernameDomain(
 			gtscontext.SetBarebones(ctx),
 			username,
@@ -94,7 +94,7 @@ func (f *DB) Get(ctx context.Context, id *url.URL) (value vocab.Type, err error)
 
 		return f.Followers(ctx, acctURI)
 
-	} else if username, _ := uris.ParseFollowingPath(id); username != "" {
+	} else if _, username, _ := uris.ParseFollowingPath(id); username != "" {
 		acct, err := f.state.DB.GetAccountByUsernameDomain(
 			gtscontext.SetBarebones(ctx),
 			username,

@@ -27,7 +27,7 @@ import (
 
 const (
 	users     = "users"
-	actors    = "actors"
+	relays    = "relays"
 	statuses  = "statuses"
 	inbox     = "inbox"
 	outbox    = "outbox"
@@ -40,6 +40,7 @@ const (
 	reports   = "reports"
 	accepts   = "accepts"
 
+	usersOrRelaysGrp         = `(` + users + `|` + relays + `)`
 	alphaNumeric             = `\p{L}\p{M}*|\p{N}`                                       // A single number or script character in any language, including chars with accents.
 	usernameGrp              = `(?:` + alphaNumeric + `|\.|\-|\_|` + unicodeEmoji + `)`  // Non-capturing group that matches against a single valid username character, including emojis.
 	domainGrp                = `(?:` + alphaNumeric + `|\.|\-|\:|` + unicodeEmoji + `)`  // Non-capturing group that matches against a single valid domain character, including emojis.
@@ -59,23 +60,23 @@ const (
 		Path parts / capture.
 	*/
 
-	userPathPrefix    = `^/?` + users + `/(` + usernameRelaxed + `)`
-	userPath          = userPathPrefix + `$`
-	userWebPathPrefix = `^/?` + `@(` + usernameRelaxed + `)`
-	userWebPath       = userWebPathPrefix + `$`
-	publicKeyPath     = userPathPrefix + `/` + publicKey + `$`
-	inboxPath         = userPathPrefix + `/` + inbox + `$`
-	outboxPath        = userPathPrefix + `/` + outbox + `$`
-	followersPath     = userPathPrefix + `/` + followers + `$`
-	followingPath     = userPathPrefix + `/` + following + `$`
-	likedPath         = userPathPrefix + `/` + liked + `$`
-	followPath        = userPathPrefix + `/` + follow + `/(` + ulid + `)$`
-	likePath          = userPathPrefix + `/` + liked + `/(` + ulid + `)$`
-	statusesPath      = userPathPrefix + `/` + statuses + `/(` + ulid + `)$`
-	acceptsPath       = userPathPrefix + `/` + accepts + `/(` + ulid + `)$`
-	blockPath         = userPathPrefix + `/` + blocks + `/(` + ulid + `)$`
-	reportPath        = `^/?` + reports + `/(` + ulid + `)$`
-	filePath          = `^/?(` + ulid + `)/([a-z]+)/([a-z]+)/(` + ulid + `)\.([a-z0-9]+)$`
+	actorPathPrefix    = `^/?` + usersOrRelaysGrp + `/(` + usernameRelaxed + `)`
+	actorPath          = actorPathPrefix + `$`
+	actorWebPathPrefix = `^/?` + `@(` + usernameRelaxed + `)`
+	actorWebPath       = actorWebPathPrefix + `$`
+	publicKeyPath      = actorPathPrefix + `/` + publicKey + `$`
+	inboxPath          = actorPathPrefix + `/` + inbox + `$`
+	outboxPath         = actorPathPrefix + `/` + outbox + `$`
+	followersPath      = actorPathPrefix + `/` + followers + `$`
+	followingPath      = actorPathPrefix + `/` + following + `$`
+	likedPath          = actorPathPrefix + `/` + liked + `$`
+	followPath         = actorPathPrefix + `/` + follow + `/(` + ulid + `)$`
+	likePath           = actorPathPrefix + `/` + liked + `/(` + ulid + `)$`
+	statusesPath       = actorPathPrefix + `/` + statuses + `/(` + ulid + `)$`
+	acceptsPath        = actorPathPrefix + `/` + accepts + `/(` + ulid + `)$`
+	blockPath          = actorPathPrefix + `/` + blocks + `/(` + ulid + `)$`
+	reportPath         = `^/?` + reports + `/(` + ulid + `)$`
+	filePath           = `^/?(` + ulid + `)/([a-z]+)/([a-z]+)/(` + ulid + `)\.([a-z0-9]+)$`
 )
 
 var (
@@ -103,67 +104,80 @@ var (
 	// DoubleSpaceFinder extracts double whitespaces from a piece of text.
 	DoubleSpaceFinder = regexp.MustCompile(doubleSpaceFinder)
 
-	// Username can be used to validate usernames of new signups on this instance.
+	// Username can be used to validate
+	// usernames of new signups on this instance.
 	Username = regexp.MustCompile(usernameStrict)
 
-	// MisskeyReportNotes captures a list of Note URIs from report content created by Misskey.
+	// MisskeyReportNotes captures a list of Note
+	// URIs from report content created by Misskey.
+	//
 	// See: https://regex101.com/r/EnTOBV/1
 	MisskeyReportNotes = regexp.MustCompile(misskeyReportNotesFinder)
-
-	// UserPath validates and captures the username part from eg /users/example_username.
-	UserPath = regexp.MustCompile(userPath)
-
-	// UserWebPath validates and captures the username part from eg /@example_username.
-	UserWebPath = regexp.MustCompile(userWebPath)
-
-	// PublicKeyPath parses a path that validates and captures the username part from eg /users/example_username/main-key
-	PublicKeyPath = regexp.MustCompile(publicKeyPath)
-
-	// InboxPath parses a path that validates and captures the username part from eg /users/example_username/inbox
-	InboxPath = regexp.MustCompile(inboxPath)
-
-	// OutboxPath parses a path that validates and captures the username part from eg /users/example_username/outbox
-	OutboxPath = regexp.MustCompile(outboxPath)
-
-	// FollowersPath parses a path that validates and captures the username part from eg /users/example_username/followers
-	FollowersPath = regexp.MustCompile(followersPath)
-
-	// FollowingPath parses a path that validates and captures the username part from eg /users/example_username/following
-	FollowingPath = regexp.MustCompile(followingPath)
-
-	// LikedPath parses a path that validates and captures the username part from eg /users/example_username/liked
-	LikedPath = regexp.MustCompile(likedPath)
 
 	// ULID parses and validate a ULID.
 	ULID = regexp.MustCompile(ulidValidate)
 
-	// FollowPath parses a path that validates and captures the username part and the ulid part
-	// from eg /users/example_username/follow/01F7XT5JZW1WMVSW1KADS8PVDH
+	// ActorPath validates and captures the prefix and
+	// username parts from eg /[users|relays]/example_username
+	ActorPath = regexp.MustCompile(actorPath)
+
+	// ActorWebPath validates and captures the prefix
+	// and username parts from eg /@example_username.
+	ActorWebPath = regexp.MustCompile(actorWebPath)
+
+	// PublicKeyPath validates and captures the prefix and username
+	// parts from eg /[users|relays]/example_username/main-key
+	PublicKeyPath = regexp.MustCompile(publicKeyPath)
+
+	// InboxPath validates and captures the prefix and username
+	// parts from eg /[users|relays]/example_username/inbox
+	InboxPath = regexp.MustCompile(inboxPath)
+
+	// OutboxPath validates and captures the prefix and username
+	// parts from eg /[users|relays]/example_username/outbox
+	OutboxPath = regexp.MustCompile(outboxPath)
+
+	// FollowersPath validates and captures the prefix and username
+	// parts from eg /[users|relays]/example_username/followers
+	FollowersPath = regexp.MustCompile(followersPath)
+
+	// FollowingPath validates and captures the prefix and username
+	// parts from eg /[users|relays]/example_username/following
+	FollowingPath = regexp.MustCompile(followingPath)
+
+	// LikedPath validates and captures the prefix and username
+	// parts from eg /[users|relays]/example_username/liked
+	LikedPath = regexp.MustCompile(likedPath)
+
+	// FollowPath validates and captures the prefix, username, and ULID parts
+	// from eg /[users|relays]/example_username/follow/01F7XT5JZW1WMVSW1KADS8PVDH
 	FollowPath = regexp.MustCompile(followPath)
 
-	// LikePath parses a path that validates and captures the username part and the ulid part
-	// from eg /users/example_username/liked/01F7XT5JZW1WMVSW1KADS8PVDH
+	// LikePath validates and captures the prefix, username, and ULID parts
+	// from eg /[users|relays]/example_username/liked/01F7XT5JZW1WMVSW1KADS8PVDH
 	LikePath = regexp.MustCompile(likePath)
 
-	// StatusesPath parses a path that validates and captures the username part and the ulid part
-	// from eg /users/example_username/statuses/01F7XT5JZW1WMVSW1KADS8PVDH
+	// StatusesPath validates and captures the prefix, username, and ULID parts
+	// from eg /[users|relays]/example_username/statuses/01F7XT5JZW1WMVSW1KADS8PVDH
+	//
 	// The regex can be played with here: https://regex101.com/r/G9zuxQ/1
 	StatusesPath = regexp.MustCompile(statusesPath)
 
-	// BlockPath parses a path that validates and captures the username part and the ulid part
-	// from eg /users/example_username/blocks/01F7XT5JZW1WMVSW1KADS8PVDH
+	// BlockPath validates and captures the prefix, username, and ULID parts
+	// from eg /[users|relays]/example_username/blocks/01F7XT5JZW1WMVSW1KADS8PVDH
 	BlockPath = regexp.MustCompile(blockPath)
 
-	// ReportPath parses a path that validates and captures the ulid part
-	// from eg /reports/01GP3AWY4CRDVRNZKW0TEAMB5R
+	// ReportPath validates and captures the ULID
+	// part from eg /reports/01GP3AWY4CRDVRNZKW0TEAMB5R
 	ReportPath = regexp.MustCompile(reportPath)
 
-	// ReportPath parses a path that validates and captures the username part and the ulid part
-	// from eg /users/example_username/accepts/01GP3AWY4CRDVRNZKW0TEAMB5R
+	// ReportPath validates and captures the prefix, username, and ULID parts
+	// from eg /[users|relays]/example_username/accepts/01GP3AWY4CRDVRNZKW0TEAMB5R
 	AcceptsPath = regexp.MustCompile(acceptsPath)
 
 	// FilePath parses a file storage path of the form [ACCOUNT_ID]/[MEDIA_TYPE]/[MEDIA_SIZE]/[FILE_NAME]
 	// eg 01F8MH1H7YV1Z7D2C8K2730QBF/attachment/small/01F8MH8RMYQ6MSNY3JM2XT1CQ5.jpeg
+	//
 	// It captures the account id, media type, media size, file name, and file extension, eg
 	// `01F8MH1H7YV1Z7D2C8K2730QBF`, `attachment`, `small`, `01F8MH8RMYQ6MSNY3JM2XT1CQ5`, `jpeg`.
 	FilePath = regexp.MustCompile(filePath)

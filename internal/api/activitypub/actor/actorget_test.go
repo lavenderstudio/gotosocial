@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users_test
+package actor_test
 
 import (
 	"encoding/json"
@@ -33,7 +33,7 @@ import (
 )
 
 type UserGetTestSuite struct {
-	UserStandardTestSuite
+	ActorStandardTestSuite
 }
 
 func (suite *UserGetTestSuite) TestGetUser() {
@@ -55,7 +55,7 @@ func (suite *UserGetTestSuite) TestGetUser() {
 	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
 
 	// trigger the function being tested, first passing through sigcheck.
-	suite.signatureCheck.Compile(suite.userModule.UsersGETHandler)(c)
+	suite.signatureCheck.Compile(suite.actorModule.ActorGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
@@ -114,7 +114,7 @@ func (suite *UserGetTestSuite) TestGetUserPublicKeyDeleted() {
 	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
 
 	// trigger the function being tested, first passing through sigcheck.
-	suite.signatureCheck.Compile(suite.userModule.UsersGETHandler)(c)
+	suite.signatureCheck.Compile(suite.actorModule.ActorGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
@@ -155,7 +155,7 @@ func (suite *UserGetTestSuite) TestGetUserAuth() {
 	c.SetPathValue(apiutil.UsernameKey, targetAccount.Username)
 
 	// trigger the function being tested, first passing through sigcheck.
-	suite.signatureCheck.Compile(suite.userModule.UsersGETHandler)(c)
+	suite.signatureCheck.Compile(suite.actorModule.ActorGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusUnauthorized, recorder.Code)
@@ -171,7 +171,7 @@ func (suite *UserGetTestSuite) TestInstanceActor() {
 	c.R.Header.Set("accept", "application/activity+json")
 
 	// trigger the function being tested
-	suite.userModule.InstanceActorGETHandler(c)
+	suite.actorModule.InstanceActorGETHandler(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)

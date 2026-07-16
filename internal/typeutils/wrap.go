@@ -30,14 +30,21 @@ import (
 // in an Update activity with the accountable as the object.
 //
 // The Update will be addressed to Public and bcc followers.
-func (c *Converter) WrapAccountableInUpdate(accountable ap.Accountable) (vocab.ActivityStreamsUpdate, error) {
+func (c *Converter) WrapAccountableInUpdate(
+	pathPrefix uris.PathComponent,
+	accountable ap.Accountable,
+) (vocab.ActivityStreamsUpdate, error) {
 	update := streams.NewActivityStreamsUpdate()
 
 	// Set actor IRI to this accountable's IRI.
 	ap.AppendActorIRIs(update, ap.GetJSONLDId(accountable))
 
 	// Set the update ID
-	updateURI := uris.GenerateURIForUpdate(ap.ExtractPreferredUsername(accountable), id.NewULID())
+	updateURI := uris.GenerateURIForUpdate(
+		pathPrefix,
+		ap.ExtractPreferredUsername(accountable),
+		id.NewULID(),
+	)
 	ap.MustSet(ap.SetJSONLDIdStr, ap.WithJSONLDId(update), updateURI)
 
 	// Set the accountable as the object of the update.

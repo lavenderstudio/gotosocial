@@ -79,19 +79,19 @@ func (f *DB) SetInbox(c context.Context, inbox vocab.ActivityStreamsOrderedColle
 func (f *DB) InboxesForIRI(c context.Context, iri *url.URL) (inboxIRIs []*url.URL, err error) {
 	// check if this is a followers collection iri for a local account...
 	if iri.Host == config.GetHost() && uris.IsFollowersPath(iri) {
-		localAccountUsername, err := uris.ParseFollowersPath(iri)
+		_, username, err := uris.ParseFollowersPath(iri)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't extract local account username from uri %s: %s", iri, err)
 		}
 
-		account, err := f.state.DB.GetAccountByUsernameDomain(c, localAccountUsername, "")
+		account, err := f.state.DB.GetAccountByUsernameDomain(c, username, "")
 		if err != nil {
-			return nil, fmt.Errorf("couldn't find local account with username %s: %s", localAccountUsername, err)
+			return nil, fmt.Errorf("couldn't find local account with username %s: %s", username, err)
 		}
 
 		follows, err := f.state.DB.GetAccountFollowers(c, account.ID, nil)
 		if err != nil {
-			return nil, fmt.Errorf("couldn't get followers of local account %s: %s", localAccountUsername, err)
+			return nil, fmt.Errorf("couldn't get followers of local account %s: %s", username, err)
 		}
 
 		for _, follow := range follows {

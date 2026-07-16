@@ -1199,7 +1199,7 @@ func (a *accountDB) GetAccountWebStatuses(
 	mediaOnly bool,
 	includeBoosts bool,
 ) ([]*gtsmodel.Status, error) {
-	if account.Username == config.GetHost() {
+	if account.IsInstance() {
 		// Instance account
 		// doesn't post statuses.
 		return nil, nil

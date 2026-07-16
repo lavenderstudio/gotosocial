@@ -81,8 +81,12 @@ func (p *Processor) Create(
 		return nil, errWithCode
 	}
 
-	// Generate necessary URIs for username, to build status URIs.
-	accountURIs := uris.GenerateURIsForAccount(requester.Username)
+	// Generate necessary URIs for
+	// username, to build status URIs.
+	accountURIs := uris.GenerateActorURIs(
+		requester.PathPrefix(),
+		requester.Username,
+	)
 
 	// Get current time.
 	now := time.Now()

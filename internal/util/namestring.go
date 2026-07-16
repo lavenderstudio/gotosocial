@@ -160,13 +160,13 @@ func partsFromURI(uri *url.URL) (
 	}
 
 	// Try "/users/whatever".
-	username, err := uris.ParseUserPath(short)
+	_, username, err := uris.ParseActorPath(short)
 	if err == nil && username != "" {
 		return username, host, nil
 	}
 
 	// Try "/@whatever"
-	username, err = uris.ParseUserWebPath(short)
+	username, err = uris.ParseActorWebPath(short)
 	if err == nil && username != "" {
 		return username, host, nil
 	}

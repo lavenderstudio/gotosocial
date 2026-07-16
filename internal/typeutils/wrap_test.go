@@ -22,6 +22,7 @@ import (
 
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
+	"code.superseriousbusiness.org/gotosocial/internal/uris"
 	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
@@ -143,7 +144,10 @@ func (suite *WrapTestSuite) TestWrapAccountableInUpdate() {
 		suite.FailNow(err.Error())
 	}
 
-	create, err := suite.typeconverter.WrapAccountableInUpdate(accountable)
+	create, err := suite.typeconverter.WrapAccountableInUpdate(
+		uris.UsersPath,
+		accountable,
+	)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}

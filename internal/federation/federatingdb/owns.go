@@ -51,7 +51,7 @@ func (f *DB) Owns(ctx context.Context, id *url.URL) (bool, error) {
 	// apparently it belongs to this host, so what *is* it?
 	// check if it's a status, eg /users/example_username/statuses/SOME_UUID_OF_A_STATUS
 	if uris.IsStatusesPath(id) {
-		_, uid, err := uris.ParseStatusesPath(id)
+		_, _, uid, err := uris.ParseStatusesPath(id)
 		if err != nil {
 			return false, fmt.Errorf("error parsing statuses path for url %s: %s", id.String(), err)
 		}
@@ -67,8 +67,8 @@ func (f *DB) Owns(ctx context.Context, id *url.URL) (bool, error) {
 		return status.Flags.Local(), nil
 	}
 
-	if uris.IsUserPath(id) {
-		username, err := uris.ParseUserPath(id)
+	if uris.IsActorPath(id) {
+		_, username, err := uris.ParseActorPath(id)
 		if err != nil {
 			return false, fmt.Errorf("error parsing statuses path for url %s: %s", id.String(), err)
 		}
@@ -85,7 +85,7 @@ func (f *DB) Owns(ctx context.Context, id *url.URL) (bool, error) {
 	}
 
 	if uris.IsFollowersPath(id) {
-		username, err := uris.ParseFollowersPath(id)
+		_, username, err := uris.ParseFollowersPath(id)
 		if err != nil {
 			return false, fmt.Errorf("error parsing statuses path for url %s: %s", id.String(), err)
 		}
@@ -102,7 +102,7 @@ func (f *DB) Owns(ctx context.Context, id *url.URL) (bool, error) {
 	}
 
 	if uris.IsFollowingPath(id) {
-		username, err := uris.ParseFollowingPath(id)
+		_, username, err := uris.ParseFollowingPath(id)
 		if err != nil {
 			return false, fmt.Errorf("error parsing statuses path for url %s: %s", id.String(), err)
 		}
@@ -123,7 +123,7 @@ func (f *DB) Owns(ctx context.Context, id *url.URL) (bool, error) {
 	}
 
 	if uris.IsBlockPath(id) {
-		username, blockID, err := uris.ParseBlockPath(id)
+		_, username, blockID, err := uris.ParseBlockPath(id)
 		if err != nil {
 			return false, fmt.Errorf("error parsing block path for url %s: %s", id.String(), err)
 		}
@@ -151,7 +151,7 @@ func (f *DB) Owns(ctx context.Context, id *url.URL) (bool, error) {
 }
 
 func (f *DB) ownsLike(ctx context.Context, uri *url.URL) (bool, error) {
-	username, id, err := uris.ParseLikedPath(uri)
+	_, username, id, err := uris.ParseLikedPath(uri)
 	if err != nil {
 		return false, fmt.Errorf("error parsing Like path for url %s: %w", uri.String(), err)
 	}

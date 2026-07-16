@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users_test
+package actor_test
 
 import (
 	"bytes"
@@ -36,12 +36,13 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
+	"code.superseriousbusiness.org/gotosocial/internal/uris"
 	"code.superseriousbusiness.org/gotosocial/testrig"
 	"github.com/stretchr/testify/suite"
 )
 
 type InboxPostTestSuite struct {
-	UserStandardTestSuite
+	ActorStandardTestSuite
 }
 
 func (suite *InboxPostTestSuite) inboxPost(
@@ -81,7 +82,7 @@ func (suite *InboxPostTestSuite) inboxPost(
 	c.R.Header.Set("Content-Type", "application/activity+json")
 
 	// Base http handler function to use.
-	h := suite.userModule.InboxPOSTHandler
+	h := suite.actorModule.InboxPOSTHandler
 
 	// Wrap handler func in given middlewares.
 	for _, middleware := range middlewares {
@@ -316,7 +317,10 @@ func (suite *InboxPostTestSuite) TestPostUpdate() {
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
-	update, err := suite.tc.WrapAccountableInUpdate(accountable)
+	update, err := suite.tc.WrapAccountableInUpdate(
+		uris.UsersPath,
+		accountable,
+	)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -523,7 +527,10 @@ func (suite *InboxPostTestSuite) TestPostFromBlockedAccount() {
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
-	update, err := suite.tc.WrapAccountableInUpdate(accountable)
+	update, err := suite.tc.WrapAccountableInUpdate(
+		uris.UsersPath,
+		accountable,
+	)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}

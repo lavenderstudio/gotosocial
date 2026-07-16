@@ -69,8 +69,12 @@ func (p *Processor) FollowRelayActor(ctx context.Context, relayActor *gtsmodel.A
 	// request, create one.
 	followID := id.NewULID()
 	fr := &gtsmodel.FollowRequest{
-		ID:              followID,
-		URI:             uris.GenerateURIForFollow(iAcct.Username, followID),
+		ID: followID,
+		URI: uris.GenerateURIForFollow(
+			uris.UsersPath,
+			iAcct.Username,
+			followID,
+		),
 		AccountID:       iAcct.ID,
 		Account:         iAcct,
 		TargetAccountID: relayActor.ID,

@@ -19,9 +19,9 @@ package api
 
 import (
 	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/actor"
 	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/emoji"
 	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/publickey"
-	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/users"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/middleware"
@@ -32,20 +32,22 @@ import (
 
 type ActivityPub struct {
 	emoji     *emoji.Module
-	users     *users.Module
+	actor     *actor.Module
 	publicKey *publickey.Module
 	sigcheck  httputil.Middleware
 }
 
 func (a *ActivityPub) Route(r *router.Router, m ...httputil.Middleware) {
 	// create groupings for the
-	// 'emoji' and 'users' prefixes
+	// 'emoji' and 'users|relays' prefixes
 	emojiGroup := r.Group("emoji")
 	usersGroup := r.Group("users")
+	relaysGroup := r.Group("relays")
 
 	// Use provided middlewares.
 	emojiGroup.Use(m...)
 	usersGroup.Use(m...)
+	relaysGroup.Use(m...)
 
 	// Attach cache control middleware.
 	ccMiddleware := middleware.CacheControl(middleware.CacheControlConfig{
@@ -53,17 +55,20 @@ func (a *ActivityPub) Route(r *router.Router, m ...httputil.Middleware) {
 	})
 	emojiGroup.Use(ccMiddleware)
 	usersGroup.Use(ccMiddleware)
+	relaysGroup.Use(ccMiddleware)
 
 	// Route the instance actor endpoint first
 	// so it doesn't require signature auth.
-	usersGroup.GET(config.GetHost(), a.users.InstanceActorGETHandler)
+	usersGroup.GET(config.GetHost(), a.actor.InstanceActorGETHandler)
 
 	// *Now* add sig checking.
 	emojiGroup.Use(a.sigcheck)
 	usersGroup.Use(a.sigcheck)
+	relaysGroup.Use(a.sigcheck)
 
 	a.emoji.Route(emojiGroup)
-	a.users.Route(usersGroup)
+	a.actor.Route(usersGroup)
+	a.actor.Route(relaysGroup)
 }
 
 // Public key endpoint requires different middleware + cache policies from other AP endpoints.
@@ -87,7 +92,7 @@ func (a *ActivityPub) RoutePublicKey(r *router.Router, m ...httputil.Middleware)
 func NewActivityPub(db db.DB, processor *processing.Processor, templates *templates.Templates) *ActivityPub {
 	return &ActivityPub{
 		emoji:     emoji.New(processor, templates),
-		users:     users.New(processor, templates),
+		actor:     actor.New(processor, templates),
 		publicKey: publickey.New(processor, templates),
 		sigcheck:  middleware.ExtractSignature(db.IsURIBlocked),
 	}

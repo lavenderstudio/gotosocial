@@ -3813,7 +3813,7 @@ definitions:
         title: SwaggerCollection represents an ActivityPub Collection.
         type: object
         x-go-name: SwaggerCollection
-        x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/activitypub/users
+        x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/activitypub/actor
     swaggerCollectionPage:
         properties:
             id:
@@ -3848,7 +3848,7 @@ definitions:
         title: SwaggerCollectionPage represents one page of a collection.
         type: object
         x-go-name: SwaggerCollectionPage
-        x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/activitypub/users
+        x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/activitypub/actor
     swaggerFeaturedCollection:
         properties:
             '@context':
@@ -3885,7 +3885,7 @@ definitions:
         title: SwaggerFeaturedCollection represents an ActivityPub OrderedCollection.
         type: object
         x-go-name: SwaggerFeaturedCollection
-        x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/activitypub/users
+        x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/activitypub/actor
     tag:
         properties:
             following:
@@ -18147,7 +18147,7 @@ paths:
                 HTTP signature is required on the request.
             operationId: s2sFeaturedCollectionGet
             parameters:
-                - description: Account name of the user
+                - description: Account name of the actor
                   in: path
                   name: username
                   required: true
@@ -18175,7 +18175,7 @@ paths:
                     description: not found
                     schema:
                         $ref: '#/definitions/error'
-            summary: Get the featured collection (pinned posts) for a user.
+            summary: Get the featured collection (pinned posts) for an actor.
             tags:
                 - s2s/federation
     /users/{username}/outbox:

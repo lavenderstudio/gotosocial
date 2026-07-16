@@ -162,7 +162,7 @@ func (f *Federator) AuthenticatePostInbox(ctx context.Context, w http.ResponseWr
 
 	// Ensure this is an inbox path, and fetch the inbox owner
 	// account by parsing username from `/users/{username}/inbox`.
-	username, err := uris.ParseInboxPath(r.URL)
+	_, username, err := uris.ParseInboxPath(r.URL)
 	if err != nil {
 		err := gtserror.Newf("could not parse %s as inbox path: %w", r.URL.String(), err)
 		return nil, false, err

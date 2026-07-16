@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users_test
+package actor_test
 
 import (
 	"encoding/json"
@@ -35,7 +35,7 @@ import (
 )
 
 type RepliesGetTestSuite struct {
-	UserStandardTestSuite
+	ActorStandardTestSuite
 }
 
 func (suite *RepliesGetTestSuite) TestGetReplies() {
@@ -59,7 +59,7 @@ func (suite *RepliesGetTestSuite) TestGetReplies() {
 	c.SetPathValue(apiutil.IDKey, targetStatus.ID)
 
 	// trigger the function being tested, first passing through sigcheck.
-	suite.signatureCheck.Compile(suite.userModule.StatusRepliesGETHandler)(c)
+	suite.signatureCheck.Compile(suite.actorModule.StatusRepliesGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
@@ -115,7 +115,7 @@ func (suite *RepliesGetTestSuite) TestGetRepliesNext() {
 	c.SetPathValue(apiutil.IDKey, targetStatus.ID)
 
 	// trigger the function being tested, first passing through sigcheck.
-	suite.signatureCheck.Compile(suite.userModule.StatusRepliesGETHandler)(c)
+	suite.signatureCheck.Compile(suite.actorModule.StatusRepliesGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
@@ -176,7 +176,7 @@ func (suite *RepliesGetTestSuite) TestGetRepliesLast() {
 	c.SetPathValue(apiutil.IDKey, targetStatus.ID)
 
 	// trigger the function being tested, first passing through sigcheck.
-	suite.signatureCheck.Compile(suite.userModule.StatusRepliesGETHandler)(c)
+	suite.signatureCheck.Compile(suite.actorModule.StatusRepliesGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)

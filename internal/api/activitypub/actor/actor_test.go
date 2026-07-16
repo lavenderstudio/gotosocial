@@ -15,12 +15,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users_test
+package actor_test
 
 import (
 	"code.superseriousbusiness.org/gopkg/httputil"
 	"code.superseriousbusiness.org/gotosocial/internal/admin"
-	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/users"
+	"code.superseriousbusiness.org/gotosocial/internal/api/activitypub/actor"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/email"
 	"code.superseriousbusiness.org/gotosocial/internal/federation"
@@ -35,7 +35,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type UserStandardTestSuite struct {
+type ActorStandardTestSuite struct {
 	// standard suite interfaces
 	suite.Suite
 	db           db.DB
@@ -58,12 +58,12 @@ type UserStandardTestSuite struct {
 	testActivities   map[string]testrig.ActivityWithSignature
 
 	// module being tested
-	userModule *users.Module
+	actorModule *actor.Module
 
 	signatureCheck httputil.Middleware
 }
 
-func (suite *UserStandardTestSuite) SetupSuite() {
+func (suite *ActorStandardTestSuite) SetupSuite() {
 	suite.testTokens = testrig.NewTestTokens()
 	suite.testApplications = testrig.NewTestApplications()
 	suite.testUsers = testrig.NewTestUsers()
@@ -74,7 +74,7 @@ func (suite *UserStandardTestSuite) SetupSuite() {
 	suite.testActivities = testrig.NewTestActivities(suite.testAccounts)
 }
 
-func (suite *UserStandardTestSuite) SetupTest() {
+func (suite *ActorStandardTestSuite) SetupTest() {
 	suite.state.Caches.Init()
 
 	testrig.InitTestConfig()
@@ -100,14 +100,14 @@ func (suite *UserStandardTestSuite) SetupTest() {
 	)
 	testrig.StartWorkers(&suite.state, suite.processor.Workers())
 
-	suite.userModule = users.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
+	suite.actorModule = actor.New(suite.processor, testrig.LoadTemplates(&suite.state, ""))
 	testrig.StandardDBSetup(suite.db, suite.testAccounts)
 	testrig.StandardStorageSetup(suite.storage, "../../../../testrig/media")
 
 	suite.signatureCheck = middleware.ExtractSignature(suite.db.IsURIBlocked)
 }
 
-func (suite *UserStandardTestSuite) TearDownTest() {
+func (suite *ActorStandardTestSuite) TearDownTest() {
 	testrig.StandardDBTeardown(suite.db)
 	testrig.StandardStorageTeardown(suite.storage)
 	testrig.StopWorkers(&suite.state)

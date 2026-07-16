@@ -49,7 +49,11 @@ func (p *Processor) BlockCreate(ctx context.Context, requestingAccount *gtsmodel
 
 	// Create and store a new block.
 	blockID := id.NewULID()
-	blockURI := uris.GenerateURIForBlock(requestingAccount.Username, blockID)
+	blockURI := uris.GenerateURIForBlock(
+		requestingAccount.PathPrefix(),
+		requestingAccount.Username,
+		blockID,
+	)
 	block := &gtsmodel.Block{
 		ID:              blockID,
 		URI:             blockURI,

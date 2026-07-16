@@ -909,10 +909,12 @@ func (suite *InternalToASTestSuite) TestStatusToASPoliteApproved() {
 	// status + corresponding interaction request.
 	username := suite.testAccounts["local_account_2"].Username
 	intReq.ResponseURI = uris.GenerateURIForAccept(
+		uris.UsersPath,
 		username,
 		intReq.ID,
 	)
 	intReq.AuthorizationURI = uris.GenerateURIForAuthorization(
+		uris.UsersPath,
 		username,
 		intReq.ID,
 	)
@@ -1021,10 +1023,12 @@ func (suite *InternalToASTestSuite) TestStatusToASPImpoliteApproved() {
 	// status + corresponding interaction request.
 	username := suite.testAccounts["local_account_2"].Username
 	intReq.ResponseURI = uris.GenerateURIForAccept(
+		uris.UsersPath,
 		username,
 		intReq.ID,
 	)
 	intReq.AuthorizationURI = uris.GenerateURIForAuthorization(
+		uris.UsersPath,
 		username,
 		intReq.ID,
 	)

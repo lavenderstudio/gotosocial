@@ -26,123 +26,219 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/regexes"
 )
 
+// RelayUsernamePrefix is the prefix
+// for local relay actor usernames.
+const RelayUsernamePrefix = "relay."
+
+// PathComponent is a string type alias
+// representing a path within a URI,
+// eg., "users", "accepts", etc.
+type PathComponent = string
+
 const (
-	UsersPath            = "users"             // UsersPath is for serving users info
-	StatusesPath         = "statuses"          // StatusesPath is for serving statuses
-	InboxPath            = "inbox"             // InboxPath represents the activitypub inbox location
-	OutboxPath           = "outbox"            // OutboxPath represents the activitypub outbox location
-	FollowersPath        = "followers"         // FollowersPath represents the activitypub followers location
-	FollowingPath        = "following"         // FollowingPath represents the activitypub following location
-	LikedPath            = "liked"             // LikedPath represents the activitypub liked location
-	CollectionsPath      = "collections"       // CollectionsPath represents the activitypub collections location
-	FeaturedPath         = "featured"          // FeaturedPath represents the activitypub featured location
-	PublicKeyPath        = "main-key"          // PublicKeyPath is for serving an account's public key
-	FollowPath           = "follow"            // FollowPath used to generate the URI for an individual follow or follow request
-	UpdatePath           = "updates"           // UpdatePath is used to generate the URI for an account update
-	BlocksPath           = "blocks"            // BlocksPath is used to generate the URI for a block
-	MovesPath            = "moves"             // MovesPath is used to generate the URI for a move
-	ReportsPath          = "reports"           // ReportsPath is used to generate the URI for a report/flag
-	ConfirmEmailPath     = "confirm_email"     // ConfirmEmailPath is used to generate the URI for an email confirmation link
-	FileserverPath       = "fileserver"        // FileserverPath is a path component for serving attachments + media
-	EmojiPath            = "emoji"             // EmojiPath represents the activitypub emoji location
-	TagsPath             = "tags"              // TagsPath represents the activitypub tags location
-	AcceptsPath          = "accepts"           // AcceptsPath represents the activitypub Accept's location
-	AuthorizationsPath   = "authorizations"    // AuthorizationsPath represents the location of an Authorization type such as LikeAuthorization, ReplyAuthorization, etc.
-	RejectsPath          = "rejects"           // RejectsPath represents the activitypub Reject's location
-	LikeRequestsPath     = "like_requests"     // LikeRequestsPath is used to generate the URI for a LikeRequest.
-	ReplyRequestsPath    = "reply_requests"    // ReplyRequestsPath is used to generate the URI for a ReplyRequest.
-	AnnounceRequestsPath = "announce_requests" // LikeRequestsPath is used to generate the URI for an AnnounceRequest.
+	// UsersPath is for serving user actors.
+	UsersPath PathComponent = "users"
+
+	// RelaysPath is like UsersPath
+	// but for our local relay actors.
+	RelaysPath PathComponent = "relays"
+
+	// StatusesPath is for serving statuses.
+	StatusesPath PathComponent = "statuses"
+
+	// InboxPath represents the
+	// ActivityPub inbox location.
+	InboxPath PathComponent = "inbox"
+
+	// OutboxPath represents the
+	// ActivityPub outbox location.
+	OutboxPath PathComponent = "outbox"
+
+	// FollowersPath represents the
+	// ActivityPub followers location.
+	FollowersPath PathComponent = "followers"
+
+	// FollowingPath represents the
+	// ActivityPub following location.
+	FollowingPath PathComponent = "following"
+
+	// LikedPath represents the
+	// ActivityPub liked location.
+	LikedPath PathComponent = "liked"
+
+	// CollectionsPath represents the
+	// ActivityPub collections location.
+	CollectionsPath PathComponent = "collections"
+
+	// FeaturedPath represents the
+	// ActivityPub featured location.
+	FeaturedPath PathComponent = "featured"
+
+	// PublicKeyPath is for serving
+	// an actor's public RSA key.
+	PublicKeyPath PathComponent = "main-key"
+
+	// FollowPath is used to generate the
+	// URI for a Follow (request) Activity.
+	FollowPath PathComponent = "follow"
+
+	// UpdatePath is used to generate
+	// the URI for an Update activity.
+	UpdatePath PathComponent = "updates"
+
+	// BlocksPath is used to generate
+	// the URI for a Block activity.
+	BlocksPath PathComponent = "blocks"
+
+	// MovesPath is used to generate
+	// the URI for a Move activity.
+	MovesPath PathComponent = "moves"
+
+	// ReportsPath is used to generate the
+	// URI for a Flag (ie., report) activity.
+	ReportsPath PathComponent = "reports"
+
+	// ConfirmEmailPath is used to generate
+	// the URI for an email confirmation link.
+	ConfirmEmailPath PathComponent = "confirm_email"
+
+	// FileserverPath is a path component
+	// for serving attachments + emoji files.
+	FileserverPath PathComponent = "fileserver"
+
+	// EmojiPath represents the
+	// ActivityPub Emoji location.
+	EmojiPath PathComponent = "emoji"
+
+	// TagsPath represents the
+	// ActivityPub Tags location.
+	TagsPath PathComponent = "tags"
+
+	// AcceptsPath represents the location
+	// of an ActivityPub Accept activity.
+	AcceptsPath PathComponent = "accepts"
+
+	// RejectsPath represents the location
+	// of an ActivityPub Reject activity.
+	RejectsPath PathComponent = "rejects"
+
+	// AuthorizationsPath represents the location of
+	// an Authorization type such as LikeAuthorization,
+	// ReplyAuthorization, AnnounceAuthorization, etc.
+	AuthorizationsPath PathComponent = "authorizations"
+
+	// LikeRequestsPath is used to generate
+	// the URI for a LikeRequest activity.
+	LikeRequestsPath PathComponent = "like_requests"
+
+	// ReplyRequestsPath is used to generate
+	// the URI for a ReplyRequest activity.
+	ReplyRequestsPath PathComponent = "reply_requests"
+
+	// LikeRequestsPath is used to generate
+	// the URI for an AnnounceRequest activity.
+	AnnounceRequestsPath PathComponent = "announce_requests"
 )
 
-// UserURIs contains a bunch of UserURIs
+// ActorURIs encapsulates a bunch of URIs
 // and URLs for a user, host, account, etc.
-type UserURIs struct {
+type ActorURIs struct {
 
 	// The web URL of the instance
 	// host, eg https://example.org
 	HostURL string
 
-	// The web URL of the user,
+	// The web URL of the actor,
 	// eg., https://example.org/@example_user
-	UserURL string
+	ActorURL string
 
-	// The web URL for statuses of this user,
+	// The web URL for statuses of this actor,
 	// eg., https://example.org/@example_user/statuses
 	StatusesURL string
 
-	// The activitypub URI of this user,
+	// The ActivityPub URI/ID of the actor,
 	// eg., https://example.org/users/example_user
-	UserURI string
+	ActorURI string
 
-	// The activitypub URI for this user's statuses,
+	// The ActivityPub URI for this actor's statuses,
 	// eg., https://example.org/users/example_user/statuses
 	StatusesURI string
 
-	// The activitypub URI for this user's activitypub inbox,
+	// The ActivityPub URI for this actor's ActivityPub inbox,
 	// eg., https://example.org/users/example_user/inbox
 	InboxURI string
 
-	// The activitypub URI for this user's activitypub outbox,
+	// The ActivityPub URI for this actor's ActivityPub outbox,
 	// eg., https://example.org/users/example_user/outbox
 	OutboxURI string
 
-	// The activitypub URI for this user's followers,
+	// The ActivityPub URI for this actor's followers,
 	// eg., https://example.org/users/example_user/followers
 	FollowersURI string
 
-	// The activitypub URI for this user's following,
+	// The ActivityPub URI for this actor's following,
 	// eg., https://example.org/users/example_user/following
 	FollowingURI string
 
-	// The activitypub URI for this user's liked posts.
+	// The ActivityPub URI for this actor's liked posts.
 	// eg., https://example.org/users/example_user/liked
 	LikedURI string
 
-	// The activitypub URI for this user's featured collections,
+	// The ActivityPub URI for this actor's featured collections,
 	// eg., https://example.org/users/example_user/collections/featured
 	FeaturedCollectionURI string
 
-	// The URI for this user's public key,
+	// The URI for this actor's public key,
 	// eg., https://example.org/users/example_user/publickey
 	PublicKeyURI string
 }
 
+// ensure path prefix is as expected, or panic.
+func checkPathPrefix(pc PathComponent) PathComponent {
+	switch pc {
+	case UsersPath, RelaysPath:
+		return pc // OK.
+	default:
+		panic("unusable pathPrefix")
+	}
+}
+
 // GenerateURIForFollow returns the AP URI for a new follow -- something like:
 // https://example.org/users/whatever_user/follow/01F7XTH1QGBAPMGF49WJZ91XGC
-func GenerateURIForFollow(username string, thisFollowID string) string {
+func GenerateURIForFollow(pathPrefix PathComponent, username string, id string) string {
 	proto := config.GetProtocol()
 	host := config.GetHost()
 	return buildURL4(proto,
 		host,
-		UsersPath,
+		checkPathPrefix(pathPrefix),
 		username,
 		FollowPath,
-		thisFollowID,
+		id,
 	)
 }
 
 // GenerateURIForLike returns the AP URI for a new like/fave -- something like:
 // https://example.org/users/whatever_user/liked/01F7XTH1QGBAPMGF49WJZ91XGC
-func GenerateURIForLike(username string, thisFavedID string) string {
+func GenerateURIForLike(pathPrefix PathComponent, username string, id string) string {
 	proto := config.GetProtocol()
 	host := config.GetHost()
 	return buildURL4(proto,
 		host,
-		UsersPath,
+		checkPathPrefix(pathPrefix),
 		username,
 		LikedPath,
-		thisFavedID,
+		id,
 	)
 }
 
 // GenerateURIForUpdate returns the AP URI for a new update activity -- something like:
 // https://example.org/users/whatever_user#updates/01F7XTH1QGBAPMGF49WJZ91XGC
-func GenerateURIForUpdate(username string, thisUpdateID string) string {
+func GenerateURIForUpdate(pathPrefix PathComponent, username string, thisUpdateID string) string {
 	proto := config.GetProtocol()
 	host := config.GetHost()
 	return buildURL4(proto,
 		host,
-		UsersPath,
+		checkPathPrefix(pathPrefix),
 		username,
 		UpdatePath,
 		thisUpdateID,
@@ -151,12 +247,12 @@ func GenerateURIForUpdate(username string, thisUpdateID string) string {
 
 // GenerateURIForBlock returns the AP URI for a new block activity -- something like:
 // https://example.org/users/whatever_user/blocks/01F7XTH1QGBAPMGF49WJZ91XGC
-func GenerateURIForBlock(username string, thisBlockID string) string {
+func GenerateURIForBlock(pathPrefix PathComponent, username string, thisBlockID string) string {
 	proto := config.GetProtocol()
 	host := config.GetHost()
 	return buildURL4(proto,
 		host,
-		UsersPath,
+		checkPathPrefix(pathPrefix),
 		username,
 		BlocksPath,
 		thisBlockID,
@@ -165,12 +261,12 @@ func GenerateURIForBlock(username string, thisBlockID string) string {
 
 // GenerateURIForMove returns the AP URI for a new Move activity -- something like:
 // https://example.org/users/whatever_user/moves/01F7XTH1QGBAPMGF49WJZ91XGC
-func GenerateURIForMove(username string, thisMoveID string) string {
+func GenerateURIForMove(pathPrefix PathComponent, username string, thisMoveID string) string {
 	proto := config.GetProtocol()
 	host := config.GetHost()
 	return buildURL4(proto,
 		host,
-		UsersPath,
+		checkPathPrefix(pathPrefix),
 		username,
 		MovesPath,
 		thisMoveID,
@@ -202,12 +298,12 @@ func GenerateURIForEmailConfirm(token string) string {
 
 // GenerateURIForAccept returns the AP URI for a new Accept activity -- something like:
 // https://example.org/users/whatever_user/accepts/01F7XTH1QGBAPMGF49WJZ91XGC
-func GenerateURIForAccept(username string, thisAcceptID string) string {
+func GenerateURIForAccept(pathPrefix PathComponent, username string, thisAcceptID string) string {
 	proto := config.GetProtocol()
 	host := config.GetHost()
 	return buildURL4(proto,
 		host,
-		UsersPath,
+		checkPathPrefix(pathPrefix),
 		username,
 		AcceptsPath,
 		thisAcceptID,
@@ -217,12 +313,12 @@ func GenerateURIForAccept(username string, thisAcceptID string) string {
 // GenerateURIForAuthorization returns the AP URI for a new Authorization object,
 // ie., LikeAuthorization, ReplyAuthorization, or AnnounceAuthorization.
 // Eg., https://example.org/users/whatever_user/authorizations/01F7XTH1QGBAPMGF49WJZ91XGC
-func GenerateURIForAuthorization(username string, id string) string {
+func GenerateURIForAuthorization(pathPrefix PathComponent, username string, id string) string {
 	proto := config.GetProtocol()
 	host := config.GetHost()
 	return buildURL4(proto,
 		host,
-		UsersPath,
+		checkPathPrefix(pathPrefix),
 		username,
 		AuthorizationsPath,
 		id,
@@ -231,12 +327,12 @@ func GenerateURIForAuthorization(username string, id string) string {
 
 // GenerateURIForLikeRequest returns the AP URI for a new LikeRequest object,
 // Eg., https://example.org/users/whatever_user/like_requests/01F7XTH1QGBAPMGF49WJZ91XGC
-func GenerateURIForLikeRequest(username string, id string) string {
+func GenerateURIForLikeRequest(pathPrefix PathComponent, username string, id string) string {
 	proto := config.GetProtocol()
 	host := config.GetHost()
 	return buildURL4(proto,
 		host,
-		UsersPath,
+		checkPathPrefix(pathPrefix),
 		username,
 		LikeRequestsPath,
 		id,
@@ -245,12 +341,12 @@ func GenerateURIForLikeRequest(username string, id string) string {
 
 // GenerateURIForReplyRequest returns the AP URI for a new ReplyRequest object,
 // Eg., https://example.org/users/whatever_user/reply_requests/01F7XTH1QGBAPMGF49WJZ91XGC
-func GenerateURIForReplyRequest(username string, id string) string {
+func GenerateURIForReplyRequest(pathPrefix PathComponent, username string, id string) string {
 	proto := config.GetProtocol()
 	host := config.GetHost()
 	return buildURL4(proto,
 		host,
-		UsersPath,
+		checkPathPrefix(pathPrefix),
 		username,
 		ReplyRequestsPath,
 		id,
@@ -259,12 +355,12 @@ func GenerateURIForReplyRequest(username string, id string) string {
 
 // GenerateURIForAnnounceRequest returns the AP URI for a new AnnounceRequest object,
 // Eg., https://example.org/users/whatever_user/announce_requests/01F7XTH1QGBAPMGF49WJZ91XGC
-func GenerateURIForAnnounceRequest(username string, id string) string {
+func GenerateURIForAnnounceRequest(pathPrefix PathComponent, username string, id string) string {
 	proto := config.GetProtocol()
 	host := config.GetHost()
 	return buildURL4(proto,
 		host,
-		UsersPath,
+		checkPathPrefix(pathPrefix),
 		username,
 		AnnounceRequestsPath,
 		id,
@@ -273,31 +369,36 @@ func GenerateURIForAnnounceRequest(username string, id string) string {
 
 // GenerateURIForReject returns the AP URI for a new Reject activity -- something like:
 // https://example.org/users/whatever_user/rejects/01F7XTH1QGBAPMGF49WJZ91XGC
-func GenerateURIForReject(username string, thisRejectID string) string {
+func GenerateURIForReject(pathPrefix PathComponent, username string, thisRejectID string) string {
 	proto := config.GetProtocol()
 	host := config.GetHost()
 	return buildURL4(proto,
 		host,
-		UsersPath,
+		checkPathPrefix(pathPrefix),
 		username,
 		RejectsPath,
 		thisRejectID,
 	)
 }
 
-// GenerateURIsForAccount throws together a bunch of URIs
-// for the given username, with the given protocol and host.
-func GenerateURIsForAccount(username string) UserURIs {
+// GenerateActorURIs throws together a bunch
+// of URIs for the actor with the given username.
+func GenerateActorURIs(pathPrefix PathComponent, username string) ActorURIs {
 	proto := config.GetProtocol()
 	host := config.GetHost()
 
 	// URLs for serving web requests.
 	hostURL := proto + "://" + host
-	userURL := hostURL + "/@" + username
+	var userURL string
+	if pathPrefix == RelaysPath {
+		userURL = hostURL + "/@relay." + username
+	} else {
+		userURL = hostURL + "/@" + username
+	}
 	statusesURL := userURL + "/" + StatusesPath
 
-	// the below URIs are used in ActivityPub and Webfinger
-	userURI := hostURL + "/" + UsersPath + "/" + username
+	// The below URIs are used in ActivityPub and Webfinger
+	userURI := hostURL + "/" + string(checkPathPrefix(pathPrefix)) + "/" + username
 	statusesURI := userURI + "/" + StatusesPath
 	inboxURI := userURI + "/" + InboxPath
 	outboxURI := userURI + "/" + OutboxPath
@@ -307,12 +408,11 @@ func GenerateURIsForAccount(username string) UserURIs {
 	collectionURI := userURI + "/" + CollectionsPath + "/" + FeaturedPath
 	publicKeyURI := userURI + "/" + PublicKeyPath
 
-	return UserURIs{
-		HostURL:     hostURL,
-		UserURL:     userURL,
-		StatusesURL: statusesURL,
-
-		UserURI:               userURI,
+	return ActorURIs{
+		HostURL:               hostURL,
+		ActorURL:              userURL,
+		StatusesURL:           statusesURL,
+		ActorURI:              userURI,
 		StatusesURI:           statusesURI,
 		InboxURI:              inboxURI,
 		OutboxURI:             outboxURI,
@@ -324,8 +424,8 @@ func GenerateURIsForAccount(username string) UserURIs {
 	}
 }
 
-// URIForAttachment generates a URI for
-// an attachment/emoji/header etc.
+// URIForAttachment generates a URI
+// for an attachment/emoji/header etc.
 //
 // Will produce something like:
 //
@@ -386,7 +486,7 @@ func URIForEmoji(emojiID string) string {
 	)
 }
 
-// URIForTag generates an activitypub uri for a tag.
+// URIForTag generates an ActivityPub uri for a tag.
 func URIForTag(name string) string {
 	proto := config.GetProtocol()
 	host := config.GetHost()
@@ -398,14 +498,14 @@ func URIForTag(name string) string {
 	)
 }
 
-// IsUserPath returns true if the given URL path corresponds to eg /users/example_username
-func IsUserPath(id *url.URL) bool {
-	return regexes.UserPath.MatchString(id.Path)
+// IsActorPath returns true if the given URL path corresponds to eg /users/example_username
+func IsActorPath(id *url.URL) bool {
+	return regexes.ActorPath.MatchString(id.Path)
 }
 
 // IsUserWebPath returns true if the given URL path corresponds to eg /@example_username
 func IsUserWebPath(id *url.URL) bool {
-	return regexes.UserWebPath.MatchString(id.Path)
+	return regexes.ActorWebPath.MatchString(id.Path)
 }
 
 // IsInboxPath returns true if the given URL path corresponds to eg /users/example_username/inbox
@@ -468,32 +568,57 @@ func IsAcceptsPath(id *url.URL) bool {
 	return regexes.AcceptsPath.MatchString(id.Path)
 }
 
-// ParseStatusesPath returns the username and ulid from a path such as /users/example_username/statuses/SOME_ULID_OF_A_STATUS
-func ParseStatusesPath(id *url.URL) (username string, ulid string, err error) {
+// ParseStatusesPath returns the path prefix, username, and ulid from a
+// path such as /users/example_username/statuses/SOME_ULID_OF_A_STATUS.
+//
+// If the prefix is "relays" then "relay." will be
+// automatically prepended to the returned username.
+func ParseStatusesPath(id *url.URL) (
+	pathPrefix PathComponent,
+	username string,
+	ulid string,
+	err error,
+) {
 	matches := regexes.StatusesPath.FindStringSubmatch(id.Path)
+	if len(matches) != 4 {
+		err = fmt.Errorf("expected 4 matches but matches length was %d", len(matches))
+		return
+	}
+	pathPrefix = matches[1]
+	username = matches[2]
+	if pathPrefix == RelaysPath {
+		username = RelayUsernamePrefix + username
+	}
+	ulid = matches[3]
+	return
+}
+
+// ParseActorPath returns the path prefix and username
+// from a path such as /users/example_username
+//
+// If the prefix is "relays" then "relay." will be
+// automatically prepended to the returned username.
+func ParseActorPath(id *url.URL) (
+	pathPrefix PathComponent,
+	username string,
+	err error,
+) {
+	matches := regexes.ActorPath.FindStringSubmatch(id.Path)
 	if len(matches) != 3 {
 		err = fmt.Errorf("expected 3 matches but matches length was %d", len(matches))
 		return
 	}
-	username = matches[1]
-	ulid = matches[2]
-	return
-}
-
-// ParseUserPath returns the username from a path such as /users/example_username
-func ParseUserPath(id *url.URL) (username string, err error) {
-	matches := regexes.UserPath.FindStringSubmatch(id.Path)
-	if len(matches) != 2 {
-		err = fmt.Errorf("expected 2 matches but matches length was %d", len(matches))
-		return
+	pathPrefix = matches[1]
+	username = matches[2]
+	if pathPrefix == RelaysPath {
+		username = RelayUsernamePrefix + username
 	}
-	username = matches[1]
 	return
 }
 
 // ParseUserPath returns the username from a path such as /@example_username
-func ParseUserWebPath(id *url.URL) (username string, err error) {
-	matches := regexes.UserWebPath.FindStringSubmatch(id.Path)
+func ParseActorWebPath(id *url.URL) (username string, err error) {
+	matches := regexes.ActorWebPath.FindStringSubmatch(id.Path)
 	if len(matches) != 2 {
 		err = fmt.Errorf("expected 2 matches but matches length was %d", len(matches))
 		return
@@ -502,71 +627,145 @@ func ParseUserWebPath(id *url.URL) (username string, err error) {
 	return
 }
 
-// ParseInboxPath returns the username from a path such as /users/example_username/inbox
-func ParseInboxPath(id *url.URL) (username string, err error) {
+// ParseInboxPath returns the path prefix and username
+// from a path such as /users/example_username/inbox
+//
+// If the prefix is "relays" then "relay." will be
+// automatically prepended to the returned username.
+func ParseInboxPath(id *url.URL) (
+	pathPrefix PathComponent,
+	username string,
+	err error,
+) {
 	matches := regexes.InboxPath.FindStringSubmatch(id.Path)
-	if len(matches) != 2 {
+	if len(matches) != 3 {
 		err = fmt.Errorf("expected 2 matches but matches length was %d", len(matches))
 		return
 	}
-	username = matches[1]
+	pathPrefix = matches[1]
+	username = matches[2]
+	if pathPrefix == RelaysPath {
+		username = RelayUsernamePrefix + username
+	}
 	return
 }
 
-// ParseOutboxPath returns the username from a path such as /users/example_username/outbox
-func ParseOutboxPath(id *url.URL) (username string, err error) {
+// ParseOutboxPath returns the path prefix and username
+// from a path such as /users/example_username/outbox
+//
+// If the prefix is "relays" then "relay." will be
+// automatically prepended to the returned username.
+func ParseOutboxPath(id *url.URL) (
+	pathPrefix PathComponent,
+	username string,
+	err error,
+) {
 	matches := regexes.OutboxPath.FindStringSubmatch(id.Path)
-	if len(matches) != 2 {
-		err = fmt.Errorf("expected 2 matches but matches length was %d", len(matches))
+	if len(matches) != 3 {
+		err = fmt.Errorf("expected 3 matches but matches length was %d", len(matches))
 		return
 	}
-	username = matches[1]
+	pathPrefix = matches[1]
+	username = matches[2]
+	if pathPrefix == RelaysPath {
+		username = RelayUsernamePrefix + username
+	}
 	return
 }
 
-// ParseFollowersPath returns the username from a path such as /users/example_username/followers
-func ParseFollowersPath(id *url.URL) (username string, err error) {
+// ParseFollowersPath returns the path prefix and username
+// from a path such as /users/example_username/followers
+//
+// If the prefix is "relays" then "relay." will be
+// automatically prepended to the returned username.
+func ParseFollowersPath(id *url.URL) (
+	pathPrefix PathComponent,
+	username string,
+	err error,
+) {
 	matches := regexes.FollowersPath.FindStringSubmatch(id.Path)
-	if len(matches) != 2 {
-		err = fmt.Errorf("expected 2 matches but matches length was %d", len(matches))
+	if len(matches) != 3 {
+		err = fmt.Errorf("expected 3 matches but matches length was %d", len(matches))
 		return
 	}
-	username = matches[1]
+	pathPrefix = matches[1]
+	username = matches[2]
+	if pathPrefix == RelaysPath {
+		username = RelayUsernamePrefix + username
+	}
 	return
 }
 
-// ParseFollowingPath returns the username from a path such as /users/example_username/following
-func ParseFollowingPath(id *url.URL) (username string, err error) {
+// ParseFollowingPath returns the path prefix and username
+// from a path such as /users/example_username/following
+//
+// If the prefix is "relays" then "relay." will be
+// automatically prepended to the returned username.
+func ParseFollowingPath(id *url.URL) (
+	pathPrefix PathComponent,
+	username string,
+	err error,
+) {
 	matches := regexes.FollowingPath.FindStringSubmatch(id.Path)
-	if len(matches) != 2 {
-		err = fmt.Errorf("expected 2 matches but matches length was %d", len(matches))
+	if len(matches) != 3 {
+		err = fmt.Errorf("expected 3 matches but matches length was %d", len(matches))
 		return
 	}
-	username = matches[1]
+	pathPrefix = matches[1]
+	username = matches[2]
+	if pathPrefix == RelaysPath {
+		username = RelayUsernamePrefix + username
+	}
 	return
 }
 
-// ParseLikedPath returns the username and ulid from a path such as /users/example_username/liked/SOME_ULID_OF_A_STATUS
-func ParseLikedPath(id *url.URL) (username string, ulid string, err error) {
+// ParseLikedPath returns the path prefix, username, and ulid from a
+// path such as /users/example_username/liked/SOME_ULID_OF_A_STATUS
+//
+// If the prefix is "relays" then "relay." will be
+// automatically prepended to the returned username.
+func ParseLikedPath(id *url.URL) (
+	pathPrefix PathComponent,
+	username string,
+	ulid string,
+	err error,
+) {
 	matches := regexes.LikePath.FindStringSubmatch(id.Path)
-	if len(matches) != 3 {
-		err = fmt.Errorf("expected 3 matches but matches length was %d", len(matches))
+	if len(matches) != 4 {
+		err = fmt.Errorf("expected 4 matches but matches length was %d", len(matches))
 		return
 	}
-	username = matches[1]
-	ulid = matches[2]
+	pathPrefix = matches[1]
+	username = matches[2]
+	if pathPrefix == RelaysPath {
+		username = RelayUsernamePrefix + username
+	}
+	ulid = matches[3]
 	return
 }
 
-// ParseBlockPath returns the username and ulid from a path such as /users/example_username/blocks/SOME_ULID_OF_A_BLOCK
-func ParseBlockPath(id *url.URL) (username string, ulid string, err error) {
+// ParseBlockPath returns the path prefix, username, and ulid from a
+// path such as /users/example_username/blocks/SOME_ULID_OF_A_BLOCK
+//
+// If the prefix is "relays" then "relay." will be
+// automatically prepended to the returned username.
+func ParseBlockPath(id *url.URL) (
+	pathPrefix PathComponent,
+	username string,
+	ulid string,
+	err error,
+) {
 	matches := regexes.BlockPath.FindStringSubmatch(id.Path)
-	if len(matches) != 3 {
-		err = fmt.Errorf("expected 3 matches but matches length was %d", len(matches))
+	if len(matches) != 4 {
+		err = fmt.Errorf("expected 4 matches but matches length was %d", len(matches))
 		return
 	}
-	username = matches[1]
-	ulid = matches[2]
+	pathPrefix = matches[1]
+	username = matches[2]
+	if pathPrefix == RelaysPath {
+		username = RelayUsernamePrefix + username
+	}
+	ulid = matches[3]
 	return
 }
 

@@ -67,8 +67,16 @@ func (p *Processor) Accept(
 	// Mark the request as accepted
 	// and generate URIs for it.
 	req.AcceptedAt = time.Now()
-	req.ResponseURI = uris.GenerateURIForAccept(acct.Username, req.ID)
-	req.AuthorizationURI = uris.GenerateURIForAuthorization(acct.Username, req.ID)
+	req.ResponseURI = uris.GenerateURIForAccept(
+		acct.PathPrefix(),
+		acct.Username,
+		req.ID,
+	)
+	req.AuthorizationURI = uris.GenerateURIForAuthorization(
+		acct.PathPrefix(),
+		acct.Username,
+		req.ID,
+	)
 	if err := p.state.DB.UpdateInteractionRequest(
 		ctx,
 		req,

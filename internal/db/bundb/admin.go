@@ -106,7 +106,10 @@ func (a *adminDB) NewSignup(ctx context.Context, newSignup gtsmodel.NewSignup) (
 	// If we didn't yet have an account
 	// with this username, create one now.
 	if account == nil {
-		uris := uris.GenerateURIsForAccount(newSignup.Username)
+		uris := uris.GenerateActorURIs(
+			uris.UsersPath,
+			newSignup.Username,
+		)
 		accountID := id.NewRandomULID()
 
 		privKey, err := rsa.GenerateKey(rand.Reader, rsaKeyBits)
@@ -119,8 +122,8 @@ func (a *adminDB) NewSignup(ctx context.Context, newSignup gtsmodel.NewSignup) (
 			ID:                           accountID,
 			Username:                     newSignup.Username,
 			DisplayName:                  newSignup.Username,
-			URI:                          uris.UserURI,
-			URL:                          uris.UserURL,
+			URI:                          uris.ActorURI,
+			URL:                          uris.ActorURL,
 			InboxURI:                     uris.InboxURI,
 			OutboxURI:                    uris.OutboxURI,
 			FollowingURI:                 uris.FollowingURI,
@@ -277,23 +280,26 @@ func (a *adminDB) CreateInstanceAccount(ctx context.Context) error {
 		return nil
 	}
 
-	key, err := rsa.GenerateKey(rand.Reader, rsaKeyBits)
+	privKey, err := rsa.GenerateKey(rand.Reader, rsaKeyBits)
 	if err != nil {
-		log.Errorf(ctx, "error creating new rsa key: %s", err)
+		err := gtserror.Newf("error creating new rsa private key: %w", err)
 		return err
 	}
 
-	newAccountURIs := uris.GenerateURIsForAccount(username)
+	newAccountURIs := uris.GenerateActorURIs(
+		uris.UsersPath,
+		username,
+	)
 	acct := &gtsmodel.Account{
 		ID:                    id.NewRandomULID(),
 		Username:              username,
 		DisplayName:           username,
-		URL:                   newAccountURIs.UserURL,
-		PrivateKey:            key,
-		PublicKey:             &key.PublicKey,
+		URL:                   newAccountURIs.ActorURL,
+		PrivateKey:            privKey,
+		PublicKey:             &privKey.PublicKey,
 		PublicKeyURI:          newAccountURIs.PublicKeyURI,
 		ActorType:             gtsmodel.AccountActorTypeApplication,
-		URI:                   newAccountURIs.UserURI,
+		URI:                   newAccountURIs.ActorURI,
 		InboxURI:              newAccountURIs.InboxURI,
 		OutboxURI:             newAccountURIs.OutboxURI,
 		FollowersURI:          newAccountURIs.FollowersURI,

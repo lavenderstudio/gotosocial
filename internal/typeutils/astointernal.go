@@ -770,7 +770,7 @@ func (c *Converter) ASFlagToReport(ctx context.Context, flaggable ap.Flaggable) 
 			// to us, just ignore it
 			continue
 
-		case uris.IsUserPath(object):
+		case uris.IsActorPath(object):
 			if targetAccURI != nil {
 				err := gtserror.Newf("multiple target account uris for %s", uri)
 				return nil, gtserror.SetMalformed(err)

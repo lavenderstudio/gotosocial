@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users
+package actor
 
 import (
 	"net/http"
@@ -95,7 +95,7 @@ import (
 //				"$ref": "#/definitions/error"
 //			description: not found
 func (m *Module) StatusRepliesGETHandler(c *httputil.Context) {
-	username, statusID, contentType, errWithCode := m.parseCommonWithID(c)
+	_, username, statusID, contentType, errWithCode := m.parseCommonWithID(c)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return

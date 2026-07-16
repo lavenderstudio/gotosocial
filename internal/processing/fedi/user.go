@@ -27,9 +27,9 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 )
 
-// UserGet handles getting an AP representation of an account.
+// ActorGet handles getting an AP representation of an account.
 // It does auth before returning a JSON serializable interface to the caller.
-func (p *Processor) UserGet(
+func (p *Processor) ActorGet(
 	ctx context.Context,
 	requestedUser string,
 ) (any, gtserror.WithCode) {

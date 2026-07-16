@@ -58,7 +58,7 @@ func (c *Converter) StatusToBoost(
 	// The boost won't use the same IDs as the
 	// target so we need to generate new ones.
 	boostID := id.NewULID()
-	accountURIs := uris.GenerateURIsForAccount(booster.Username)
+	accountURIs := uris.GenerateActorURIs(booster.PathPrefix(), booster.Username)
 
 	boost := &gtsmodel.Status{
 		ID:  boostID,

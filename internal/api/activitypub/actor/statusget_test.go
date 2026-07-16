@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package users_test
+package actor_test
 
 import (
 	"encoding/json"
@@ -34,7 +34,7 @@ import (
 )
 
 type StatusGetTestSuite struct {
-	UserStandardTestSuite
+	ActorStandardTestSuite
 }
 
 func (suite *StatusGetTestSuite) TestGetStatus() {
@@ -58,7 +58,7 @@ func (suite *StatusGetTestSuite) TestGetStatus() {
 	c.SetPathValue(apiutil.IDKey, targetStatus.ID)
 
 	// trigger the function being tested, first passing through sigcheck.
-	suite.signatureCheck.Compile(suite.userModule.StatusGETHandler)(c)
+	suite.signatureCheck.Compile(suite.actorModule.StatusGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)
@@ -106,7 +106,7 @@ func (suite *StatusGetTestSuite) TestGetStatusLowercase() {
 	c.SetPathValue(apiutil.IDKey, strings.ToLower(targetStatus.ID))
 
 	// trigger the function being tested, first passing through sigcheck.
-	suite.signatureCheck.Compile(suite.userModule.StatusGETHandler)(c)
+	suite.signatureCheck.Compile(suite.actorModule.StatusGETHandler)(c)
 
 	// check response
 	suite.EqualValues(http.StatusOK, recorder.Code)

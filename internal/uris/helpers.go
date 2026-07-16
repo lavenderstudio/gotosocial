@@ -23,22 +23,22 @@ package uris
 // you can check this by ensuring these funcs are not output in:
 // go build -gcflags='-m=2' ./internal/uris/ 2>&1 | grep 'cannot inline'
 
-func buildURL1(proto, host, path1 string) string {
+func buildURL1(proto, host string, path1 PathComponent) string {
 	return proto + "://" + host + "/" + path1
 }
 
-func buildURL2(proto, host, path1, path2 string) string {
+func buildURL2(proto, host string, path1, path2 PathComponent) string {
 	return proto + "://" + host + "/" + path1 + "/" + path2
 }
 
-func buildURL4(proto, host, path1, path2, path3, path4 string) string {
+func buildURL4(proto, host string, path1, path2, path3, path4 PathComponent) string {
 	return proto + "://" + host + "/" + path1 + "/" + path2 + "/" + path3 + "/" + path4
 }
 
-func buildURL5(proto, host, path1, path2, path3, path4, path5 string) string {
+func buildURL5(proto, host string, path1, path2, path3, path4, path5 PathComponent) string {
 	return proto + "://" + host + "/" + path1 + "/" + path2 + "/" + path3 + "/" + path4 + "/" + path5
 }
 
-func buildPath4(path1, path2, path3, path4 string) string {
+func buildPath4(path1, path2, path3, path4 PathComponent) string {
 	return path1 + "/" + path2 + "/" + path3 + "/" + path4
 }
