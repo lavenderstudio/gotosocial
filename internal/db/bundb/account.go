@@ -725,7 +725,8 @@ func (a *accountDB) PopulateAccount(ctx context.Context, account *gtsmodel.Accou
 		}
 	}
 
-	if account.IsLocal() && account.Settings == nil && !account.IsInstance() {
+	// Only local non-relay, non-instance accounts can have settings.
+	if account.Settings == nil && account.IsLocalUserAccount() {
 		// Account settings not set, fetch from db.
 		account.Settings, err = a.state.DB.GetAccountSettings(
 			ctx, // these are already barebones
@@ -855,6 +856,12 @@ func (a *accountDB) GetAccountCustomCSSByUsername(ctx context.Context, username 
 	account, err := a.GetAccountByUsernameDomain(ctx, username, "")
 	if err != nil {
 		return "", err
+	}
+
+	// Accounts that aren't local user
+	// accounts can't have custom CSS.
+	if !account.IsLocalUserAccount() {
+		return "", nil
 	}
 
 	// Ensure settings populated, in case

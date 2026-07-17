@@ -241,6 +241,7 @@ const (
 	CachePollVoteMemRatioFlag                     = "cache-poll-vote-mem-ratio"
 	CachePollVoteIDsMemRatioFlag                  = "cache-poll-vote-ids-mem-ratio"
 	CacheReportMemRatioFlag                       = "cache-report-mem-ratio"
+	CacheRelayActorMemRatioFlag                   = "cache-relay-actor-mem-ratio"
 	CacheRelayMatcherMemRatioFlag                 = "cache-relay-matcher-mem-ratio"
 	CacheRelayPushMemRatioFlag                    = "cache-relay-push-mem-ratio"
 	CacheRelayPushIDsMemRatioFlag                 = "cache-relay-push-ids-mem-ratio"
@@ -483,6 +484,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Float64("cache-poll-vote-mem-ratio", cfg.Cache.PollVoteMemRatio, "")
 	flags.Float64("cache-poll-vote-ids-mem-ratio", cfg.Cache.PollVoteIDsMemRatio, "")
 	flags.Float64("cache-report-mem-ratio", cfg.Cache.ReportMemRatio, "")
+	flags.Float64("cache-relay-actor-mem-ratio", cfg.Cache.RelayActorMemRatio, "")
 	flags.Float64("cache-relay-matcher-mem-ratio", cfg.Cache.RelayMatcherMemRatio, "")
 	flags.Float64("cache-relay-push-mem-ratio", cfg.Cache.RelayPushMemRatio, "")
 	flags.Float64("cache-relay-push-ids-mem-ratio", cfg.Cache.RelayPushIDsMemRatio, "")
@@ -512,7 +514,7 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 }
 
 func (cfg *Configuration) MarshalMap() map[string]any {
-	cfgmap := make(map[string]any, 244)
+	cfgmap := make(map[string]any, 245)
 	cfgmap["log-level"] = cfg.LogLevel
 	cfgmap["log-format"] = cfg.LogFormat
 	cfgmap["log-timestamp-format"] = cfg.LogTimestampFormat
@@ -717,6 +719,7 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["cache-poll-vote-mem-ratio"] = cfg.Cache.PollVoteMemRatio
 	cfgmap["cache-poll-vote-ids-mem-ratio"] = cfg.Cache.PollVoteIDsMemRatio
 	cfgmap["cache-report-mem-ratio"] = cfg.Cache.ReportMemRatio
+	cfgmap["cache-relay-actor-mem-ratio"] = cfg.Cache.RelayActorMemRatio
 	cfgmap["cache-relay-matcher-mem-ratio"] = cfg.Cache.RelayMatcherMemRatio
 	cfgmap["cache-relay-push-mem-ratio"] = cfg.Cache.RelayPushMemRatio
 	cfgmap["cache-relay-push-ids-mem-ratio"] = cfg.Cache.RelayPushIDsMemRatio
@@ -2504,6 +2507,14 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		cfg.Cache.ReportMemRatio, err = cast.ToFloat64E(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> float64 for 'cache-report-mem-ratio': %w", ival, err)
+		}
+	}
+
+	if ival, ok := cfgmap["cache-relay-actor-mem-ratio"]; ok {
+		var err error
+		cfg.Cache.RelayActorMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> float64 for 'cache-relay-actor-mem-ratio': %w", ival, err)
 		}
 	}
 
@@ -6391,6 +6402,23 @@ func GetCacheReportMemRatio() float64 { return global.GetCacheReportMemRatio() }
 // SetCacheReportMemRatio safely sets the value for global configuration 'Cache.ReportMemRatio' field
 func SetCacheReportMemRatio(v float64) { global.SetCacheReportMemRatio(v) }
 
+// GetCacheRelayActorMemRatio safely fetches the Configuration value for state's 'Cache.RelayActorMemRatio' field
+func (st *ConfigState) GetCacheRelayActorMemRatio() (v float64) {
+	return st.config.Cache.RelayActorMemRatio
+}
+
+// SetCacheRelayActorMemRatio safely sets the Configuration value for state's 'Cache.RelayActorMemRatio' field
+func (st *ConfigState) SetCacheRelayActorMemRatio(v float64) {
+	st.config.Cache.RelayActorMemRatio = v
+	st.reloadToViper()
+}
+
+// GetCacheRelayActorMemRatio safely fetches the value for global configuration 'Cache.RelayActorMemRatio' field
+func GetCacheRelayActorMemRatio() float64 { return global.GetCacheRelayActorMemRatio() }
+
+// SetCacheRelayActorMemRatio safely sets the value for global configuration 'Cache.RelayActorMemRatio' field
+func SetCacheRelayActorMemRatio(v float64) { global.SetCacheRelayActorMemRatio(v) }
+
 // GetCacheRelayMatcherMemRatio safely fetches the Configuration value for state's 'Cache.RelayMatcherMemRatio' field
 func (st *ConfigState) GetCacheRelayMatcherMemRatio() (v float64) {
 	return st.config.Cache.RelayMatcherMemRatio
@@ -7036,6 +7064,7 @@ func (st *ConfigState) GetTotalOfMemRatios() (total float64) {
 	total += st.config.Cache.PollVoteMemRatio
 	total += st.config.Cache.PollVoteIDsMemRatio
 	total += st.config.Cache.ReportMemRatio
+	total += st.config.Cache.RelayActorMemRatio
 	total += st.config.Cache.RelayMatcherMemRatio
 	total += st.config.Cache.RelayPushMemRatio
 	total += st.config.Cache.RelayPushIDsMemRatio
@@ -8202,6 +8231,17 @@ func flattenConfigMap(cfgmap map[string]any) {
 		ival, ok := mapGet(cfgmap, key...)
 		if ok {
 			cfgmap["cache-report-mem-ratio"] = ival
+			nestedKeys[key[0]] = struct{}{}
+			break
+		}
+	}
+
+	for _, key := range [][]string{
+		{"cache", "relay-actor-mem-ratio"},
+	} {
+		ival, ok := mapGet(cfgmap, key...)
+		if ok {
+			cfgmap["cache-relay-actor-mem-ratio"] = ival
 			nestedKeys[key[0]] = struct{}{}
 			break
 		}

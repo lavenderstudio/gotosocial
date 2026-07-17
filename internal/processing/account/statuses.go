@@ -207,10 +207,14 @@ func (p *Processor) WebStatusesGet(
 	// Consider account's preference for including boosts,
 	// as well as provided includeBoosts param, to determine
 	// if we should include boosts when fetching statuses.
+	//
+	// Only user accounts (not instance or relay actors)
+	// can choose to include boosts on the web frontend.
 	var (
-		allowsIncludingBoosts = *account.Settings.WebIncludeBoosts
-		includingBoosts       bool
-		excludingBoosts       bool
+		allowsIncludingBoosts = account.IsLocalUserAccount() &&
+			*account.Settings.WebIncludeBoosts
+		includingBoosts bool
+		excludingBoosts bool
 	)
 	switch {
 	case !allowsIncludingBoosts:

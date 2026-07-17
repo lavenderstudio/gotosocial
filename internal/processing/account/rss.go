@@ -59,7 +59,8 @@ func (p *Processor) GetRSSFeedForUsername(ctx context.Context, username string, 
 	}
 
 	// Ensure account has rss feed enabled.
-	if !*account.Settings.EnableRSS {
+	// Only user accounts can do this.
+	if !account.IsLocalUserAccount() || !*account.Settings.EnableRSS {
 		err := gtserror.New("account RSS feed not enabled")
 		return nil, never, gtserror.NewErrorNotFound(err)
 	}

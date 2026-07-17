@@ -246,6 +246,7 @@ var Defaults = Configuration{
 		PollVoteMemRatio:                     2,
 		PollVoteIDsMemRatio:                  2,
 		ReportMemRatio:                       1,
+		RelayActorMemRatio:                   0.1,
 		RelayMatcherMemRatio:                 0.1,
 		RelayPushMemRatio:                    0.1,
 		RelayPushIDsMemRatio:                 0.1,

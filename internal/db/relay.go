@@ -47,6 +47,27 @@ type Relay interface {
 	// DeleteRelayPush deletes the given relay push.
 	DeleteRelayPush(ctx context.Context, relayPush *gtsmodel.RelayPush) error
 
+	// GetRelayActorByID gets relay actor with the given ID.
+	GetRelayActorByID(ctx context.Context, id string) (*gtsmodel.RelayActor, error)
+
+	// GetRelayActorByURI gets relay actor with the given URI.
+	GetRelayActorByURI(ctx context.Context, uri string) (*gtsmodel.RelayActor, error)
+
+	// GetRelayActors gets all relay actors.
+	GetRelayActors(ctx context.Context) ([]*gtsmodel.RelayActor, error)
+
+	// Populate relay actors populates the given relay actor.
+	PopulateRelayActor(ctx context.Context, relayActor *gtsmodel.RelayActor) error
+
+	// PutRelayActor inserts the given relay actor into the db.
+	PutRelayActor(ctx context.Context, relayActor *gtsmodel.RelayActor) error
+
+	// UpdateRelayActor updates the given relay actor.
+	UpdateRelayActor(ctx context.Context, relayActor *gtsmodel.RelayActor, columns ...string) error
+
+	// DeleteRelayActor deletes the given relay actor.
+	DeleteRelayActor(ctx context.Context, relayActor *gtsmodel.RelayActor) error
+
 	// GetRelaySubscriptionByID gets one relay subscription with the given ID.
 	GetRelaySubscriptionByID(ctx context.Context, id string) (*gtsmodel.RelaySubscription, error)
 

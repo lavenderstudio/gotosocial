@@ -225,6 +225,212 @@ func (r *relayDB) DeleteRelayPush(ctx context.Context, relayPush *gtsmodel.Relay
 	return nil
 }
 
+func (r *relayDB) GetRelayActorByID(ctx context.Context, id string) (*gtsmodel.RelayActor, error) {
+	relayActor, err := r.state.Caches.DB.RelayActor.LoadOne(
+		"ID",
+		func() (*gtsmodel.RelayActor, error) {
+			var relayActor gtsmodel.RelayActor
+			err := r.db.
+				NewSelect().
+				Model(&relayActor).
+				Where("? = ?", bun.Ident("id"), id).
+				Scan(ctx)
+			return &relayActor, err
+		},
+		id,
+	)
+	if err != nil {
+		// already processed
+		return nil, err
+	}
+
+	if !gtscontext.Barebones(ctx) {
+		if err := r.PopulateRelayActor(ctx, relayActor); err != nil {
+			return nil, err
+		}
+	}
+
+	return relayActor, nil
+}
+
+func (r *relayDB) GetRelayActorByURI(ctx context.Context, uri string) (*gtsmodel.RelayActor, error) {
+	relayActor, err := r.state.Caches.DB.RelayActor.LoadOne(
+		"URI",
+		func() (*gtsmodel.RelayActor, error) {
+			var relayActor gtsmodel.RelayActor
+			err := r.db.
+				NewSelect().
+				Model(&relayActor).
+				Where("? = ?", bun.Ident("uri"), uri).
+				Scan(ctx)
+			return &relayActor, err
+		},
+		uri,
+	)
+	if err != nil {
+		// already processed
+		return nil, err
+	}
+
+	if !gtscontext.Barebones(ctx) {
+		if err := r.PopulateRelayActor(ctx, relayActor); err != nil {
+			return nil, err
+		}
+	}
+
+	return relayActor, nil
+}
+
+func (r *relayDB) GetRelayActors(ctx context.Context) ([]*gtsmodel.RelayActor, error) {
+	// Load all IDs.
+	var ids []string
+	if err := r.db.
+		NewSelect().
+		Table("relay_actors").
+		Column("id").
+		Scan(ctx, &ids); err != nil {
+		return nil, err
+	}
+
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	return r.getRelayActorsByIDs(ctx, ids)
+}
+
+func (r *relayDB) getRelayActorsByIDs(ctx context.Context, ids []string) ([]*gtsmodel.RelayActor, error) {
+	relayActors, err := r.state.Caches.DB.RelayActor.LoadIDs("ID",
+		ids,
+		func(uncached []string) ([]*gtsmodel.RelayActor, error) {
+			// Preallocate expected length of uncached relayActors.
+			relayActors := make([]*gtsmodel.RelayActor, 0, len(uncached))
+
+			// Perform database query scanning
+			// the remaining (uncached) IDs.
+			if err := r.db.NewSelect().
+				Model(&relayActors).
+				Where("? IN (?)", bun.Ident("id"), bun.List(uncached)).
+				Scan(ctx); err != nil {
+				return nil, err
+			}
+
+			return relayActors, nil
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Reorder the actores by their
+	// IDs to ensure in correct order.
+	getID := func(r *gtsmodel.RelayActor) string { return r.ID }
+	xslices.OrderBy(relayActors, ids, getID)
+
+	if gtscontext.Barebones(ctx) {
+		// Return without populating.
+		return relayActors, nil
+	}
+
+	// Populate the relay actores. Remove any that
+	// we can't populate from the return slice.
+	var errs gtserror.MultiError
+	relayActors = slices.DeleteFunc(relayActors, func(relayActor *gtsmodel.RelayActor) bool {
+		if err := r.PopulateRelayActor(ctx, relayActor); err != nil {
+			errs.Appendf("error populating relay actor %s: %w", relayActor.ID, err)
+			return true
+		}
+		return false
+	})
+
+	return relayActors, nil
+}
+
+func (r *relayDB) PopulateRelayActor(ctx context.Context, relayActor *gtsmodel.RelayActor) error {
+	// Get relay actor's account (barebones) from the db.
+	// Caller can populate it themselves if they need to.
+	if relayActor.ActorAccount == nil {
+		var err error
+		relayActor.ActorAccount, err = r.state.DB.GetAccountByURI(
+			gtscontext.SetBarebones(ctx),
+			relayActor.URI,
+		)
+		if err != nil {
+			return gtserror.Newf("error getting account for actor: %w", err)
+		}
+	}
+
+	if len(relayActor.MatcherIDs) == 0 {
+		// Nothing more
+		// to populate.
+		return nil
+	}
+
+	var err error
+	relayActor.Matchers, err = r.getRelayMatchersByIDs(ctx, relayActor.MatcherIDs)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		return gtserror.Newf("error getting relay matchers for actor: %w", err)
+	}
+
+	return nil
+}
+
+func (r *relayDB) PutRelayActor(ctx context.Context, relayActor *gtsmodel.RelayActor) error {
+	return r.state.Caches.DB.RelayActor.Store(relayActor, func() error {
+		_, err := r.db.
+			NewInsert().
+			Model(relayActor).
+			Exec(ctx)
+		return err
+	})
+}
+
+func (r *relayDB) UpdateRelayActor(ctx context.Context, relayActor *gtsmodel.RelayActor, columns ...string) error {
+	return r.state.Caches.DB.RelayActor.Store(relayActor, func() error {
+		_, err := r.db.
+			NewUpdate().
+			Model(relayActor).
+			Column(columns...).
+			WherePK().
+			Exec(ctx)
+		return err
+	})
+}
+
+func (r *relayDB) DeleteRelayActor(ctx context.Context, relayActor *gtsmodel.RelayActor) error {
+	if err := r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		// Delete all matchers both known
+		// by actor, and possible stragglers,
+		// storing IDs in relayActor.MatcherIDs.
+		if _, err := tx.
+			NewDelete().
+			Model((*gtsmodel.RelayMatcher)(nil)).
+			Where("? = ?", bun.Ident("relay_id"), relayActor.ID).
+			Returning("?", bun.Ident("id")).
+			Exec(ctx, &relayActor.MatcherIDs); err != nil &&
+			!errors.Is(err, db.ErrNoEntries) {
+			return err
+		}
+
+		// Delete relay actor itself.
+		_, err := tx.
+			NewDelete().
+			Model((*gtsmodel.RelayActor)(nil)).
+			Where("? = ?", bun.Ident("id"), relayActor.ID).
+			Exec(ctx)
+		return err
+	}); err != nil {
+		return err
+	}
+
+	// Invalidate the relay actor itself, and
+	// call invalidate hook in-case not cached.
+	r.state.Caches.DB.RelayActor.Invalidate("ID", relayActor.ID)
+	r.state.Caches.OnInvalidateRelayActor(relayActor)
+
+	return nil
+}
+
 func (r *relayDB) GetRelaySubscriptionByID(ctx context.Context, id string) (*gtsmodel.RelaySubscription, error) {
 	relaySubscription, err := r.state.Caches.DB.RelaySubscription.LoadOne(
 		"ID",

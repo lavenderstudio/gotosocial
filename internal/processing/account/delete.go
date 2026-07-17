@@ -78,7 +78,7 @@ func (p *Processor) Delete(ctx context.Context, account *gtsmodel.Account, origi
 	// manageable by any local / remote account.
 	p.deleteAccountPeripheral(ctx, &log, account)
 
-	if account.IsLocal() {
+	if account.IsLocalUserAccount() {
 		// We delete tokens, applications and clients for
 		// account as one of the last stages during deletion,
 		// as other database models rely on these.

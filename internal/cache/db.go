@@ -233,6 +233,9 @@ type DBCaches struct {
 	// Report provides access to the gtsmodel Report database cache.
 	Report StructCache[*gtsmodel.Report]
 
+	// RelayActor provides access to the gtsmodel LocalRelayActor database cache.
+	RelayActor StructCache[*gtsmodel.RelayActor]
+
 	// RelayMatcher provides access to the gtsmodel RelayMatcher database cache.
 	RelayMatcher StructCache[*gtsmodel.RelayMatcher]
 
@@ -1390,6 +1393,40 @@ func (c *Caches) initReport() {
 		MaxSize:   cap,
 		IgnoreErr: ignoreErrors,
 		Copy:      copyF,
+	})
+}
+
+func (c *Caches) initRelayActor() {
+	// Calculate maximum cache size.
+	cap := calculateResultCacheMax(
+		sizeofRelayActor(), // model in-mem size.
+		config.GetCacheRelayActorMemRatio(),
+	)
+
+	log.Infof(nil, "cache size = %d", cap)
+
+	copyF := func(r1 *gtsmodel.RelayActor) *gtsmodel.RelayActor {
+		r2 := new(gtsmodel.RelayActor)
+		*r2 = *r1
+
+		// Don't store populated
+		// fields in the cache.
+		r2.Matchers = nil
+		r2.ActorAccount = nil
+
+		return r2
+	}
+
+	c.DB.RelayActor.Init(structr.CacheConfig[*gtsmodel.RelayActor]{
+		Indices: []structr.IndexConfig{
+			{Fields: "ID"},
+			{Fields: "CreatedByAccountID", Multiple: true},
+			{Fields: "URI"},
+		},
+		MaxSize:    cap,
+		IgnoreErr:  ignoreErrors,
+		Copy:       copyF,
+		Invalidate: c.OnInvalidateRelayActor,
 	})
 }
 

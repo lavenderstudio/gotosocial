@@ -143,6 +143,102 @@ func (r *RelaySubscription) GetMatchers() []*RelayMatcher {
 	return r.Matchers
 }
 
+// RelayActor represents a *local* relay actor on
+// this instance, created by an instance admin.
+type RelayActor struct {
+	// ID of this item in the database.
+	// Creation time is encoded in the ID.
+	ID string `bun:"type:CHAR(26),pk,nullzero,notnull,unique"`
+
+	// ID of the account that created this relay actor.
+	CreatedByAccountID string `bun:"type:CHAR(26),notnull,nullzero"`
+
+	// ActivityPub URI of the relay actor,
+	// eg., `https://example.org/relays/some_relay_username`
+	URI string `bun:",notnull,nullzero,unique"`
+
+	// Account corresponding to URI.
+	//
+	// Not stored in the database.
+	ActorAccount *Account `bun:"-"`
+
+	// Flags contains numerous boolean
+	// flags for this relay actor.
+	//
+	// Default = relay public posts.
+	Flags RelayFlags `bun:",notnull,default:2"`
+
+	// Boolean flags for config
+	// of the relay actor account.
+	//
+	// Default = WebShowFollowers true.
+	ActorAccountFlags RelayActorAccountFlags `bun:",notnull,default:2"`
+
+	// IDs of matchers that apply
+	// to this relay actor.
+	MatcherIDs []string `bun:"matchers,array"`
+
+	// Matchers corresponding to MatcherIDs.
+	//
+	// Not stored in the database.
+	Matchers []*RelayMatcher `bun:"-"`
+}
+
+// RelayActorAccountFlag is the bit type for
+// individual RelayActorAccountFlag members.
+type RelayActorAccountFlag bitFieldType
+
+const (
+	// NOTE: THE FOLLOWING VALUES SHOULD NEVER
+	// BE CHANGED WITHOUT PERFORMING A DATABASE
+	// MIGRATION TO UPDATE OLD -> NEW BIT VALUES.
+
+	// Show followers of this relay actor on
+	// the web view of the relay actor account.
+	RelayActorAccountFlagWebShowFollowers = 1 << 1
+)
+
+// String returns a human-readable form of RelayActorAccountFlag.
+func (f RelayActorAccountFlag) String() string {
+	switch f {
+	case 0:
+		return "unset"
+	case RelayActorAccountFlagWebShowFollowers:
+		return "web_show_followers"
+	default:
+		panic(fmt.Sprintf("invalid relay flag: %d", f))
+	}
+}
+
+// RelayActorAccountFlags uses smallint bit field type
+// to store a variety of different boolean
+// flags for attached relay entity.
+type RelayActorAccountFlags bitFieldType
+
+// WebShowFollowers returns whether RelayActorAccountFlagWebShowFollowers is set.
+func (f RelayActorAccountFlags) WebShowFollowers() bool {
+	return f&RelayActorAccountFlags(RelayActorAccountFlagWebShowFollowers) != 0
+}
+
+// SetWebShowFollowers sets / unsets the RelayActorAccountFlagWebShowFollowers bit.
+func (f *RelayActorAccountFlags) SetWebShowFollowers(ok bool) {
+	if ok {
+		*f |= RelayActorAccountFlags(RelayActorAccountFlagWebShowFollowers)
+	} else {
+		*f &= ^RelayActorAccountFlags(RelayActorAccountFlagWebShowFollowers)
+	}
+}
+
+// String returns a single human-readable form of RelayActorAccountFlags.
+func (f RelayActorAccountFlags) String() string {
+	var buf byteutil.Buffer
+	buf.B = append(buf.B, '{')
+	buf.B = append(buf.B, "web_show_followers="...)
+	buf.B = strconv.AppendBool(buf.B, f.WebShowFollowers())
+	buf.B = append(buf.B, '}')
+	return buf.String()
+}
+
 // RelayFlag is the bit type for
 // individual RelayFlags members.
 type RelayFlag bitFieldType
@@ -153,40 +249,40 @@ const (
 	// MIGRATION TO UPDATE OLD -> NEW BIT VALUES.
 
 	// RelayFlagPublic controls whether a relay
-	// connection should include public statuses
+	// entity should include public statuses
 	//
 	// Default is true (include public statuses).
 	RelayFlagPublic RelayFlag = 1 << 1
 
 	// RelayFlagUnlisted controls whether a relay
-	// connection should include unlisted statuses.
+	// entity should include unlisted statuses.
 	//
 	// Default is false (don't include unlisted statuses).
 	RelayFlagUnlisted RelayFlag = 1 << 2
 
-	// RelayFlagMatchByDefault controls whether a relay connection
+	// RelayFlagMatchByDefault controls whether a relay entity
 	// should match included, non-ignored statuses by default.
 	//
 	// If set true, and no "exclude"-type matchers are set on the relay
-	// connection, then all included, non-ignored statuses will be relayed.
+	// entity, then all included, non-ignored statuses will be relayed.
 	//
 	// Default is false (don't match by default).
 	RelayFlagMatchByDefault RelayFlag = 1 << 3
 
 	// RelayFlagIgnoreSensitive controls whether a relay
-	// connection should ignore statuses designated as
+	// entity should ignore statuses designated as
 	// sensitive via a content warning or sensitive flag.
 	//
 	// Default is false (don't ignore sensitive).
 	RelayFlagIgnoreSensitive RelayFlag = 1 << 4
 
 	// RelayFlagIgnoreMedia controls whether a relay
-	// connection should ignore statuses with media.
+	// entity should ignore statuses with media.
 	//
 	// Default is false (don't ignore statuses with media).
 	RelayFlagIgnoreMedia RelayFlag = 1 << 5
 
-	// RelayFlagIgnoreReplies controls whether a relay connection
+	// RelayFlagIgnoreReplies controls whether a relay entity
 	// should ignore replies that aren't self-replies in a thread.
 	//
 	// Default is false (don't ignore replies).
@@ -217,7 +313,7 @@ func (f RelayFlag) String() string {
 
 // RelayFlags uses smallint bit field type
 // to store a variety of different boolean
-// flags for attached relay connection.
+// flags for attached relay entity.
 type RelayFlags bitFieldType
 
 // Public returns whether RelayFlagPublic is set.
@@ -334,8 +430,8 @@ type RelayMatcher struct {
 	// Creation time is encoded in the ID.
 	ID string `bun:"type:CHAR(26),pk,nullzero,notnull,unique"`
 
-	// ID of the relay connection (either push
-	// or subscription) to which this matcher applies.
+	// ID of the relay entity (push, subscription,
+	// or actor) to which this matcher applies.
 	RelayID string `bun:"type:CHAR(26),notnull,nullzero,unique:relay_matchers_relay_id_keyword_uniq"`
 
 	// Flags contains numerous boolean

@@ -350,6 +350,17 @@ func (a *Account) IsRelayActor() bool {
 	return a.IsLocal() && strings.HasPrefix(a.Username, uris.RelayUsernamePrefix)
 }
 
+// IsLocalUserAccount returns true if this
+// account is a local user-level account
+// (ie., one that can log in with a token,
+// that has account settings, etc) and not
+// the instance actor or a relay actor.
+func (a *Account) IsLocalUserAccount() bool {
+	return a.IsLocal() &&
+		a.Username != config.GetHost() &&
+		!strings.HasPrefix(a.Username, uris.RelayUsernamePrefix)
+}
+
 // EmojisPopulated returns whether emojis are
 // populated according to current EmojiIDs.
 func (a *Account) EmojisPopulated() bool {

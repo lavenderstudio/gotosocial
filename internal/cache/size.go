@@ -569,6 +569,15 @@ func sizeofReport() uintptr {
 	}))
 }
 
+func sizeofRelayActor() uintptr {
+	return uintptr(size.Of(&gtsmodel.RelayActor{
+		ID:                 exampleID,
+		CreatedByAccountID: exampleID,
+		URI:                exampleURI,
+		MatcherIDs:         []string{exampleID, exampleID, exampleID},
+	}))
+}
+
 func sizeofRelayMatcher() uintptr {
 	return uintptr(size.Of(&gtsmodel.RelayMatcher{
 		ID:      exampleID,
