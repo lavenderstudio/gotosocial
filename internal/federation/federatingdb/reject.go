@@ -139,31 +139,13 @@ func (f *DB) rejectFollowType(
 		return gtserror.NewErrorInternalError(err)
 	}
 
-	// Make sure the creator of the original follow
-	// is the same as whatever inbox this landed in.
-	if follow.AccountID != receivingAcct.ID {
-		const text = "Follow account and inbox account were not the same"
-		return gtserror.NewErrorUnprocessableEntity(errors.New(text), text)
-	}
-
-	// Make sure the target of the original follow
-	// is the same as the account making the request.
-	if follow.TargetAccountID != requestingAcct.ID {
-		const text = "Follow target account and requesting account were not the same"
-		return gtserror.NewErrorForbidden(errors.New(text), text)
-	}
-
 	// Reject the follow.
-	err = f.state.DB.RejectFollowRequest(ctx,
+	return f.rejectFollow(ctx,
+		receivingAcct,
+		requestingAcct,
 		follow.AccountID,
 		follow.TargetAccountID,
 	)
-	if err != nil && !errors.Is(err, db.ErrNoEntries) {
-		err := gtserror.Newf("db error rejecting follow request: %w", err)
-		return gtserror.NewErrorInternalError(err)
-	}
-
-	return nil
 }
 
 func (f *DB) rejectFollowIRI(
@@ -172,44 +154,79 @@ func (f *DB) rejectFollowIRI(
 	receivingAcct *gtsmodel.Account,
 	requestingAcct *gtsmodel.Account,
 ) error {
-	// Get the follow req from the db.
+	// Try to get the follow req from the db.
 	followReq, err := f.state.DB.GetFollowRequestByURI(ctx, objectIRI)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		err := gtserror.Newf("db error getting follow request: %w", err)
 		return gtserror.NewErrorInternalError(err)
 	}
 
-	if followReq == nil {
-		// We didn't have a follow request
-		// with this URI, so nothing to do.
-		// Just return.
-		//
-		// TODO: Handle Reject Follow to remove
-		// an already-accepted follow relationship.
-		return nil
+	if followReq != nil {
+		// Reject the follow req.
+		return f.rejectFollow(ctx,
+			receivingAcct,
+			requestingAcct,
+			followReq.AccountID,
+			followReq.TargetAccountID,
+		)
 	}
 
-	// Make sure the creator of the original follow
+	// Try to get the follow from the db.
+	follow, err := f.state.DB.GetFollowByURI(ctx, objectIRI)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		err := gtserror.Newf("db error getting follow request: %w", err)
+		return gtserror.NewErrorInternalError(err)
+	}
+
+	if follow != nil {
+		// Reject the Follow.
+		return f.rejectFollow(ctx,
+			receivingAcct,
+			requestingAcct,
+			follow.AccountID,
+			follow.TargetAccountID,
+		)
+	}
+
+	return nil
+}
+
+func (f *DB) rejectFollow(
+	ctx context.Context,
+	receivingAcct *gtsmodel.Account,
+	requestingAcct *gtsmodel.Account,
+	originAccountID string,
+	targetAccountID string,
+) error {
+	// Make sure the origin of the original follow
 	// is the same as whatever inbox this landed in.
-	if followReq.AccountID != receivingAcct.ID {
+	if originAccountID != receivingAcct.ID {
 		const text = "Follow account and inbox account were not the same"
 		return gtserror.NewErrorUnprocessableEntity(errors.New(text), text)
 	}
 
 	// Make sure the target of the original follow
 	// is the same as the account making the request.
-	if followReq.TargetAccountID != requestingAcct.ID {
+	if targetAccountID != requestingAcct.ID {
 		const text = "Follow target account and requesting account were not the same"
 		return gtserror.NewErrorForbidden(errors.New(text), text)
 	}
 
 	// Reject the follow.
-	err = f.state.DB.RejectFollowRequest(ctx,
-		followReq.AccountID,
-		followReq.TargetAccountID,
-	)
-	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+	if err := f.state.DB.RejectFollowRequest(ctx,
+		originAccountID,
+		targetAccountID,
+	); err != nil && !errors.Is(err, db.ErrNoEntries) {
 		err := gtserror.Newf("db error rejecting follow request: %w", err)
+		return gtserror.NewErrorInternalError(err)
+	}
+
+	// Delete follow (if exists).
+	if err := f.state.DB.DeleteFollow(ctx,
+		originAccountID,
+		targetAccountID,
+	); err != nil && !errors.Is(err, db.ErrNoEntries) {
+		err := gtserror.Newf("db error deleting follow: %w", err)
 		return gtserror.NewErrorInternalError(err)
 	}
 

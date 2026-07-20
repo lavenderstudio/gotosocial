@@ -5078,6 +5078,48 @@ paths:
             summary: Set a private note for an account with the given id.
             tags:
                 - accounts
+    /api/v1/accounts/{id}/remove_from_followers:
+        post:
+            operationId: accountRemoveFromFollowers
+            parameters:
+                - description: Account ID.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Your relationship to this account.
+                    schema:
+                        $ref: '#/definitions/accountRelationship'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - write:follows
+            summary: Remove the given account from your followers.
+            tags:
+                - accounts
     /api/v1/accounts/{id}/statuses:
         get:
             description: The statuses will be returned in descending chronological order (newest first), with sequential IDs (bigger = newer).

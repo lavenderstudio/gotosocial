@@ -169,7 +169,7 @@ func (p *Processor) ProcessFromClientAPI(ctx context.Context, cMsg *messages.Fro
 
 		// REJECT FOLLOW (request)
 		case ap.ActivityFollow:
-			return p.clientAPI.RejectFollowRequest(ctx, cMsg)
+			return p.clientAPI.RejectFollow(ctx, cMsg)
 
 		// REJECT USER (ie., new user+account sign-up)
 		case ap.ObjectProfile:
@@ -844,15 +844,20 @@ func (p *clientAPI) AcceptFollow(ctx context.Context, cMsg *messages.FromClientA
 	return nil
 }
 
-func (p *clientAPI) RejectFollowRequest(ctx context.Context, cMsg *messages.FromClientAPI) error {
-	followReq, ok := cMsg.GTSModel.(*gtsmodel.FollowRequest)
-	if !ok {
-		return gtserror.Newf("%T not parseable as *gtsmodel.FollowRequest", cMsg.GTSModel)
+func (p *clientAPI) RejectFollow(ctx context.Context, cMsg *messages.FromClientAPI) error {
+	// Handle either follow or
+	// follow request on cMsg.
+	var follow *gtsmodel.Follow
+	switch f := cMsg.GTSModel.(type) {
+	case *gtsmodel.Follow:
+		follow = f
+	case *gtsmodel.FollowRequest:
+		follow = typeutils.FollowRequestToFollow(f)
+	default:
+		return gtserror.Newf("%T not parseable as *gtsmodel.Follow or *gtsmodel.FollowRequest", f)
 	}
 
-	if err := p.federate.RejectFollow(ctx,
-		typeutils.FollowRequestToFollow(followReq),
-	); err != nil {
+	if err := p.federate.RejectFollow(ctx, follow); err != nil {
 		log.Errorf(ctx, "error federating follow reject: %v", err)
 	}
 

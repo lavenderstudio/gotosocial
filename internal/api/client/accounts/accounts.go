@@ -37,29 +37,31 @@ const (
 	BasePath       = "/v1/accounts"
 	BasePathWithID = BasePath + "/:" + apiutil.IDKey
 
-	BlockPath         = BasePathWithID + "/block"
-	DeletePath        = BasePath + "/delete"
-	FeaturedTagsPath  = BasePathWithID + "/featured_tags"
-	FollowersPath     = BasePathWithID + "/followers"
-	FollowingPath     = BasePathWithID + "/following"
-	FollowPath        = BasePathWithID + "/follow"
-	ListsPath         = BasePathWithID + "/lists"
-	LookupPath        = BasePath + "/lookup"
-	MutePath          = BasePathWithID + "/mute"
-	NotePath          = BasePathWithID + "/note"
-	RelationshipsPath = BasePath + "/relationships"
-	SearchPath        = BasePath + "/search"
-	StatusesPath      = BasePathWithID + "/statuses"
-	UnblockPath       = BasePathWithID + "/unblock"
-	UnfollowPath      = BasePathWithID + "/unfollow"
-	UnmutePath        = BasePathWithID + "/unmute"
-	UpdatePath        = BasePath + "/update_credentials"
-	VerifyPath        = BasePath + "/verify_credentials"
-	MovePath          = BasePath + "/move"
-	AliasPath         = BasePath + "/alias"
-	ThemesPath        = BasePath + "/themes"
+	BlockPath               = BasePathWithID + "/block"
+	DeletePath              = BasePath + "/delete"
+	FeaturedTagsPath        = BasePathWithID + "/featured_tags"
+	FollowersPath           = BasePathWithID + "/followers"
+	FollowingPath           = BasePathWithID + "/following"
+	FollowPath              = BasePathWithID + "/follow"
+	ListsPath               = BasePathWithID + "/lists"
+	LookupPath              = BasePath + "/lookup"
+	MutePath                = BasePathWithID + "/mute"
+	NotePath                = BasePathWithID + "/note"
+	RelationshipsPath       = BasePath + "/relationships"
+	RemoveFromFollowersPath = BasePathWithID + "/remove_from_followers"
+	SearchPath              = BasePath + "/search"
+	StatusesPath            = BasePathWithID + "/statuses"
+	UnblockPath             = BasePathWithID + "/unblock"
+	UnfollowPath            = BasePathWithID + "/unfollow"
+	UnmutePath              = BasePathWithID + "/unmute"
+	UpdatePath              = BasePath + "/update_credentials"
+	VerifyPath              = BasePath + "/verify_credentials"
+	MovePath                = BasePath + "/move"
+	AliasPath               = BasePath + "/alias"
+	ThemesPath              = BasePath + "/themes"
 
-	// ProfileBasePath for the profile API, an extension of the account update API with a different path.
+	// ProfileBasePath for the profile API, an extension
+	// of the account update API with a different path.
 	ProfileBasePath = "/v1/profile"
 	AvatarPath      = ProfileBasePath + "/avatar"
 	HeaderPath      = ProfileBasePath + "/header"
@@ -117,6 +119,9 @@ func (m *Module) Route(g *httputil.RouteGroup) {
 	// block or unblock account
 	g.POST(BlockPath, m.AccountBlockPOSTHandler)
 	g.POST(UnblockPath, m.AccountUnblockPOSTHandler)
+
+	// remove account from followers
+	g.POST(RemoveFromFollowersPath, m.AccountRemoveFromFollowersPOSTHandler)
 
 	// account lists
 	g.GET(ListsPath, m.AccountListsGETHandler)
