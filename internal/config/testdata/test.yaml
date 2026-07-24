@@ -404,13 +404,6 @@ syslog-protocol: "udp"
 # Default: "localhost:514"
 syslog-address: "localhost:514"
 
-# Cache configuration
-cache:
-  gts:
-    account-max-size: 99
-    account-ttl: "3h"
-    account-sweep-freq: "1s"
-
 ##################################
 ##### OBSERVABILITY SETTINGS #####
 ##################################

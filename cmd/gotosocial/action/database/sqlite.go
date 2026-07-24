@@ -34,7 +34,7 @@ var _ action.GTSAction = SQLiteAnalyze
 // var _ action.GTSAction = SQLiteVacuum
 
 func SQLiteAnalyze(ctx context.Context) error {
-	return do(ctx, func(db *bun.DB) error {
+	return do(ctx, true, func(db *bun.DB) error {
 		if db.Dialect().Name() != dialect.SQLite {
 			return errors.New("cannot perform sqlite analyze on non-sqlite db")
 		}

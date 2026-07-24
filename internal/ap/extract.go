@@ -1430,7 +1430,7 @@ func ExtractPoll(poll Pollable) (*gtsmodel.Poll, error) {
 		Multiple:   &multi,
 		HideCounts: &hideCounts,
 		Votes:      optionVotes(options),
-		Voters:     &voters,
+		Voters:     voters,
 		ExpiresAt:  endTime,
 		ClosedAt:   closed,
 	}, nil

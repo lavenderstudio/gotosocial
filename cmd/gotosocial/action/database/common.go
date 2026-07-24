@@ -27,14 +27,15 @@ import (
 	"github.com/uptrace/bun"
 )
 
+// Ping performs an SQL PING to currently configured database.
 func Ping(ctx context.Context) error {
-	return do(ctx, func(db *bun.DB) error {
+	return do(ctx, true, func(db *bun.DB) error {
 		log.Info(ctx, "ping")
 		return db.PingContext(ctx)
 	})
 }
 
-func do(ctx context.Context, do func(db *bun.DB) error) error {
+func do(ctx context.Context, logQueries bool, do func(db *bun.DB) error) error {
 	var state state.State
 
 	// Setup logging
@@ -68,9 +69,12 @@ func do(ctx context.Context, do func(db *bun.DB) error) error {
 		return fmt.Errorf("error creating dbservice: %w", err)
 	}
 
-	// Add hook to log executed queries.
+	// Get underlying bun DB service
+	// and add query logging if required.
 	bundb := db.(*bundb.DBService).DB()
-	bundb = bundb.WithQueryHook(queryHook{})
+	if logQueries {
+		bundb = bundb.WithQueryHook(queryHook{})
+	}
 
 	// Perform the provided db function.
 	if err := do(bundb); err != nil {

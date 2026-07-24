@@ -31,6 +31,7 @@ import (
 // environment, CLI and configuration file variables.
 type ConfigState struct { //nolint
 	viper  *viper.Viper
+	cfgmap map[string]any
 	config Configuration
 }
 
@@ -55,7 +56,17 @@ func (st *ConfigState) Viper(fn func(*viper.Viper)) {
 	st.reloadFromViper()
 }
 
-// RegisterGlobalFlags ...
+// AllSettings returns the "raw" map in which our
+// underlying flag parsing library stores its settings.
+func (st *ConfigState) AllSettings() map[string]any {
+	if st.cfgmap == nil {
+		st.cfgmap = st.viper.AllSettings()
+		flattenConfigMap(st.cfgmap)
+	}
+	return st.cfgmap
+}
+
+// RegisterGlobalFlags registers global configuration flags to given root command.
 func (st *ConfigState) RegisterGlobalFlags(root *cobra.Command) {
 	st.config.RegisterFlags(root.PersistentFlags())
 }
@@ -114,6 +125,7 @@ func (st *ConfigState) Reset() {
 
 // reloadToViper will reload Configuration{} values into viper.
 func (st *ConfigState) reloadToViper() {
+	st.cfgmap = nil // unset cached configuration map.
 	if err := st.viper.MergeConfigMap(st.config.MarshalMap()); err != nil {
 		panic(err)
 	}
@@ -121,7 +133,8 @@ func (st *ConfigState) reloadToViper() {
 
 // reloadFromViper will reload Configuration{} values from viper.
 func (st *ConfigState) reloadFromViper() {
-	if err := st.config.UnmarshalMap(st.viper.AllSettings()); err != nil {
+	st.cfgmap = nil // unset cached configuration map.
+	if err := st.config.UnmarshalMap(st.AllSettings()); err != nil {
 		panic(err)
 	}
 }

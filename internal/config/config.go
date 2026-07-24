@@ -63,30 +63,16 @@ type Configuration struct {
 	LogClientIP        bool   `name:"log-client-ip" usage:"Include the client IP in logs"`
 	RequestIDHeader    string `name:"request-id-header" usage:"Header to extract the Request ID from. Eg.,'X-Request-Id'."`
 
-	ConfigPath                 string        `name:"config-path" usage:"Path to a file containing gotosocial configuration. Values set in this file will be overwritten by values set as env vars or arguments"`
-	ApplicationName            string        `name:"application-name" usage:"Name of the application, used in various places internally"`
-	LandingPageUser            string        `name:"landing-page-user" usage:"the user that should be shown on the instance's landing page"`
-	Host                       string        `name:"host" usage:"Hostname to use for the server (eg., example.org, gotosocial.whatever.com). DO NOT change this on a server that's already run!"`
-	AccountDomain              string        `name:"account-domain" usage:"Domain to use in account names (eg., example.org, whatever.com). If not set, will default to the setting for host. DO NOT change this on a server that's already run!"`
-	Protocol                   string        `name:"protocol" usage:"Protocol to use for the REST api of the server (only use http if you are debugging; https should be used even if running behind a reverse proxy!)"`
-	BindAddress                string        `name:"bind-address" usage:"Bind address to use for the GoToSocial server (eg., 0.0.0.0, 172.138.0.9, [::], localhost). For ipv6, enclose the address in square brackets, eg [2001:db8::fed1]. Default binds to all interfaces."`
-	Port                       int           `name:"port" usage:"Port to use for GoToSocial. Change this to 443 if you're running the binary directly on the host machine."`
-	TrustedProxies             IPPrefixes    `name:"trusted-proxies" usage:"Proxies to trust when parsing x-forwarded headers into real IPs."`
-	SoftwareVersion            string        `name:"software-version" usage:""`
-	DbType                     string        `name:"db-type" usage:"Database type: eg., postgres"`
-	DbAddress                  string        `name:"db-address" usage:"Database ipv4 address, hostname, or filename"`
-	DbPort                     int           `name:"db-port" usage:"Database port"`
-	DbUser                     string        `name:"db-user" usage:"Database username"`
-	DbPassword                 string        `name:"db-password" usage:"Database password"`
-	DbDatabase                 string        `name:"db-database" usage:"Database name"`
-	DbTLSMode                  string        `name:"db-tls-mode" usage:"Database tls mode"`
-	DbTLSCACert                string        `name:"db-tls-ca-cert" usage:"Path to CA cert for db tls connection"`
-	DbMaxOpenConnsMultiplier   int           `name:"db-max-open-conns-multiplier" usage:"Multiplier to use per cpu for max open database connections. 0 or less is normalized to 1."`
-	DbSqliteJournalMode        string        `name:"db-sqlite-journal-mode" usage:"Sqlite only: see https://www.sqlite.org/pragma.html#pragma_journal_mode"`
-	DbSqliteSynchronous        string        `name:"db-sqlite-synchronous" usage:"Sqlite only: see https://www.sqlite.org/pragma.html#pragma_synchronous"`
-	DbSqliteCacheSize          bytesize.Size `name:"db-sqlite-cache-size" usage:"Sqlite only: see https://www.sqlite.org/pragma.html#pragma_cache_size"`
-	DbSqliteBusyTimeout        time.Duration `name:"db-sqlite-busy-timeout" usage:"Sqlite only: see https://www.sqlite.org/pragma.html#pragma_busy_timeout"`
-	DbPostgresConnectionString string        `name:"db-postgres-connection-string" usage:"Full Database URL for connection to postgres"`
+	ConfigPath      string     `name:"config-path" usage:"Path to a file containing gotosocial configuration. Values set in this file will be overwritten by values set as env vars or arguments"`
+	ApplicationName string     `name:"application-name" usage:"Name of the application, used in various places internally"`
+	LandingPageUser string     `name:"landing-page-user" usage:"the user that should be shown on the instance's landing page"`
+	Host            string     `name:"host" usage:"Hostname to use for the server (eg., example.org, gotosocial.whatever.com). DO NOT change this on a server that's already run!"`
+	AccountDomain   string     `name:"account-domain" usage:"Domain to use in account names (eg., example.org, whatever.com). If not set, will default to the setting for host. DO NOT change this on a server that's already run!"`
+	Protocol        string     `name:"protocol" usage:"Protocol to use for the REST api of the server (only use http if you are debugging; https should be used even if running behind a reverse proxy!)"`
+	BindAddress     string     `name:"bind-address" usage:"Bind address to use for the GoToSocial server (eg., 0.0.0.0, 172.138.0.9, [::], localhost). For ipv6, enclose the address in square brackets, eg [2001:db8::fed1]. Default binds to all interfaces."`
+	Port            int        `name:"port" usage:"Port to use for GoToSocial. Change this to 443 if you're running the binary directly on the host machine."`
+	TrustedProxies  IPPrefixes `name:"trusted-proxies" usage:"Proxies to trust when parsing x-forwarded headers into real IPs."`
+	SoftwareVersion string     `name:"software-version" usage:""`
 
 	WebTemplateBaseDir string `name:"web-template-base-dir" usage:"Basedir for html templating files for rendering pages and composing emails."`
 	WebAssetBaseDir    string `name:"web-asset-base-dir" usage:"Directory to serve static assets from, accessible at example.org/assets/"`
@@ -175,6 +161,9 @@ type Configuration struct {
 	SyslogProtocol string `name:"syslog-protocol" usage:"Protocol to use when directing logs to syslog. Leave empty to connect to local syslog."`
 	SyslogAddress  string `name:"syslog-address" usage:"Address:port to send syslog logs to. Leave empty to connect to local syslog."`
 
+	// Database flags.
+	Database DatabaseConfiguration `name:"db"`
+
 	// Advanced flags.
 	Advanced AdvancedConfig `name:"advanced"`
 
@@ -200,6 +189,31 @@ type Configuration struct {
 	AdminMediaListRemoteOnly bool   `name:"remote-only" usage:"list only remote attachments/emojis; if specified then local-only cannot also be true" nocli:"yes"`
 	TestrigSkipDBSetup       bool   `name:"skip-db-setup" usage:"skip testrig database setup with population of test models" nocli:"yes"`
 	TestrigSkipDBTeardown    bool   `name:"skip-db-teardown" usage:"skip testrig database teardown (i.e. data deletion and tables dropped)" nocli:"yes"`
+}
+
+type DatabaseConfiguration struct {
+	Type                   string                `name:"type" usage:"Database type: eg., postgres"`
+	Address                string                `name:"address" usage:"Database ipv4 address, hostname, or filename"`
+	Postgres               PostgresConfiguration `name:""`
+	SQLite                 SQLiteConfiguration   `name:"sqlite"`
+	MaxOpenConnsMultiplier int                   `name:"max-open-conns-multiplier" usage:"Multiplier to use per cpu for max open database connections. 0 or less is normalized to 1."`
+}
+
+type PostgresConfiguration struct {
+	Port             uint16 `name:"port" usage:"Database port"`
+	User             string `name:"user" usage:"Database username"`
+	Password         string `name:"password" usage:"Database password"`
+	Database         string `name:"database" usage:"Database name"`
+	TLSMode          string `name:"tls-mode" usage:"Database tls mode"`
+	TLSCACert        string `name:"tls-ca-cert" usage:"Path to CA cert for db tls connection"`
+	ConnectionString string `name:"postgres-connection-string" usage:"Full Database URL for connection to postgres"`
+}
+
+type SQLiteConfiguration struct {
+	JournalMode string        `name:"journal-mode" usage:"Sqlite only: see https://www.sqlite.org/pragma.html#pragma_journal_mode"`
+	Synchronous string        `name:"synchronous" usage:"Sqlite only: see https://www.sqlite.org/pragma.html#pragma_synchronous"`
+	CacheSize   bytesize.Size `name:"cache-size" usage:"Sqlite only: see https://www.sqlite.org/pragma.html#pragma_cache_size"`
+	BusyTimeout time.Duration `name:"busy-timeout" usage:"Sqlite only: see https://www.sqlite.org/pragma.html#pragma_busy_timeout"`
 }
 
 type HTTPServerConfiguration struct {

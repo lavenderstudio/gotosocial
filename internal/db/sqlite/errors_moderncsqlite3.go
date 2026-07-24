@@ -25,13 +25,12 @@ import (
 
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
-
-	"code.superseriousbusiness.org/gotosocial/internal/db"
 )
 
 // processSQLiteError processes an sqlite3.Error to
 // handle conversion to any of our common db types.
 func processSQLiteError(err error) error {
+
 	// Attempt to cast as sqlite error.
 	sqliteErr, ok := err.(*sqlite.Error)
 	if !ok {
@@ -42,7 +41,7 @@ func processSQLiteError(err error) error {
 	switch sqliteErr.Code() {
 	case sqlite3.SQLITE_CONSTRAINT_UNIQUE,
 		sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY:
-		return db.ErrAlreadyExists
+		return isAlreadyExistsErr{err}
 
 	// Busy should be very rare, but
 	// on busy tell the database to close

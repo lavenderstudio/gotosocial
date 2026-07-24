@@ -27,6 +27,7 @@ import (
 // processPostgresError processes an error, replacing any
 // postgres specific errors with our own error type
 func processPostgresError(err error) error {
+
 	// Attempt to cast as postgres
 	pgErr, ok := err.(*pgconn.PgError)
 	if !ok {
@@ -37,10 +38,27 @@ func processPostgresError(err error) error {
 	// (https://www.postgresql.org/docs/10/errcodes-appendix.html)
 	switch pgErr.Code { //nolint
 	case "23505" /* unique_violation */ :
-		return db.ErrAlreadyExists
+		return isAlreadyExistsErr{err}
 	}
 
 	// Wrap the returned error with the code and
 	// extended code for easier debugging later.
 	return fmt.Errorf("%w (code=%s)", err, pgErr.Code)
+}
+
+// isAlreadyExistsErr wraps an en error to separately
+// implement Is() to return true for db.ErrAlreadyExists,
+// while still returning the more useful err string.
+type isAlreadyExistsErr struct{ err error }
+
+func (err isAlreadyExistsErr) Is(target error) bool {
+	return target == db.ErrAlreadyExists
+}
+
+func (err isAlreadyExistsErr) Error() string {
+	return err.err.Error()
+}
+
+func (err isAlreadyExistsErr) Unwrap() error {
+	return err.err
 }

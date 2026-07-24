@@ -109,8 +109,9 @@ func doMigration(ctx context.Context, db *bun.DB) error {
 	log.Infof(ctx, "MIGRATED DATABASE TO %s", group)
 
 	if db.Dialect().Name() == dialect.SQLite {
+
 		// Perform a final WAL checkpoint after a migration on SQLite.
-		if strings.EqualFold(config.GetDbSqliteJournalMode(), "WAL") {
+		if strings.EqualFold(config.GetDatabaseSQLiteJournalMode(), "WAL") {
 			_, err := db.ExecContext(ctx, "PRAGMA wal_checkpoint(RESTART);")
 			if err != nil {
 				return gtserror.Newf("error performing wal_checkpoint: %w", err)
@@ -124,6 +125,7 @@ func doMigration(ctx context.Context, db *bun.DB) error {
 			log.Warnf(ctx, "ANALYZE failed, query planner may make poor life choices: %s", err)
 		}
 	}
+
 	return nil
 }
 
@@ -134,7 +136,7 @@ func NewBunDBService(ctx context.Context, state *state.State) (db.DB, error) {
 	var dialect func() schema.Dialect
 	var err error
 
-	switch t := strings.ToLower(config.GetDbType()); t {
+	switch t := strings.ToLower(config.GetDatabaseType()); t {
 	case "postgres":
 		sqldb, dialect, err = pgConn(ctx)
 		if err != nil {
@@ -348,16 +350,8 @@ func bunDB(sqldb *sql.DB, dialect func() schema.Dialect) *bun.DB {
 		db.AddQueryHook(observability.InstrumentBun(tracingEnabled, metricsEnabled))
 	}
 
-	// table registration is needed for many-to-many, see:
-	// https://bun.uptrace.dev/orm/many-to-many-relation/
-	for _, t := range []interface{}{
-		&gtsmodel.AccountToEmoji{},
-		&gtsmodel.ConversationToStatus{},
-		&gtsmodel.StatusToEmoji{},
-		&gtsmodel.StatusToTag{},
-	} {
-		db.RegisterModel(t)
-	}
+	// Register our models with bun's ORM.
+	db.RegisterModel(gtsmodel.AllModels()...)
 
 	return db
 }
@@ -369,7 +363,7 @@ func bunDB(sqldb *sql.DB, dialect func() schema.Dialect) *bun.DB {
 // maxOpenConns returns multiplier * GOMAXPROCS,
 // returning just 1 instead if multiplier < 1.
 func maxOpenConns() int {
-	multiplier := config.GetDbMaxOpenConnsMultiplier()
+	multiplier := config.GetDatabaseMaxOpenConnsMultiplier()
 	if multiplier < 1 {
 		return 1
 	}
@@ -377,8 +371,8 @@ func maxOpenConns() int {
 	// Specifically for SQLite databases with
 	// a journal mode of anything EXCEPT "wal",
 	// only 1 concurrent connection is supported.
-	if strings.ToLower(config.GetDbType()) == "sqlite" {
-		journalMode := config.GetDbSqliteJournalMode()
+	if strings.ToLower(config.GetDatabaseType()) == "sqlite" {
+		journalMode := config.GetDatabaseSQLiteJournalMode()
 		journalMode = strings.ToLower(journalMode)
 		if journalMode != "wal" {
 			return 1

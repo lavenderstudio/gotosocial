@@ -20,6 +20,7 @@
 package bundb
 
 import (
+	"cmp"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -27,7 +28,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"time"
 
@@ -77,23 +77,22 @@ func pgConn(ctx context.Context) (*sql.DB, func() schema.Dialect, error) {
 // deriveBunDBPGOptions takes an application config and returns either a ready-to-use set of options
 // with sensible defaults, or an error if it's not satisfied by the provided config.
 func deriveBunDBPGOptions() (*pgx.ConnConfig, error) {
-	// If database URL is defined, ignore
-	// other DB-related configuration fields.
-	if url := config.GetDbPostgresConnectionString(); url != "" {
+
+	// If database URL is defined, ignore other other defined fields.
+	if url := config.GetDatabasePostgresConnectionString(); url != "" {
 		return pgx.ParseConfig(url)
 	}
 
-	// these are all optional, the db adapter figures out defaults
-	address := config.GetDbAddress()
+	// Get postgres database address string.
+	address := config.GetDatabaseAddress()
 
-	// validate database
-	database := config.GetDbDatabase()
-	if database == "" {
+	// Ensure that a postgres database name was given.
+	if config.GetDatabasePostgresDatabase() == "" {
 		return nil, errors.New("no database set")
 	}
 
 	var tlsConfig *tls.Config
-	switch config.GetDbTLSMode() {
+	switch config.GetDatabasePostgresTLSMode() {
 	case "", "disable":
 		break // nothing to do
 	case "enable":
@@ -108,14 +107,17 @@ func deriveBunDBPGOptions() (*pgx.ConnConfig, error) {
 		}
 	}
 
-	if certPath := config.GetDbTLSCACert(); tlsConfig != nil && certPath != "" {
-		// load the system cert pool first -- we'll append the given CA cert to this
+	if certPath := config.GetDatabasePostgresTLSCACert(); tlsConfig != nil && certPath != "" {
+
+		// load the system cert pool first
+		// -- we'll append the given CA cert to this
 		certPool, err := x509.SystemCertPool()
 		if err != nil {
 			return nil, fmt.Errorf("error fetching system CA cert pool: %s", err)
 		}
 
-		// open the file itself and make sure there's something in it
+		// open the file itself and
+		// make sure there's something in it
 		caCertBytes, err := os.ReadFile(certPath)
 		if err != nil {
 			return nil, fmt.Errorf("error opening CA certificate at %s: %s", certPath, err)
@@ -136,31 +138,20 @@ func deriveBunDBPGOptions() (*pgx.ConnConfig, error) {
 			return nil, fmt.Errorf("could not parse cert at %s into x509 certificate: %w", certPath, err)
 		}
 
-		// we're happy, add it to the existing pool and then use this pool in our tls config
+		// we're happy, add it to the existing pool
+		// and then use this pool in our tls config
 		certPool.AddCert(caCert)
 		tlsConfig.RootCAs = certPool
 	}
 
 	cfg, _ := pgx.ParseConfig("")
-	if address != "" {
-		cfg.Host = address
-	}
-	if port := config.GetDbPort(); port > 0 {
-		if port > math.MaxUint16 {
-			return nil, errors.New("invalid port, must be in range 1-65535")
-		}
-		cfg.Port = uint16(port) // #nosec G115 -- Just validated above.
-	}
-	if u := config.GetDbUser(); u != "" {
-		cfg.User = u
-	}
-	if p := config.GetDbPassword(); p != "" {
-		cfg.Password = p
-	}
-	if tlsConfig != nil {
-		cfg.TLSConfig = tlsConfig
-	}
-	cfg.Database = database
+
+	cfg.Host = cmp.Or(address, cfg.Host)
+	cfg.Port = cmp.Or(config.GetDatabasePostgresPort(), cfg.Port)
+	cfg.User = cmp.Or(config.GetDatabasePostgresUser(), cfg.User)
+	cfg.Password = cmp.Or(config.GetDatabasePostgresPassword(), cfg.Password)
+	cfg.TLSConfig = cmp.Or(tlsConfig, cfg.TLSConfig)
+	cfg.Database = config.GetDatabasePostgresDatabase()
 	cfg.RuntimeParams["application_name"] = config.GetApplicationName()
 
 	return cfg, nil

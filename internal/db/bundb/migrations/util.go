@@ -44,7 +44,7 @@ import (
 //
 // see: https://www.sqlite.org/pragma.html#pragma_wal_checkpoint
 func doWALCheckpoint(ctx context.Context, db *bun.DB) error {
-	if db.Dialect().Name() == dialect.SQLite && strings.EqualFold(config.GetDbSqliteJournalMode(), "WAL") {
+	if db.Dialect().Name() == dialect.SQLite && strings.EqualFold(config.GetDatabaseSQLiteJournalMode(), "WAL") {
 		_, err := db.ExecContext(ctx, "PRAGMA wal_checkpoint(RESTART);")
 		if err != nil {
 			return gtserror.Newf("error performing wal_checkpoint: %w", err)

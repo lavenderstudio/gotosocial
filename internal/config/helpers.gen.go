@@ -19,7 +19,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -32,120 +31,28 @@ import (
 )
 
 const (
-	LogLevelFlag                                  = "log-level"
-	LogFormatFlag                                 = "log-format"
-	LogTimestampFormatFlag                        = "log-timestamp-format"
-	LogDbQueriesFlag                              = "log-db-queries"
-	LogClientIPFlag                               = "log-client-ip"
-	RequestIDHeaderFlag                           = "request-id-header"
-	ConfigPathFlag                                = "config-path"
-	ApplicationNameFlag                           = "application-name"
-	LandingPageUserFlag                           = "landing-page-user"
-	HostFlag                                      = "host"
-	AccountDomainFlag                             = "account-domain"
-	ProtocolFlag                                  = "protocol"
-	BindAddressFlag                               = "bind-address"
-	PortFlag                                      = "port"
-	TrustedProxiesFlag                            = "trusted-proxies"
-	SoftwareVersionFlag                           = "software-version"
-	DbTypeFlag                                    = "db-type"
-	DbAddressFlag                                 = "db-address"
-	DbPortFlag                                    = "db-port"
-	DbUserFlag                                    = "db-user"
-	DbPasswordFlag                                = "db-password"
-	DbDatabaseFlag                                = "db-database"
-	DbTLSModeFlag                                 = "db-tls-mode"
-	DbTLSCACertFlag                               = "db-tls-ca-cert"
-	DbMaxOpenConnsMultiplierFlag                  = "db-max-open-conns-multiplier"
-	DbSqliteJournalModeFlag                       = "db-sqlite-journal-mode"
-	DbSqliteSynchronousFlag                       = "db-sqlite-synchronous"
-	DbSqliteCacheSizeFlag                         = "db-sqlite-cache-size"
-	DbSqliteBusyTimeoutFlag                       = "db-sqlite-busy-timeout"
-	DbPostgresConnectionStringFlag                = "db-postgres-connection-string"
-	WebTemplateBaseDirFlag                        = "web-template-base-dir"
-	WebAssetBaseDirFlag                           = "web-asset-base-dir"
-	InstanceFederationModeFlag                    = "instance-federation-mode"
-	InstanceFederationSpamFilterFlag              = "instance-federation-spam-filter"
-	InstanceExposePeersFlag                       = "instance-expose-peers"
-	InstanceExposeBlocklistFlag                   = "instance-expose-blocklist"
-	InstanceExposeBlocklistWebFlag                = "instance-expose-blocklist-web"
-	InstanceExposeAllowlistFlag                   = "instance-expose-allowlist"
-	InstanceExposeAllowlistWebFlag                = "instance-expose-allowlist-web"
-	InstanceExposePublicTimelineFlag              = "instance-expose-public-timeline"
-	InstanceExposeCustomEmojisFlag                = "instance-expose-custom-emojis"
-	InstanceDirectoryModeFlag                     = "instance-directory-mode"
-	InstanceDeliverToSharedInboxesFlag            = "instance-deliver-to-shared-inboxes"
-	InstanceInjectMastodonVersionFlag             = "instance-inject-mastodon-version"
-	InstanceLanguagesFlag                         = "instance-languages"
-	InstanceSubscriptionsProcessFromFlag          = "instance-subscriptions-process-from"
-	InstanceSubscriptionsProcessEveryFlag         = "instance-subscriptions-process-every"
-	InstanceSubscriptionsProcessCronFlag          = "instance-subscriptions-process-cron"
-	InstanceStatsModeFlag                         = "instance-stats-mode"
-	InstanceAllowBackdatingStatusesFlag           = "instance-allow-backdating-statuses"
-	InstanceRobotsAllowIndexingFlag               = "instance-robots-allow-indexing"
-	AccountsRegistrationOpenFlag                  = "accounts-registration-open"
-	AccountsReasonRequiredFlag                    = "accounts-reason-required"
-	AccountsRegistrationDailyLimitFlag            = "accounts-registration-daily-limit"
-	AccountsRegistrationBacklogLimitFlag          = "accounts-registration-backlog-limit"
-	AccountsAllowCustomCSSFlag                    = "accounts-allow-custom-css"
-	AccountsCustomCSSLengthFlag                   = "accounts-custom-css-length"
-	AccountsMaxProfileFieldsFlag                  = "accounts-max-profile-fields"
-	StorageBackendFlag                            = "storage-backend"
-	StorageLocalBasePathFlag                      = "storage-local-base-path"
-	StorageS3EndpointFlag                         = "storage-s3-endpoint"
-	StorageS3AccessKeyFlag                        = "storage-s3-access-key"
-	StorageS3SecretKeyFlag                        = "storage-s3-secret-key"
-	StorageS3UseSSLFlag                           = "storage-s3-use-ssl"
-	StorageS3BucketNameFlag                       = "storage-s3-bucket"
-	StorageS3ProxyFlag                            = "storage-s3-proxy"
-	StorageS3RedirectURLFlag                      = "storage-s3-redirect-url"
-	StorageS3BucketLookupFlag                     = "storage-s3-bucket-lookup"
-	StorageS3KeyPrefixFlag                        = "storage-s3-key-prefix"
-	StorageS3RegionFlag                           = "storage-s3-region"
-	StatusesMaxCharsFlag                          = "statuses-max-chars"
-	StatusesPollMaxOptionsFlag                    = "statuses-poll-max-options"
-	StatusesPollOptionMaxCharsFlag                = "statuses-poll-option-max-chars"
-	StatusesMediaMaxFilesFlag                     = "statuses-media-max-files"
-	StatusesCleanupCronFlag                       = "statuses-cleanup-cron"
-	StatusesCleanupRemoteOlderThanFlag            = "statuses-cleanup-remote-older-than"
-	ScheduledStatusesMaxTotalFlag                 = "scheduled-statuses-max-total"
-	ScheduledStatusesMaxDailyFlag                 = "scheduled-statuses-max-daily"
-	LetsEncryptEnabledFlag                        = "letsencrypt-enabled"
-	LetsEncryptPortFlag                           = "letsencrypt-port"
-	LetsEncryptCertDirFlag                        = "letsencrypt-cert-dir"
-	LetsEncryptEmailAddressFlag                   = "letsencrypt-email-address"
-	TLSCertificateChainFlag                       = "tls-certificate-chain"
-	TLSCertificateKeyFlag                         = "tls-certificate-key"
-	OIDCEnabledFlag                               = "oidc-enabled"
-	OIDCIdpNameFlag                               = "oidc-idp-name"
-	OIDCSkipVerificationFlag                      = "oidc-skip-verification"
-	OIDCIssuerFlag                                = "oidc-issuer"
-	OIDCClientIDFlag                              = "oidc-client-id"
-	OIDCClientSecretFlag                          = "oidc-client-secret"
-	OIDCScopesFlag                                = "oidc-scopes"
-	OIDCLinkExistingFlag                          = "oidc-link-existing"
-	OIDCAllowedGroupsFlag                         = "oidc-allowed-groups"
-	OIDCAdminGroupsFlag                           = "oidc-admin-groups"
-	TracingEnabledFlag                            = "tracing-enabled"
-	MetricsEnabledFlag                            = "metrics-enabled"
-	SMTPHostFlag                                  = "smtp-host"
-	SMTPPortFlag                                  = "smtp-port"
-	SMTPUsernameFlag                              = "smtp-username"
-	SMTPPasswordFlag                              = "smtp-password"
-	SMTPFromFlag                                  = "smtp-from"
-	SMTPFromDisplayNameFlag                       = "smtp-from-display-name"
-	SMTPDiscloseRecipientsFlag                    = "smtp-disclose-recipients"
-	SyslogEnabledFlag                             = "syslog-enabled"
-	SyslogProtocolFlag                            = "syslog-protocol"
-	SyslogAddressFlag                             = "syslog-address"
-	AdvancedCookiesSamesiteFlag                   = "advanced-cookies-samesite"
-	AdvancedSenderMultiplierFlag                  = "advanced-sender-multiplier"
-	AdvancedCSPExtraURIsFlag                      = "advanced-csp-extra-uris"
-	AdvancedHeaderFilterModeFlag                  = "advanced-header-filter-mode"
+	DatabasePostgresPortFlag                      = "port"
+	DatabasePostgresUserFlag                      = "user"
+	DatabasePostgresPasswordFlag                  = "password"
+	DatabasePostgresDatabaseFlag                  = "database"
+	DatabasePostgresTLSModeFlag                   = "tls-mode"
+	DatabasePostgresTLSCACertFlag                 = "tls-ca-cert"
+	DatabasePostgresConnectionStringFlag          = "postgres-connection-string"
+	DatabaseSQLiteJournalModeFlag                 = "db-sqlite-journal-mode"
+	DatabaseSQLiteSynchronousFlag                 = "db-sqlite-synchronous"
+	DatabaseSQLiteCacheSizeFlag                   = "db-sqlite-cache-size"
+	DatabaseSQLiteBusyTimeoutFlag                 = "db-sqlite-busy-timeout"
+	DatabaseTypeFlag                              = "db-type"
+	DatabaseAddressFlag                           = "db-address"
+	DatabaseMaxOpenConnsMultiplierFlag            = "db-max-open-conns-multiplier"
 	AdvancedRateLimitRequestsFlag                 = "advanced-rate-limit-requests"
 	AdvancedRateLimitExceptionsFlag               = "advanced-rate-limit-exceptions"
 	AdvancedThrottlingMultiplierFlag              = "advanced-throttling-multiplier"
 	AdvancedThrottlingRetryAfterFlag              = "advanced-throttling-retry-after"
+	AdvancedCookiesSamesiteFlag                   = "advanced-cookies-samesite"
+	AdvancedSenderMultiplierFlag                  = "advanced-sender-multiplier"
+	AdvancedCSPExtraURIsFlag                      = "advanced-csp-extra-uris"
+	AdvancedHeaderFilterModeFlag                  = "advanced-header-filter-mode"
 	HTTPServerMaxMultipartMemoryFlag              = "http-server-max-multipart-memory"
 	HTTPServerUseH2CFlag                          = "http-server-use-h2c"
 	HTTPServerReadTimeoutFlag                     = "http-server-read-timeout"
@@ -268,6 +175,98 @@ const (
 	CacheMutesMemRatioFlag                        = "cache-mutes-mem-ratio"
 	CacheStatusFilterMemRatioFlag                 = "cache-status-filter-mem-ratio"
 	CacheVisibilityMemRatioFlag                   = "cache-visibility-mem-ratio"
+	LogLevelFlag                                  = "log-level"
+	LogFormatFlag                                 = "log-format"
+	LogTimestampFormatFlag                        = "log-timestamp-format"
+	LogDbQueriesFlag                              = "log-db-queries"
+	LogClientIPFlag                               = "log-client-ip"
+	RequestIDHeaderFlag                           = "request-id-header"
+	ConfigPathFlag                                = "config-path"
+	ApplicationNameFlag                           = "application-name"
+	LandingPageUserFlag                           = "landing-page-user"
+	HostFlag                                      = "host"
+	AccountDomainFlag                             = "account-domain"
+	ProtocolFlag                                  = "protocol"
+	BindAddressFlag                               = "bind-address"
+	PortFlag                                      = "port"
+	TrustedProxiesFlag                            = "trusted-proxies"
+	SoftwareVersionFlag                           = "software-version"
+	WebTemplateBaseDirFlag                        = "web-template-base-dir"
+	WebAssetBaseDirFlag                           = "web-asset-base-dir"
+	InstanceFederationModeFlag                    = "instance-federation-mode"
+	InstanceFederationSpamFilterFlag              = "instance-federation-spam-filter"
+	InstanceExposePeersFlag                       = "instance-expose-peers"
+	InstanceExposeBlocklistFlag                   = "instance-expose-blocklist"
+	InstanceExposeBlocklistWebFlag                = "instance-expose-blocklist-web"
+	InstanceExposeAllowlistFlag                   = "instance-expose-allowlist"
+	InstanceExposeAllowlistWebFlag                = "instance-expose-allowlist-web"
+	InstanceExposePublicTimelineFlag              = "instance-expose-public-timeline"
+	InstanceExposeCustomEmojisFlag                = "instance-expose-custom-emojis"
+	InstanceDirectoryModeFlag                     = "instance-directory-mode"
+	InstanceDeliverToSharedInboxesFlag            = "instance-deliver-to-shared-inboxes"
+	InstanceInjectMastodonVersionFlag             = "instance-inject-mastodon-version"
+	InstanceLanguagesFlag                         = "instance-languages"
+	InstanceSubscriptionsProcessFromFlag          = "instance-subscriptions-process-from"
+	InstanceSubscriptionsProcessEveryFlag         = "instance-subscriptions-process-every"
+	InstanceSubscriptionsProcessCronFlag          = "instance-subscriptions-process-cron"
+	InstanceStatsModeFlag                         = "instance-stats-mode"
+	InstanceAllowBackdatingStatusesFlag           = "instance-allow-backdating-statuses"
+	InstanceRobotsAllowIndexingFlag               = "instance-robots-allow-indexing"
+	AccountsRegistrationOpenFlag                  = "accounts-registration-open"
+	AccountsReasonRequiredFlag                    = "accounts-reason-required"
+	AccountsRegistrationDailyLimitFlag            = "accounts-registration-daily-limit"
+	AccountsRegistrationBacklogLimitFlag          = "accounts-registration-backlog-limit"
+	AccountsAllowCustomCSSFlag                    = "accounts-allow-custom-css"
+	AccountsCustomCSSLengthFlag                   = "accounts-custom-css-length"
+	AccountsMaxProfileFieldsFlag                  = "accounts-max-profile-fields"
+	StorageBackendFlag                            = "storage-backend"
+	StorageLocalBasePathFlag                      = "storage-local-base-path"
+	StorageS3EndpointFlag                         = "storage-s3-endpoint"
+	StorageS3AccessKeyFlag                        = "storage-s3-access-key"
+	StorageS3SecretKeyFlag                        = "storage-s3-secret-key"
+	StorageS3UseSSLFlag                           = "storage-s3-use-ssl"
+	StorageS3BucketNameFlag                       = "storage-s3-bucket"
+	StorageS3ProxyFlag                            = "storage-s3-proxy"
+	StorageS3RedirectURLFlag                      = "storage-s3-redirect-url"
+	StorageS3BucketLookupFlag                     = "storage-s3-bucket-lookup"
+	StorageS3KeyPrefixFlag                        = "storage-s3-key-prefix"
+	StorageS3RegionFlag                           = "storage-s3-region"
+	StatusesMaxCharsFlag                          = "statuses-max-chars"
+	StatusesPollMaxOptionsFlag                    = "statuses-poll-max-options"
+	StatusesPollOptionMaxCharsFlag                = "statuses-poll-option-max-chars"
+	StatusesMediaMaxFilesFlag                     = "statuses-media-max-files"
+	StatusesCleanupCronFlag                       = "statuses-cleanup-cron"
+	StatusesCleanupRemoteOlderThanFlag            = "statuses-cleanup-remote-older-than"
+	ScheduledStatusesMaxTotalFlag                 = "scheduled-statuses-max-total"
+	ScheduledStatusesMaxDailyFlag                 = "scheduled-statuses-max-daily"
+	LetsEncryptEnabledFlag                        = "letsencrypt-enabled"
+	LetsEncryptPortFlag                           = "letsencrypt-port"
+	LetsEncryptCertDirFlag                        = "letsencrypt-cert-dir"
+	LetsEncryptEmailAddressFlag                   = "letsencrypt-email-address"
+	TLSCertificateChainFlag                       = "tls-certificate-chain"
+	TLSCertificateKeyFlag                         = "tls-certificate-key"
+	OIDCEnabledFlag                               = "oidc-enabled"
+	OIDCIdpNameFlag                               = "oidc-idp-name"
+	OIDCSkipVerificationFlag                      = "oidc-skip-verification"
+	OIDCIssuerFlag                                = "oidc-issuer"
+	OIDCClientIDFlag                              = "oidc-client-id"
+	OIDCClientSecretFlag                          = "oidc-client-secret"
+	OIDCScopesFlag                                = "oidc-scopes"
+	OIDCLinkExistingFlag                          = "oidc-link-existing"
+	OIDCAllowedGroupsFlag                         = "oidc-allowed-groups"
+	OIDCAdminGroupsFlag                           = "oidc-admin-groups"
+	TracingEnabledFlag                            = "tracing-enabled"
+	MetricsEnabledFlag                            = "metrics-enabled"
+	SMTPHostFlag                                  = "smtp-host"
+	SMTPPortFlag                                  = "smtp-port"
+	SMTPUsernameFlag                              = "smtp-username"
+	SMTPPasswordFlag                              = "smtp-password"
+	SMTPFromFlag                                  = "smtp-from"
+	SMTPFromDisplayNameFlag                       = "smtp-from-display-name"
+	SMTPDiscloseRecipientsFlag                    = "smtp-disclose-recipients"
+	SyslogEnabledFlag                             = "syslog-enabled"
+	SyslogProtocolFlag                            = "syslog-protocol"
+	SyslogAddressFlag                             = "syslog-address"
 	AdminAccountUsernameFlag                      = "username"
 	AdminAccountEmailFlag                         = "email"
 	AdminAccountPasswordFlag                      = "password"
@@ -279,7 +278,188 @@ const (
 	TestrigSkipDBTeardownFlag                     = "skip-db-teardown"
 )
 
+func (cfg *PostgresConfiguration) RegisterFlags(prefix string, flags *pflag.FlagSet) {
+	flags.Uint16(joinFlag(prefix, "port"), cfg.Port, "Database port")
+	flags.String(joinFlag(prefix, "user"), cfg.User, "Database username")
+	flags.String(joinFlag(prefix, "password"), cfg.Password, "Database password")
+	flags.String(joinFlag(prefix, "database"), cfg.Database, "Database name")
+	flags.String(joinFlag(prefix, "tls-mode"), cfg.TLSMode, "Database tls mode")
+	flags.String(joinFlag(prefix, "tls-ca-cert"), cfg.TLSCACert, "Path to CA cert for db tls connection")
+	flags.String(joinFlag(prefix, "postgres-connection-string"), cfg.ConnectionString, "Full Database URL for connection to postgres")
+}
+
+func (cfg *SQLiteConfiguration) RegisterFlags(prefix string, flags *pflag.FlagSet) {
+	flags.String(joinFlag(prefix, "journal-mode"), cfg.JournalMode, "Sqlite only: see https://www.sqlite.org/pragma.html#pragma_journal_mode")
+	flags.String(joinFlag(prefix, "synchronous"), cfg.Synchronous, "Sqlite only: see https://www.sqlite.org/pragma.html#pragma_synchronous")
+	flags.String(joinFlag(prefix, "cache-size"), cfg.CacheSize.String(), "Sqlite only: see https://www.sqlite.org/pragma.html#pragma_cache_size")
+	flags.Duration(joinFlag(prefix, "busy-timeout"), cfg.BusyTimeout, "Sqlite only: see https://www.sqlite.org/pragma.html#pragma_busy_timeout")
+}
+
+func (cfg *DatabaseConfiguration) RegisterFlags(prefix string, flags *pflag.FlagSet) {
+	cfg.Postgres.RegisterFlags(joinFlag(prefix, ""), flags)
+	cfg.SQLite.RegisterFlags(joinFlag(prefix, "sqlite"), flags)
+	flags.String(joinFlag(prefix, "type"), cfg.Type, "Database type: eg., postgres")
+	flags.String(joinFlag(prefix, "address"), cfg.Address, "Database ipv4 address, hostname, or filename")
+	flags.Int(joinFlag(prefix, "max-open-conns-multiplier"), cfg.MaxOpenConnsMultiplier, "Multiplier to use per cpu for max open database connections. 0 or less is normalized to 1.")
+}
+
+func (cfg *RateLimitConfig) RegisterFlags(prefix string, flags *pflag.FlagSet) {
+	flags.Int(joinFlag(prefix, "requests"), cfg.Requests, "Amount of HTTP requests to permit within a 5 minute window. 0 or less turns rate limiting off.")
+	flags.StringSlice(joinFlag(prefix, "exceptions"), cfg.Exceptions.Strings(), "Slice of CIDRs to exclude from rate limit restrictions.")
+}
+
+func (cfg *ThrottlingConfig) RegisterFlags(prefix string, flags *pflag.FlagSet) {
+	flags.Int(joinFlag(prefix, "multiplier"), cfg.Multiplier, "Multiplier to use per cpu for http request throttling. 0 or less turns throttling off.")
+	flags.Duration(joinFlag(prefix, "retry-after"), cfg.RetryAfter, "Retry-After duration response to send for throttled requests.")
+}
+
+func (cfg *AdvancedConfig) RegisterFlags(prefix string, flags *pflag.FlagSet) {
+	cfg.RateLimit.RegisterFlags(joinFlag(prefix, "rate-limit"), flags)
+	cfg.Throttling.RegisterFlags(joinFlag(prefix, "throttling"), flags)
+	flags.String(joinFlag(prefix, "cookies-samesite"), cfg.CookiesSamesite, "'strict' or 'lax', see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite")
+	flags.Int(joinFlag(prefix, "sender-multiplier"), cfg.SenderMultiplier, "Multiplier to use per cpu for batching outgoing fedi messages. 0 or less turns batching off (not recommended).")
+	flags.StringSlice(joinFlag(prefix, "csp-extra-uris"), cfg.CSPExtraURIs, "Additional URIs to allow when building content-security-policy for media + images.")
+	flags.String(joinFlag(prefix, "header-filter-mode"), cfg.HeaderFilterMode, "Set incoming request header filtering mode.")
+}
+
+func (cfg *HTTPServerConfiguration) RegisterFlags(prefix string, flags *pflag.FlagSet) {
+	flags.String(joinFlag(prefix, "max-multipart-memory"), cfg.MaxMultipartMemory.String(), "")
+	flags.Bool(joinFlag(prefix, "use-h2c"), cfg.UseH2C, "")
+	flags.Duration(joinFlag(prefix, "read-timeout"), cfg.ReadTimeout, "")
+	flags.Duration(joinFlag(prefix, "read-header-timeout"), cfg.ReadHeaderTimeout, "")
+	flags.Duration(joinFlag(prefix, "write-timeout"), cfg.WriteTimeout, "")
+	flags.Duration(joinFlag(prefix, "idle-timeout"), cfg.IdleTimeout, "")
+	flags.String(joinFlag(prefix, "max-header-bytes"), cfg.MaxHeaderBytes.String(), "")
+	flags.Int(joinFlag(prefix, "max-concurrent-streams"), cfg.MaxConcurrentStreams, "")
+	flags.String(joinFlag(prefix, "max-decoder-header-table-size"), cfg.MaxDecoderHeaderTableSize.String(), "")
+	flags.String(joinFlag(prefix, "max-encoder-header-table-size"), cfg.MaxEncoderHeaderTableSize.String(), "")
+	flags.String(joinFlag(prefix, "max-read-frame-size"), cfg.MaxReadFrameSize.String(), "")
+	flags.String(joinFlag(prefix, "max-receive-buffer-per-connection"), cfg.MaxReceiveBufferPerConnection.String(), "")
+	flags.String(joinFlag(prefix, "max-receive-buffer-per-stream"), cfg.MaxReceiveBufferPerStream.String(), "")
+	flags.Duration(joinFlag(prefix, "send-ping-timeout"), cfg.SendPingTimeout, "")
+	flags.Duration(joinFlag(prefix, "ping-timeout"), cfg.PingTimeout, "")
+	flags.Duration(joinFlag(prefix, "write-byte-timeout"), cfg.WriteByteTimeout, "")
+}
+
+func (cfg *HTTPClientConfiguration) RegisterFlags(prefix string, flags *pflag.FlagSet) {
+	flags.StringSlice(joinFlag(prefix, "allow-ips"), cfg.AllowIPs.Strings(), "")
+	flags.StringSlice(joinFlag(prefix, "block-ips"), cfg.BlockIPs.Strings(), "")
+	flags.Duration(joinFlag(prefix, "timeout"), cfg.Timeout, "")
+	flags.Bool(joinFlag(prefix, "tls-insecure-skip-verify"), cfg.TLSInsecureSkipVerify, "")
+	flags.Bool(joinFlag(prefix, "insecure-outgoing"), cfg.InsecureOutgoing, "")
+	flags.Bool(joinFlag(prefix, "disable-keep-alives"), cfg.DisableKeepAlives, "")
+	flags.Int(joinFlag(prefix, "max-idle-conns"), cfg.MaxIdleConns, "")
+	flags.Int(joinFlag(prefix, "max-idle-conns-per-host"), cfg.MaxIdleConnsPerHost, "")
+	flags.Int(joinFlag(prefix, "max-conns-per-host"), cfg.MaxConnsPerHost, "")
+	flags.Duration(joinFlag(prefix, "idle-conn-timeout"), cfg.IdleConnTimeout, "")
+	flags.Duration(joinFlag(prefix, "tls-handshake-timeout"), cfg.TLSHandshakeTimeout, "")
+	flags.Duration(joinFlag(prefix, "response-header-timeout"), cfg.ResponseHeaderTimeout, "")
+	flags.String(joinFlag(prefix, "read-buffer-size"), cfg.ReadBufferSize.String(), "")
+	flags.String(joinFlag(prefix, "write-buffer-size"), cfg.WriteBufferSize.String(), "")
+}
+
+func (cfg *MediaConfiguration) RegisterFlags(prefix string, flags *pflag.FlagSet) {
+	flags.Int(joinFlag(prefix, "description-min-chars"), cfg.DescriptionMinChars, "Min required chars for an image description")
+	flags.Int(joinFlag(prefix, "description-max-chars"), cfg.DescriptionMaxChars, "Max permitted chars for an image description")
+	flags.String(joinFlag(prefix, "emoji-local-max-size"), cfg.EmojiLocalMaxSize.String(), "Max size in bytes of emojis uploaded to this instance via the admin API.")
+	flags.String(joinFlag(prefix, "emoji-remote-max-size"), cfg.EmojiRemoteMaxSize.String(), "Max size in bytes of emojis to download from other instances.")
+	flags.String(joinFlag(prefix, "image-size-hint"), cfg.ImageSizeHint.String(), "Size in bytes of max image size referred to on /api/v_/instance endpoints (else, local max size)")
+	flags.String(joinFlag(prefix, "video-size-hint"), cfg.VideoSizeHint.String(), "Size in bytes of max video size referred to on /api/v_/instance endpoints (else, local max size)")
+	flags.String(joinFlag(prefix, "local-max-size"), cfg.LocalMaxSize.String(), "Max size in bytes of media uploaded to this instance via API")
+	flags.String(joinFlag(prefix, "remote-max-size"), cfg.RemoteMaxSize.String(), "Max size in bytes of media to download from other instances")
+	flags.Int(joinFlag(prefix, "ffmpeg-pool-size"), cfg.FfmpegPoolSize, "Number of instances of the embedded ffmpeg WASM binary to add to the media processing pool. 0 or less uses GOMAXPROCS.")
+	flags.Int(joinFlag(prefix, "thumb-max-pixels"), cfg.ThumbMaxPixels, "Max size in pixels of any one dimension of a thumbnail (as input media ratio is preserved).")
+	flags.String(joinFlag(prefix, "remote-cache-duration"), cfg.RemoteCacheDuration.String(), "Duration defining how long to locally cache media from remote instances. (zero keeps indefinitely)")
+	flags.String(joinFlag(prefix, "cleanup-cron"), cfg.CleanupCron.String(), "Cron expression defining media cleanup task scheduling")
+}
+
+func (cfg *CacheConfiguration) RegisterFlags(prefix string, flags *pflag.FlagSet) {
+	flags.Uint32(joinFlag(prefix, "s3-object-info"), cfg.S3ObjectInfo, "Enables caching of S3 object information in the storage driver to reduce S3 calls, value is cache capacity.")
+	flags.Uint32(joinFlag(prefix, "home-timeline-size"), cfg.HomeTimelineSize, "Per-user home timeline cache length, in number of posts. (minimum = 100)")
+	flags.Uint32(joinFlag(prefix, "list-timeline-size"), cfg.ListTimelineSize, "Per-list timeline cache length, in number of posts. (minimum = 100)")
+	flags.Uint32(joinFlag(prefix, "tag-timeline-size"), cfg.TagTimelineSize, "Per-tag timeline cache length, in number of posts. (minimum = 50)")
+	flags.Duration(joinFlag(prefix, "home-timeline-timeout"), cfg.HomeTimelineTimeout, "Duration before any one home timeline cache is unloaded from memory. Values <= 0 disable unloading.")
+	flags.Duration(joinFlag(prefix, "list-timeline-timeout"), cfg.ListTimelineTimeout, "Duration before any one list timeline cache is unloaded from memory. Values <= 0 disable unloading.")
+	flags.Duration(joinFlag(prefix, "tag-timeline-timeout"), cfg.TagTimelineTimeout, "Duration before any one tag timeline cache is unloaded from memory. Values <= 0 disable unloading.")
+	flags.String(joinFlag(prefix, "memory-target"), cfg.MemoryTarget.String(), "")
+	flags.Float64(joinFlag(prefix, "account-mem-ratio"), cfg.AccountMemRatio, "")
+	flags.Float64(joinFlag(prefix, "account-note-mem-ratio"), cfg.AccountNoteMemRatio, "")
+	flags.Float64(joinFlag(prefix, "account-settings-mem-ratio"), cfg.AccountSettingsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "account-stats-mem-ratio"), cfg.AccountStatsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "application-mem-ratio"), cfg.ApplicationMemRatio, "")
+	flags.Float64(joinFlag(prefix, "block-mem-ratio"), cfg.BlockMemRatio, "")
+	flags.Float64(joinFlag(prefix, "block-ids-mem-ratio"), cfg.BlockIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "boost-of-ids-mem-ratio"), cfg.BoostOfIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "client-mem-ratio"), cfg.ClientMemRatio, "")
+	flags.Float64(joinFlag(prefix, "conversation-mem-ratio"), cfg.ConversationMemRatio, "")
+	flags.Float64(joinFlag(prefix, "conversation-last-status-ids-mem-ratio"), cfg.ConversationLastStatusIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "domain-permission-draft-mem-ratio"), cfg.DomainPermissionDraftMemRatio, "")
+	flags.Float64(joinFlag(prefix, "domain-permission-limit-mem-ratio"), cfg.DomainLimitMemRatio, "")
+	flags.Float64(joinFlag(prefix, "domain-permission-subscription-mem-ratio"), cfg.DomainPermissionSubscriptionMemRatio, "")
+	flags.Float64(joinFlag(prefix, "emoji-mem-ratio"), cfg.EmojiMemRatio, "")
+	flags.Float64(joinFlag(prefix, "emoji-category-mem-ratio"), cfg.EmojiCategoryMemRatio, "")
+	flags.Float64(joinFlag(prefix, "federation-error-mem-ratio"), cfg.FederationErrorMemRatio, "")
+	flags.Float64(joinFlag(prefix, "filter-mem-ratio"), cfg.FilterMemRatio, "")
+	flags.Float64(joinFlag(prefix, "filter-ids-mem-ratio"), cfg.FilterIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "filter-keyword-mem-ratio"), cfg.FilterKeywordMemRatio, "")
+	flags.Float64(joinFlag(prefix, "filter-status-mem-ratio"), cfg.FilterStatusMemRatio, "")
+	flags.Float64(joinFlag(prefix, "follow-mem-ratio"), cfg.FollowMemRatio, "")
+	flags.Float64(joinFlag(prefix, "follow-ids-mem-ratio"), cfg.FollowIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "follow-request-mem-ratio"), cfg.FollowRequestMemRatio, "")
+	flags.Float64(joinFlag(prefix, "follow-request-ids-mem-ratio"), cfg.FollowRequestIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "following-tag-ids-mem-ratio"), cfg.FollowingTagIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "home-account-ids-mem-ratio"), cfg.HomeAccountIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "in-reply-to-ids-mem-ratio"), cfg.InReplyToIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "instance-mem-ratio"), cfg.InstanceMemRatio, "")
+	flags.Float64(joinFlag(prefix, "interaction-request-mem-ratio"), cfg.InteractionRequestMemRatio, "")
+	flags.Float64(joinFlag(prefix, "list-mem-ratio"), cfg.ListMemRatio, "")
+	flags.Float64(joinFlag(prefix, "list-ids-mem-ratio"), cfg.ListIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "listed-ids-mem-ratio"), cfg.ListedIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "marker-mem-ratio"), cfg.MarkerMemRatio, "")
+	flags.Float64(joinFlag(prefix, "media-mem-ratio"), cfg.MediaMemRatio, "")
+	flags.Float64(joinFlag(prefix, "mention-mem-ratio"), cfg.MentionMemRatio, "")
+	flags.Float64(joinFlag(prefix, "move-mem-ratio"), cfg.MoveMemRatio, "")
+	flags.Float64(joinFlag(prefix, "notification-mem-ratio"), cfg.NotificationMemRatio, "")
+	flags.Float64(joinFlag(prefix, "poll-mem-ratio"), cfg.PollMemRatio, "")
+	flags.Float64(joinFlag(prefix, "poll-vote-mem-ratio"), cfg.PollVoteMemRatio, "")
+	flags.Float64(joinFlag(prefix, "poll-vote-ids-mem-ratio"), cfg.PollVoteIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "report-mem-ratio"), cfg.ReportMemRatio, "")
+	flags.Float64(joinFlag(prefix, "relay-actor-mem-ratio"), cfg.RelayActorMemRatio, "")
+	flags.Float64(joinFlag(prefix, "relay-matcher-mem-ratio"), cfg.RelayMatcherMemRatio, "")
+	flags.Float64(joinFlag(prefix, "relay-push-mem-ratio"), cfg.RelayPushMemRatio, "")
+	flags.Float64(joinFlag(prefix, "relay-push-ids-mem-ratio"), cfg.RelayPushIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "relay-subscription-mem-ratio"), cfg.RelaySubscriptionMemRatio, "")
+	flags.Float64(joinFlag(prefix, "scheduled-status-mem-ratio"), cfg.ScheduledStatusMemRatio, "")
+	flags.Float64(joinFlag(prefix, "sin-bin-status-mem-ratio"), cfg.SinBinStatusMemRatio, "")
+	flags.Float64(joinFlag(prefix, "status-mem-ratio"), cfg.StatusMemRatio, "")
+	flags.Float64(joinFlag(prefix, "status-bookmark-mem-ratio"), cfg.StatusBookmarkMemRatio, "")
+	flags.Float64(joinFlag(prefix, "status-bookmark-ids-mem-ratio"), cfg.StatusBookmarkIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "status-edit-mem-ratio"), cfg.StatusEditMemRatio, "")
+	flags.Float64(joinFlag(prefix, "status-fave-mem-ratio"), cfg.StatusFaveMemRatio, "")
+	flags.Float64(joinFlag(prefix, "status-fave-ids-mem-ratio"), cfg.StatusFaveIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "status-pinned-ids-mem-ratio"), cfg.StatusPinnedIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "tag-mem-ratio"), cfg.TagMemRatio, "")
+	flags.Float64(joinFlag(prefix, "thread-mute-mem-ratio"), cfg.ThreadMuteMemRatio, "")
+	flags.Float64(joinFlag(prefix, "token-mem-ratio"), cfg.TokenMemRatio, "")
+	flags.Float64(joinFlag(prefix, "tombstone-mem-ratio"), cfg.TombstoneMemRatio, "")
+	flags.Float64(joinFlag(prefix, "user-mem-ratio"), cfg.UserMemRatio, "")
+	flags.Float64(joinFlag(prefix, "user-mute-mem-ratio"), cfg.UserMuteMemRatio, "")
+	flags.Float64(joinFlag(prefix, "user-mute-ids-mem-ratio"), cfg.UserMuteIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "webfinger-mem-ratio"), cfg.WebfingerMemRatio, "")
+	flags.Float64(joinFlag(prefix, "web-push-subscription-mem-ratio"), cfg.WebPushSubscriptionMemRatio, "")
+	flags.Float64(joinFlag(prefix, "web-push-subscription-ids-mem-ratio"), cfg.WebPushSubscriptionIDsMemRatio, "")
+	flags.Float64(joinFlag(prefix, "mutes-mem-ratio"), cfg.MutesMemRatio, "")
+	flags.Float64(joinFlag(prefix, "status-filter-mem-ratio"), cfg.StatusFilterMemRatio, "")
+	flags.Float64(joinFlag(prefix, "visibility-mem-ratio"), cfg.VisibilityMemRatio, "")
+}
+
 func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
+	cfg.Database.RegisterFlags("db", flags)
+	cfg.Advanced.RegisterFlags("advanced", flags)
+	cfg.HTTPServer.RegisterFlags("http-server", flags)
+	cfg.HTTPClient.RegisterFlags("http-client", flags)
+	cfg.Media.RegisterFlags("media", flags)
+	cfg.Cache.RegisterFlags("cache", flags)
 	flags.String("log-level", cfg.LogLevel, "Log level to run at: [trace, debug, info, warn, fatal]")
 	flags.String("log-format", cfg.LogFormat, "Log output format: [logfmt, json]")
 	flags.String("log-timestamp-format", cfg.LogTimestampFormat, "Format to use for the log timestamp, as supported by Go's time.Layout")
@@ -296,20 +476,6 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Int("port", cfg.Port, "Port to use for GoToSocial. Change this to 443 if you're running the binary directly on the host machine.")
 	flags.StringSlice("trusted-proxies", cfg.TrustedProxies.Strings(), "Proxies to trust when parsing x-forwarded headers into real IPs.")
 	flags.String("software-version", cfg.SoftwareVersion, "")
-	flags.String("db-type", cfg.DbType, "Database type: eg., postgres")
-	flags.String("db-address", cfg.DbAddress, "Database ipv4 address, hostname, or filename")
-	flags.Int("db-port", cfg.DbPort, "Database port")
-	flags.String("db-user", cfg.DbUser, "Database username")
-	flags.String("db-password", cfg.DbPassword, "Database password")
-	flags.String("db-database", cfg.DbDatabase, "Database name")
-	flags.String("db-tls-mode", cfg.DbTLSMode, "Database tls mode")
-	flags.String("db-tls-ca-cert", cfg.DbTLSCACert, "Path to CA cert for db tls connection")
-	flags.Int("db-max-open-conns-multiplier", cfg.DbMaxOpenConnsMultiplier, "Multiplier to use per cpu for max open database connections. 0 or less is normalized to 1.")
-	flags.String("db-sqlite-journal-mode", cfg.DbSqliteJournalMode, "Sqlite only: see https://www.sqlite.org/pragma.html#pragma_journal_mode")
-	flags.String("db-sqlite-synchronous", cfg.DbSqliteSynchronous, "Sqlite only: see https://www.sqlite.org/pragma.html#pragma_synchronous")
-	flags.String("db-sqlite-cache-size", cfg.DbSqliteCacheSize.String(), "Sqlite only: see https://www.sqlite.org/pragma.html#pragma_cache_size")
-	flags.Duration("db-sqlite-busy-timeout", cfg.DbSqliteBusyTimeout, "Sqlite only: see https://www.sqlite.org/pragma.html#pragma_busy_timeout")
-	flags.String("db-postgres-connection-string", cfg.DbPostgresConnectionString, "Full Database URL for connection to postgres")
 	flags.String("web-template-base-dir", cfg.WebTemplateBaseDir, "Basedir for html templating files for rendering pages and composing emails.")
 	flags.String("web-asset-base-dir", cfg.WebAssetBaseDir, "Directory to serve static assets from, accessible at example.org/assets/")
 	flags.String("instance-federation-mode", cfg.InstanceFederationMode, "Set instance federation mode.")
@@ -384,137 +550,196 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Bool("syslog-enabled", cfg.SyslogEnabled, "Enable the syslog logging hook. Logs will be mirrored to the configured destination.")
 	flags.String("syslog-protocol", cfg.SyslogProtocol, "Protocol to use when directing logs to syslog. Leave empty to connect to local syslog.")
 	flags.String("syslog-address", cfg.SyslogAddress, "Address:port to send syslog logs to. Leave empty to connect to local syslog.")
-	flags.String("advanced-cookies-samesite", cfg.Advanced.CookiesSamesite, "'strict' or 'lax', see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite")
-	flags.Int("advanced-sender-multiplier", cfg.Advanced.SenderMultiplier, "Multiplier to use per cpu for batching outgoing fedi messages. 0 or less turns batching off (not recommended).")
-	flags.StringSlice("advanced-csp-extra-uris", cfg.Advanced.CSPExtraURIs, "Additional URIs to allow when building content-security-policy for media + images.")
-	flags.String("advanced-header-filter-mode", cfg.Advanced.HeaderFilterMode, "Set incoming request header filtering mode.")
-	flags.Int("advanced-rate-limit-requests", cfg.Advanced.RateLimit.Requests, "Amount of HTTP requests to permit within a 5 minute window. 0 or less turns rate limiting off.")
-	flags.StringSlice("advanced-rate-limit-exceptions", cfg.Advanced.RateLimit.Exceptions.Strings(), "Slice of CIDRs to exclude from rate limit restrictions.")
-	flags.Int("advanced-throttling-multiplier", cfg.Advanced.Throttling.Multiplier, "Multiplier to use per cpu for http request throttling. 0 or less turns throttling off.")
-	flags.Duration("advanced-throttling-retry-after", cfg.Advanced.Throttling.RetryAfter, "Retry-After duration response to send for throttled requests.")
-	flags.String("http-server-max-multipart-memory", cfg.HTTPServer.MaxMultipartMemory.String(), "")
-	flags.Bool("http-server-use-h2c", cfg.HTTPServer.UseH2C, "")
-	flags.Duration("http-server-read-timeout", cfg.HTTPServer.ReadTimeout, "")
-	flags.Duration("http-server-read-header-timeout", cfg.HTTPServer.ReadHeaderTimeout, "")
-	flags.Duration("http-server-write-timeout", cfg.HTTPServer.WriteTimeout, "")
-	flags.Duration("http-server-idle-timeout", cfg.HTTPServer.IdleTimeout, "")
-	flags.String("http-server-max-header-bytes", cfg.HTTPServer.MaxHeaderBytes.String(), "")
-	flags.Int("http-server-max-concurrent-streams", cfg.HTTPServer.MaxConcurrentStreams, "")
-	flags.String("http-server-max-decoder-header-table-size", cfg.HTTPServer.MaxDecoderHeaderTableSize.String(), "")
-	flags.String("http-server-max-encoder-header-table-size", cfg.HTTPServer.MaxEncoderHeaderTableSize.String(), "")
-	flags.String("http-server-max-read-frame-size", cfg.HTTPServer.MaxReadFrameSize.String(), "")
-	flags.String("http-server-max-receive-buffer-per-connection", cfg.HTTPServer.MaxReceiveBufferPerConnection.String(), "")
-	flags.String("http-server-max-receive-buffer-per-stream", cfg.HTTPServer.MaxReceiveBufferPerStream.String(), "")
-	flags.Duration("http-server-send-ping-timeout", cfg.HTTPServer.SendPingTimeout, "")
-	flags.Duration("http-server-ping-timeout", cfg.HTTPServer.PingTimeout, "")
-	flags.Duration("http-server-write-byte-timeout", cfg.HTTPServer.WriteByteTimeout, "")
-	flags.StringSlice("http-client-allow-ips", cfg.HTTPClient.AllowIPs.Strings(), "")
-	flags.StringSlice("http-client-block-ips", cfg.HTTPClient.BlockIPs.Strings(), "")
-	flags.Duration("http-client-timeout", cfg.HTTPClient.Timeout, "")
-	flags.Bool("http-client-tls-insecure-skip-verify", cfg.HTTPClient.TLSInsecureSkipVerify, "")
-	flags.Bool("http-client-insecure-outgoing", cfg.HTTPClient.InsecureOutgoing, "")
-	flags.Bool("http-client-disable-keep-alives", cfg.HTTPClient.DisableKeepAlives, "")
-	flags.Int("http-client-max-idle-conns", cfg.HTTPClient.MaxIdleConns, "")
-	flags.Int("http-client-max-idle-conns-per-host", cfg.HTTPClient.MaxIdleConnsPerHost, "")
-	flags.Int("http-client-max-conns-per-host", cfg.HTTPClient.MaxConnsPerHost, "")
-	flags.Duration("http-client-idle-conn-timeout", cfg.HTTPClient.IdleConnTimeout, "")
-	flags.Duration("http-client-tls-handshake-timeout", cfg.HTTPClient.TLSHandshakeTimeout, "")
-	flags.Duration("http-client-response-header-timeout", cfg.HTTPClient.ResponseHeaderTimeout, "")
-	flags.String("http-client-read-buffer-size", cfg.HTTPClient.ReadBufferSize.String(), "")
-	flags.String("http-client-write-buffer-size", cfg.HTTPClient.WriteBufferSize.String(), "")
-	flags.Int("media-description-min-chars", cfg.Media.DescriptionMinChars, "Min required chars for an image description")
-	flags.Int("media-description-max-chars", cfg.Media.DescriptionMaxChars, "Max permitted chars for an image description")
-	flags.String("media-emoji-local-max-size", cfg.Media.EmojiLocalMaxSize.String(), "Max size in bytes of emojis uploaded to this instance via the admin API.")
-	flags.String("media-emoji-remote-max-size", cfg.Media.EmojiRemoteMaxSize.String(), "Max size in bytes of emojis to download from other instances.")
-	flags.String("media-image-size-hint", cfg.Media.ImageSizeHint.String(), "Size in bytes of max image size referred to on /api/v_/instance endpoints (else, local max size)")
-	flags.String("media-video-size-hint", cfg.Media.VideoSizeHint.String(), "Size in bytes of max video size referred to on /api/v_/instance endpoints (else, local max size)")
-	flags.String("media-local-max-size", cfg.Media.LocalMaxSize.String(), "Max size in bytes of media uploaded to this instance via API")
-	flags.String("media-remote-max-size", cfg.Media.RemoteMaxSize.String(), "Max size in bytes of media to download from other instances")
-	flags.Int("media-ffmpeg-pool-size", cfg.Media.FfmpegPoolSize, "Number of instances of the embedded ffmpeg WASM binary to add to the media processing pool. 0 or less uses GOMAXPROCS.")
-	flags.Int("media-thumb-max-pixels", cfg.Media.ThumbMaxPixels, "Max size in pixels of any one dimension of a thumbnail (as input media ratio is preserved).")
-	flags.String("media-remote-cache-duration", cfg.Media.RemoteCacheDuration.String(), "Duration defining how long to locally cache media from remote instances. (zero keeps indefinitely)")
-	flags.String("media-cleanup-cron", cfg.Media.CleanupCron.String(), "Cron expression defining media cleanup task scheduling")
-	flags.Uint32("cache-s3-object-info", cfg.Cache.S3ObjectInfo, "Enables caching of S3 object information in the storage driver to reduce S3 calls, value is cache capacity.")
-	flags.Uint32("cache-home-timeline-size", cfg.Cache.HomeTimelineSize, "Per-user home timeline cache length, in number of posts. (minimum = 100)")
-	flags.Uint32("cache-list-timeline-size", cfg.Cache.ListTimelineSize, "Per-list timeline cache length, in number of posts. (minimum = 100)")
-	flags.Uint32("cache-tag-timeline-size", cfg.Cache.TagTimelineSize, "Per-tag timeline cache length, in number of posts. (minimum = 50)")
-	flags.Duration("cache-home-timeline-timeout", cfg.Cache.HomeTimelineTimeout, "Duration before any one home timeline cache is unloaded from memory. Values <= 0 disable unloading.")
-	flags.Duration("cache-list-timeline-timeout", cfg.Cache.ListTimelineTimeout, "Duration before any one list timeline cache is unloaded from memory. Values <= 0 disable unloading.")
-	flags.Duration("cache-tag-timeline-timeout", cfg.Cache.TagTimelineTimeout, "Duration before any one tag timeline cache is unloaded from memory. Values <= 0 disable unloading.")
-	flags.String("cache-memory-target", cfg.Cache.MemoryTarget.String(), "")
-	flags.Float64("cache-account-mem-ratio", cfg.Cache.AccountMemRatio, "")
-	flags.Float64("cache-account-note-mem-ratio", cfg.Cache.AccountNoteMemRatio, "")
-	flags.Float64("cache-account-settings-mem-ratio", cfg.Cache.AccountSettingsMemRatio, "")
-	flags.Float64("cache-account-stats-mem-ratio", cfg.Cache.AccountStatsMemRatio, "")
-	flags.Float64("cache-application-mem-ratio", cfg.Cache.ApplicationMemRatio, "")
-	flags.Float64("cache-block-mem-ratio", cfg.Cache.BlockMemRatio, "")
-	flags.Float64("cache-block-ids-mem-ratio", cfg.Cache.BlockIDsMemRatio, "")
-	flags.Float64("cache-boost-of-ids-mem-ratio", cfg.Cache.BoostOfIDsMemRatio, "")
-	flags.Float64("cache-client-mem-ratio", cfg.Cache.ClientMemRatio, "")
-	flags.Float64("cache-conversation-mem-ratio", cfg.Cache.ConversationMemRatio, "")
-	flags.Float64("cache-conversation-last-status-ids-mem-ratio", cfg.Cache.ConversationLastStatusIDsMemRatio, "")
-	flags.Float64("cache-domain-permission-draft-mem-ratio", cfg.Cache.DomainPermissionDraftMemRatio, "")
-	flags.Float64("cache-domain-permission-limit-mem-ratio", cfg.Cache.DomainLimitMemRatio, "")
-	flags.Float64("cache-domain-permission-subscription-mem-ratio", cfg.Cache.DomainPermissionSubscriptionMemRatio, "")
-	flags.Float64("cache-emoji-mem-ratio", cfg.Cache.EmojiMemRatio, "")
-	flags.Float64("cache-emoji-category-mem-ratio", cfg.Cache.EmojiCategoryMemRatio, "")
-	flags.Float64("cache-federation-error-mem-ratio", cfg.Cache.FederationErrorMemRatio, "")
-	flags.Float64("cache-filter-mem-ratio", cfg.Cache.FilterMemRatio, "")
-	flags.Float64("cache-filter-ids-mem-ratio", cfg.Cache.FilterIDsMemRatio, "")
-	flags.Float64("cache-filter-keyword-mem-ratio", cfg.Cache.FilterKeywordMemRatio, "")
-	flags.Float64("cache-filter-status-mem-ratio", cfg.Cache.FilterStatusMemRatio, "")
-	flags.Float64("cache-follow-mem-ratio", cfg.Cache.FollowMemRatio, "")
-	flags.Float64("cache-follow-ids-mem-ratio", cfg.Cache.FollowIDsMemRatio, "")
-	flags.Float64("cache-follow-request-mem-ratio", cfg.Cache.FollowRequestMemRatio, "")
-	flags.Float64("cache-follow-request-ids-mem-ratio", cfg.Cache.FollowRequestIDsMemRatio, "")
-	flags.Float64("cache-following-tag-ids-mem-ratio", cfg.Cache.FollowingTagIDsMemRatio, "")
-	flags.Float64("cache-home-account-ids-mem-ratio", cfg.Cache.HomeAccountIDsMemRatio, "")
-	flags.Float64("cache-in-reply-to-ids-mem-ratio", cfg.Cache.InReplyToIDsMemRatio, "")
-	flags.Float64("cache-instance-mem-ratio", cfg.Cache.InstanceMemRatio, "")
-	flags.Float64("cache-interaction-request-mem-ratio", cfg.Cache.InteractionRequestMemRatio, "")
-	flags.Float64("cache-list-mem-ratio", cfg.Cache.ListMemRatio, "")
-	flags.Float64("cache-list-ids-mem-ratio", cfg.Cache.ListIDsMemRatio, "")
-	flags.Float64("cache-listed-ids-mem-ratio", cfg.Cache.ListedIDsMemRatio, "")
-	flags.Float64("cache-marker-mem-ratio", cfg.Cache.MarkerMemRatio, "")
-	flags.Float64("cache-media-mem-ratio", cfg.Cache.MediaMemRatio, "")
-	flags.Float64("cache-mention-mem-ratio", cfg.Cache.MentionMemRatio, "")
-	flags.Float64("cache-move-mem-ratio", cfg.Cache.MoveMemRatio, "")
-	flags.Float64("cache-notification-mem-ratio", cfg.Cache.NotificationMemRatio, "")
-	flags.Float64("cache-poll-mem-ratio", cfg.Cache.PollMemRatio, "")
-	flags.Float64("cache-poll-vote-mem-ratio", cfg.Cache.PollVoteMemRatio, "")
-	flags.Float64("cache-poll-vote-ids-mem-ratio", cfg.Cache.PollVoteIDsMemRatio, "")
-	flags.Float64("cache-report-mem-ratio", cfg.Cache.ReportMemRatio, "")
-	flags.Float64("cache-relay-actor-mem-ratio", cfg.Cache.RelayActorMemRatio, "")
-	flags.Float64("cache-relay-matcher-mem-ratio", cfg.Cache.RelayMatcherMemRatio, "")
-	flags.Float64("cache-relay-push-mem-ratio", cfg.Cache.RelayPushMemRatio, "")
-	flags.Float64("cache-relay-push-ids-mem-ratio", cfg.Cache.RelayPushIDsMemRatio, "")
-	flags.Float64("cache-relay-subscription-mem-ratio", cfg.Cache.RelaySubscriptionMemRatio, "")
-	flags.Float64("cache-scheduled-status-mem-ratio", cfg.Cache.ScheduledStatusMemRatio, "")
-	flags.Float64("cache-sin-bin-status-mem-ratio", cfg.Cache.SinBinStatusMemRatio, "")
-	flags.Float64("cache-status-mem-ratio", cfg.Cache.StatusMemRatio, "")
-	flags.Float64("cache-status-bookmark-mem-ratio", cfg.Cache.StatusBookmarkMemRatio, "")
-	flags.Float64("cache-status-bookmark-ids-mem-ratio", cfg.Cache.StatusBookmarkIDsMemRatio, "")
-	flags.Float64("cache-status-edit-mem-ratio", cfg.Cache.StatusEditMemRatio, "")
-	flags.Float64("cache-status-fave-mem-ratio", cfg.Cache.StatusFaveMemRatio, "")
-	flags.Float64("cache-status-fave-ids-mem-ratio", cfg.Cache.StatusFaveIDsMemRatio, "")
-	flags.Float64("cache-status-pinned-ids-mem-ratio", cfg.Cache.StatusPinnedIDsMemRatio, "")
-	flags.Float64("cache-tag-mem-ratio", cfg.Cache.TagMemRatio, "")
-	flags.Float64("cache-thread-mute-mem-ratio", cfg.Cache.ThreadMuteMemRatio, "")
-	flags.Float64("cache-token-mem-ratio", cfg.Cache.TokenMemRatio, "")
-	flags.Float64("cache-tombstone-mem-ratio", cfg.Cache.TombstoneMemRatio, "")
-	flags.Float64("cache-user-mem-ratio", cfg.Cache.UserMemRatio, "")
-	flags.Float64("cache-user-mute-mem-ratio", cfg.Cache.UserMuteMemRatio, "")
-	flags.Float64("cache-user-mute-ids-mem-ratio", cfg.Cache.UserMuteIDsMemRatio, "")
-	flags.Float64("cache-webfinger-mem-ratio", cfg.Cache.WebfingerMemRatio, "")
-	flags.Float64("cache-web-push-subscription-mem-ratio", cfg.Cache.WebPushSubscriptionMemRatio, "")
-	flags.Float64("cache-web-push-subscription-ids-mem-ratio", cfg.Cache.WebPushSubscriptionIDsMemRatio, "")
-	flags.Float64("cache-mutes-mem-ratio", cfg.Cache.MutesMemRatio, "")
-	flags.Float64("cache-status-filter-mem-ratio", cfg.Cache.StatusFilterMemRatio, "")
-	flags.Float64("cache-visibility-mem-ratio", cfg.Cache.VisibilityMemRatio, "")
+}
+
+func (cfg *PostgresConfiguration) MarshalIntoMap(prefix string, cfgmap map[string]any) {
+	cfgmap[joinFlag(prefix, "port")] = cfg.Port
+	cfgmap[joinFlag(prefix, "user")] = cfg.User
+	cfgmap[joinFlag(prefix, "password")] = cfg.Password
+	cfgmap[joinFlag(prefix, "database")] = cfg.Database
+	cfgmap[joinFlag(prefix, "tls-mode")] = cfg.TLSMode
+	cfgmap[joinFlag(prefix, "tls-ca-cert")] = cfg.TLSCACert
+	cfgmap[joinFlag(prefix, "postgres-connection-string")] = cfg.ConnectionString
+}
+
+func (cfg *SQLiteConfiguration) MarshalIntoMap(prefix string, cfgmap map[string]any) {
+	cfgmap[joinFlag(prefix, "journal-mode")] = cfg.JournalMode
+	cfgmap[joinFlag(prefix, "synchronous")] = cfg.Synchronous
+	cfgmap[joinFlag(prefix, "cache-size")] = cfg.CacheSize.String()
+	cfgmap[joinFlag(prefix, "busy-timeout")] = cfg.BusyTimeout
+}
+
+func (cfg *DatabaseConfiguration) MarshalIntoMap(prefix string, cfgmap map[string]any) {
+	cfg.Postgres.MarshalIntoMap(joinFlag(prefix, ""), cfgmap)
+	cfg.SQLite.MarshalIntoMap(joinFlag(prefix, "sqlite"), cfgmap)
+	cfgmap[joinFlag(prefix, "type")] = cfg.Type
+	cfgmap[joinFlag(prefix, "address")] = cfg.Address
+	cfgmap[joinFlag(prefix, "max-open-conns-multiplier")] = cfg.MaxOpenConnsMultiplier
+}
+
+func (cfg *RateLimitConfig) MarshalIntoMap(prefix string, cfgmap map[string]any) {
+	cfgmap[joinFlag(prefix, "requests")] = cfg.Requests
+	cfgmap[joinFlag(prefix, "exceptions")] = cfg.Exceptions.Strings()
+}
+
+func (cfg *ThrottlingConfig) MarshalIntoMap(prefix string, cfgmap map[string]any) {
+	cfgmap[joinFlag(prefix, "multiplier")] = cfg.Multiplier
+	cfgmap[joinFlag(prefix, "retry-after")] = cfg.RetryAfter
+}
+
+func (cfg *AdvancedConfig) MarshalIntoMap(prefix string, cfgmap map[string]any) {
+	cfg.RateLimit.MarshalIntoMap(joinFlag(prefix, "rate-limit"), cfgmap)
+	cfg.Throttling.MarshalIntoMap(joinFlag(prefix, "throttling"), cfgmap)
+	cfgmap[joinFlag(prefix, "cookies-samesite")] = cfg.CookiesSamesite
+	cfgmap[joinFlag(prefix, "sender-multiplier")] = cfg.SenderMultiplier
+	cfgmap[joinFlag(prefix, "csp-extra-uris")] = cfg.CSPExtraURIs
+	cfgmap[joinFlag(prefix, "header-filter-mode")] = cfg.HeaderFilterMode
+}
+
+func (cfg *HTTPServerConfiguration) MarshalIntoMap(prefix string, cfgmap map[string]any) {
+	cfgmap[joinFlag(prefix, "max-multipart-memory")] = cfg.MaxMultipartMemory.String()
+	cfgmap[joinFlag(prefix, "use-h2c")] = cfg.UseH2C
+	cfgmap[joinFlag(prefix, "read-timeout")] = cfg.ReadTimeout
+	cfgmap[joinFlag(prefix, "read-header-timeout")] = cfg.ReadHeaderTimeout
+	cfgmap[joinFlag(prefix, "write-timeout")] = cfg.WriteTimeout
+	cfgmap[joinFlag(prefix, "idle-timeout")] = cfg.IdleTimeout
+	cfgmap[joinFlag(prefix, "max-header-bytes")] = cfg.MaxHeaderBytes.String()
+	cfgmap[joinFlag(prefix, "max-concurrent-streams")] = cfg.MaxConcurrentStreams
+	cfgmap[joinFlag(prefix, "max-decoder-header-table-size")] = cfg.MaxDecoderHeaderTableSize.String()
+	cfgmap[joinFlag(prefix, "max-encoder-header-table-size")] = cfg.MaxEncoderHeaderTableSize.String()
+	cfgmap[joinFlag(prefix, "max-read-frame-size")] = cfg.MaxReadFrameSize.String()
+	cfgmap[joinFlag(prefix, "max-receive-buffer-per-connection")] = cfg.MaxReceiveBufferPerConnection.String()
+	cfgmap[joinFlag(prefix, "max-receive-buffer-per-stream")] = cfg.MaxReceiveBufferPerStream.String()
+	cfgmap[joinFlag(prefix, "send-ping-timeout")] = cfg.SendPingTimeout
+	cfgmap[joinFlag(prefix, "ping-timeout")] = cfg.PingTimeout
+	cfgmap[joinFlag(prefix, "write-byte-timeout")] = cfg.WriteByteTimeout
+}
+
+func (cfg *HTTPClientConfiguration) MarshalIntoMap(prefix string, cfgmap map[string]any) {
+	cfgmap[joinFlag(prefix, "allow-ips")] = cfg.AllowIPs.Strings()
+	cfgmap[joinFlag(prefix, "block-ips")] = cfg.BlockIPs.Strings()
+	cfgmap[joinFlag(prefix, "timeout")] = cfg.Timeout
+	cfgmap[joinFlag(prefix, "tls-insecure-skip-verify")] = cfg.TLSInsecureSkipVerify
+	cfgmap[joinFlag(prefix, "insecure-outgoing")] = cfg.InsecureOutgoing
+	cfgmap[joinFlag(prefix, "disable-keep-alives")] = cfg.DisableKeepAlives
+	cfgmap[joinFlag(prefix, "max-idle-conns")] = cfg.MaxIdleConns
+	cfgmap[joinFlag(prefix, "max-idle-conns-per-host")] = cfg.MaxIdleConnsPerHost
+	cfgmap[joinFlag(prefix, "max-conns-per-host")] = cfg.MaxConnsPerHost
+	cfgmap[joinFlag(prefix, "idle-conn-timeout")] = cfg.IdleConnTimeout
+	cfgmap[joinFlag(prefix, "tls-handshake-timeout")] = cfg.TLSHandshakeTimeout
+	cfgmap[joinFlag(prefix, "response-header-timeout")] = cfg.ResponseHeaderTimeout
+	cfgmap[joinFlag(prefix, "read-buffer-size")] = cfg.ReadBufferSize.String()
+	cfgmap[joinFlag(prefix, "write-buffer-size")] = cfg.WriteBufferSize.String()
+}
+
+func (cfg *MediaConfiguration) MarshalIntoMap(prefix string, cfgmap map[string]any) {
+	cfgmap[joinFlag(prefix, "description-min-chars")] = cfg.DescriptionMinChars
+	cfgmap[joinFlag(prefix, "description-max-chars")] = cfg.DescriptionMaxChars
+	cfgmap[joinFlag(prefix, "emoji-local-max-size")] = cfg.EmojiLocalMaxSize.String()
+	cfgmap[joinFlag(prefix, "emoji-remote-max-size")] = cfg.EmojiRemoteMaxSize.String()
+	cfgmap[joinFlag(prefix, "image-size-hint")] = cfg.ImageSizeHint.String()
+	cfgmap[joinFlag(prefix, "video-size-hint")] = cfg.VideoSizeHint.String()
+	cfgmap[joinFlag(prefix, "local-max-size")] = cfg.LocalMaxSize.String()
+	cfgmap[joinFlag(prefix, "remote-max-size")] = cfg.RemoteMaxSize.String()
+	cfgmap[joinFlag(prefix, "ffmpeg-pool-size")] = cfg.FfmpegPoolSize
+	cfgmap[joinFlag(prefix, "thumb-max-pixels")] = cfg.ThumbMaxPixels
+	cfgmap[joinFlag(prefix, "remote-cache-duration")] = cfg.RemoteCacheDuration.String()
+	cfgmap[joinFlag(prefix, "cleanup-cron")] = cfg.CleanupCron.String()
+}
+
+func (cfg *CacheConfiguration) MarshalIntoMap(prefix string, cfgmap map[string]any) {
+	cfgmap[joinFlag(prefix, "s3-object-info")] = cfg.S3ObjectInfo
+	cfgmap[joinFlag(prefix, "home-timeline-size")] = cfg.HomeTimelineSize
+	cfgmap[joinFlag(prefix, "list-timeline-size")] = cfg.ListTimelineSize
+	cfgmap[joinFlag(prefix, "tag-timeline-size")] = cfg.TagTimelineSize
+	cfgmap[joinFlag(prefix, "home-timeline-timeout")] = cfg.HomeTimelineTimeout
+	cfgmap[joinFlag(prefix, "list-timeline-timeout")] = cfg.ListTimelineTimeout
+	cfgmap[joinFlag(prefix, "tag-timeline-timeout")] = cfg.TagTimelineTimeout
+	cfgmap[joinFlag(prefix, "memory-target")] = cfg.MemoryTarget.String()
+	cfgmap[joinFlag(prefix, "account-mem-ratio")] = cfg.AccountMemRatio
+	cfgmap[joinFlag(prefix, "account-note-mem-ratio")] = cfg.AccountNoteMemRatio
+	cfgmap[joinFlag(prefix, "account-settings-mem-ratio")] = cfg.AccountSettingsMemRatio
+	cfgmap[joinFlag(prefix, "account-stats-mem-ratio")] = cfg.AccountStatsMemRatio
+	cfgmap[joinFlag(prefix, "application-mem-ratio")] = cfg.ApplicationMemRatio
+	cfgmap[joinFlag(prefix, "block-mem-ratio")] = cfg.BlockMemRatio
+	cfgmap[joinFlag(prefix, "block-ids-mem-ratio")] = cfg.BlockIDsMemRatio
+	cfgmap[joinFlag(prefix, "boost-of-ids-mem-ratio")] = cfg.BoostOfIDsMemRatio
+	cfgmap[joinFlag(prefix, "client-mem-ratio")] = cfg.ClientMemRatio
+	cfgmap[joinFlag(prefix, "conversation-mem-ratio")] = cfg.ConversationMemRatio
+	cfgmap[joinFlag(prefix, "conversation-last-status-ids-mem-ratio")] = cfg.ConversationLastStatusIDsMemRatio
+	cfgmap[joinFlag(prefix, "domain-permission-draft-mem-ratio")] = cfg.DomainPermissionDraftMemRatio
+	cfgmap[joinFlag(prefix, "domain-permission-limit-mem-ratio")] = cfg.DomainLimitMemRatio
+	cfgmap[joinFlag(prefix, "domain-permission-subscription-mem-ratio")] = cfg.DomainPermissionSubscriptionMemRatio
+	cfgmap[joinFlag(prefix, "emoji-mem-ratio")] = cfg.EmojiMemRatio
+	cfgmap[joinFlag(prefix, "emoji-category-mem-ratio")] = cfg.EmojiCategoryMemRatio
+	cfgmap[joinFlag(prefix, "federation-error-mem-ratio")] = cfg.FederationErrorMemRatio
+	cfgmap[joinFlag(prefix, "filter-mem-ratio")] = cfg.FilterMemRatio
+	cfgmap[joinFlag(prefix, "filter-ids-mem-ratio")] = cfg.FilterIDsMemRatio
+	cfgmap[joinFlag(prefix, "filter-keyword-mem-ratio")] = cfg.FilterKeywordMemRatio
+	cfgmap[joinFlag(prefix, "filter-status-mem-ratio")] = cfg.FilterStatusMemRatio
+	cfgmap[joinFlag(prefix, "follow-mem-ratio")] = cfg.FollowMemRatio
+	cfgmap[joinFlag(prefix, "follow-ids-mem-ratio")] = cfg.FollowIDsMemRatio
+	cfgmap[joinFlag(prefix, "follow-request-mem-ratio")] = cfg.FollowRequestMemRatio
+	cfgmap[joinFlag(prefix, "follow-request-ids-mem-ratio")] = cfg.FollowRequestIDsMemRatio
+	cfgmap[joinFlag(prefix, "following-tag-ids-mem-ratio")] = cfg.FollowingTagIDsMemRatio
+	cfgmap[joinFlag(prefix, "home-account-ids-mem-ratio")] = cfg.HomeAccountIDsMemRatio
+	cfgmap[joinFlag(prefix, "in-reply-to-ids-mem-ratio")] = cfg.InReplyToIDsMemRatio
+	cfgmap[joinFlag(prefix, "instance-mem-ratio")] = cfg.InstanceMemRatio
+	cfgmap[joinFlag(prefix, "interaction-request-mem-ratio")] = cfg.InteractionRequestMemRatio
+	cfgmap[joinFlag(prefix, "list-mem-ratio")] = cfg.ListMemRatio
+	cfgmap[joinFlag(prefix, "list-ids-mem-ratio")] = cfg.ListIDsMemRatio
+	cfgmap[joinFlag(prefix, "listed-ids-mem-ratio")] = cfg.ListedIDsMemRatio
+	cfgmap[joinFlag(prefix, "marker-mem-ratio")] = cfg.MarkerMemRatio
+	cfgmap[joinFlag(prefix, "media-mem-ratio")] = cfg.MediaMemRatio
+	cfgmap[joinFlag(prefix, "mention-mem-ratio")] = cfg.MentionMemRatio
+	cfgmap[joinFlag(prefix, "move-mem-ratio")] = cfg.MoveMemRatio
+	cfgmap[joinFlag(prefix, "notification-mem-ratio")] = cfg.NotificationMemRatio
+	cfgmap[joinFlag(prefix, "poll-mem-ratio")] = cfg.PollMemRatio
+	cfgmap[joinFlag(prefix, "poll-vote-mem-ratio")] = cfg.PollVoteMemRatio
+	cfgmap[joinFlag(prefix, "poll-vote-ids-mem-ratio")] = cfg.PollVoteIDsMemRatio
+	cfgmap[joinFlag(prefix, "report-mem-ratio")] = cfg.ReportMemRatio
+	cfgmap[joinFlag(prefix, "relay-actor-mem-ratio")] = cfg.RelayActorMemRatio
+	cfgmap[joinFlag(prefix, "relay-matcher-mem-ratio")] = cfg.RelayMatcherMemRatio
+	cfgmap[joinFlag(prefix, "relay-push-mem-ratio")] = cfg.RelayPushMemRatio
+	cfgmap[joinFlag(prefix, "relay-push-ids-mem-ratio")] = cfg.RelayPushIDsMemRatio
+	cfgmap[joinFlag(prefix, "relay-subscription-mem-ratio")] = cfg.RelaySubscriptionMemRatio
+	cfgmap[joinFlag(prefix, "scheduled-status-mem-ratio")] = cfg.ScheduledStatusMemRatio
+	cfgmap[joinFlag(prefix, "sin-bin-status-mem-ratio")] = cfg.SinBinStatusMemRatio
+	cfgmap[joinFlag(prefix, "status-mem-ratio")] = cfg.StatusMemRatio
+	cfgmap[joinFlag(prefix, "status-bookmark-mem-ratio")] = cfg.StatusBookmarkMemRatio
+	cfgmap[joinFlag(prefix, "status-bookmark-ids-mem-ratio")] = cfg.StatusBookmarkIDsMemRatio
+	cfgmap[joinFlag(prefix, "status-edit-mem-ratio")] = cfg.StatusEditMemRatio
+	cfgmap[joinFlag(prefix, "status-fave-mem-ratio")] = cfg.StatusFaveMemRatio
+	cfgmap[joinFlag(prefix, "status-fave-ids-mem-ratio")] = cfg.StatusFaveIDsMemRatio
+	cfgmap[joinFlag(prefix, "status-pinned-ids-mem-ratio")] = cfg.StatusPinnedIDsMemRatio
+	cfgmap[joinFlag(prefix, "tag-mem-ratio")] = cfg.TagMemRatio
+	cfgmap[joinFlag(prefix, "thread-mute-mem-ratio")] = cfg.ThreadMuteMemRatio
+	cfgmap[joinFlag(prefix, "token-mem-ratio")] = cfg.TokenMemRatio
+	cfgmap[joinFlag(prefix, "tombstone-mem-ratio")] = cfg.TombstoneMemRatio
+	cfgmap[joinFlag(prefix, "user-mem-ratio")] = cfg.UserMemRatio
+	cfgmap[joinFlag(prefix, "user-mute-mem-ratio")] = cfg.UserMuteMemRatio
+	cfgmap[joinFlag(prefix, "user-mute-ids-mem-ratio")] = cfg.UserMuteIDsMemRatio
+	cfgmap[joinFlag(prefix, "webfinger-mem-ratio")] = cfg.WebfingerMemRatio
+	cfgmap[joinFlag(prefix, "web-push-subscription-mem-ratio")] = cfg.WebPushSubscriptionMemRatio
+	cfgmap[joinFlag(prefix, "web-push-subscription-ids-mem-ratio")] = cfg.WebPushSubscriptionIDsMemRatio
+	cfgmap[joinFlag(prefix, "mutes-mem-ratio")] = cfg.MutesMemRatio
+	cfgmap[joinFlag(prefix, "status-filter-mem-ratio")] = cfg.StatusFilterMemRatio
+	cfgmap[joinFlag(prefix, "visibility-mem-ratio")] = cfg.VisibilityMemRatio
 }
 
 func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap := make(map[string]any, 245)
+	cfg.MarshalIntoMap(cfgmap)
+	return cfgmap
+}
+
+func (cfg *Configuration) MarshalIntoMap(cfgmap map[string]any) {
+	cfg.Database.MarshalIntoMap("db", cfgmap)
+	cfg.Advanced.MarshalIntoMap("advanced", cfgmap)
+	cfg.HTTPServer.MarshalIntoMap("http-server", cfgmap)
+	cfg.HTTPClient.MarshalIntoMap("http-client", cfgmap)
+	cfg.Media.MarshalIntoMap("media", cfgmap)
+	cfg.Cache.MarshalIntoMap("cache", cfgmap)
 	cfgmap["log-level"] = cfg.LogLevel
 	cfgmap["log-format"] = cfg.LogFormat
 	cfgmap["log-timestamp-format"] = cfg.LogTimestampFormat
@@ -531,20 +756,6 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["port"] = cfg.Port
 	cfgmap["trusted-proxies"] = cfg.TrustedProxies.Strings()
 	cfgmap["software-version"] = cfg.SoftwareVersion
-	cfgmap["db-type"] = cfg.DbType
-	cfgmap["db-address"] = cfg.DbAddress
-	cfgmap["db-port"] = cfg.DbPort
-	cfgmap["db-user"] = cfg.DbUser
-	cfgmap["db-password"] = cfg.DbPassword
-	cfgmap["db-database"] = cfg.DbDatabase
-	cfgmap["db-tls-mode"] = cfg.DbTLSMode
-	cfgmap["db-tls-ca-cert"] = cfg.DbTLSCACert
-	cfgmap["db-max-open-conns-multiplier"] = cfg.DbMaxOpenConnsMultiplier
-	cfgmap["db-sqlite-journal-mode"] = cfg.DbSqliteJournalMode
-	cfgmap["db-sqlite-synchronous"] = cfg.DbSqliteSynchronous
-	cfgmap["db-sqlite-cache-size"] = cfg.DbSqliteCacheSize.String()
-	cfgmap["db-sqlite-busy-timeout"] = cfg.DbSqliteBusyTimeout
-	cfgmap["db-postgres-connection-string"] = cfg.DbPostgresConnectionString
 	cfgmap["web-template-base-dir"] = cfg.WebTemplateBaseDir
 	cfgmap["web-asset-base-dir"] = cfg.WebAssetBaseDir
 	cfgmap["instance-federation-mode"] = cfg.InstanceFederationMode
@@ -619,133 +830,6 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["syslog-enabled"] = cfg.SyslogEnabled
 	cfgmap["syslog-protocol"] = cfg.SyslogProtocol
 	cfgmap["syslog-address"] = cfg.SyslogAddress
-	cfgmap["advanced-cookies-samesite"] = cfg.Advanced.CookiesSamesite
-	cfgmap["advanced-sender-multiplier"] = cfg.Advanced.SenderMultiplier
-	cfgmap["advanced-csp-extra-uris"] = cfg.Advanced.CSPExtraURIs
-	cfgmap["advanced-header-filter-mode"] = cfg.Advanced.HeaderFilterMode
-	cfgmap["advanced-rate-limit-requests"] = cfg.Advanced.RateLimit.Requests
-	cfgmap["advanced-rate-limit-exceptions"] = cfg.Advanced.RateLimit.Exceptions.Strings()
-	cfgmap["advanced-throttling-multiplier"] = cfg.Advanced.Throttling.Multiplier
-	cfgmap["advanced-throttling-retry-after"] = cfg.Advanced.Throttling.RetryAfter
-	cfgmap["http-server-max-multipart-memory"] = cfg.HTTPServer.MaxMultipartMemory.String()
-	cfgmap["http-server-use-h2c"] = cfg.HTTPServer.UseH2C
-	cfgmap["http-server-read-timeout"] = cfg.HTTPServer.ReadTimeout
-	cfgmap["http-server-read-header-timeout"] = cfg.HTTPServer.ReadHeaderTimeout
-	cfgmap["http-server-write-timeout"] = cfg.HTTPServer.WriteTimeout
-	cfgmap["http-server-idle-timeout"] = cfg.HTTPServer.IdleTimeout
-	cfgmap["http-server-max-header-bytes"] = cfg.HTTPServer.MaxHeaderBytes.String()
-	cfgmap["http-server-max-concurrent-streams"] = cfg.HTTPServer.MaxConcurrentStreams
-	cfgmap["http-server-max-decoder-header-table-size"] = cfg.HTTPServer.MaxDecoderHeaderTableSize.String()
-	cfgmap["http-server-max-encoder-header-table-size"] = cfg.HTTPServer.MaxEncoderHeaderTableSize.String()
-	cfgmap["http-server-max-read-frame-size"] = cfg.HTTPServer.MaxReadFrameSize.String()
-	cfgmap["http-server-max-receive-buffer-per-connection"] = cfg.HTTPServer.MaxReceiveBufferPerConnection.String()
-	cfgmap["http-server-max-receive-buffer-per-stream"] = cfg.HTTPServer.MaxReceiveBufferPerStream.String()
-	cfgmap["http-server-send-ping-timeout"] = cfg.HTTPServer.SendPingTimeout
-	cfgmap["http-server-ping-timeout"] = cfg.HTTPServer.PingTimeout
-	cfgmap["http-server-write-byte-timeout"] = cfg.HTTPServer.WriteByteTimeout
-	cfgmap["http-client-allow-ips"] = cfg.HTTPClient.AllowIPs.Strings()
-	cfgmap["http-client-block-ips"] = cfg.HTTPClient.BlockIPs.Strings()
-	cfgmap["http-client-timeout"] = cfg.HTTPClient.Timeout
-	cfgmap["http-client-tls-insecure-skip-verify"] = cfg.HTTPClient.TLSInsecureSkipVerify
-	cfgmap["http-client-insecure-outgoing"] = cfg.HTTPClient.InsecureOutgoing
-	cfgmap["http-client-disable-keep-alives"] = cfg.HTTPClient.DisableKeepAlives
-	cfgmap["http-client-max-idle-conns"] = cfg.HTTPClient.MaxIdleConns
-	cfgmap["http-client-max-idle-conns-per-host"] = cfg.HTTPClient.MaxIdleConnsPerHost
-	cfgmap["http-client-max-conns-per-host"] = cfg.HTTPClient.MaxConnsPerHost
-	cfgmap["http-client-idle-conn-timeout"] = cfg.HTTPClient.IdleConnTimeout
-	cfgmap["http-client-tls-handshake-timeout"] = cfg.HTTPClient.TLSHandshakeTimeout
-	cfgmap["http-client-response-header-timeout"] = cfg.HTTPClient.ResponseHeaderTimeout
-	cfgmap["http-client-read-buffer-size"] = cfg.HTTPClient.ReadBufferSize.String()
-	cfgmap["http-client-write-buffer-size"] = cfg.HTTPClient.WriteBufferSize.String()
-	cfgmap["media-description-min-chars"] = cfg.Media.DescriptionMinChars
-	cfgmap["media-description-max-chars"] = cfg.Media.DescriptionMaxChars
-	cfgmap["media-emoji-local-max-size"] = cfg.Media.EmojiLocalMaxSize.String()
-	cfgmap["media-emoji-remote-max-size"] = cfg.Media.EmojiRemoteMaxSize.String()
-	cfgmap["media-image-size-hint"] = cfg.Media.ImageSizeHint.String()
-	cfgmap["media-video-size-hint"] = cfg.Media.VideoSizeHint.String()
-	cfgmap["media-local-max-size"] = cfg.Media.LocalMaxSize.String()
-	cfgmap["media-remote-max-size"] = cfg.Media.RemoteMaxSize.String()
-	cfgmap["media-ffmpeg-pool-size"] = cfg.Media.FfmpegPoolSize
-	cfgmap["media-thumb-max-pixels"] = cfg.Media.ThumbMaxPixels
-	cfgmap["media-remote-cache-duration"] = cfg.Media.RemoteCacheDuration.String()
-	cfgmap["media-cleanup-cron"] = cfg.Media.CleanupCron.String()
-	cfgmap["cache-s3-object-info"] = cfg.Cache.S3ObjectInfo
-	cfgmap["cache-home-timeline-size"] = cfg.Cache.HomeTimelineSize
-	cfgmap["cache-list-timeline-size"] = cfg.Cache.ListTimelineSize
-	cfgmap["cache-tag-timeline-size"] = cfg.Cache.TagTimelineSize
-	cfgmap["cache-home-timeline-timeout"] = cfg.Cache.HomeTimelineTimeout
-	cfgmap["cache-list-timeline-timeout"] = cfg.Cache.ListTimelineTimeout
-	cfgmap["cache-tag-timeline-timeout"] = cfg.Cache.TagTimelineTimeout
-	cfgmap["cache-memory-target"] = cfg.Cache.MemoryTarget.String()
-	cfgmap["cache-account-mem-ratio"] = cfg.Cache.AccountMemRatio
-	cfgmap["cache-account-note-mem-ratio"] = cfg.Cache.AccountNoteMemRatio
-	cfgmap["cache-account-settings-mem-ratio"] = cfg.Cache.AccountSettingsMemRatio
-	cfgmap["cache-account-stats-mem-ratio"] = cfg.Cache.AccountStatsMemRatio
-	cfgmap["cache-application-mem-ratio"] = cfg.Cache.ApplicationMemRatio
-	cfgmap["cache-block-mem-ratio"] = cfg.Cache.BlockMemRatio
-	cfgmap["cache-block-ids-mem-ratio"] = cfg.Cache.BlockIDsMemRatio
-	cfgmap["cache-boost-of-ids-mem-ratio"] = cfg.Cache.BoostOfIDsMemRatio
-	cfgmap["cache-client-mem-ratio"] = cfg.Cache.ClientMemRatio
-	cfgmap["cache-conversation-mem-ratio"] = cfg.Cache.ConversationMemRatio
-	cfgmap["cache-conversation-last-status-ids-mem-ratio"] = cfg.Cache.ConversationLastStatusIDsMemRatio
-	cfgmap["cache-domain-permission-draft-mem-ratio"] = cfg.Cache.DomainPermissionDraftMemRatio
-	cfgmap["cache-domain-permission-limit-mem-ratio"] = cfg.Cache.DomainLimitMemRatio
-	cfgmap["cache-domain-permission-subscription-mem-ratio"] = cfg.Cache.DomainPermissionSubscriptionMemRatio
-	cfgmap["cache-emoji-mem-ratio"] = cfg.Cache.EmojiMemRatio
-	cfgmap["cache-emoji-category-mem-ratio"] = cfg.Cache.EmojiCategoryMemRatio
-	cfgmap["cache-federation-error-mem-ratio"] = cfg.Cache.FederationErrorMemRatio
-	cfgmap["cache-filter-mem-ratio"] = cfg.Cache.FilterMemRatio
-	cfgmap["cache-filter-ids-mem-ratio"] = cfg.Cache.FilterIDsMemRatio
-	cfgmap["cache-filter-keyword-mem-ratio"] = cfg.Cache.FilterKeywordMemRatio
-	cfgmap["cache-filter-status-mem-ratio"] = cfg.Cache.FilterStatusMemRatio
-	cfgmap["cache-follow-mem-ratio"] = cfg.Cache.FollowMemRatio
-	cfgmap["cache-follow-ids-mem-ratio"] = cfg.Cache.FollowIDsMemRatio
-	cfgmap["cache-follow-request-mem-ratio"] = cfg.Cache.FollowRequestMemRatio
-	cfgmap["cache-follow-request-ids-mem-ratio"] = cfg.Cache.FollowRequestIDsMemRatio
-	cfgmap["cache-following-tag-ids-mem-ratio"] = cfg.Cache.FollowingTagIDsMemRatio
-	cfgmap["cache-home-account-ids-mem-ratio"] = cfg.Cache.HomeAccountIDsMemRatio
-	cfgmap["cache-in-reply-to-ids-mem-ratio"] = cfg.Cache.InReplyToIDsMemRatio
-	cfgmap["cache-instance-mem-ratio"] = cfg.Cache.InstanceMemRatio
-	cfgmap["cache-interaction-request-mem-ratio"] = cfg.Cache.InteractionRequestMemRatio
-	cfgmap["cache-list-mem-ratio"] = cfg.Cache.ListMemRatio
-	cfgmap["cache-list-ids-mem-ratio"] = cfg.Cache.ListIDsMemRatio
-	cfgmap["cache-listed-ids-mem-ratio"] = cfg.Cache.ListedIDsMemRatio
-	cfgmap["cache-marker-mem-ratio"] = cfg.Cache.MarkerMemRatio
-	cfgmap["cache-media-mem-ratio"] = cfg.Cache.MediaMemRatio
-	cfgmap["cache-mention-mem-ratio"] = cfg.Cache.MentionMemRatio
-	cfgmap["cache-move-mem-ratio"] = cfg.Cache.MoveMemRatio
-	cfgmap["cache-notification-mem-ratio"] = cfg.Cache.NotificationMemRatio
-	cfgmap["cache-poll-mem-ratio"] = cfg.Cache.PollMemRatio
-	cfgmap["cache-poll-vote-mem-ratio"] = cfg.Cache.PollVoteMemRatio
-	cfgmap["cache-poll-vote-ids-mem-ratio"] = cfg.Cache.PollVoteIDsMemRatio
-	cfgmap["cache-report-mem-ratio"] = cfg.Cache.ReportMemRatio
-	cfgmap["cache-relay-actor-mem-ratio"] = cfg.Cache.RelayActorMemRatio
-	cfgmap["cache-relay-matcher-mem-ratio"] = cfg.Cache.RelayMatcherMemRatio
-	cfgmap["cache-relay-push-mem-ratio"] = cfg.Cache.RelayPushMemRatio
-	cfgmap["cache-relay-push-ids-mem-ratio"] = cfg.Cache.RelayPushIDsMemRatio
-	cfgmap["cache-relay-subscription-mem-ratio"] = cfg.Cache.RelaySubscriptionMemRatio
-	cfgmap["cache-scheduled-status-mem-ratio"] = cfg.Cache.ScheduledStatusMemRatio
-	cfgmap["cache-sin-bin-status-mem-ratio"] = cfg.Cache.SinBinStatusMemRatio
-	cfgmap["cache-status-mem-ratio"] = cfg.Cache.StatusMemRatio
-	cfgmap["cache-status-bookmark-mem-ratio"] = cfg.Cache.StatusBookmarkMemRatio
-	cfgmap["cache-status-bookmark-ids-mem-ratio"] = cfg.Cache.StatusBookmarkIDsMemRatio
-	cfgmap["cache-status-edit-mem-ratio"] = cfg.Cache.StatusEditMemRatio
-	cfgmap["cache-status-fave-mem-ratio"] = cfg.Cache.StatusFaveMemRatio
-	cfgmap["cache-status-fave-ids-mem-ratio"] = cfg.Cache.StatusFaveIDsMemRatio
-	cfgmap["cache-status-pinned-ids-mem-ratio"] = cfg.Cache.StatusPinnedIDsMemRatio
-	cfgmap["cache-tag-mem-ratio"] = cfg.Cache.TagMemRatio
-	cfgmap["cache-thread-mute-mem-ratio"] = cfg.Cache.ThreadMuteMemRatio
-	cfgmap["cache-token-mem-ratio"] = cfg.Cache.TokenMemRatio
-	cfgmap["cache-tombstone-mem-ratio"] = cfg.Cache.TombstoneMemRatio
-	cfgmap["cache-user-mem-ratio"] = cfg.Cache.UserMemRatio
-	cfgmap["cache-user-mute-mem-ratio"] = cfg.Cache.UserMuteMemRatio
-	cfgmap["cache-user-mute-ids-mem-ratio"] = cfg.Cache.UserMuteIDsMemRatio
-	cfgmap["cache-webfinger-mem-ratio"] = cfg.Cache.WebfingerMemRatio
-	cfgmap["cache-web-push-subscription-mem-ratio"] = cfg.Cache.WebPushSubscriptionMemRatio
-	cfgmap["cache-web-push-subscription-ids-mem-ratio"] = cfg.Cache.WebPushSubscriptionIDsMemRatio
-	cfgmap["cache-mutes-mem-ratio"] = cfg.Cache.MutesMemRatio
-	cfgmap["cache-status-filter-mem-ratio"] = cfg.Cache.StatusFilterMemRatio
-	cfgmap["cache-visibility-mem-ratio"] = cfg.Cache.VisibilityMemRatio
 	cfgmap["username"] = cfg.AdminAccountUsername
 	cfgmap["email"] = cfg.AdminAccountEmail
 	cfgmap["password"] = cfg.AdminAccountPassword
@@ -755,20 +839,1306 @@ func (cfg *Configuration) MarshalMap() map[string]any {
 	cfgmap["remote-only"] = cfg.AdminMediaListRemoteOnly
 	cfgmap["skip-db-setup"] = cfg.TestrigSkipDBSetup
 	cfgmap["skip-db-teardown"] = cfg.TestrigSkipDBTeardown
-	return cfgmap
+}
+
+func (cfg *PostgresConfiguration) UnmarshalMap(prefix string, cfgmap map[string]any) error {
+	if ival, ok := cfgmap[joinFlag(prefix, "port")]; ok {
+		var err error
+		cfg.Port, err = cast.ToUint16E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "uint16", joinFlag(prefix, "port"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "user")]; ok {
+		var err error
+		cfg.User, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", joinFlag(prefix, "user"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "password")]; ok {
+		var err error
+		cfg.Password, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", joinFlag(prefix, "password"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "database")]; ok {
+		var err error
+		cfg.Database, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", joinFlag(prefix, "database"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "tls-mode")]; ok {
+		var err error
+		cfg.TLSMode, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", joinFlag(prefix, "tls-mode"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "tls-ca-cert")]; ok {
+		var err error
+		cfg.TLSCACert, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", joinFlag(prefix, "tls-ca-cert"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "postgres-connection-string")]; ok {
+		var err error
+		cfg.ConnectionString, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", joinFlag(prefix, "postgres-connection-string"), err)
+		}
+	}
+
+	return nil
+}
+
+func (cfg *SQLiteConfiguration) UnmarshalMap(prefix string, cfgmap map[string]any) error {
+	if ival, ok := cfgmap[joinFlag(prefix, "journal-mode")]; ok {
+		var err error
+		cfg.JournalMode, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", joinFlag(prefix, "journal-mode"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "synchronous")]; ok {
+		var err error
+		cfg.Synchronous, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", joinFlag(prefix, "synchronous"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "cache-size")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "cache-size"), err)
+		}
+		cfg.CacheSize = 0x0
+		if err := cfg.CacheSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "cache-size"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "busy-timeout")]; ok {
+		var err error
+		cfg.BusyTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "busy-timeout"), err)
+		}
+	}
+
+	return nil
+}
+
+func (cfg *DatabaseConfiguration) UnmarshalMap(prefix string, cfgmap map[string]any) error {
+	if err := cfg.Postgres.UnmarshalMap(joinFlag(prefix, ""), cfgmap); err != nil {
+		return err
+	}
+
+	if err := cfg.SQLite.UnmarshalMap(joinFlag(prefix, "sqlite"), cfgmap); err != nil {
+		return err
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "type")]; ok {
+		var err error
+		cfg.Type, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", joinFlag(prefix, "type"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "address")]; ok {
+		var err error
+		cfg.Address, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", joinFlag(prefix, "address"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "max-open-conns-multiplier")]; ok {
+		var err error
+		cfg.MaxOpenConnsMultiplier, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", joinFlag(prefix, "max-open-conns-multiplier"), err)
+		}
+	}
+
+	return nil
+}
+
+func (cfg *RateLimitConfig) UnmarshalMap(prefix string, cfgmap map[string]any) error {
+	if ival, ok := cfgmap[joinFlag(prefix, "requests")]; ok {
+		var err error
+		cfg.Requests, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", joinFlag(prefix, "requests"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "exceptions")]; ok {
+		t, err := toStringSlice(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> []string for '%s': %w", ival, joinFlag(prefix, "exceptions"), err)
+		}
+		cfg.Exceptions = IPPrefixes{}
+		for _, in := range t {
+			if err := cfg.Exceptions.Set(in); err != nil {
+				return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "exceptions"), err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (cfg *ThrottlingConfig) UnmarshalMap(prefix string, cfgmap map[string]any) error {
+	if ival, ok := cfgmap[joinFlag(prefix, "multiplier")]; ok {
+		var err error
+		cfg.Multiplier, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", joinFlag(prefix, "multiplier"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "retry-after")]; ok {
+		var err error
+		cfg.RetryAfter, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "retry-after"), err)
+		}
+	}
+
+	return nil
+}
+
+func (cfg *AdvancedConfig) UnmarshalMap(prefix string, cfgmap map[string]any) error {
+	if err := cfg.RateLimit.UnmarshalMap(joinFlag(prefix, "rate-limit"), cfgmap); err != nil {
+		return err
+	}
+
+	if err := cfg.Throttling.UnmarshalMap(joinFlag(prefix, "throttling"), cfgmap); err != nil {
+		return err
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "cookies-samesite")]; ok {
+		var err error
+		cfg.CookiesSamesite, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", joinFlag(prefix, "cookies-samesite"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "sender-multiplier")]; ok {
+		var err error
+		cfg.SenderMultiplier, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", joinFlag(prefix, "sender-multiplier"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "csp-extra-uris")]; ok {
+		var err error
+		cfg.CSPExtraURIs, err = toStringSlice(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "[]string", joinFlag(prefix, "csp-extra-uris"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "header-filter-mode")]; ok {
+		var err error
+		cfg.HeaderFilterMode, err = cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", joinFlag(prefix, "header-filter-mode"), err)
+		}
+	}
+
+	return nil
+}
+
+func (cfg *HTTPServerConfiguration) UnmarshalMap(prefix string, cfgmap map[string]any) error {
+	if ival, ok := cfgmap[joinFlag(prefix, "max-multipart-memory")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "max-multipart-memory"), err)
+		}
+		cfg.MaxMultipartMemory = 0x0
+		if err := cfg.MaxMultipartMemory.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "max-multipart-memory"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "use-h2c")]; ok {
+		var err error
+		cfg.UseH2C, err = cast.ToBoolE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", joinFlag(prefix, "use-h2c"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "read-timeout")]; ok {
+		var err error
+		cfg.ReadTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "read-timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "read-header-timeout")]; ok {
+		var err error
+		cfg.ReadHeaderTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "read-header-timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "write-timeout")]; ok {
+		var err error
+		cfg.WriteTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "write-timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "idle-timeout")]; ok {
+		var err error
+		cfg.IdleTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "idle-timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "max-header-bytes")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "max-header-bytes"), err)
+		}
+		cfg.MaxHeaderBytes = 0x0
+		if err := cfg.MaxHeaderBytes.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "max-header-bytes"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "max-concurrent-streams")]; ok {
+		var err error
+		cfg.MaxConcurrentStreams, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", joinFlag(prefix, "max-concurrent-streams"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "max-decoder-header-table-size")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "max-decoder-header-table-size"), err)
+		}
+		cfg.MaxDecoderHeaderTableSize = 0x0
+		if err := cfg.MaxDecoderHeaderTableSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "max-decoder-header-table-size"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "max-encoder-header-table-size")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "max-encoder-header-table-size"), err)
+		}
+		cfg.MaxEncoderHeaderTableSize = 0x0
+		if err := cfg.MaxEncoderHeaderTableSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "max-encoder-header-table-size"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "max-read-frame-size")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "max-read-frame-size"), err)
+		}
+		cfg.MaxReadFrameSize = 0x0
+		if err := cfg.MaxReadFrameSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "max-read-frame-size"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "max-receive-buffer-per-connection")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "max-receive-buffer-per-connection"), err)
+		}
+		cfg.MaxReceiveBufferPerConnection = 0x0
+		if err := cfg.MaxReceiveBufferPerConnection.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "max-receive-buffer-per-connection"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "max-receive-buffer-per-stream")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "max-receive-buffer-per-stream"), err)
+		}
+		cfg.MaxReceiveBufferPerStream = 0x0
+		if err := cfg.MaxReceiveBufferPerStream.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "max-receive-buffer-per-stream"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "send-ping-timeout")]; ok {
+		var err error
+		cfg.SendPingTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "send-ping-timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "ping-timeout")]; ok {
+		var err error
+		cfg.PingTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "ping-timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "write-byte-timeout")]; ok {
+		var err error
+		cfg.WriteByteTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "write-byte-timeout"), err)
+		}
+	}
+
+	return nil
+}
+
+func (cfg *HTTPClientConfiguration) UnmarshalMap(prefix string, cfgmap map[string]any) error {
+	if ival, ok := cfgmap[joinFlag(prefix, "allow-ips")]; ok {
+		t, err := toStringSlice(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> []string for '%s': %w", ival, joinFlag(prefix, "allow-ips"), err)
+		}
+		cfg.AllowIPs = IPPrefixes{}
+		for _, in := range t {
+			if err := cfg.AllowIPs.Set(in); err != nil {
+				return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "allow-ips"), err)
+			}
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "block-ips")]; ok {
+		t, err := toStringSlice(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> []string for '%s': %w", ival, joinFlag(prefix, "block-ips"), err)
+		}
+		cfg.BlockIPs = IPPrefixes{}
+		for _, in := range t {
+			if err := cfg.BlockIPs.Set(in); err != nil {
+				return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "block-ips"), err)
+			}
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "timeout")]; ok {
+		var err error
+		cfg.Timeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "tls-insecure-skip-verify")]; ok {
+		var err error
+		cfg.TLSInsecureSkipVerify, err = cast.ToBoolE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", joinFlag(prefix, "tls-insecure-skip-verify"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "insecure-outgoing")]; ok {
+		var err error
+		cfg.InsecureOutgoing, err = cast.ToBoolE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", joinFlag(prefix, "insecure-outgoing"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "disable-keep-alives")]; ok {
+		var err error
+		cfg.DisableKeepAlives, err = cast.ToBoolE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", joinFlag(prefix, "disable-keep-alives"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "max-idle-conns")]; ok {
+		var err error
+		cfg.MaxIdleConns, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", joinFlag(prefix, "max-idle-conns"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "max-idle-conns-per-host")]; ok {
+		var err error
+		cfg.MaxIdleConnsPerHost, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", joinFlag(prefix, "max-idle-conns-per-host"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "max-conns-per-host")]; ok {
+		var err error
+		cfg.MaxConnsPerHost, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", joinFlag(prefix, "max-conns-per-host"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "idle-conn-timeout")]; ok {
+		var err error
+		cfg.IdleConnTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "idle-conn-timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "tls-handshake-timeout")]; ok {
+		var err error
+		cfg.TLSHandshakeTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "tls-handshake-timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "response-header-timeout")]; ok {
+		var err error
+		cfg.ResponseHeaderTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "response-header-timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "read-buffer-size")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "read-buffer-size"), err)
+		}
+		cfg.ReadBufferSize = 0x0
+		if err := cfg.ReadBufferSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "read-buffer-size"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "write-buffer-size")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "write-buffer-size"), err)
+		}
+		cfg.WriteBufferSize = 0x0
+		if err := cfg.WriteBufferSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "write-buffer-size"), err)
+		}
+	}
+
+	return nil
+}
+
+func (cfg *MediaConfiguration) UnmarshalMap(prefix string, cfgmap map[string]any) error {
+	if ival, ok := cfgmap[joinFlag(prefix, "description-min-chars")]; ok {
+		var err error
+		cfg.DescriptionMinChars, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", joinFlag(prefix, "description-min-chars"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "description-max-chars")]; ok {
+		var err error
+		cfg.DescriptionMaxChars, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", joinFlag(prefix, "description-max-chars"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "emoji-local-max-size")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "emoji-local-max-size"), err)
+		}
+		cfg.EmojiLocalMaxSize = 0x0
+		if err := cfg.EmojiLocalMaxSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "emoji-local-max-size"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "emoji-remote-max-size")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "emoji-remote-max-size"), err)
+		}
+		cfg.EmojiRemoteMaxSize = 0x0
+		if err := cfg.EmojiRemoteMaxSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "emoji-remote-max-size"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "image-size-hint")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "image-size-hint"), err)
+		}
+		cfg.ImageSizeHint = 0x0
+		if err := cfg.ImageSizeHint.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "image-size-hint"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "video-size-hint")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "video-size-hint"), err)
+		}
+		cfg.VideoSizeHint = 0x0
+		if err := cfg.VideoSizeHint.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "video-size-hint"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "local-max-size")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "local-max-size"), err)
+		}
+		cfg.LocalMaxSize = 0x0
+		if err := cfg.LocalMaxSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "local-max-size"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "remote-max-size")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "remote-max-size"), err)
+		}
+		cfg.RemoteMaxSize = 0x0
+		if err := cfg.RemoteMaxSize.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "remote-max-size"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "ffmpeg-pool-size")]; ok {
+		var err error
+		cfg.FfmpegPoolSize, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", joinFlag(prefix, "ffmpeg-pool-size"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "thumb-max-pixels")]; ok {
+		var err error
+		cfg.ThumbMaxPixels, err = cast.ToIntE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", joinFlag(prefix, "thumb-max-pixels"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "remote-cache-duration")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "remote-cache-duration"), err)
+		}
+		cfg.RemoteCacheDuration = 0x0
+		if err := cfg.RemoteCacheDuration.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "remote-cache-duration"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "cleanup-cron")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "cleanup-cron"), err)
+		}
+		cfg.CleanupCron = CronExpression{Expression: (*cronexpr.Expression)(nil), Expr: ""}
+		if err := cfg.CleanupCron.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "cleanup-cron"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "remote-cache-days")]; ok && ival != "" {
+		return fmt.Errorf("value received for deprecated field '%s', please use '%s' instead", joinFlag(prefix, "remote-cache-days"), "media-remote-cache-duration")
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "cleanup-from")]; ok && ival != "" {
+		return fmt.Errorf("value received for deprecated field '%s', please use '%s' instead", joinFlag(prefix, "cleanup-from"), "media-cleanup-cron")
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "cleanup-every")]; ok && ival != "" {
+		return fmt.Errorf("value received for deprecated field '%s', please use '%s' instead", joinFlag(prefix, "cleanup-every"), "media-cleanup-cron")
+	}
+
+	return nil
+}
+
+func (cfg *CacheConfiguration) UnmarshalMap(prefix string, cfgmap map[string]any) error {
+	if ival, ok := cfgmap[joinFlag(prefix, "s3-object-info")]; ok {
+		var err error
+		cfg.S3ObjectInfo, err = cast.ToUint32E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "uint32", joinFlag(prefix, "s3-object-info"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "home-timeline-size")]; ok {
+		var err error
+		cfg.HomeTimelineSize, err = cast.ToUint32E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "uint32", joinFlag(prefix, "home-timeline-size"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "list-timeline-size")]; ok {
+		var err error
+		cfg.ListTimelineSize, err = cast.ToUint32E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "uint32", joinFlag(prefix, "list-timeline-size"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "tag-timeline-size")]; ok {
+		var err error
+		cfg.TagTimelineSize, err = cast.ToUint32E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "uint32", joinFlag(prefix, "tag-timeline-size"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "home-timeline-timeout")]; ok {
+		var err error
+		cfg.HomeTimelineTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "home-timeline-timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "list-timeline-timeout")]; ok {
+		var err error
+		cfg.ListTimelineTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "list-timeline-timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "tag-timeline-timeout")]; ok {
+		var err error
+		cfg.TagTimelineTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "tag-timeline-timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "memory-target")]; ok {
+		t, err := cast.ToStringE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, joinFlag(prefix, "memory-target"), err)
+		}
+		cfg.MemoryTarget = 0x0
+		if err := cfg.MemoryTarget.Set(t); err != nil {
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, joinFlag(prefix, "memory-target"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "account-mem-ratio")]; ok {
+		var err error
+		cfg.AccountMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "account-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "account-note-mem-ratio")]; ok {
+		var err error
+		cfg.AccountNoteMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "account-note-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "account-settings-mem-ratio")]; ok {
+		var err error
+		cfg.AccountSettingsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "account-settings-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "account-stats-mem-ratio")]; ok {
+		var err error
+		cfg.AccountStatsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "account-stats-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "application-mem-ratio")]; ok {
+		var err error
+		cfg.ApplicationMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "application-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "block-mem-ratio")]; ok {
+		var err error
+		cfg.BlockMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "block-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "block-ids-mem-ratio")]; ok {
+		var err error
+		cfg.BlockIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "block-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "boost-of-ids-mem-ratio")]; ok {
+		var err error
+		cfg.BoostOfIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "boost-of-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "client-mem-ratio")]; ok {
+		var err error
+		cfg.ClientMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "client-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "conversation-mem-ratio")]; ok {
+		var err error
+		cfg.ConversationMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "conversation-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "conversation-last-status-ids-mem-ratio")]; ok {
+		var err error
+		cfg.ConversationLastStatusIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "conversation-last-status-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "domain-permission-draft-mem-ratio")]; ok {
+		var err error
+		cfg.DomainPermissionDraftMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "domain-permission-draft-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "domain-permission-limit-mem-ratio")]; ok {
+		var err error
+		cfg.DomainLimitMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "domain-permission-limit-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "domain-permission-subscription-mem-ratio")]; ok {
+		var err error
+		cfg.DomainPermissionSubscriptionMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "domain-permission-subscription-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "emoji-mem-ratio")]; ok {
+		var err error
+		cfg.EmojiMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "emoji-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "emoji-category-mem-ratio")]; ok {
+		var err error
+		cfg.EmojiCategoryMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "emoji-category-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "federation-error-mem-ratio")]; ok {
+		var err error
+		cfg.FederationErrorMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "federation-error-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "filter-mem-ratio")]; ok {
+		var err error
+		cfg.FilterMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "filter-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "filter-ids-mem-ratio")]; ok {
+		var err error
+		cfg.FilterIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "filter-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "filter-keyword-mem-ratio")]; ok {
+		var err error
+		cfg.FilterKeywordMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "filter-keyword-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "filter-status-mem-ratio")]; ok {
+		var err error
+		cfg.FilterStatusMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "filter-status-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "follow-mem-ratio")]; ok {
+		var err error
+		cfg.FollowMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "follow-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "follow-ids-mem-ratio")]; ok {
+		var err error
+		cfg.FollowIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "follow-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "follow-request-mem-ratio")]; ok {
+		var err error
+		cfg.FollowRequestMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "follow-request-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "follow-request-ids-mem-ratio")]; ok {
+		var err error
+		cfg.FollowRequestIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "follow-request-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "following-tag-ids-mem-ratio")]; ok {
+		var err error
+		cfg.FollowingTagIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "following-tag-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "home-account-ids-mem-ratio")]; ok {
+		var err error
+		cfg.HomeAccountIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "home-account-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "in-reply-to-ids-mem-ratio")]; ok {
+		var err error
+		cfg.InReplyToIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "in-reply-to-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "instance-mem-ratio")]; ok {
+		var err error
+		cfg.InstanceMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "instance-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "interaction-request-mem-ratio")]; ok {
+		var err error
+		cfg.InteractionRequestMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "interaction-request-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "list-mem-ratio")]; ok {
+		var err error
+		cfg.ListMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "list-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "list-ids-mem-ratio")]; ok {
+		var err error
+		cfg.ListIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "list-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "listed-ids-mem-ratio")]; ok {
+		var err error
+		cfg.ListedIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "listed-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "marker-mem-ratio")]; ok {
+		var err error
+		cfg.MarkerMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "marker-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "media-mem-ratio")]; ok {
+		var err error
+		cfg.MediaMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "media-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "mention-mem-ratio")]; ok {
+		var err error
+		cfg.MentionMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "mention-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "move-mem-ratio")]; ok {
+		var err error
+		cfg.MoveMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "move-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "notification-mem-ratio")]; ok {
+		var err error
+		cfg.NotificationMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "notification-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "poll-mem-ratio")]; ok {
+		var err error
+		cfg.PollMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "poll-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "poll-vote-mem-ratio")]; ok {
+		var err error
+		cfg.PollVoteMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "poll-vote-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "poll-vote-ids-mem-ratio")]; ok {
+		var err error
+		cfg.PollVoteIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "poll-vote-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "report-mem-ratio")]; ok {
+		var err error
+		cfg.ReportMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "report-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "relay-actor-mem-ratio")]; ok {
+		var err error
+		cfg.RelayActorMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "relay-actor-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "relay-matcher-mem-ratio")]; ok {
+		var err error
+		cfg.RelayMatcherMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "relay-matcher-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "relay-push-mem-ratio")]; ok {
+		var err error
+		cfg.RelayPushMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "relay-push-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "relay-push-ids-mem-ratio")]; ok {
+		var err error
+		cfg.RelayPushIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "relay-push-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "relay-subscription-mem-ratio")]; ok {
+		var err error
+		cfg.RelaySubscriptionMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "relay-subscription-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "scheduled-status-mem-ratio")]; ok {
+		var err error
+		cfg.ScheduledStatusMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "scheduled-status-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "sin-bin-status-mem-ratio")]; ok {
+		var err error
+		cfg.SinBinStatusMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "sin-bin-status-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "status-mem-ratio")]; ok {
+		var err error
+		cfg.StatusMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "status-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "status-bookmark-mem-ratio")]; ok {
+		var err error
+		cfg.StatusBookmarkMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "status-bookmark-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "status-bookmark-ids-mem-ratio")]; ok {
+		var err error
+		cfg.StatusBookmarkIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "status-bookmark-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "status-edit-mem-ratio")]; ok {
+		var err error
+		cfg.StatusEditMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "status-edit-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "status-fave-mem-ratio")]; ok {
+		var err error
+		cfg.StatusFaveMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "status-fave-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "status-fave-ids-mem-ratio")]; ok {
+		var err error
+		cfg.StatusFaveIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "status-fave-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "status-pinned-ids-mem-ratio")]; ok {
+		var err error
+		cfg.StatusPinnedIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "status-pinned-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "tag-mem-ratio")]; ok {
+		var err error
+		cfg.TagMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "tag-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "thread-mute-mem-ratio")]; ok {
+		var err error
+		cfg.ThreadMuteMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "thread-mute-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "token-mem-ratio")]; ok {
+		var err error
+		cfg.TokenMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "token-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "tombstone-mem-ratio")]; ok {
+		var err error
+		cfg.TombstoneMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "tombstone-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "user-mem-ratio")]; ok {
+		var err error
+		cfg.UserMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "user-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "user-mute-mem-ratio")]; ok {
+		var err error
+		cfg.UserMuteMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "user-mute-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "user-mute-ids-mem-ratio")]; ok {
+		var err error
+		cfg.UserMuteIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "user-mute-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "webfinger-mem-ratio")]; ok {
+		var err error
+		cfg.WebfingerMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "webfinger-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "web-push-subscription-mem-ratio")]; ok {
+		var err error
+		cfg.WebPushSubscriptionMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "web-push-subscription-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "web-push-subscription-ids-mem-ratio")]; ok {
+		var err error
+		cfg.WebPushSubscriptionIDsMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "web-push-subscription-ids-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "mutes-mem-ratio")]; ok {
+		var err error
+		cfg.MutesMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "mutes-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "status-filter-mem-ratio")]; ok {
+		var err error
+		cfg.StatusFilterMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "status-filter-mem-ratio"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "visibility-mem-ratio")]; ok {
+		var err error
+		cfg.VisibilityMemRatio, err = cast.ToFloat64E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "float64", joinFlag(prefix, "visibility-mem-ratio"), err)
+		}
+	}
+
+	return nil
 }
 
 func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
-	// VERY IMPORTANT FIRST STEP!
-	// flatten to normalize map to
-	// entirely un-nested key values
-	flattenConfigMap(cfgmap)
+	if err := cfg.Database.UnmarshalMap("db", cfgmap); err != nil {
+		return err
+	}
+
+	if err := cfg.Advanced.UnmarshalMap("advanced", cfgmap); err != nil {
+		return err
+	}
+
+	if err := cfg.HTTPServer.UnmarshalMap("http-server", cfgmap); err != nil {
+		return err
+	}
+
+	if err := cfg.HTTPClient.UnmarshalMap("http-client", cfgmap); err != nil {
+		return err
+	}
+
+	if err := cfg.Media.UnmarshalMap("media", cfgmap); err != nil {
+		return err
+	}
+
+	if err := cfg.Cache.UnmarshalMap("cache", cfgmap); err != nil {
+		return err
+	}
 
 	if ival, ok := cfgmap["log-level"]; ok {
 		var err error
 		cfg.LogLevel, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'log-level': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "log-level", err)
 		}
 	}
 
@@ -776,7 +2146,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.LogFormat, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'log-format': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "log-format", err)
 		}
 	}
 
@@ -784,7 +2154,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.LogTimestampFormat, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'log-timestamp-format': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "log-timestamp-format", err)
 		}
 	}
 
@@ -792,7 +2162,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.LogDbQueries, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'log-db-queries': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "log-db-queries", err)
 		}
 	}
 
@@ -800,7 +2170,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.LogClientIP, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'log-client-ip': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "log-client-ip", err)
 		}
 	}
 
@@ -808,7 +2178,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.RequestIDHeader, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'request-id-header': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "request-id-header", err)
 		}
 	}
 
@@ -816,7 +2186,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.ConfigPath, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'config-path': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "config-path", err)
 		}
 	}
 
@@ -824,7 +2194,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.ApplicationName, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'application-name': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "application-name", err)
 		}
 	}
 
@@ -832,7 +2202,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.LandingPageUser, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'landing-page-user': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "landing-page-user", err)
 		}
 	}
 
@@ -840,7 +2210,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.Host, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'host': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "host", err)
 		}
 	}
 
@@ -848,7 +2218,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AccountDomain, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'account-domain': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "account-domain", err)
 		}
 	}
 
@@ -856,7 +2226,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.Protocol, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'protocol': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "protocol", err)
 		}
 	}
 
@@ -864,7 +2234,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.BindAddress, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'bind-address': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "bind-address", err)
 		}
 	}
 
@@ -872,19 +2242,19 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.Port, err = cast.ToIntE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'port': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", "port", err)
 		}
 	}
 
 	if ival, ok := cfgmap["trusted-proxies"]; ok {
 		t, err := toStringSlice(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> []string for 'trusted-proxies': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> []string for '%s': %w", ival, "trusted-proxies", err)
 		}
 		cfg.TrustedProxies = IPPrefixes{}
 		for _, in := range t {
 			if err := cfg.TrustedProxies.Set(in); err != nil {
-				return fmt.Errorf("error parsing %#v for 'trusted-proxies': %w", ival, err)
+				return fmt.Errorf("error parsing %#v for '%s': %w", ival, "trusted-proxies", err)
 			}
 		}
 	}
@@ -893,122 +2263,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.SoftwareVersion, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'software-version': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-type"]; ok {
-		var err error
-		cfg.DbType, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'db-type': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-address"]; ok {
-		var err error
-		cfg.DbAddress, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'db-address': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-port"]; ok {
-		var err error
-		cfg.DbPort, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'db-port': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-user"]; ok {
-		var err error
-		cfg.DbUser, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'db-user': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-password"]; ok {
-		var err error
-		cfg.DbPassword, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'db-password': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-database"]; ok {
-		var err error
-		cfg.DbDatabase, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'db-database': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-tls-mode"]; ok {
-		var err error
-		cfg.DbTLSMode, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'db-tls-mode': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-tls-ca-cert"]; ok {
-		var err error
-		cfg.DbTLSCACert, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'db-tls-ca-cert': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-max-open-conns-multiplier"]; ok {
-		var err error
-		cfg.DbMaxOpenConnsMultiplier, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'db-max-open-conns-multiplier': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-sqlite-journal-mode"]; ok {
-		var err error
-		cfg.DbSqliteJournalMode, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'db-sqlite-journal-mode': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-sqlite-synchronous"]; ok {
-		var err error
-		cfg.DbSqliteSynchronous, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'db-sqlite-synchronous': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-sqlite-cache-size"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'db-sqlite-cache-size': %w", ival, err)
-		}
-		cfg.DbSqliteCacheSize = 0x0
-		if err := cfg.DbSqliteCacheSize.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'db-sqlite-cache-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-sqlite-busy-timeout"]; ok {
-		var err error
-		cfg.DbSqliteBusyTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'db-sqlite-busy-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["db-postgres-connection-string"]; ok {
-		var err error
-		cfg.DbPostgresConnectionString, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'db-postgres-connection-string': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "software-version", err)
 		}
 	}
 
@@ -1016,7 +2271,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.WebTemplateBaseDir, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'web-template-base-dir': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "web-template-base-dir", err)
 		}
 	}
 
@@ -1024,7 +2279,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.WebAssetBaseDir, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'web-asset-base-dir': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "web-asset-base-dir", err)
 		}
 	}
 
@@ -1032,7 +2287,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceFederationMode, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'instance-federation-mode': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "instance-federation-mode", err)
 		}
 	}
 
@@ -1040,7 +2295,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceFederationSpamFilter, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'instance-federation-spam-filter': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "instance-federation-spam-filter", err)
 		}
 	}
 
@@ -1048,7 +2303,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceExposePeers, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'instance-expose-peers': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "instance-expose-peers", err)
 		}
 	}
 
@@ -1056,7 +2311,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceExposeBlocklist, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'instance-expose-blocklist': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "instance-expose-blocklist", err)
 		}
 	}
 
@@ -1064,7 +2319,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceExposeBlocklistWeb, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'instance-expose-blocklist-web': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "instance-expose-blocklist-web", err)
 		}
 	}
 
@@ -1072,7 +2327,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceExposeAllowlist, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'instance-expose-allowlist': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "instance-expose-allowlist", err)
 		}
 	}
 
@@ -1080,7 +2335,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceExposeAllowlistWeb, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'instance-expose-allowlist-web': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "instance-expose-allowlist-web", err)
 		}
 	}
 
@@ -1088,7 +2343,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceExposePublicTimeline, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'instance-expose-public-timeline': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "instance-expose-public-timeline", err)
 		}
 	}
 
@@ -1096,18 +2351,18 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceExposeCustomEmojis, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'instance-expose-custom-emojis': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "instance-expose-custom-emojis", err)
 		}
 	}
 
 	if ival, ok := cfgmap["instance-directory-mode"]; ok {
 		t, err := cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'instance-directory-mode': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, "instance-directory-mode", err)
 		}
 		cfg.InstanceDirectoryMode = 0
 		if err := cfg.InstanceDirectoryMode.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'instance-directory-mode': %w", ival, err)
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, "instance-directory-mode", err)
 		}
 	}
 
@@ -1115,7 +2370,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceDeliverToSharedInboxes, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'instance-deliver-to-shared-inboxes': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "instance-deliver-to-shared-inboxes", err)
 		}
 	}
 
@@ -1123,39 +2378,39 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceInjectMastodonVersion, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'instance-inject-mastodon-version': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "instance-inject-mastodon-version", err)
 		}
 	}
 
 	if ival, ok := cfgmap["instance-languages"]; ok {
 		t, err := toStringSlice(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> []string for 'instance-languages': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> []string for '%s': %w", ival, "instance-languages", err)
 		}
 		cfg.InstanceLanguages = language.Languages{}
 		for _, in := range t {
 			if err := cfg.InstanceLanguages.Set(in); err != nil {
-				return fmt.Errorf("error parsing %#v for 'instance-languages': %w", ival, err)
+				return fmt.Errorf("error parsing %#v for '%s': %w", ival, "instance-languages", err)
 			}
 		}
 	}
 
 	if ival, ok := cfgmap["instance-subscriptions-process-from"]; ok && ival != "" {
-		return errors.New("value received for deprecated field 'instance-subscriptions-process-from', please use 'instance-subscriptions-process-cron' instead")
+		return fmt.Errorf("value received for deprecated field '%s', please use '%s' instead", "instance-subscriptions-process-from", "instance-subscriptions-process-cron")
 	}
 
 	if ival, ok := cfgmap["instance-subscriptions-process-every"]; ok && ival != "" {
-		return errors.New("value received for deprecated field 'instance-subscriptions-process-every', please use 'instance-subscriptions-process-cron' instead")
+		return fmt.Errorf("value received for deprecated field '%s', please use '%s' instead", "instance-subscriptions-process-every", "instance-subscriptions-process-cron")
 	}
 
 	if ival, ok := cfgmap["instance-subscriptions-process-cron"]; ok {
 		t, err := cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'instance-subscriptions-process-cron': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, "instance-subscriptions-process-cron", err)
 		}
 		cfg.InstanceSubscriptionsProcessCron = CronExpression{Expression: (*cronexpr.Expression)(nil), Expr: ""}
 		if err := cfg.InstanceSubscriptionsProcessCron.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'instance-subscriptions-process-cron': %w", ival, err)
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, "instance-subscriptions-process-cron", err)
 		}
 	}
 
@@ -1163,7 +2418,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceStatsMode, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'instance-stats-mode': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "instance-stats-mode", err)
 		}
 	}
 
@@ -1171,7 +2426,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceAllowBackdatingStatuses, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'instance-allow-backdating-statuses': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "instance-allow-backdating-statuses", err)
 		}
 	}
 
@@ -1179,7 +2434,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.InstanceRobotsAllowIndexing, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'instance-robots-allow-indexing': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "instance-robots-allow-indexing", err)
 		}
 	}
 
@@ -1187,7 +2442,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AccountsRegistrationOpen, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'accounts-registration-open': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "accounts-registration-open", err)
 		}
 	}
 
@@ -1195,7 +2450,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AccountsReasonRequired, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'accounts-reason-required': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "accounts-reason-required", err)
 		}
 	}
 
@@ -1203,7 +2458,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AccountsRegistrationDailyLimit, err = cast.ToIntE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'accounts-registration-daily-limit': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", "accounts-registration-daily-limit", err)
 		}
 	}
 
@@ -1211,7 +2466,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AccountsRegistrationBacklogLimit, err = cast.ToIntE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'accounts-registration-backlog-limit': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", "accounts-registration-backlog-limit", err)
 		}
 	}
 
@@ -1219,7 +2474,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AccountsAllowCustomCSS, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'accounts-allow-custom-css': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "accounts-allow-custom-css", err)
 		}
 	}
 
@@ -1227,7 +2482,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AccountsCustomCSSLength, err = cast.ToIntE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'accounts-custom-css-length': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", "accounts-custom-css-length", err)
 		}
 	}
 
@@ -1235,7 +2490,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AccountsMaxProfileFields, err = cast.ToIntE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'accounts-max-profile-fields': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", "accounts-max-profile-fields", err)
 		}
 	}
 
@@ -1243,7 +2498,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StorageBackend, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'storage-backend': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "storage-backend", err)
 		}
 	}
 
@@ -1251,7 +2506,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StorageLocalBasePath, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'storage-local-base-path': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "storage-local-base-path", err)
 		}
 	}
 
@@ -1259,7 +2514,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StorageS3Endpoint, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'storage-s3-endpoint': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "storage-s3-endpoint", err)
 		}
 	}
 
@@ -1267,7 +2522,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StorageS3AccessKey, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'storage-s3-access-key': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "storage-s3-access-key", err)
 		}
 	}
 
@@ -1275,7 +2530,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StorageS3SecretKey, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'storage-s3-secret-key': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "storage-s3-secret-key", err)
 		}
 	}
 
@@ -1283,7 +2538,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StorageS3UseSSL, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'storage-s3-use-ssl': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "storage-s3-use-ssl", err)
 		}
 	}
 
@@ -1291,7 +2546,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StorageS3BucketName, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'storage-s3-bucket': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "storage-s3-bucket", err)
 		}
 	}
 
@@ -1299,7 +2554,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StorageS3Proxy, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'storage-s3-proxy': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "storage-s3-proxy", err)
 		}
 	}
 
@@ -1307,7 +2562,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StorageS3RedirectURL, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'storage-s3-redirect-url': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "storage-s3-redirect-url", err)
 		}
 	}
 
@@ -1315,7 +2570,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StorageS3BucketLookup, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'storage-s3-bucket-lookup': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "storage-s3-bucket-lookup", err)
 		}
 	}
 
@@ -1323,7 +2578,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StorageS3KeyPrefix, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'storage-s3-key-prefix': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "storage-s3-key-prefix", err)
 		}
 	}
 
@@ -1331,7 +2586,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StorageS3Region, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'storage-s3-region': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "storage-s3-region", err)
 		}
 	}
 
@@ -1339,7 +2594,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StatusesMaxChars, err = cast.ToIntE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'statuses-max-chars': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", "statuses-max-chars", err)
 		}
 	}
 
@@ -1347,7 +2602,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StatusesPollMaxOptions, err = cast.ToIntE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'statuses-poll-max-options': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", "statuses-poll-max-options", err)
 		}
 	}
 
@@ -1355,7 +2610,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StatusesPollOptionMaxChars, err = cast.ToIntE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'statuses-poll-option-max-chars': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", "statuses-poll-option-max-chars", err)
 		}
 	}
 
@@ -1363,29 +2618,29 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.StatusesMediaMaxFiles, err = cast.ToIntE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'statuses-media-max-files': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", "statuses-media-max-files", err)
 		}
 	}
 
 	if ival, ok := cfgmap["statuses-cleanup-cron"]; ok {
 		t, err := cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'statuses-cleanup-cron': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, "statuses-cleanup-cron", err)
 		}
 		cfg.StatusesCleanupCron = CronExpression{Expression: (*cronexpr.Expression)(nil), Expr: ""}
 		if err := cfg.StatusesCleanupCron.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'statuses-cleanup-cron': %w", ival, err)
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, "statuses-cleanup-cron", err)
 		}
 	}
 
 	if ival, ok := cfgmap["statuses-cleanup-remote-older-than"]; ok {
 		t, err := cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'statuses-cleanup-remote-older-than': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> string for '%s': %w", ival, "statuses-cleanup-remote-older-than", err)
 		}
 		cfg.StatusesCleanupRemoteOlderThan = 0x0
 		if err := cfg.StatusesCleanupRemoteOlderThan.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'statuses-cleanup-remote-older-than': %w", ival, err)
+			return fmt.Errorf("error parsing %#v for '%s': %w", ival, "statuses-cleanup-remote-older-than", err)
 		}
 	}
 
@@ -1393,7 +2648,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.ScheduledStatusesMaxTotal, err = cast.ToIntE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'scheduled-statuses-max-total': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", "scheduled-statuses-max-total", err)
 		}
 	}
 
@@ -1401,7 +2656,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.ScheduledStatusesMaxDaily, err = cast.ToIntE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'scheduled-statuses-max-daily': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", "scheduled-statuses-max-daily", err)
 		}
 	}
 
@@ -1409,7 +2664,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.LetsEncryptEnabled, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'letsencrypt-enabled': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "letsencrypt-enabled", err)
 		}
 	}
 
@@ -1417,7 +2672,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.LetsEncryptPort, err = cast.ToIntE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'letsencrypt-port': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", "letsencrypt-port", err)
 		}
 	}
 
@@ -1425,7 +2680,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.LetsEncryptCertDir, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'letsencrypt-cert-dir': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "letsencrypt-cert-dir", err)
 		}
 	}
 
@@ -1433,7 +2688,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.LetsEncryptEmailAddress, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'letsencrypt-email-address': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "letsencrypt-email-address", err)
 		}
 	}
 
@@ -1441,7 +2696,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.TLSCertificateChain, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'tls-certificate-chain': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "tls-certificate-chain", err)
 		}
 	}
 
@@ -1449,7 +2704,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.TLSCertificateKey, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'tls-certificate-key': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "tls-certificate-key", err)
 		}
 	}
 
@@ -1457,7 +2712,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.OIDCEnabled, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'oidc-enabled': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "oidc-enabled", err)
 		}
 	}
 
@@ -1465,7 +2720,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.OIDCIdpName, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'oidc-idp-name': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "oidc-idp-name", err)
 		}
 	}
 
@@ -1473,7 +2728,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.OIDCSkipVerification, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'oidc-skip-verification': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "oidc-skip-verification", err)
 		}
 	}
 
@@ -1481,7 +2736,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.OIDCIssuer, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'oidc-issuer': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "oidc-issuer", err)
 		}
 	}
 
@@ -1489,7 +2744,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.OIDCClientID, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'oidc-client-id': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "oidc-client-id", err)
 		}
 	}
 
@@ -1497,7 +2752,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.OIDCClientSecret, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'oidc-client-secret': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "oidc-client-secret", err)
 		}
 	}
 
@@ -1505,7 +2760,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.OIDCScopes, err = toStringSlice(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> []string for 'oidc-scopes': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "[]string", "oidc-scopes", err)
 		}
 	}
 
@@ -1513,7 +2768,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.OIDCLinkExisting, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'oidc-link-existing': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "oidc-link-existing", err)
 		}
 	}
 
@@ -1521,7 +2776,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.OIDCAllowedGroups, err = toStringSlice(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> []string for 'oidc-allowed-groups': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "[]string", "oidc-allowed-groups", err)
 		}
 	}
 
@@ -1529,7 +2784,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.OIDCAdminGroups, err = toStringSlice(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> []string for 'oidc-admin-groups': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "[]string", "oidc-admin-groups", err)
 		}
 	}
 
@@ -1537,7 +2792,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.TracingEnabled, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'tracing-enabled': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "tracing-enabled", err)
 		}
 	}
 
@@ -1545,7 +2800,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.MetricsEnabled, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'metrics-enabled': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "metrics-enabled", err)
 		}
 	}
 
@@ -1553,7 +2808,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.SMTPHost, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'smtp-host': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "smtp-host", err)
 		}
 	}
 
@@ -1561,7 +2816,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.SMTPPort, err = cast.ToIntE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'smtp-port': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "int", "smtp-port", err)
 		}
 	}
 
@@ -1569,7 +2824,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.SMTPUsername, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'smtp-username': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "smtp-username", err)
 		}
 	}
 
@@ -1577,7 +2832,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.SMTPPassword, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'smtp-password': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "smtp-password", err)
 		}
 	}
 
@@ -1585,7 +2840,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.SMTPFrom, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'smtp-from': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "smtp-from", err)
 		}
 	}
 
@@ -1593,7 +2848,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.SMTPFromDisplayName, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'smtp-from-display-name': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "smtp-from-display-name", err)
 		}
 	}
 
@@ -1601,7 +2856,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.SMTPDiscloseRecipients, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'smtp-disclose-recipients': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "smtp-disclose-recipients", err)
 		}
 	}
 
@@ -1609,7 +2864,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.SyslogEnabled, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'syslog-enabled': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "syslog-enabled", err)
 		}
 	}
 
@@ -1617,7 +2872,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.SyslogProtocol, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'syslog-protocol': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "syslog-protocol", err)
 		}
 	}
 
@@ -1625,1104 +2880,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.SyslogAddress, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'syslog-address': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["advanced-cookies-samesite"]; ok {
-		var err error
-		cfg.Advanced.CookiesSamesite, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'advanced-cookies-samesite': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["advanced-sender-multiplier"]; ok {
-		var err error
-		cfg.Advanced.SenderMultiplier, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'advanced-sender-multiplier': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["advanced-csp-extra-uris"]; ok {
-		var err error
-		cfg.Advanced.CSPExtraURIs, err = toStringSlice(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> []string for 'advanced-csp-extra-uris': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["advanced-header-filter-mode"]; ok {
-		var err error
-		cfg.Advanced.HeaderFilterMode, err = cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'advanced-header-filter-mode': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["advanced-rate-limit-requests"]; ok {
-		var err error
-		cfg.Advanced.RateLimit.Requests, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'advanced-rate-limit-requests': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["advanced-rate-limit-exceptions"]; ok {
-		t, err := toStringSlice(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> []string for 'advanced-rate-limit-exceptions': %w", ival, err)
-		}
-		cfg.Advanced.RateLimit.Exceptions = IPPrefixes{}
-		for _, in := range t {
-			if err := cfg.Advanced.RateLimit.Exceptions.Set(in); err != nil {
-				return fmt.Errorf("error parsing %#v for 'advanced-rate-limit-exceptions': %w", ival, err)
-			}
-		}
-	}
-
-	if ival, ok := cfgmap["advanced-throttling-multiplier"]; ok {
-		var err error
-		cfg.Advanced.Throttling.Multiplier, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'advanced-throttling-multiplier': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["advanced-throttling-retry-after"]; ok {
-		var err error
-		cfg.Advanced.Throttling.RetryAfter, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'advanced-throttling-retry-after': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-max-multipart-memory"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'http-server-max-multipart-memory': %w", ival, err)
-		}
-		cfg.HTTPServer.MaxMultipartMemory = 0x0
-		if err := cfg.HTTPServer.MaxMultipartMemory.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'http-server-max-multipart-memory': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-use-h2c"]; ok {
-		var err error
-		cfg.HTTPServer.UseH2C, err = cast.ToBoolE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'http-server-use-h2c': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-read-timeout"]; ok {
-		var err error
-		cfg.HTTPServer.ReadTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-read-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-read-header-timeout"]; ok {
-		var err error
-		cfg.HTTPServer.ReadHeaderTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-read-header-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-write-timeout"]; ok {
-		var err error
-		cfg.HTTPServer.WriteTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-write-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-idle-timeout"]; ok {
-		var err error
-		cfg.HTTPServer.IdleTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-idle-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-max-header-bytes"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'http-server-max-header-bytes': %w", ival, err)
-		}
-		cfg.HTTPServer.MaxHeaderBytes = 0x0
-		if err := cfg.HTTPServer.MaxHeaderBytes.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'http-server-max-header-bytes': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-max-concurrent-streams"]; ok {
-		var err error
-		cfg.HTTPServer.MaxConcurrentStreams, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'http-server-max-concurrent-streams': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-max-decoder-header-table-size"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'http-server-max-decoder-header-table-size': %w", ival, err)
-		}
-		cfg.HTTPServer.MaxDecoderHeaderTableSize = 0x0
-		if err := cfg.HTTPServer.MaxDecoderHeaderTableSize.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'http-server-max-decoder-header-table-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-max-encoder-header-table-size"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'http-server-max-encoder-header-table-size': %w", ival, err)
-		}
-		cfg.HTTPServer.MaxEncoderHeaderTableSize = 0x0
-		if err := cfg.HTTPServer.MaxEncoderHeaderTableSize.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'http-server-max-encoder-header-table-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-max-read-frame-size"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'http-server-max-read-frame-size': %w", ival, err)
-		}
-		cfg.HTTPServer.MaxReadFrameSize = 0x0
-		if err := cfg.HTTPServer.MaxReadFrameSize.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'http-server-max-read-frame-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-max-receive-buffer-per-connection"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'http-server-max-receive-buffer-per-connection': %w", ival, err)
-		}
-		cfg.HTTPServer.MaxReceiveBufferPerConnection = 0x0
-		if err := cfg.HTTPServer.MaxReceiveBufferPerConnection.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'http-server-max-receive-buffer-per-connection': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-max-receive-buffer-per-stream"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'http-server-max-receive-buffer-per-stream': %w", ival, err)
-		}
-		cfg.HTTPServer.MaxReceiveBufferPerStream = 0x0
-		if err := cfg.HTTPServer.MaxReceiveBufferPerStream.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'http-server-max-receive-buffer-per-stream': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-send-ping-timeout"]; ok {
-		var err error
-		cfg.HTTPServer.SendPingTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-send-ping-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-ping-timeout"]; ok {
-		var err error
-		cfg.HTTPServer.PingTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-ping-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-server-write-byte-timeout"]; ok {
-		var err error
-		cfg.HTTPServer.WriteByteTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'http-server-write-byte-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-allow-ips"]; ok {
-		t, err := toStringSlice(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> []string for 'http-client-allow-ips': %w", ival, err)
-		}
-		cfg.HTTPClient.AllowIPs = IPPrefixes{}
-		for _, in := range t {
-			if err := cfg.HTTPClient.AllowIPs.Set(in); err != nil {
-				return fmt.Errorf("error parsing %#v for 'http-client-allow-ips': %w", ival, err)
-			}
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-block-ips"]; ok {
-		t, err := toStringSlice(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> []string for 'http-client-block-ips': %w", ival, err)
-		}
-		cfg.HTTPClient.BlockIPs = IPPrefixes{}
-		for _, in := range t {
-			if err := cfg.HTTPClient.BlockIPs.Set(in); err != nil {
-				return fmt.Errorf("error parsing %#v for 'http-client-block-ips': %w", ival, err)
-			}
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-timeout"]; ok {
-		var err error
-		cfg.HTTPClient.Timeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'http-client-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-tls-insecure-skip-verify"]; ok {
-		var err error
-		cfg.HTTPClient.TLSInsecureSkipVerify, err = cast.ToBoolE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'http-client-tls-insecure-skip-verify': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-insecure-outgoing"]; ok {
-		var err error
-		cfg.HTTPClient.InsecureOutgoing, err = cast.ToBoolE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'http-client-insecure-outgoing': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-disable-keep-alives"]; ok {
-		var err error
-		cfg.HTTPClient.DisableKeepAlives, err = cast.ToBoolE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'http-client-disable-keep-alives': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-max-idle-conns"]; ok {
-		var err error
-		cfg.HTTPClient.MaxIdleConns, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'http-client-max-idle-conns': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-max-idle-conns-per-host"]; ok {
-		var err error
-		cfg.HTTPClient.MaxIdleConnsPerHost, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'http-client-max-idle-conns-per-host': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-max-conns-per-host"]; ok {
-		var err error
-		cfg.HTTPClient.MaxConnsPerHost, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'http-client-max-conns-per-host': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-idle-conn-timeout"]; ok {
-		var err error
-		cfg.HTTPClient.IdleConnTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'http-client-idle-conn-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-tls-handshake-timeout"]; ok {
-		var err error
-		cfg.HTTPClient.TLSHandshakeTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'http-client-tls-handshake-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-response-header-timeout"]; ok {
-		var err error
-		cfg.HTTPClient.ResponseHeaderTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'http-client-response-header-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-read-buffer-size"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'http-client-read-buffer-size': %w", ival, err)
-		}
-		cfg.HTTPClient.ReadBufferSize = 0x0
-		if err := cfg.HTTPClient.ReadBufferSize.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'http-client-read-buffer-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["http-client-write-buffer-size"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'http-client-write-buffer-size': %w", ival, err)
-		}
-		cfg.HTTPClient.WriteBufferSize = 0x0
-		if err := cfg.HTTPClient.WriteBufferSize.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'http-client-write-buffer-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-description-min-chars"]; ok {
-		var err error
-		cfg.Media.DescriptionMinChars, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'media-description-min-chars': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-description-max-chars"]; ok {
-		var err error
-		cfg.Media.DescriptionMaxChars, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'media-description-max-chars': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-emoji-local-max-size"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'media-emoji-local-max-size': %w", ival, err)
-		}
-		cfg.Media.EmojiLocalMaxSize = 0x0
-		if err := cfg.Media.EmojiLocalMaxSize.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'media-emoji-local-max-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-emoji-remote-max-size"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'media-emoji-remote-max-size': %w", ival, err)
-		}
-		cfg.Media.EmojiRemoteMaxSize = 0x0
-		if err := cfg.Media.EmojiRemoteMaxSize.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'media-emoji-remote-max-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-image-size-hint"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'media-image-size-hint': %w", ival, err)
-		}
-		cfg.Media.ImageSizeHint = 0x0
-		if err := cfg.Media.ImageSizeHint.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'media-image-size-hint': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-video-size-hint"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'media-video-size-hint': %w", ival, err)
-		}
-		cfg.Media.VideoSizeHint = 0x0
-		if err := cfg.Media.VideoSizeHint.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'media-video-size-hint': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-local-max-size"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'media-local-max-size': %w", ival, err)
-		}
-		cfg.Media.LocalMaxSize = 0x0
-		if err := cfg.Media.LocalMaxSize.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'media-local-max-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-remote-max-size"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'media-remote-max-size': %w", ival, err)
-		}
-		cfg.Media.RemoteMaxSize = 0x0
-		if err := cfg.Media.RemoteMaxSize.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'media-remote-max-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-ffmpeg-pool-size"]; ok {
-		var err error
-		cfg.Media.FfmpegPoolSize, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'media-ffmpeg-pool-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-thumb-max-pixels"]; ok {
-		var err error
-		cfg.Media.ThumbMaxPixels, err = cast.ToIntE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> int for 'media-thumb-max-pixels': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-remote-cache-duration"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'media-remote-cache-duration': %w", ival, err)
-		}
-		cfg.Media.RemoteCacheDuration = 0x0
-		if err := cfg.Media.RemoteCacheDuration.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'media-remote-cache-duration': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-cleanup-cron"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'media-cleanup-cron': %w", ival, err)
-		}
-		cfg.Media.CleanupCron = CronExpression{Expression: (*cronexpr.Expression)(nil), Expr: ""}
-		if err := cfg.Media.CleanupCron.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'media-cleanup-cron': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["media-remote-cache-days"]; ok && ival != "" {
-		return errors.New("value received for deprecated field 'media-remote-cache-days', please use 'media-remote-cache-duration' instead")
-	}
-
-	if ival, ok := cfgmap["media-cleanup-from"]; ok && ival != "" {
-		return errors.New("value received for deprecated field 'media-cleanup-from', please use 'media-cleanup-cron' instead")
-	}
-
-	if ival, ok := cfgmap["media-cleanup-every"]; ok && ival != "" {
-		return errors.New("value received for deprecated field 'media-cleanup-every', please use 'media-cleanup-cron' instead")
-	}
-
-	if ival, ok := cfgmap["cache-s3-object-info"]; ok {
-		var err error
-		cfg.Cache.S3ObjectInfo, err = cast.ToUint32E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> uint32 for 'cache-s3-object-info': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-home-timeline-size"]; ok {
-		var err error
-		cfg.Cache.HomeTimelineSize, err = cast.ToUint32E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> uint32 for 'cache-home-timeline-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-list-timeline-size"]; ok {
-		var err error
-		cfg.Cache.ListTimelineSize, err = cast.ToUint32E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> uint32 for 'cache-list-timeline-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-tag-timeline-size"]; ok {
-		var err error
-		cfg.Cache.TagTimelineSize, err = cast.ToUint32E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> uint32 for 'cache-tag-timeline-size': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-home-timeline-timeout"]; ok {
-		var err error
-		cfg.Cache.HomeTimelineTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'cache-home-timeline-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-list-timeline-timeout"]; ok {
-		var err error
-		cfg.Cache.ListTimelineTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'cache-list-timeline-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-tag-timeline-timeout"]; ok {
-		var err error
-		cfg.Cache.TagTimelineTimeout, err = cast.ToDurationE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> time.Duration for 'cache-tag-timeline-timeout': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-memory-target"]; ok {
-		t, err := cast.ToStringE(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'cache-memory-target': %w", ival, err)
-		}
-		cfg.Cache.MemoryTarget = 0x0
-		if err := cfg.Cache.MemoryTarget.Set(t); err != nil {
-			return fmt.Errorf("error parsing %#v for 'cache-memory-target': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-account-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.AccountMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-account-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-account-note-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.AccountNoteMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-account-note-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-account-settings-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.AccountSettingsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-account-settings-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-account-stats-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.AccountStatsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-account-stats-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-application-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.ApplicationMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-application-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-block-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.BlockMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-block-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-block-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.BlockIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-block-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-boost-of-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.BoostOfIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-boost-of-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-client-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.ClientMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-client-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-conversation-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.ConversationMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-conversation-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-conversation-last-status-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.ConversationLastStatusIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-conversation-last-status-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-domain-permission-draft-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.DomainPermissionDraftMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-domain-permission-draft-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-domain-permission-limit-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.DomainLimitMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-domain-permission-limit-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-domain-permission-subscription-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.DomainPermissionSubscriptionMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-domain-permission-subscription-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-emoji-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.EmojiMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-emoji-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-emoji-category-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.EmojiCategoryMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-emoji-category-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-federation-error-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.FederationErrorMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-federation-error-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-filter-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.FilterMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-filter-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-filter-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.FilterIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-filter-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-filter-keyword-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.FilterKeywordMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-filter-keyword-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-filter-status-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.FilterStatusMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-filter-status-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-follow-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.FollowMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-follow-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-follow-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.FollowIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-follow-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-follow-request-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.FollowRequestMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-follow-request-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-follow-request-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.FollowRequestIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-follow-request-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-following-tag-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.FollowingTagIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-following-tag-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-home-account-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.HomeAccountIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-home-account-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-in-reply-to-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.InReplyToIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-in-reply-to-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-instance-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.InstanceMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-instance-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-interaction-request-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.InteractionRequestMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-interaction-request-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-list-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.ListMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-list-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-list-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.ListIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-list-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-listed-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.ListedIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-listed-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-marker-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.MarkerMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-marker-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-media-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.MediaMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-media-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-mention-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.MentionMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-mention-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-move-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.MoveMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-move-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-notification-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.NotificationMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-notification-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-poll-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.PollMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-poll-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-poll-vote-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.PollVoteMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-poll-vote-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-poll-vote-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.PollVoteIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-poll-vote-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-report-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.ReportMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-report-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-relay-actor-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.RelayActorMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-relay-actor-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-relay-matcher-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.RelayMatcherMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-relay-matcher-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-relay-push-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.RelayPushMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-relay-push-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-relay-push-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.RelayPushIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-relay-push-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-relay-subscription-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.RelaySubscriptionMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-relay-subscription-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-scheduled-status-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.ScheduledStatusMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-scheduled-status-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-sin-bin-status-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.SinBinStatusMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-sin-bin-status-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-status-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.StatusMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-status-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-status-bookmark-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.StatusBookmarkMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-status-bookmark-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-status-bookmark-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.StatusBookmarkIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-status-bookmark-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-status-edit-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.StatusEditMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-status-edit-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-status-fave-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.StatusFaveMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-status-fave-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-status-fave-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.StatusFaveIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-status-fave-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-status-pinned-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.StatusPinnedIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-status-pinned-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-tag-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.TagMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-tag-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-thread-mute-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.ThreadMuteMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-thread-mute-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-token-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.TokenMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-token-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-tombstone-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.TombstoneMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-tombstone-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-user-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.UserMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-user-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-user-mute-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.UserMuteMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-user-mute-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-user-mute-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.UserMuteIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-user-mute-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-webfinger-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.WebfingerMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-webfinger-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-web-push-subscription-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.WebPushSubscriptionMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-web-push-subscription-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-web-push-subscription-ids-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.WebPushSubscriptionIDsMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-web-push-subscription-ids-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-mutes-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.MutesMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-mutes-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-status-filter-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.StatusFilterMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-status-filter-mem-ratio': %w", ival, err)
-		}
-	}
-
-	if ival, ok := cfgmap["cache-visibility-mem-ratio"]; ok {
-		var err error
-		cfg.Cache.VisibilityMemRatio, err = cast.ToFloat64E(ival)
-		if err != nil {
-			return fmt.Errorf("error casting %#v -> float64 for 'cache-visibility-mem-ratio': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "syslog-address", err)
 		}
 	}
 
@@ -2730,7 +2888,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AdminAccountUsername, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'username': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "username", err)
 		}
 	}
 
@@ -2738,7 +2896,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AdminAccountEmail, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'email': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "email", err)
 		}
 	}
 
@@ -2746,7 +2904,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AdminAccountPassword, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'password': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "password", err)
 		}
 	}
 
@@ -2754,7 +2912,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AdminTransPath, err = cast.ToStringE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> string for 'path': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "path", err)
 		}
 	}
 
@@ -2762,7 +2920,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AdminMediaPruneDryRun, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'dry-run': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "dry-run", err)
 		}
 	}
 
@@ -2770,7 +2928,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AdminMediaListLocalOnly, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'local-only': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "local-only", err)
 		}
 	}
 
@@ -2778,7 +2936,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.AdminMediaListRemoteOnly, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'remote-only': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "remote-only", err)
 		}
 	}
 
@@ -2786,7 +2944,7 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.TestrigSkipDBSetup, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'skip-db-setup': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "skip-db-setup", err)
 		}
 	}
 
@@ -2794,1896 +2952,252 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		var err error
 		cfg.TestrigSkipDBTeardown, err = cast.ToBoolE(ival)
 		if err != nil {
-			return fmt.Errorf("error casting %#v -> bool for 'skip-db-teardown': %w", ival, err)
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "skip-db-teardown", err)
 		}
 	}
 
 	return nil
 }
 
-// GetLogLevel safely fetches the Configuration value for state's 'LogLevel' field
-func (st *ConfigState) GetLogLevel() (v string) {
-	return st.config.LogLevel
+// GetDatabasePostgresPort safely fetches the Configuration value for state's 'Database.Postgres.Port' field
+func (st *ConfigState) GetDatabasePostgresPort() (v uint16) {
+	return st.config.Database.Postgres.Port
 }
 
-// SetLogLevel safely sets the Configuration value for state's 'LogLevel' field
-func (st *ConfigState) SetLogLevel(v string) {
-	st.config.LogLevel = v
+// SetDatabasePostgresPort safely sets the Configuration value for state's 'Database.Postgres.Port' field
+func (st *ConfigState) SetDatabasePostgresPort(v uint16) {
+	st.config.Database.Postgres.Port = v
 	st.reloadToViper()
 }
 
-// GetLogLevel safely fetches the value for global configuration 'LogLevel' field
-func GetLogLevel() string { return global.GetLogLevel() }
+// GetDatabasePostgresPort safely fetches the value for global configuration 'Database.Postgres.Port' field
+func GetDatabasePostgresPort() uint16 { return global.GetDatabasePostgresPort() }
 
-// SetLogLevel safely sets the value for global configuration 'LogLevel' field
-func SetLogLevel(v string) { global.SetLogLevel(v) }
+// SetDatabasePostgresPort safely sets the value for global configuration 'Database.Postgres.Port' field
+func SetDatabasePostgresPort(v uint16) { global.SetDatabasePostgresPort(v) }
 
-// GetLogFormat safely fetches the Configuration value for state's 'LogFormat' field
-func (st *ConfigState) GetLogFormat() (v string) {
-	return st.config.LogFormat
+// GetDatabasePostgresUser safely fetches the Configuration value for state's 'Database.Postgres.User' field
+func (st *ConfigState) GetDatabasePostgresUser() (v string) {
+	return st.config.Database.Postgres.User
 }
 
-// SetLogFormat safely sets the Configuration value for state's 'LogFormat' field
-func (st *ConfigState) SetLogFormat(v string) {
-	st.config.LogFormat = v
+// SetDatabasePostgresUser safely sets the Configuration value for state's 'Database.Postgres.User' field
+func (st *ConfigState) SetDatabasePostgresUser(v string) {
+	st.config.Database.Postgres.User = v
 	st.reloadToViper()
 }
 
-// GetLogFormat safely fetches the value for global configuration 'LogFormat' field
-func GetLogFormat() string { return global.GetLogFormat() }
+// GetDatabasePostgresUser safely fetches the value for global configuration 'Database.Postgres.User' field
+func GetDatabasePostgresUser() string { return global.GetDatabasePostgresUser() }
 
-// SetLogFormat safely sets the value for global configuration 'LogFormat' field
-func SetLogFormat(v string) { global.SetLogFormat(v) }
+// SetDatabasePostgresUser safely sets the value for global configuration 'Database.Postgres.User' field
+func SetDatabasePostgresUser(v string) { global.SetDatabasePostgresUser(v) }
 
-// GetLogTimestampFormat safely fetches the Configuration value for state's 'LogTimestampFormat' field
-func (st *ConfigState) GetLogTimestampFormat() (v string) {
-	return st.config.LogTimestampFormat
+// GetDatabasePostgresPassword safely fetches the Configuration value for state's 'Database.Postgres.Password' field
+func (st *ConfigState) GetDatabasePostgresPassword() (v string) {
+	return st.config.Database.Postgres.Password
 }
 
-// SetLogTimestampFormat safely sets the Configuration value for state's 'LogTimestampFormat' field
-func (st *ConfigState) SetLogTimestampFormat(v string) {
-	st.config.LogTimestampFormat = v
+// SetDatabasePostgresPassword safely sets the Configuration value for state's 'Database.Postgres.Password' field
+func (st *ConfigState) SetDatabasePostgresPassword(v string) {
+	st.config.Database.Postgres.Password = v
 	st.reloadToViper()
 }
 
-// GetLogTimestampFormat safely fetches the value for global configuration 'LogTimestampFormat' field
-func GetLogTimestampFormat() string { return global.GetLogTimestampFormat() }
+// GetDatabasePostgresPassword safely fetches the value for global configuration 'Database.Postgres.Password' field
+func GetDatabasePostgresPassword() string { return global.GetDatabasePostgresPassword() }
 
-// SetLogTimestampFormat safely sets the value for global configuration 'LogTimestampFormat' field
-func SetLogTimestampFormat(v string) { global.SetLogTimestampFormat(v) }
+// SetDatabasePostgresPassword safely sets the value for global configuration 'Database.Postgres.Password' field
+func SetDatabasePostgresPassword(v string) { global.SetDatabasePostgresPassword(v) }
 
-// GetLogDbQueries safely fetches the Configuration value for state's 'LogDbQueries' field
-func (st *ConfigState) GetLogDbQueries() (v bool) {
-	return st.config.LogDbQueries
+// GetDatabasePostgresDatabase safely fetches the Configuration value for state's 'Database.Postgres.Database' field
+func (st *ConfigState) GetDatabasePostgresDatabase() (v string) {
+	return st.config.Database.Postgres.Database
 }
 
-// SetLogDbQueries safely sets the Configuration value for state's 'LogDbQueries' field
-func (st *ConfigState) SetLogDbQueries(v bool) {
-	st.config.LogDbQueries = v
+// SetDatabasePostgresDatabase safely sets the Configuration value for state's 'Database.Postgres.Database' field
+func (st *ConfigState) SetDatabasePostgresDatabase(v string) {
+	st.config.Database.Postgres.Database = v
 	st.reloadToViper()
 }
 
-// GetLogDbQueries safely fetches the value for global configuration 'LogDbQueries' field
-func GetLogDbQueries() bool { return global.GetLogDbQueries() }
+// GetDatabasePostgresDatabase safely fetches the value for global configuration 'Database.Postgres.Database' field
+func GetDatabasePostgresDatabase() string { return global.GetDatabasePostgresDatabase() }
 
-// SetLogDbQueries safely sets the value for global configuration 'LogDbQueries' field
-func SetLogDbQueries(v bool) { global.SetLogDbQueries(v) }
+// SetDatabasePostgresDatabase safely sets the value for global configuration 'Database.Postgres.Database' field
+func SetDatabasePostgresDatabase(v string) { global.SetDatabasePostgresDatabase(v) }
 
-// GetLogClientIP safely fetches the Configuration value for state's 'LogClientIP' field
-func (st *ConfigState) GetLogClientIP() (v bool) {
-	return st.config.LogClientIP
+// GetDatabasePostgresTLSMode safely fetches the Configuration value for state's 'Database.Postgres.TLSMode' field
+func (st *ConfigState) GetDatabasePostgresTLSMode() (v string) {
+	return st.config.Database.Postgres.TLSMode
 }
 
-// SetLogClientIP safely sets the Configuration value for state's 'LogClientIP' field
-func (st *ConfigState) SetLogClientIP(v bool) {
-	st.config.LogClientIP = v
+// SetDatabasePostgresTLSMode safely sets the Configuration value for state's 'Database.Postgres.TLSMode' field
+func (st *ConfigState) SetDatabasePostgresTLSMode(v string) {
+	st.config.Database.Postgres.TLSMode = v
 	st.reloadToViper()
 }
 
-// GetLogClientIP safely fetches the value for global configuration 'LogClientIP' field
-func GetLogClientIP() bool { return global.GetLogClientIP() }
+// GetDatabasePostgresTLSMode safely fetches the value for global configuration 'Database.Postgres.TLSMode' field
+func GetDatabasePostgresTLSMode() string { return global.GetDatabasePostgresTLSMode() }
 
-// SetLogClientIP safely sets the value for global configuration 'LogClientIP' field
-func SetLogClientIP(v bool) { global.SetLogClientIP(v) }
+// SetDatabasePostgresTLSMode safely sets the value for global configuration 'Database.Postgres.TLSMode' field
+func SetDatabasePostgresTLSMode(v string) { global.SetDatabasePostgresTLSMode(v) }
 
-// GetRequestIDHeader safely fetches the Configuration value for state's 'RequestIDHeader' field
-func (st *ConfigState) GetRequestIDHeader() (v string) {
-	return st.config.RequestIDHeader
+// GetDatabasePostgresTLSCACert safely fetches the Configuration value for state's 'Database.Postgres.TLSCACert' field
+func (st *ConfigState) GetDatabasePostgresTLSCACert() (v string) {
+	return st.config.Database.Postgres.TLSCACert
 }
 
-// SetRequestIDHeader safely sets the Configuration value for state's 'RequestIDHeader' field
-func (st *ConfigState) SetRequestIDHeader(v string) {
-	st.config.RequestIDHeader = v
+// SetDatabasePostgresTLSCACert safely sets the Configuration value for state's 'Database.Postgres.TLSCACert' field
+func (st *ConfigState) SetDatabasePostgresTLSCACert(v string) {
+	st.config.Database.Postgres.TLSCACert = v
 	st.reloadToViper()
 }
 
-// GetRequestIDHeader safely fetches the value for global configuration 'RequestIDHeader' field
-func GetRequestIDHeader() string { return global.GetRequestIDHeader() }
+// GetDatabasePostgresTLSCACert safely fetches the value for global configuration 'Database.Postgres.TLSCACert' field
+func GetDatabasePostgresTLSCACert() string { return global.GetDatabasePostgresTLSCACert() }
 
-// SetRequestIDHeader safely sets the value for global configuration 'RequestIDHeader' field
-func SetRequestIDHeader(v string) { global.SetRequestIDHeader(v) }
-
-// GetConfigPath safely fetches the Configuration value for state's 'ConfigPath' field
-func (st *ConfigState) GetConfigPath() (v string) {
-	return st.config.ConfigPath
-}
-
-// SetConfigPath safely sets the Configuration value for state's 'ConfigPath' field
-func (st *ConfigState) SetConfigPath(v string) {
-	st.config.ConfigPath = v
-	st.reloadToViper()
-}
-
-// GetConfigPath safely fetches the value for global configuration 'ConfigPath' field
-func GetConfigPath() string { return global.GetConfigPath() }
-
-// SetConfigPath safely sets the value for global configuration 'ConfigPath' field
-func SetConfigPath(v string) { global.SetConfigPath(v) }
-
-// GetApplicationName safely fetches the Configuration value for state's 'ApplicationName' field
-func (st *ConfigState) GetApplicationName() (v string) {
-	return st.config.ApplicationName
-}
-
-// SetApplicationName safely sets the Configuration value for state's 'ApplicationName' field
-func (st *ConfigState) SetApplicationName(v string) {
-	st.config.ApplicationName = v
-	st.reloadToViper()
-}
-
-// GetApplicationName safely fetches the value for global configuration 'ApplicationName' field
-func GetApplicationName() string { return global.GetApplicationName() }
-
-// SetApplicationName safely sets the value for global configuration 'ApplicationName' field
-func SetApplicationName(v string) { global.SetApplicationName(v) }
-
-// GetLandingPageUser safely fetches the Configuration value for state's 'LandingPageUser' field
-func (st *ConfigState) GetLandingPageUser() (v string) {
-	return st.config.LandingPageUser
-}
-
-// SetLandingPageUser safely sets the Configuration value for state's 'LandingPageUser' field
-func (st *ConfigState) SetLandingPageUser(v string) {
-	st.config.LandingPageUser = v
-	st.reloadToViper()
-}
-
-// GetLandingPageUser safely fetches the value for global configuration 'LandingPageUser' field
-func GetLandingPageUser() string { return global.GetLandingPageUser() }
-
-// SetLandingPageUser safely sets the value for global configuration 'LandingPageUser' field
-func SetLandingPageUser(v string) { global.SetLandingPageUser(v) }
-
-// GetHost safely fetches the Configuration value for state's 'Host' field
-func (st *ConfigState) GetHost() (v string) {
-	return st.config.Host
-}
-
-// SetHost safely sets the Configuration value for state's 'Host' field
-func (st *ConfigState) SetHost(v string) {
-	st.config.Host = v
-	st.reloadToViper()
-}
-
-// GetHost safely fetches the value for global configuration 'Host' field
-func GetHost() string { return global.GetHost() }
-
-// SetHost safely sets the value for global configuration 'Host' field
-func SetHost(v string) { global.SetHost(v) }
-
-// GetAccountDomain safely fetches the Configuration value for state's 'AccountDomain' field
-func (st *ConfigState) GetAccountDomain() (v string) {
-	return st.config.AccountDomain
-}
-
-// SetAccountDomain safely sets the Configuration value for state's 'AccountDomain' field
-func (st *ConfigState) SetAccountDomain(v string) {
-	st.config.AccountDomain = v
-	st.reloadToViper()
-}
-
-// GetAccountDomain safely fetches the value for global configuration 'AccountDomain' field
-func GetAccountDomain() string { return global.GetAccountDomain() }
-
-// SetAccountDomain safely sets the value for global configuration 'AccountDomain' field
-func SetAccountDomain(v string) { global.SetAccountDomain(v) }
-
-// GetProtocol safely fetches the Configuration value for state's 'Protocol' field
-func (st *ConfigState) GetProtocol() (v string) {
-	return st.config.Protocol
-}
-
-// SetProtocol safely sets the Configuration value for state's 'Protocol' field
-func (st *ConfigState) SetProtocol(v string) {
-	st.config.Protocol = v
-	st.reloadToViper()
-}
-
-// GetProtocol safely fetches the value for global configuration 'Protocol' field
-func GetProtocol() string { return global.GetProtocol() }
-
-// SetProtocol safely sets the value for global configuration 'Protocol' field
-func SetProtocol(v string) { global.SetProtocol(v) }
-
-// GetBindAddress safely fetches the Configuration value for state's 'BindAddress' field
-func (st *ConfigState) GetBindAddress() (v string) {
-	return st.config.BindAddress
-}
-
-// SetBindAddress safely sets the Configuration value for state's 'BindAddress' field
-func (st *ConfigState) SetBindAddress(v string) {
-	st.config.BindAddress = v
-	st.reloadToViper()
-}
-
-// GetBindAddress safely fetches the value for global configuration 'BindAddress' field
-func GetBindAddress() string { return global.GetBindAddress() }
-
-// SetBindAddress safely sets the value for global configuration 'BindAddress' field
-func SetBindAddress(v string) { global.SetBindAddress(v) }
-
-// GetPort safely fetches the Configuration value for state's 'Port' field
-func (st *ConfigState) GetPort() (v int) {
-	return st.config.Port
-}
-
-// SetPort safely sets the Configuration value for state's 'Port' field
-func (st *ConfigState) SetPort(v int) {
-	st.config.Port = v
-	st.reloadToViper()
-}
-
-// GetPort safely fetches the value for global configuration 'Port' field
-func GetPort() int { return global.GetPort() }
-
-// SetPort safely sets the value for global configuration 'Port' field
-func SetPort(v int) { global.SetPort(v) }
-
-// GetTrustedProxies safely fetches the Configuration value for state's 'TrustedProxies' field
-func (st *ConfigState) GetTrustedProxies() (v IPPrefixes) {
-	return st.config.TrustedProxies
-}
-
-// SetTrustedProxies safely sets the Configuration value for state's 'TrustedProxies' field
-func (st *ConfigState) SetTrustedProxies(v IPPrefixes) {
-	st.config.TrustedProxies = v
-	st.reloadToViper()
-}
-
-// GetTrustedProxies safely fetches the value for global configuration 'TrustedProxies' field
-func GetTrustedProxies() IPPrefixes { return global.GetTrustedProxies() }
-
-// SetTrustedProxies safely sets the value for global configuration 'TrustedProxies' field
-func SetTrustedProxies(v IPPrefixes) { global.SetTrustedProxies(v) }
-
-// GetSoftwareVersion safely fetches the Configuration value for state's 'SoftwareVersion' field
-func (st *ConfigState) GetSoftwareVersion() (v string) {
-	return st.config.SoftwareVersion
-}
-
-// SetSoftwareVersion safely sets the Configuration value for state's 'SoftwareVersion' field
-func (st *ConfigState) SetSoftwareVersion(v string) {
-	st.config.SoftwareVersion = v
-	st.reloadToViper()
-}
-
-// GetSoftwareVersion safely fetches the value for global configuration 'SoftwareVersion' field
-func GetSoftwareVersion() string { return global.GetSoftwareVersion() }
-
-// SetSoftwareVersion safely sets the value for global configuration 'SoftwareVersion' field
-func SetSoftwareVersion(v string) { global.SetSoftwareVersion(v) }
-
-// GetDbType safely fetches the Configuration value for state's 'DbType' field
-func (st *ConfigState) GetDbType() (v string) {
-	return st.config.DbType
-}
-
-// SetDbType safely sets the Configuration value for state's 'DbType' field
-func (st *ConfigState) SetDbType(v string) {
-	st.config.DbType = v
-	st.reloadToViper()
-}
-
-// GetDbType safely fetches the value for global configuration 'DbType' field
-func GetDbType() string { return global.GetDbType() }
-
-// SetDbType safely sets the value for global configuration 'DbType' field
-func SetDbType(v string) { global.SetDbType(v) }
-
-// GetDbAddress safely fetches the Configuration value for state's 'DbAddress' field
-func (st *ConfigState) GetDbAddress() (v string) {
-	return st.config.DbAddress
-}
-
-// SetDbAddress safely sets the Configuration value for state's 'DbAddress' field
-func (st *ConfigState) SetDbAddress(v string) {
-	st.config.DbAddress = v
-	st.reloadToViper()
-}
-
-// GetDbAddress safely fetches the value for global configuration 'DbAddress' field
-func GetDbAddress() string { return global.GetDbAddress() }
-
-// SetDbAddress safely sets the value for global configuration 'DbAddress' field
-func SetDbAddress(v string) { global.SetDbAddress(v) }
-
-// GetDbPort safely fetches the Configuration value for state's 'DbPort' field
-func (st *ConfigState) GetDbPort() (v int) {
-	return st.config.DbPort
-}
-
-// SetDbPort safely sets the Configuration value for state's 'DbPort' field
-func (st *ConfigState) SetDbPort(v int) {
-	st.config.DbPort = v
-	st.reloadToViper()
-}
-
-// GetDbPort safely fetches the value for global configuration 'DbPort' field
-func GetDbPort() int { return global.GetDbPort() }
-
-// SetDbPort safely sets the value for global configuration 'DbPort' field
-func SetDbPort(v int) { global.SetDbPort(v) }
-
-// GetDbUser safely fetches the Configuration value for state's 'DbUser' field
-func (st *ConfigState) GetDbUser() (v string) {
-	return st.config.DbUser
-}
-
-// SetDbUser safely sets the Configuration value for state's 'DbUser' field
-func (st *ConfigState) SetDbUser(v string) {
-	st.config.DbUser = v
-	st.reloadToViper()
-}
-
-// GetDbUser safely fetches the value for global configuration 'DbUser' field
-func GetDbUser() string { return global.GetDbUser() }
-
-// SetDbUser safely sets the value for global configuration 'DbUser' field
-func SetDbUser(v string) { global.SetDbUser(v) }
-
-// GetDbPassword safely fetches the Configuration value for state's 'DbPassword' field
-func (st *ConfigState) GetDbPassword() (v string) {
-	return st.config.DbPassword
-}
-
-// SetDbPassword safely sets the Configuration value for state's 'DbPassword' field
-func (st *ConfigState) SetDbPassword(v string) {
-	st.config.DbPassword = v
-	st.reloadToViper()
-}
-
-// GetDbPassword safely fetches the value for global configuration 'DbPassword' field
-func GetDbPassword() string { return global.GetDbPassword() }
-
-// SetDbPassword safely sets the value for global configuration 'DbPassword' field
-func SetDbPassword(v string) { global.SetDbPassword(v) }
-
-// GetDbDatabase safely fetches the Configuration value for state's 'DbDatabase' field
-func (st *ConfigState) GetDbDatabase() (v string) {
-	return st.config.DbDatabase
-}
-
-// SetDbDatabase safely sets the Configuration value for state's 'DbDatabase' field
-func (st *ConfigState) SetDbDatabase(v string) {
-	st.config.DbDatabase = v
-	st.reloadToViper()
-}
-
-// GetDbDatabase safely fetches the value for global configuration 'DbDatabase' field
-func GetDbDatabase() string { return global.GetDbDatabase() }
-
-// SetDbDatabase safely sets the value for global configuration 'DbDatabase' field
-func SetDbDatabase(v string) { global.SetDbDatabase(v) }
-
-// GetDbTLSMode safely fetches the Configuration value for state's 'DbTLSMode' field
-func (st *ConfigState) GetDbTLSMode() (v string) {
-	return st.config.DbTLSMode
-}
-
-// SetDbTLSMode safely sets the Configuration value for state's 'DbTLSMode' field
-func (st *ConfigState) SetDbTLSMode(v string) {
-	st.config.DbTLSMode = v
-	st.reloadToViper()
-}
-
-// GetDbTLSMode safely fetches the value for global configuration 'DbTLSMode' field
-func GetDbTLSMode() string { return global.GetDbTLSMode() }
-
-// SetDbTLSMode safely sets the value for global configuration 'DbTLSMode' field
-func SetDbTLSMode(v string) { global.SetDbTLSMode(v) }
-
-// GetDbTLSCACert safely fetches the Configuration value for state's 'DbTLSCACert' field
-func (st *ConfigState) GetDbTLSCACert() (v string) {
-	return st.config.DbTLSCACert
-}
-
-// SetDbTLSCACert safely sets the Configuration value for state's 'DbTLSCACert' field
-func (st *ConfigState) SetDbTLSCACert(v string) {
-	st.config.DbTLSCACert = v
-	st.reloadToViper()
-}
-
-// GetDbTLSCACert safely fetches the value for global configuration 'DbTLSCACert' field
-func GetDbTLSCACert() string { return global.GetDbTLSCACert() }
-
-// SetDbTLSCACert safely sets the value for global configuration 'DbTLSCACert' field
-func SetDbTLSCACert(v string) { global.SetDbTLSCACert(v) }
-
-// GetDbMaxOpenConnsMultiplier safely fetches the Configuration value for state's 'DbMaxOpenConnsMultiplier' field
-func (st *ConfigState) GetDbMaxOpenConnsMultiplier() (v int) {
-	return st.config.DbMaxOpenConnsMultiplier
-}
-
-// SetDbMaxOpenConnsMultiplier safely sets the Configuration value for state's 'DbMaxOpenConnsMultiplier' field
-func (st *ConfigState) SetDbMaxOpenConnsMultiplier(v int) {
-	st.config.DbMaxOpenConnsMultiplier = v
-	st.reloadToViper()
-}
-
-// GetDbMaxOpenConnsMultiplier safely fetches the value for global configuration 'DbMaxOpenConnsMultiplier' field
-func GetDbMaxOpenConnsMultiplier() int { return global.GetDbMaxOpenConnsMultiplier() }
-
-// SetDbMaxOpenConnsMultiplier safely sets the value for global configuration 'DbMaxOpenConnsMultiplier' field
-func SetDbMaxOpenConnsMultiplier(v int) { global.SetDbMaxOpenConnsMultiplier(v) }
-
-// GetDbSqliteJournalMode safely fetches the Configuration value for state's 'DbSqliteJournalMode' field
-func (st *ConfigState) GetDbSqliteJournalMode() (v string) {
-	return st.config.DbSqliteJournalMode
-}
-
-// SetDbSqliteJournalMode safely sets the Configuration value for state's 'DbSqliteJournalMode' field
-func (st *ConfigState) SetDbSqliteJournalMode(v string) {
-	st.config.DbSqliteJournalMode = v
-	st.reloadToViper()
-}
-
-// GetDbSqliteJournalMode safely fetches the value for global configuration 'DbSqliteJournalMode' field
-func GetDbSqliteJournalMode() string { return global.GetDbSqliteJournalMode() }
-
-// SetDbSqliteJournalMode safely sets the value for global configuration 'DbSqliteJournalMode' field
-func SetDbSqliteJournalMode(v string) { global.SetDbSqliteJournalMode(v) }
-
-// GetDbSqliteSynchronous safely fetches the Configuration value for state's 'DbSqliteSynchronous' field
-func (st *ConfigState) GetDbSqliteSynchronous() (v string) {
-	return st.config.DbSqliteSynchronous
-}
-
-// SetDbSqliteSynchronous safely sets the Configuration value for state's 'DbSqliteSynchronous' field
-func (st *ConfigState) SetDbSqliteSynchronous(v string) {
-	st.config.DbSqliteSynchronous = v
-	st.reloadToViper()
-}
-
-// GetDbSqliteSynchronous safely fetches the value for global configuration 'DbSqliteSynchronous' field
-func GetDbSqliteSynchronous() string { return global.GetDbSqliteSynchronous() }
-
-// SetDbSqliteSynchronous safely sets the value for global configuration 'DbSqliteSynchronous' field
-func SetDbSqliteSynchronous(v string) { global.SetDbSqliteSynchronous(v) }
-
-// GetDbSqliteCacheSize safely fetches the Configuration value for state's 'DbSqliteCacheSize' field
-func (st *ConfigState) GetDbSqliteCacheSize() (v bytesize.Size) {
-	return st.config.DbSqliteCacheSize
-}
-
-// SetDbSqliteCacheSize safely sets the Configuration value for state's 'DbSqliteCacheSize' field
-func (st *ConfigState) SetDbSqliteCacheSize(v bytesize.Size) {
-	st.config.DbSqliteCacheSize = v
-	st.reloadToViper()
-}
-
-// GetDbSqliteCacheSize safely fetches the value for global configuration 'DbSqliteCacheSize' field
-func GetDbSqliteCacheSize() bytesize.Size { return global.GetDbSqliteCacheSize() }
-
-// SetDbSqliteCacheSize safely sets the value for global configuration 'DbSqliteCacheSize' field
-func SetDbSqliteCacheSize(v bytesize.Size) { global.SetDbSqliteCacheSize(v) }
-
-// GetDbSqliteBusyTimeout safely fetches the Configuration value for state's 'DbSqliteBusyTimeout' field
-func (st *ConfigState) GetDbSqliteBusyTimeout() (v time.Duration) {
-	return st.config.DbSqliteBusyTimeout
-}
-
-// SetDbSqliteBusyTimeout safely sets the Configuration value for state's 'DbSqliteBusyTimeout' field
-func (st *ConfigState) SetDbSqliteBusyTimeout(v time.Duration) {
-	st.config.DbSqliteBusyTimeout = v
-	st.reloadToViper()
-}
-
-// GetDbSqliteBusyTimeout safely fetches the value for global configuration 'DbSqliteBusyTimeout' field
-func GetDbSqliteBusyTimeout() time.Duration { return global.GetDbSqliteBusyTimeout() }
-
-// SetDbSqliteBusyTimeout safely sets the value for global configuration 'DbSqliteBusyTimeout' field
-func SetDbSqliteBusyTimeout(v time.Duration) { global.SetDbSqliteBusyTimeout(v) }
-
-// GetDbPostgresConnectionString safely fetches the Configuration value for state's 'DbPostgresConnectionString' field
-func (st *ConfigState) GetDbPostgresConnectionString() (v string) {
-	return st.config.DbPostgresConnectionString
-}
-
-// SetDbPostgresConnectionString safely sets the Configuration value for state's 'DbPostgresConnectionString' field
-func (st *ConfigState) SetDbPostgresConnectionString(v string) {
-	st.config.DbPostgresConnectionString = v
-	st.reloadToViper()
-}
-
-// GetDbPostgresConnectionString safely fetches the value for global configuration 'DbPostgresConnectionString' field
-func GetDbPostgresConnectionString() string { return global.GetDbPostgresConnectionString() }
-
-// SetDbPostgresConnectionString safely sets the value for global configuration 'DbPostgresConnectionString' field
-func SetDbPostgresConnectionString(v string) { global.SetDbPostgresConnectionString(v) }
-
-// GetWebTemplateBaseDir safely fetches the Configuration value for state's 'WebTemplateBaseDir' field
-func (st *ConfigState) GetWebTemplateBaseDir() (v string) {
-	return st.config.WebTemplateBaseDir
-}
-
-// SetWebTemplateBaseDir safely sets the Configuration value for state's 'WebTemplateBaseDir' field
-func (st *ConfigState) SetWebTemplateBaseDir(v string) {
-	st.config.WebTemplateBaseDir = v
-	st.reloadToViper()
-}
-
-// GetWebTemplateBaseDir safely fetches the value for global configuration 'WebTemplateBaseDir' field
-func GetWebTemplateBaseDir() string { return global.GetWebTemplateBaseDir() }
-
-// SetWebTemplateBaseDir safely sets the value for global configuration 'WebTemplateBaseDir' field
-func SetWebTemplateBaseDir(v string) { global.SetWebTemplateBaseDir(v) }
-
-// GetWebAssetBaseDir safely fetches the Configuration value for state's 'WebAssetBaseDir' field
-func (st *ConfigState) GetWebAssetBaseDir() (v string) {
-	return st.config.WebAssetBaseDir
-}
-
-// SetWebAssetBaseDir safely sets the Configuration value for state's 'WebAssetBaseDir' field
-func (st *ConfigState) SetWebAssetBaseDir(v string) {
-	st.config.WebAssetBaseDir = v
-	st.reloadToViper()
-}
-
-// GetWebAssetBaseDir safely fetches the value for global configuration 'WebAssetBaseDir' field
-func GetWebAssetBaseDir() string { return global.GetWebAssetBaseDir() }
-
-// SetWebAssetBaseDir safely sets the value for global configuration 'WebAssetBaseDir' field
-func SetWebAssetBaseDir(v string) { global.SetWebAssetBaseDir(v) }
-
-// GetInstanceFederationMode safely fetches the Configuration value for state's 'InstanceFederationMode' field
-func (st *ConfigState) GetInstanceFederationMode() (v string) {
-	return st.config.InstanceFederationMode
-}
-
-// SetInstanceFederationMode safely sets the Configuration value for state's 'InstanceFederationMode' field
-func (st *ConfigState) SetInstanceFederationMode(v string) {
-	st.config.InstanceFederationMode = v
-	st.reloadToViper()
-}
-
-// GetInstanceFederationMode safely fetches the value for global configuration 'InstanceFederationMode' field
-func GetInstanceFederationMode() string { return global.GetInstanceFederationMode() }
-
-// SetInstanceFederationMode safely sets the value for global configuration 'InstanceFederationMode' field
-func SetInstanceFederationMode(v string) { global.SetInstanceFederationMode(v) }
-
-// GetInstanceFederationSpamFilter safely fetches the Configuration value for state's 'InstanceFederationSpamFilter' field
-func (st *ConfigState) GetInstanceFederationSpamFilter() (v bool) {
-	return st.config.InstanceFederationSpamFilter
-}
-
-// SetInstanceFederationSpamFilter safely sets the Configuration value for state's 'InstanceFederationSpamFilter' field
-func (st *ConfigState) SetInstanceFederationSpamFilter(v bool) {
-	st.config.InstanceFederationSpamFilter = v
-	st.reloadToViper()
-}
-
-// GetInstanceFederationSpamFilter safely fetches the value for global configuration 'InstanceFederationSpamFilter' field
-func GetInstanceFederationSpamFilter() bool { return global.GetInstanceFederationSpamFilter() }
-
-// SetInstanceFederationSpamFilter safely sets the value for global configuration 'InstanceFederationSpamFilter' field
-func SetInstanceFederationSpamFilter(v bool) { global.SetInstanceFederationSpamFilter(v) }
-
-// GetInstanceExposePeers safely fetches the Configuration value for state's 'InstanceExposePeers' field
-func (st *ConfigState) GetInstanceExposePeers() (v bool) {
-	return st.config.InstanceExposePeers
-}
-
-// SetInstanceExposePeers safely sets the Configuration value for state's 'InstanceExposePeers' field
-func (st *ConfigState) SetInstanceExposePeers(v bool) {
-	st.config.InstanceExposePeers = v
-	st.reloadToViper()
-}
-
-// GetInstanceExposePeers safely fetches the value for global configuration 'InstanceExposePeers' field
-func GetInstanceExposePeers() bool { return global.GetInstanceExposePeers() }
-
-// SetInstanceExposePeers safely sets the value for global configuration 'InstanceExposePeers' field
-func SetInstanceExposePeers(v bool) { global.SetInstanceExposePeers(v) }
-
-// GetInstanceExposeBlocklist safely fetches the Configuration value for state's 'InstanceExposeBlocklist' field
-func (st *ConfigState) GetInstanceExposeBlocklist() (v bool) {
-	return st.config.InstanceExposeBlocklist
-}
-
-// SetInstanceExposeBlocklist safely sets the Configuration value for state's 'InstanceExposeBlocklist' field
-func (st *ConfigState) SetInstanceExposeBlocklist(v bool) {
-	st.config.InstanceExposeBlocklist = v
-	st.reloadToViper()
-}
-
-// GetInstanceExposeBlocklist safely fetches the value for global configuration 'InstanceExposeBlocklist' field
-func GetInstanceExposeBlocklist() bool { return global.GetInstanceExposeBlocklist() }
-
-// SetInstanceExposeBlocklist safely sets the value for global configuration 'InstanceExposeBlocklist' field
-func SetInstanceExposeBlocklist(v bool) { global.SetInstanceExposeBlocklist(v) }
-
-// GetInstanceExposeBlocklistWeb safely fetches the Configuration value for state's 'InstanceExposeBlocklistWeb' field
-func (st *ConfigState) GetInstanceExposeBlocklistWeb() (v bool) {
-	return st.config.InstanceExposeBlocklistWeb
-}
-
-// SetInstanceExposeBlocklistWeb safely sets the Configuration value for state's 'InstanceExposeBlocklistWeb' field
-func (st *ConfigState) SetInstanceExposeBlocklistWeb(v bool) {
-	st.config.InstanceExposeBlocklistWeb = v
-	st.reloadToViper()
-}
-
-// GetInstanceExposeBlocklistWeb safely fetches the value for global configuration 'InstanceExposeBlocklistWeb' field
-func GetInstanceExposeBlocklistWeb() bool { return global.GetInstanceExposeBlocklistWeb() }
-
-// SetInstanceExposeBlocklistWeb safely sets the value for global configuration 'InstanceExposeBlocklistWeb' field
-func SetInstanceExposeBlocklistWeb(v bool) { global.SetInstanceExposeBlocklistWeb(v) }
-
-// GetInstanceExposeAllowlist safely fetches the Configuration value for state's 'InstanceExposeAllowlist' field
-func (st *ConfigState) GetInstanceExposeAllowlist() (v bool) {
-	return st.config.InstanceExposeAllowlist
-}
-
-// SetInstanceExposeAllowlist safely sets the Configuration value for state's 'InstanceExposeAllowlist' field
-func (st *ConfigState) SetInstanceExposeAllowlist(v bool) {
-	st.config.InstanceExposeAllowlist = v
-	st.reloadToViper()
-}
-
-// GetInstanceExposeAllowlist safely fetches the value for global configuration 'InstanceExposeAllowlist' field
-func GetInstanceExposeAllowlist() bool { return global.GetInstanceExposeAllowlist() }
-
-// SetInstanceExposeAllowlist safely sets the value for global configuration 'InstanceExposeAllowlist' field
-func SetInstanceExposeAllowlist(v bool) { global.SetInstanceExposeAllowlist(v) }
-
-// GetInstanceExposeAllowlistWeb safely fetches the Configuration value for state's 'InstanceExposeAllowlistWeb' field
-func (st *ConfigState) GetInstanceExposeAllowlistWeb() (v bool) {
-	return st.config.InstanceExposeAllowlistWeb
-}
-
-// SetInstanceExposeAllowlistWeb safely sets the Configuration value for state's 'InstanceExposeAllowlistWeb' field
-func (st *ConfigState) SetInstanceExposeAllowlistWeb(v bool) {
-	st.config.InstanceExposeAllowlistWeb = v
-	st.reloadToViper()
-}
-
-// GetInstanceExposeAllowlistWeb safely fetches the value for global configuration 'InstanceExposeAllowlistWeb' field
-func GetInstanceExposeAllowlistWeb() bool { return global.GetInstanceExposeAllowlistWeb() }
-
-// SetInstanceExposeAllowlistWeb safely sets the value for global configuration 'InstanceExposeAllowlistWeb' field
-func SetInstanceExposeAllowlistWeb(v bool) { global.SetInstanceExposeAllowlistWeb(v) }
-
-// GetInstanceExposePublicTimeline safely fetches the Configuration value for state's 'InstanceExposePublicTimeline' field
-func (st *ConfigState) GetInstanceExposePublicTimeline() (v bool) {
-	return st.config.InstanceExposePublicTimeline
-}
-
-// SetInstanceExposePublicTimeline safely sets the Configuration value for state's 'InstanceExposePublicTimeline' field
-func (st *ConfigState) SetInstanceExposePublicTimeline(v bool) {
-	st.config.InstanceExposePublicTimeline = v
-	st.reloadToViper()
-}
-
-// GetInstanceExposePublicTimeline safely fetches the value for global configuration 'InstanceExposePublicTimeline' field
-func GetInstanceExposePublicTimeline() bool { return global.GetInstanceExposePublicTimeline() }
-
-// SetInstanceExposePublicTimeline safely sets the value for global configuration 'InstanceExposePublicTimeline' field
-func SetInstanceExposePublicTimeline(v bool) { global.SetInstanceExposePublicTimeline(v) }
-
-// GetInstanceExposeCustomEmojis safely fetches the Configuration value for state's 'InstanceExposeCustomEmojis' field
-func (st *ConfigState) GetInstanceExposeCustomEmojis() (v bool) {
-	return st.config.InstanceExposeCustomEmojis
-}
-
-// SetInstanceExposeCustomEmojis safely sets the Configuration value for state's 'InstanceExposeCustomEmojis' field
-func (st *ConfigState) SetInstanceExposeCustomEmojis(v bool) {
-	st.config.InstanceExposeCustomEmojis = v
-	st.reloadToViper()
-}
-
-// GetInstanceExposeCustomEmojis safely fetches the value for global configuration 'InstanceExposeCustomEmojis' field
-func GetInstanceExposeCustomEmojis() bool { return global.GetInstanceExposeCustomEmojis() }
-
-// SetInstanceExposeCustomEmojis safely sets the value for global configuration 'InstanceExposeCustomEmojis' field
-func SetInstanceExposeCustomEmojis(v bool) { global.SetInstanceExposeCustomEmojis(v) }
-
-// GetInstanceDirectoryMode safely fetches the Configuration value for state's 'InstanceDirectoryMode' field
-func (st *ConfigState) GetInstanceDirectoryMode() (v InstanceDirectoryMode) {
-	return st.config.InstanceDirectoryMode
-}
-
-// SetInstanceDirectoryMode safely sets the Configuration value for state's 'InstanceDirectoryMode' field
-func (st *ConfigState) SetInstanceDirectoryMode(v InstanceDirectoryMode) {
-	st.config.InstanceDirectoryMode = v
-	st.reloadToViper()
-}
-
-// GetInstanceDirectoryMode safely fetches the value for global configuration 'InstanceDirectoryMode' field
-func GetInstanceDirectoryMode() InstanceDirectoryMode { return global.GetInstanceDirectoryMode() }
-
-// SetInstanceDirectoryMode safely sets the value for global configuration 'InstanceDirectoryMode' field
-func SetInstanceDirectoryMode(v InstanceDirectoryMode) { global.SetInstanceDirectoryMode(v) }
-
-// GetInstanceDeliverToSharedInboxes safely fetches the Configuration value for state's 'InstanceDeliverToSharedInboxes' field
-func (st *ConfigState) GetInstanceDeliverToSharedInboxes() (v bool) {
-	return st.config.InstanceDeliverToSharedInboxes
-}
-
-// SetInstanceDeliverToSharedInboxes safely sets the Configuration value for state's 'InstanceDeliverToSharedInboxes' field
-func (st *ConfigState) SetInstanceDeliverToSharedInboxes(v bool) {
-	st.config.InstanceDeliverToSharedInboxes = v
-	st.reloadToViper()
-}
-
-// GetInstanceDeliverToSharedInboxes safely fetches the value for global configuration 'InstanceDeliverToSharedInboxes' field
-func GetInstanceDeliverToSharedInboxes() bool { return global.GetInstanceDeliverToSharedInboxes() }
-
-// SetInstanceDeliverToSharedInboxes safely sets the value for global configuration 'InstanceDeliverToSharedInboxes' field
-func SetInstanceDeliverToSharedInboxes(v bool) { global.SetInstanceDeliverToSharedInboxes(v) }
-
-// GetInstanceInjectMastodonVersion safely fetches the Configuration value for state's 'InstanceInjectMastodonVersion' field
-func (st *ConfigState) GetInstanceInjectMastodonVersion() (v bool) {
-	return st.config.InstanceInjectMastodonVersion
-}
-
-// SetInstanceInjectMastodonVersion safely sets the Configuration value for state's 'InstanceInjectMastodonVersion' field
-func (st *ConfigState) SetInstanceInjectMastodonVersion(v bool) {
-	st.config.InstanceInjectMastodonVersion = v
-	st.reloadToViper()
-}
-
-// GetInstanceInjectMastodonVersion safely fetches the value for global configuration 'InstanceInjectMastodonVersion' field
-func GetInstanceInjectMastodonVersion() bool { return global.GetInstanceInjectMastodonVersion() }
-
-// SetInstanceInjectMastodonVersion safely sets the value for global configuration 'InstanceInjectMastodonVersion' field
-func SetInstanceInjectMastodonVersion(v bool) { global.SetInstanceInjectMastodonVersion(v) }
-
-// GetInstanceLanguages safely fetches the Configuration value for state's 'InstanceLanguages' field
-func (st *ConfigState) GetInstanceLanguages() (v language.Languages) {
-	return st.config.InstanceLanguages
-}
-
-// SetInstanceLanguages safely sets the Configuration value for state's 'InstanceLanguages' field
-func (st *ConfigState) SetInstanceLanguages(v language.Languages) {
-	st.config.InstanceLanguages = v
-	st.reloadToViper()
-}
-
-// GetInstanceLanguages safely fetches the value for global configuration 'InstanceLanguages' field
-func GetInstanceLanguages() language.Languages { return global.GetInstanceLanguages() }
-
-// SetInstanceLanguages safely sets the value for global configuration 'InstanceLanguages' field
-func SetInstanceLanguages(v language.Languages) { global.SetInstanceLanguages(v) }
-
-// GetInstanceSubscriptionsProcessFrom safely fetches the Configuration value for state's 'InstanceSubscriptionsProcessFrom' field
-func (st *ConfigState) GetInstanceSubscriptionsProcessFrom() (v Deprecated) {
-	return st.config.InstanceSubscriptionsProcessFrom
-}
-
-// SetInstanceSubscriptionsProcessFrom safely sets the Configuration value for state's 'InstanceSubscriptionsProcessFrom' field
-func (st *ConfigState) SetInstanceSubscriptionsProcessFrom(v Deprecated) {
-	st.config.InstanceSubscriptionsProcessFrom = v
-	st.reloadToViper()
-}
-
-// GetInstanceSubscriptionsProcessFrom safely fetches the value for global configuration 'InstanceSubscriptionsProcessFrom' field
-func GetInstanceSubscriptionsProcessFrom() Deprecated {
-	return global.GetInstanceSubscriptionsProcessFrom()
-}
-
-// SetInstanceSubscriptionsProcessFrom safely sets the value for global configuration 'InstanceSubscriptionsProcessFrom' field
-func SetInstanceSubscriptionsProcessFrom(v Deprecated) { global.SetInstanceSubscriptionsProcessFrom(v) }
-
-// GetInstanceSubscriptionsProcessEvery safely fetches the Configuration value for state's 'InstanceSubscriptionsProcessEvery' field
-func (st *ConfigState) GetInstanceSubscriptionsProcessEvery() (v Deprecated) {
-	return st.config.InstanceSubscriptionsProcessEvery
-}
-
-// SetInstanceSubscriptionsProcessEvery safely sets the Configuration value for state's 'InstanceSubscriptionsProcessEvery' field
-func (st *ConfigState) SetInstanceSubscriptionsProcessEvery(v Deprecated) {
-	st.config.InstanceSubscriptionsProcessEvery = v
-	st.reloadToViper()
-}
-
-// GetInstanceSubscriptionsProcessEvery safely fetches the value for global configuration 'InstanceSubscriptionsProcessEvery' field
-func GetInstanceSubscriptionsProcessEvery() Deprecated {
-	return global.GetInstanceSubscriptionsProcessEvery()
-}
-
-// SetInstanceSubscriptionsProcessEvery safely sets the value for global configuration 'InstanceSubscriptionsProcessEvery' field
-func SetInstanceSubscriptionsProcessEvery(v Deprecated) {
-	global.SetInstanceSubscriptionsProcessEvery(v)
-}
-
-// GetInstanceSubscriptionsProcessCron safely fetches the Configuration value for state's 'InstanceSubscriptionsProcessCron' field
-func (st *ConfigState) GetInstanceSubscriptionsProcessCron() (v CronExpression) {
-	return st.config.InstanceSubscriptionsProcessCron
-}
-
-// SetInstanceSubscriptionsProcessCron safely sets the Configuration value for state's 'InstanceSubscriptionsProcessCron' field
-func (st *ConfigState) SetInstanceSubscriptionsProcessCron(v CronExpression) {
-	st.config.InstanceSubscriptionsProcessCron = v
-	st.reloadToViper()
-}
-
-// GetInstanceSubscriptionsProcessCron safely fetches the value for global configuration 'InstanceSubscriptionsProcessCron' field
-func GetInstanceSubscriptionsProcessCron() CronExpression {
-	return global.GetInstanceSubscriptionsProcessCron()
-}
-
-// SetInstanceSubscriptionsProcessCron safely sets the value for global configuration 'InstanceSubscriptionsProcessCron' field
-func SetInstanceSubscriptionsProcessCron(v CronExpression) {
-	global.SetInstanceSubscriptionsProcessCron(v)
-}
-
-// GetInstanceStatsMode safely fetches the Configuration value for state's 'InstanceStatsMode' field
-func (st *ConfigState) GetInstanceStatsMode() (v string) {
-	return st.config.InstanceStatsMode
-}
-
-// SetInstanceStatsMode safely sets the Configuration value for state's 'InstanceStatsMode' field
-func (st *ConfigState) SetInstanceStatsMode(v string) {
-	st.config.InstanceStatsMode = v
-	st.reloadToViper()
-}
-
-// GetInstanceStatsMode safely fetches the value for global configuration 'InstanceStatsMode' field
-func GetInstanceStatsMode() string { return global.GetInstanceStatsMode() }
-
-// SetInstanceStatsMode safely sets the value for global configuration 'InstanceStatsMode' field
-func SetInstanceStatsMode(v string) { global.SetInstanceStatsMode(v) }
-
-// GetInstanceAllowBackdatingStatuses safely fetches the Configuration value for state's 'InstanceAllowBackdatingStatuses' field
-func (st *ConfigState) GetInstanceAllowBackdatingStatuses() (v bool) {
-	return st.config.InstanceAllowBackdatingStatuses
-}
-
-// SetInstanceAllowBackdatingStatuses safely sets the Configuration value for state's 'InstanceAllowBackdatingStatuses' field
-func (st *ConfigState) SetInstanceAllowBackdatingStatuses(v bool) {
-	st.config.InstanceAllowBackdatingStatuses = v
-	st.reloadToViper()
-}
-
-// GetInstanceAllowBackdatingStatuses safely fetches the value for global configuration 'InstanceAllowBackdatingStatuses' field
-func GetInstanceAllowBackdatingStatuses() bool { return global.GetInstanceAllowBackdatingStatuses() }
-
-// SetInstanceAllowBackdatingStatuses safely sets the value for global configuration 'InstanceAllowBackdatingStatuses' field
-func SetInstanceAllowBackdatingStatuses(v bool) { global.SetInstanceAllowBackdatingStatuses(v) }
-
-// GetInstanceRobotsAllowIndexing safely fetches the Configuration value for state's 'InstanceRobotsAllowIndexing' field
-func (st *ConfigState) GetInstanceRobotsAllowIndexing() (v bool) {
-	return st.config.InstanceRobotsAllowIndexing
-}
-
-// SetInstanceRobotsAllowIndexing safely sets the Configuration value for state's 'InstanceRobotsAllowIndexing' field
-func (st *ConfigState) SetInstanceRobotsAllowIndexing(v bool) {
-	st.config.InstanceRobotsAllowIndexing = v
-	st.reloadToViper()
-}
-
-// GetInstanceRobotsAllowIndexing safely fetches the value for global configuration 'InstanceRobotsAllowIndexing' field
-func GetInstanceRobotsAllowIndexing() bool { return global.GetInstanceRobotsAllowIndexing() }
-
-// SetInstanceRobotsAllowIndexing safely sets the value for global configuration 'InstanceRobotsAllowIndexing' field
-func SetInstanceRobotsAllowIndexing(v bool) { global.SetInstanceRobotsAllowIndexing(v) }
-
-// GetAccountsRegistrationOpen safely fetches the Configuration value for state's 'AccountsRegistrationOpen' field
-func (st *ConfigState) GetAccountsRegistrationOpen() (v bool) {
-	return st.config.AccountsRegistrationOpen
-}
-
-// SetAccountsRegistrationOpen safely sets the Configuration value for state's 'AccountsRegistrationOpen' field
-func (st *ConfigState) SetAccountsRegistrationOpen(v bool) {
-	st.config.AccountsRegistrationOpen = v
-	st.reloadToViper()
-}
-
-// GetAccountsRegistrationOpen safely fetches the value for global configuration 'AccountsRegistrationOpen' field
-func GetAccountsRegistrationOpen() bool { return global.GetAccountsRegistrationOpen() }
-
-// SetAccountsRegistrationOpen safely sets the value for global configuration 'AccountsRegistrationOpen' field
-func SetAccountsRegistrationOpen(v bool) { global.SetAccountsRegistrationOpen(v) }
-
-// GetAccountsReasonRequired safely fetches the Configuration value for state's 'AccountsReasonRequired' field
-func (st *ConfigState) GetAccountsReasonRequired() (v bool) {
-	return st.config.AccountsReasonRequired
-}
-
-// SetAccountsReasonRequired safely sets the Configuration value for state's 'AccountsReasonRequired' field
-func (st *ConfigState) SetAccountsReasonRequired(v bool) {
-	st.config.AccountsReasonRequired = v
-	st.reloadToViper()
-}
-
-// GetAccountsReasonRequired safely fetches the value for global configuration 'AccountsReasonRequired' field
-func GetAccountsReasonRequired() bool { return global.GetAccountsReasonRequired() }
-
-// SetAccountsReasonRequired safely sets the value for global configuration 'AccountsReasonRequired' field
-func SetAccountsReasonRequired(v bool) { global.SetAccountsReasonRequired(v) }
-
-// GetAccountsRegistrationDailyLimit safely fetches the Configuration value for state's 'AccountsRegistrationDailyLimit' field
-func (st *ConfigState) GetAccountsRegistrationDailyLimit() (v int) {
-	return st.config.AccountsRegistrationDailyLimit
-}
-
-// SetAccountsRegistrationDailyLimit safely sets the Configuration value for state's 'AccountsRegistrationDailyLimit' field
-func (st *ConfigState) SetAccountsRegistrationDailyLimit(v int) {
-	st.config.AccountsRegistrationDailyLimit = v
-	st.reloadToViper()
-}
-
-// GetAccountsRegistrationDailyLimit safely fetches the value for global configuration 'AccountsRegistrationDailyLimit' field
-func GetAccountsRegistrationDailyLimit() int { return global.GetAccountsRegistrationDailyLimit() }
-
-// SetAccountsRegistrationDailyLimit safely sets the value for global configuration 'AccountsRegistrationDailyLimit' field
-func SetAccountsRegistrationDailyLimit(v int) { global.SetAccountsRegistrationDailyLimit(v) }
-
-// GetAccountsRegistrationBacklogLimit safely fetches the Configuration value for state's 'AccountsRegistrationBacklogLimit' field
-func (st *ConfigState) GetAccountsRegistrationBacklogLimit() (v int) {
-	return st.config.AccountsRegistrationBacklogLimit
-}
-
-// SetAccountsRegistrationBacklogLimit safely sets the Configuration value for state's 'AccountsRegistrationBacklogLimit' field
-func (st *ConfigState) SetAccountsRegistrationBacklogLimit(v int) {
-	st.config.AccountsRegistrationBacklogLimit = v
-	st.reloadToViper()
-}
-
-// GetAccountsRegistrationBacklogLimit safely fetches the value for global configuration 'AccountsRegistrationBacklogLimit' field
-func GetAccountsRegistrationBacklogLimit() int { return global.GetAccountsRegistrationBacklogLimit() }
-
-// SetAccountsRegistrationBacklogLimit safely sets the value for global configuration 'AccountsRegistrationBacklogLimit' field
-func SetAccountsRegistrationBacklogLimit(v int) { global.SetAccountsRegistrationBacklogLimit(v) }
-
-// GetAccountsAllowCustomCSS safely fetches the Configuration value for state's 'AccountsAllowCustomCSS' field
-func (st *ConfigState) GetAccountsAllowCustomCSS() (v bool) {
-	return st.config.AccountsAllowCustomCSS
-}
-
-// SetAccountsAllowCustomCSS safely sets the Configuration value for state's 'AccountsAllowCustomCSS' field
-func (st *ConfigState) SetAccountsAllowCustomCSS(v bool) {
-	st.config.AccountsAllowCustomCSS = v
-	st.reloadToViper()
-}
-
-// GetAccountsAllowCustomCSS safely fetches the value for global configuration 'AccountsAllowCustomCSS' field
-func GetAccountsAllowCustomCSS() bool { return global.GetAccountsAllowCustomCSS() }
-
-// SetAccountsAllowCustomCSS safely sets the value for global configuration 'AccountsAllowCustomCSS' field
-func SetAccountsAllowCustomCSS(v bool) { global.SetAccountsAllowCustomCSS(v) }
-
-// GetAccountsCustomCSSLength safely fetches the Configuration value for state's 'AccountsCustomCSSLength' field
-func (st *ConfigState) GetAccountsCustomCSSLength() (v int) {
-	return st.config.AccountsCustomCSSLength
-}
-
-// SetAccountsCustomCSSLength safely sets the Configuration value for state's 'AccountsCustomCSSLength' field
-func (st *ConfigState) SetAccountsCustomCSSLength(v int) {
-	st.config.AccountsCustomCSSLength = v
-	st.reloadToViper()
-}
-
-// GetAccountsCustomCSSLength safely fetches the value for global configuration 'AccountsCustomCSSLength' field
-func GetAccountsCustomCSSLength() int { return global.GetAccountsCustomCSSLength() }
-
-// SetAccountsCustomCSSLength safely sets the value for global configuration 'AccountsCustomCSSLength' field
-func SetAccountsCustomCSSLength(v int) { global.SetAccountsCustomCSSLength(v) }
-
-// GetAccountsMaxProfileFields safely fetches the Configuration value for state's 'AccountsMaxProfileFields' field
-func (st *ConfigState) GetAccountsMaxProfileFields() (v int) {
-	return st.config.AccountsMaxProfileFields
-}
-
-// SetAccountsMaxProfileFields safely sets the Configuration value for state's 'AccountsMaxProfileFields' field
-func (st *ConfigState) SetAccountsMaxProfileFields(v int) {
-	st.config.AccountsMaxProfileFields = v
-	st.reloadToViper()
-}
-
-// GetAccountsMaxProfileFields safely fetches the value for global configuration 'AccountsMaxProfileFields' field
-func GetAccountsMaxProfileFields() int { return global.GetAccountsMaxProfileFields() }
-
-// SetAccountsMaxProfileFields safely sets the value for global configuration 'AccountsMaxProfileFields' field
-func SetAccountsMaxProfileFields(v int) { global.SetAccountsMaxProfileFields(v) }
-
-// GetStorageBackend safely fetches the Configuration value for state's 'StorageBackend' field
-func (st *ConfigState) GetStorageBackend() (v string) {
-	return st.config.StorageBackend
-}
-
-// SetStorageBackend safely sets the Configuration value for state's 'StorageBackend' field
-func (st *ConfigState) SetStorageBackend(v string) {
-	st.config.StorageBackend = v
-	st.reloadToViper()
-}
-
-// GetStorageBackend safely fetches the value for global configuration 'StorageBackend' field
-func GetStorageBackend() string { return global.GetStorageBackend() }
-
-// SetStorageBackend safely sets the value for global configuration 'StorageBackend' field
-func SetStorageBackend(v string) { global.SetStorageBackend(v) }
-
-// GetStorageLocalBasePath safely fetches the Configuration value for state's 'StorageLocalBasePath' field
-func (st *ConfigState) GetStorageLocalBasePath() (v string) {
-	return st.config.StorageLocalBasePath
-}
-
-// SetStorageLocalBasePath safely sets the Configuration value for state's 'StorageLocalBasePath' field
-func (st *ConfigState) SetStorageLocalBasePath(v string) {
-	st.config.StorageLocalBasePath = v
-	st.reloadToViper()
-}
-
-// GetStorageLocalBasePath safely fetches the value for global configuration 'StorageLocalBasePath' field
-func GetStorageLocalBasePath() string { return global.GetStorageLocalBasePath() }
-
-// SetStorageLocalBasePath safely sets the value for global configuration 'StorageLocalBasePath' field
-func SetStorageLocalBasePath(v string) { global.SetStorageLocalBasePath(v) }
-
-// GetStorageS3Endpoint safely fetches the Configuration value for state's 'StorageS3Endpoint' field
-func (st *ConfigState) GetStorageS3Endpoint() (v string) {
-	return st.config.StorageS3Endpoint
-}
-
-// SetStorageS3Endpoint safely sets the Configuration value for state's 'StorageS3Endpoint' field
-func (st *ConfigState) SetStorageS3Endpoint(v string) {
-	st.config.StorageS3Endpoint = v
-	st.reloadToViper()
-}
-
-// GetStorageS3Endpoint safely fetches the value for global configuration 'StorageS3Endpoint' field
-func GetStorageS3Endpoint() string { return global.GetStorageS3Endpoint() }
-
-// SetStorageS3Endpoint safely sets the value for global configuration 'StorageS3Endpoint' field
-func SetStorageS3Endpoint(v string) { global.SetStorageS3Endpoint(v) }
-
-// GetStorageS3AccessKey safely fetches the Configuration value for state's 'StorageS3AccessKey' field
-func (st *ConfigState) GetStorageS3AccessKey() (v string) {
-	return st.config.StorageS3AccessKey
-}
-
-// SetStorageS3AccessKey safely sets the Configuration value for state's 'StorageS3AccessKey' field
-func (st *ConfigState) SetStorageS3AccessKey(v string) {
-	st.config.StorageS3AccessKey = v
-	st.reloadToViper()
-}
-
-// GetStorageS3AccessKey safely fetches the value for global configuration 'StorageS3AccessKey' field
-func GetStorageS3AccessKey() string { return global.GetStorageS3AccessKey() }
-
-// SetStorageS3AccessKey safely sets the value for global configuration 'StorageS3AccessKey' field
-func SetStorageS3AccessKey(v string) { global.SetStorageS3AccessKey(v) }
-
-// GetStorageS3SecretKey safely fetches the Configuration value for state's 'StorageS3SecretKey' field
-func (st *ConfigState) GetStorageS3SecretKey() (v string) {
-	return st.config.StorageS3SecretKey
-}
-
-// SetStorageS3SecretKey safely sets the Configuration value for state's 'StorageS3SecretKey' field
-func (st *ConfigState) SetStorageS3SecretKey(v string) {
-	st.config.StorageS3SecretKey = v
-	st.reloadToViper()
-}
-
-// GetStorageS3SecretKey safely fetches the value for global configuration 'StorageS3SecretKey' field
-func GetStorageS3SecretKey() string { return global.GetStorageS3SecretKey() }
-
-// SetStorageS3SecretKey safely sets the value for global configuration 'StorageS3SecretKey' field
-func SetStorageS3SecretKey(v string) { global.SetStorageS3SecretKey(v) }
-
-// GetStorageS3UseSSL safely fetches the Configuration value for state's 'StorageS3UseSSL' field
-func (st *ConfigState) GetStorageS3UseSSL() (v bool) {
-	return st.config.StorageS3UseSSL
-}
-
-// SetStorageS3UseSSL safely sets the Configuration value for state's 'StorageS3UseSSL' field
-func (st *ConfigState) SetStorageS3UseSSL(v bool) {
-	st.config.StorageS3UseSSL = v
-	st.reloadToViper()
-}
-
-// GetStorageS3UseSSL safely fetches the value for global configuration 'StorageS3UseSSL' field
-func GetStorageS3UseSSL() bool { return global.GetStorageS3UseSSL() }
-
-// SetStorageS3UseSSL safely sets the value for global configuration 'StorageS3UseSSL' field
-func SetStorageS3UseSSL(v bool) { global.SetStorageS3UseSSL(v) }
-
-// GetStorageS3BucketName safely fetches the Configuration value for state's 'StorageS3BucketName' field
-func (st *ConfigState) GetStorageS3BucketName() (v string) {
-	return st.config.StorageS3BucketName
-}
-
-// SetStorageS3BucketName safely sets the Configuration value for state's 'StorageS3BucketName' field
-func (st *ConfigState) SetStorageS3BucketName(v string) {
-	st.config.StorageS3BucketName = v
-	st.reloadToViper()
-}
-
-// GetStorageS3BucketName safely fetches the value for global configuration 'StorageS3BucketName' field
-func GetStorageS3BucketName() string { return global.GetStorageS3BucketName() }
-
-// SetStorageS3BucketName safely sets the value for global configuration 'StorageS3BucketName' field
-func SetStorageS3BucketName(v string) { global.SetStorageS3BucketName(v) }
-
-// GetStorageS3Proxy safely fetches the Configuration value for state's 'StorageS3Proxy' field
-func (st *ConfigState) GetStorageS3Proxy() (v bool) {
-	return st.config.StorageS3Proxy
-}
-
-// SetStorageS3Proxy safely sets the Configuration value for state's 'StorageS3Proxy' field
-func (st *ConfigState) SetStorageS3Proxy(v bool) {
-	st.config.StorageS3Proxy = v
-	st.reloadToViper()
-}
-
-// GetStorageS3Proxy safely fetches the value for global configuration 'StorageS3Proxy' field
-func GetStorageS3Proxy() bool { return global.GetStorageS3Proxy() }
-
-// SetStorageS3Proxy safely sets the value for global configuration 'StorageS3Proxy' field
-func SetStorageS3Proxy(v bool) { global.SetStorageS3Proxy(v) }
-
-// GetStorageS3RedirectURL safely fetches the Configuration value for state's 'StorageS3RedirectURL' field
-func (st *ConfigState) GetStorageS3RedirectURL() (v string) {
-	return st.config.StorageS3RedirectURL
-}
-
-// SetStorageS3RedirectURL safely sets the Configuration value for state's 'StorageS3RedirectURL' field
-func (st *ConfigState) SetStorageS3RedirectURL(v string) {
-	st.config.StorageS3RedirectURL = v
-	st.reloadToViper()
-}
-
-// GetStorageS3RedirectURL safely fetches the value for global configuration 'StorageS3RedirectURL' field
-func GetStorageS3RedirectURL() string { return global.GetStorageS3RedirectURL() }
-
-// SetStorageS3RedirectURL safely sets the value for global configuration 'StorageS3RedirectURL' field
-func SetStorageS3RedirectURL(v string) { global.SetStorageS3RedirectURL(v) }
-
-// GetStorageS3BucketLookup safely fetches the Configuration value for state's 'StorageS3BucketLookup' field
-func (st *ConfigState) GetStorageS3BucketLookup() (v string) {
-	return st.config.StorageS3BucketLookup
-}
-
-// SetStorageS3BucketLookup safely sets the Configuration value for state's 'StorageS3BucketLookup' field
-func (st *ConfigState) SetStorageS3BucketLookup(v string) {
-	st.config.StorageS3BucketLookup = v
-	st.reloadToViper()
-}
-
-// GetStorageS3BucketLookup safely fetches the value for global configuration 'StorageS3BucketLookup' field
-func GetStorageS3BucketLookup() string { return global.GetStorageS3BucketLookup() }
-
-// SetStorageS3BucketLookup safely sets the value for global configuration 'StorageS3BucketLookup' field
-func SetStorageS3BucketLookup(v string) { global.SetStorageS3BucketLookup(v) }
-
-// GetStorageS3KeyPrefix safely fetches the Configuration value for state's 'StorageS3KeyPrefix' field
-func (st *ConfigState) GetStorageS3KeyPrefix() (v string) {
-	return st.config.StorageS3KeyPrefix
-}
-
-// SetStorageS3KeyPrefix safely sets the Configuration value for state's 'StorageS3KeyPrefix' field
-func (st *ConfigState) SetStorageS3KeyPrefix(v string) {
-	st.config.StorageS3KeyPrefix = v
-	st.reloadToViper()
-}
-
-// GetStorageS3KeyPrefix safely fetches the value for global configuration 'StorageS3KeyPrefix' field
-func GetStorageS3KeyPrefix() string { return global.GetStorageS3KeyPrefix() }
-
-// SetStorageS3KeyPrefix safely sets the value for global configuration 'StorageS3KeyPrefix' field
-func SetStorageS3KeyPrefix(v string) { global.SetStorageS3KeyPrefix(v) }
-
-// GetStorageS3Region safely fetches the Configuration value for state's 'StorageS3Region' field
-func (st *ConfigState) GetStorageS3Region() (v string) {
-	return st.config.StorageS3Region
-}
-
-// SetStorageS3Region safely sets the Configuration value for state's 'StorageS3Region' field
-func (st *ConfigState) SetStorageS3Region(v string) {
-	st.config.StorageS3Region = v
-	st.reloadToViper()
-}
-
-// GetStorageS3Region safely fetches the value for global configuration 'StorageS3Region' field
-func GetStorageS3Region() string { return global.GetStorageS3Region() }
-
-// SetStorageS3Region safely sets the value for global configuration 'StorageS3Region' field
-func SetStorageS3Region(v string) { global.SetStorageS3Region(v) }
-
-// GetStatusesMaxChars safely fetches the Configuration value for state's 'StatusesMaxChars' field
-func (st *ConfigState) GetStatusesMaxChars() (v int) {
-	return st.config.StatusesMaxChars
-}
-
-// SetStatusesMaxChars safely sets the Configuration value for state's 'StatusesMaxChars' field
-func (st *ConfigState) SetStatusesMaxChars(v int) {
-	st.config.StatusesMaxChars = v
-	st.reloadToViper()
-}
-
-// GetStatusesMaxChars safely fetches the value for global configuration 'StatusesMaxChars' field
-func GetStatusesMaxChars() int { return global.GetStatusesMaxChars() }
-
-// SetStatusesMaxChars safely sets the value for global configuration 'StatusesMaxChars' field
-func SetStatusesMaxChars(v int) { global.SetStatusesMaxChars(v) }
-
-// GetStatusesPollMaxOptions safely fetches the Configuration value for state's 'StatusesPollMaxOptions' field
-func (st *ConfigState) GetStatusesPollMaxOptions() (v int) {
-	return st.config.StatusesPollMaxOptions
-}
-
-// SetStatusesPollMaxOptions safely sets the Configuration value for state's 'StatusesPollMaxOptions' field
-func (st *ConfigState) SetStatusesPollMaxOptions(v int) {
-	st.config.StatusesPollMaxOptions = v
-	st.reloadToViper()
-}
-
-// GetStatusesPollMaxOptions safely fetches the value for global configuration 'StatusesPollMaxOptions' field
-func GetStatusesPollMaxOptions() int { return global.GetStatusesPollMaxOptions() }
-
-// SetStatusesPollMaxOptions safely sets the value for global configuration 'StatusesPollMaxOptions' field
-func SetStatusesPollMaxOptions(v int) { global.SetStatusesPollMaxOptions(v) }
-
-// GetStatusesPollOptionMaxChars safely fetches the Configuration value for state's 'StatusesPollOptionMaxChars' field
-func (st *ConfigState) GetStatusesPollOptionMaxChars() (v int) {
-	return st.config.StatusesPollOptionMaxChars
-}
-
-// SetStatusesPollOptionMaxChars safely sets the Configuration value for state's 'StatusesPollOptionMaxChars' field
-func (st *ConfigState) SetStatusesPollOptionMaxChars(v int) {
-	st.config.StatusesPollOptionMaxChars = v
-	st.reloadToViper()
-}
-
-// GetStatusesPollOptionMaxChars safely fetches the value for global configuration 'StatusesPollOptionMaxChars' field
-func GetStatusesPollOptionMaxChars() int { return global.GetStatusesPollOptionMaxChars() }
-
-// SetStatusesPollOptionMaxChars safely sets the value for global configuration 'StatusesPollOptionMaxChars' field
-func SetStatusesPollOptionMaxChars(v int) { global.SetStatusesPollOptionMaxChars(v) }
-
-// GetStatusesMediaMaxFiles safely fetches the Configuration value for state's 'StatusesMediaMaxFiles' field
-func (st *ConfigState) GetStatusesMediaMaxFiles() (v int) {
-	return st.config.StatusesMediaMaxFiles
-}
-
-// SetStatusesMediaMaxFiles safely sets the Configuration value for state's 'StatusesMediaMaxFiles' field
-func (st *ConfigState) SetStatusesMediaMaxFiles(v int) {
-	st.config.StatusesMediaMaxFiles = v
-	st.reloadToViper()
-}
-
-// GetStatusesMediaMaxFiles safely fetches the value for global configuration 'StatusesMediaMaxFiles' field
-func GetStatusesMediaMaxFiles() int { return global.GetStatusesMediaMaxFiles() }
-
-// SetStatusesMediaMaxFiles safely sets the value for global configuration 'StatusesMediaMaxFiles' field
-func SetStatusesMediaMaxFiles(v int) { global.SetStatusesMediaMaxFiles(v) }
-
-// GetStatusesCleanupCron safely fetches the Configuration value for state's 'StatusesCleanupCron' field
-func (st *ConfigState) GetStatusesCleanupCron() (v CronExpression) {
-	return st.config.StatusesCleanupCron
-}
-
-// SetStatusesCleanupCron safely sets the Configuration value for state's 'StatusesCleanupCron' field
-func (st *ConfigState) SetStatusesCleanupCron(v CronExpression) {
-	st.config.StatusesCleanupCron = v
-	st.reloadToViper()
-}
-
-// GetStatusesCleanupCron safely fetches the value for global configuration 'StatusesCleanupCron' field
-func GetStatusesCleanupCron() CronExpression { return global.GetStatusesCleanupCron() }
-
-// SetStatusesCleanupCron safely sets the value for global configuration 'StatusesCleanupCron' field
-func SetStatusesCleanupCron(v CronExpression) { global.SetStatusesCleanupCron(v) }
-
-// GetStatusesCleanupRemoteOlderThan safely fetches the Configuration value for state's 'StatusesCleanupRemoteOlderThan' field
-func (st *ConfigState) GetStatusesCleanupRemoteOlderThan() (v longdur.Duration) {
-	return st.config.StatusesCleanupRemoteOlderThan
-}
-
-// SetStatusesCleanupRemoteOlderThan safely sets the Configuration value for state's 'StatusesCleanupRemoteOlderThan' field
-func (st *ConfigState) SetStatusesCleanupRemoteOlderThan(v longdur.Duration) {
-	st.config.StatusesCleanupRemoteOlderThan = v
-	st.reloadToViper()
-}
-
-// GetStatusesCleanupRemoteOlderThan safely fetches the value for global configuration 'StatusesCleanupRemoteOlderThan' field
-func GetStatusesCleanupRemoteOlderThan() longdur.Duration {
-	return global.GetStatusesCleanupRemoteOlderThan()
-}
-
-// SetStatusesCleanupRemoteOlderThan safely sets the value for global configuration 'StatusesCleanupRemoteOlderThan' field
-func SetStatusesCleanupRemoteOlderThan(v longdur.Duration) {
-	global.SetStatusesCleanupRemoteOlderThan(v)
-}
-
-// GetScheduledStatusesMaxTotal safely fetches the Configuration value for state's 'ScheduledStatusesMaxTotal' field
-func (st *ConfigState) GetScheduledStatusesMaxTotal() (v int) {
-	return st.config.ScheduledStatusesMaxTotal
-}
-
-// SetScheduledStatusesMaxTotal safely sets the Configuration value for state's 'ScheduledStatusesMaxTotal' field
-func (st *ConfigState) SetScheduledStatusesMaxTotal(v int) {
-	st.config.ScheduledStatusesMaxTotal = v
-	st.reloadToViper()
-}
-
-// GetScheduledStatusesMaxTotal safely fetches the value for global configuration 'ScheduledStatusesMaxTotal' field
-func GetScheduledStatusesMaxTotal() int { return global.GetScheduledStatusesMaxTotal() }
-
-// SetScheduledStatusesMaxTotal safely sets the value for global configuration 'ScheduledStatusesMaxTotal' field
-func SetScheduledStatusesMaxTotal(v int) { global.SetScheduledStatusesMaxTotal(v) }
-
-// GetScheduledStatusesMaxDaily safely fetches the Configuration value for state's 'ScheduledStatusesMaxDaily' field
-func (st *ConfigState) GetScheduledStatusesMaxDaily() (v int) {
-	return st.config.ScheduledStatusesMaxDaily
-}
-
-// SetScheduledStatusesMaxDaily safely sets the Configuration value for state's 'ScheduledStatusesMaxDaily' field
-func (st *ConfigState) SetScheduledStatusesMaxDaily(v int) {
-	st.config.ScheduledStatusesMaxDaily = v
-	st.reloadToViper()
-}
-
-// GetScheduledStatusesMaxDaily safely fetches the value for global configuration 'ScheduledStatusesMaxDaily' field
-func GetScheduledStatusesMaxDaily() int { return global.GetScheduledStatusesMaxDaily() }
-
-// SetScheduledStatusesMaxDaily safely sets the value for global configuration 'ScheduledStatusesMaxDaily' field
-func SetScheduledStatusesMaxDaily(v int) { global.SetScheduledStatusesMaxDaily(v) }
-
-// GetLetsEncryptEnabled safely fetches the Configuration value for state's 'LetsEncryptEnabled' field
-func (st *ConfigState) GetLetsEncryptEnabled() (v bool) {
-	return st.config.LetsEncryptEnabled
-}
-
-// SetLetsEncryptEnabled safely sets the Configuration value for state's 'LetsEncryptEnabled' field
-func (st *ConfigState) SetLetsEncryptEnabled(v bool) {
-	st.config.LetsEncryptEnabled = v
-	st.reloadToViper()
-}
-
-// GetLetsEncryptEnabled safely fetches the value for global configuration 'LetsEncryptEnabled' field
-func GetLetsEncryptEnabled() bool { return global.GetLetsEncryptEnabled() }
-
-// SetLetsEncryptEnabled safely sets the value for global configuration 'LetsEncryptEnabled' field
-func SetLetsEncryptEnabled(v bool) { global.SetLetsEncryptEnabled(v) }
-
-// GetLetsEncryptPort safely fetches the Configuration value for state's 'LetsEncryptPort' field
-func (st *ConfigState) GetLetsEncryptPort() (v int) {
-	return st.config.LetsEncryptPort
-}
-
-// SetLetsEncryptPort safely sets the Configuration value for state's 'LetsEncryptPort' field
-func (st *ConfigState) SetLetsEncryptPort(v int) {
-	st.config.LetsEncryptPort = v
-	st.reloadToViper()
-}
-
-// GetLetsEncryptPort safely fetches the value for global configuration 'LetsEncryptPort' field
-func GetLetsEncryptPort() int { return global.GetLetsEncryptPort() }
-
-// SetLetsEncryptPort safely sets the value for global configuration 'LetsEncryptPort' field
-func SetLetsEncryptPort(v int) { global.SetLetsEncryptPort(v) }
-
-// GetLetsEncryptCertDir safely fetches the Configuration value for state's 'LetsEncryptCertDir' field
-func (st *ConfigState) GetLetsEncryptCertDir() (v string) {
-	return st.config.LetsEncryptCertDir
-}
-
-// SetLetsEncryptCertDir safely sets the Configuration value for state's 'LetsEncryptCertDir' field
-func (st *ConfigState) SetLetsEncryptCertDir(v string) {
-	st.config.LetsEncryptCertDir = v
-	st.reloadToViper()
-}
-
-// GetLetsEncryptCertDir safely fetches the value for global configuration 'LetsEncryptCertDir' field
-func GetLetsEncryptCertDir() string { return global.GetLetsEncryptCertDir() }
-
-// SetLetsEncryptCertDir safely sets the value for global configuration 'LetsEncryptCertDir' field
-func SetLetsEncryptCertDir(v string) { global.SetLetsEncryptCertDir(v) }
-
-// GetLetsEncryptEmailAddress safely fetches the Configuration value for state's 'LetsEncryptEmailAddress' field
-func (st *ConfigState) GetLetsEncryptEmailAddress() (v string) {
-	return st.config.LetsEncryptEmailAddress
-}
-
-// SetLetsEncryptEmailAddress safely sets the Configuration value for state's 'LetsEncryptEmailAddress' field
-func (st *ConfigState) SetLetsEncryptEmailAddress(v string) {
-	st.config.LetsEncryptEmailAddress = v
-	st.reloadToViper()
-}
-
-// GetLetsEncryptEmailAddress safely fetches the value for global configuration 'LetsEncryptEmailAddress' field
-func GetLetsEncryptEmailAddress() string { return global.GetLetsEncryptEmailAddress() }
-
-// SetLetsEncryptEmailAddress safely sets the value for global configuration 'LetsEncryptEmailAddress' field
-func SetLetsEncryptEmailAddress(v string) { global.SetLetsEncryptEmailAddress(v) }
-
-// GetTLSCertificateChain safely fetches the Configuration value for state's 'TLSCertificateChain' field
-func (st *ConfigState) GetTLSCertificateChain() (v string) {
-	return st.config.TLSCertificateChain
-}
-
-// SetTLSCertificateChain safely sets the Configuration value for state's 'TLSCertificateChain' field
-func (st *ConfigState) SetTLSCertificateChain(v string) {
-	st.config.TLSCertificateChain = v
-	st.reloadToViper()
-}
-
-// GetTLSCertificateChain safely fetches the value for global configuration 'TLSCertificateChain' field
-func GetTLSCertificateChain() string { return global.GetTLSCertificateChain() }
-
-// SetTLSCertificateChain safely sets the value for global configuration 'TLSCertificateChain' field
-func SetTLSCertificateChain(v string) { global.SetTLSCertificateChain(v) }
-
-// GetTLSCertificateKey safely fetches the Configuration value for state's 'TLSCertificateKey' field
-func (st *ConfigState) GetTLSCertificateKey() (v string) {
-	return st.config.TLSCertificateKey
-}
-
-// SetTLSCertificateKey safely sets the Configuration value for state's 'TLSCertificateKey' field
-func (st *ConfigState) SetTLSCertificateKey(v string) {
-	st.config.TLSCertificateKey = v
-	st.reloadToViper()
-}
-
-// GetTLSCertificateKey safely fetches the value for global configuration 'TLSCertificateKey' field
-func GetTLSCertificateKey() string { return global.GetTLSCertificateKey() }
-
-// SetTLSCertificateKey safely sets the value for global configuration 'TLSCertificateKey' field
-func SetTLSCertificateKey(v string) { global.SetTLSCertificateKey(v) }
-
-// GetOIDCEnabled safely fetches the Configuration value for state's 'OIDCEnabled' field
-func (st *ConfigState) GetOIDCEnabled() (v bool) {
-	return st.config.OIDCEnabled
-}
-
-// SetOIDCEnabled safely sets the Configuration value for state's 'OIDCEnabled' field
-func (st *ConfigState) SetOIDCEnabled(v bool) {
-	st.config.OIDCEnabled = v
-	st.reloadToViper()
-}
-
-// GetOIDCEnabled safely fetches the value for global configuration 'OIDCEnabled' field
-func GetOIDCEnabled() bool { return global.GetOIDCEnabled() }
-
-// SetOIDCEnabled safely sets the value for global configuration 'OIDCEnabled' field
-func SetOIDCEnabled(v bool) { global.SetOIDCEnabled(v) }
-
-// GetOIDCIdpName safely fetches the Configuration value for state's 'OIDCIdpName' field
-func (st *ConfigState) GetOIDCIdpName() (v string) {
-	return st.config.OIDCIdpName
-}
-
-// SetOIDCIdpName safely sets the Configuration value for state's 'OIDCIdpName' field
-func (st *ConfigState) SetOIDCIdpName(v string) {
-	st.config.OIDCIdpName = v
-	st.reloadToViper()
-}
-
-// GetOIDCIdpName safely fetches the value for global configuration 'OIDCIdpName' field
-func GetOIDCIdpName() string { return global.GetOIDCIdpName() }
-
-// SetOIDCIdpName safely sets the value for global configuration 'OIDCIdpName' field
-func SetOIDCIdpName(v string) { global.SetOIDCIdpName(v) }
-
-// GetOIDCSkipVerification safely fetches the Configuration value for state's 'OIDCSkipVerification' field
-func (st *ConfigState) GetOIDCSkipVerification() (v bool) {
-	return st.config.OIDCSkipVerification
-}
-
-// SetOIDCSkipVerification safely sets the Configuration value for state's 'OIDCSkipVerification' field
-func (st *ConfigState) SetOIDCSkipVerification(v bool) {
-	st.config.OIDCSkipVerification = v
-	st.reloadToViper()
-}
-
-// GetOIDCSkipVerification safely fetches the value for global configuration 'OIDCSkipVerification' field
-func GetOIDCSkipVerification() bool { return global.GetOIDCSkipVerification() }
-
-// SetOIDCSkipVerification safely sets the value for global configuration 'OIDCSkipVerification' field
-func SetOIDCSkipVerification(v bool) { global.SetOIDCSkipVerification(v) }
-
-// GetOIDCIssuer safely fetches the Configuration value for state's 'OIDCIssuer' field
-func (st *ConfigState) GetOIDCIssuer() (v string) {
-	return st.config.OIDCIssuer
-}
-
-// SetOIDCIssuer safely sets the Configuration value for state's 'OIDCIssuer' field
-func (st *ConfigState) SetOIDCIssuer(v string) {
-	st.config.OIDCIssuer = v
-	st.reloadToViper()
-}
-
-// GetOIDCIssuer safely fetches the value for global configuration 'OIDCIssuer' field
-func GetOIDCIssuer() string { return global.GetOIDCIssuer() }
-
-// SetOIDCIssuer safely sets the value for global configuration 'OIDCIssuer' field
-func SetOIDCIssuer(v string) { global.SetOIDCIssuer(v) }
-
-// GetOIDCClientID safely fetches the Configuration value for state's 'OIDCClientID' field
-func (st *ConfigState) GetOIDCClientID() (v string) {
-	return st.config.OIDCClientID
-}
-
-// SetOIDCClientID safely sets the Configuration value for state's 'OIDCClientID' field
-func (st *ConfigState) SetOIDCClientID(v string) {
-	st.config.OIDCClientID = v
-	st.reloadToViper()
-}
-
-// GetOIDCClientID safely fetches the value for global configuration 'OIDCClientID' field
-func GetOIDCClientID() string { return global.GetOIDCClientID() }
-
-// SetOIDCClientID safely sets the value for global configuration 'OIDCClientID' field
-func SetOIDCClientID(v string) { global.SetOIDCClientID(v) }
-
-// GetOIDCClientSecret safely fetches the Configuration value for state's 'OIDCClientSecret' field
-func (st *ConfigState) GetOIDCClientSecret() (v string) {
-	return st.config.OIDCClientSecret
-}
-
-// SetOIDCClientSecret safely sets the Configuration value for state's 'OIDCClientSecret' field
-func (st *ConfigState) SetOIDCClientSecret(v string) {
-	st.config.OIDCClientSecret = v
-	st.reloadToViper()
-}
-
-// GetOIDCClientSecret safely fetches the value for global configuration 'OIDCClientSecret' field
-func GetOIDCClientSecret() string { return global.GetOIDCClientSecret() }
-
-// SetOIDCClientSecret safely sets the value for global configuration 'OIDCClientSecret' field
-func SetOIDCClientSecret(v string) { global.SetOIDCClientSecret(v) }
-
-// GetOIDCScopes safely fetches the Configuration value for state's 'OIDCScopes' field
-func (st *ConfigState) GetOIDCScopes() (v []string) {
-	return st.config.OIDCScopes
-}
-
-// SetOIDCScopes safely sets the Configuration value for state's 'OIDCScopes' field
-func (st *ConfigState) SetOIDCScopes(v []string) {
-	st.config.OIDCScopes = v
-	st.reloadToViper()
-}
-
-// GetOIDCScopes safely fetches the value for global configuration 'OIDCScopes' field
-func GetOIDCScopes() []string { return global.GetOIDCScopes() }
-
-// SetOIDCScopes safely sets the value for global configuration 'OIDCScopes' field
-func SetOIDCScopes(v []string) { global.SetOIDCScopes(v) }
-
-// GetOIDCLinkExisting safely fetches the Configuration value for state's 'OIDCLinkExisting' field
-func (st *ConfigState) GetOIDCLinkExisting() (v bool) {
-	return st.config.OIDCLinkExisting
-}
-
-// SetOIDCLinkExisting safely sets the Configuration value for state's 'OIDCLinkExisting' field
-func (st *ConfigState) SetOIDCLinkExisting(v bool) {
-	st.config.OIDCLinkExisting = v
-	st.reloadToViper()
-}
-
-// GetOIDCLinkExisting safely fetches the value for global configuration 'OIDCLinkExisting' field
-func GetOIDCLinkExisting() bool { return global.GetOIDCLinkExisting() }
-
-// SetOIDCLinkExisting safely sets the value for global configuration 'OIDCLinkExisting' field
-func SetOIDCLinkExisting(v bool) { global.SetOIDCLinkExisting(v) }
-
-// GetOIDCAllowedGroups safely fetches the Configuration value for state's 'OIDCAllowedGroups' field
-func (st *ConfigState) GetOIDCAllowedGroups() (v []string) {
-	return st.config.OIDCAllowedGroups
-}
-
-// SetOIDCAllowedGroups safely sets the Configuration value for state's 'OIDCAllowedGroups' field
-func (st *ConfigState) SetOIDCAllowedGroups(v []string) {
-	st.config.OIDCAllowedGroups = v
-	st.reloadToViper()
-}
-
-// GetOIDCAllowedGroups safely fetches the value for global configuration 'OIDCAllowedGroups' field
-func GetOIDCAllowedGroups() []string { return global.GetOIDCAllowedGroups() }
-
-// SetOIDCAllowedGroups safely sets the value for global configuration 'OIDCAllowedGroups' field
-func SetOIDCAllowedGroups(v []string) { global.SetOIDCAllowedGroups(v) }
-
-// GetOIDCAdminGroups safely fetches the Configuration value for state's 'OIDCAdminGroups' field
-func (st *ConfigState) GetOIDCAdminGroups() (v []string) {
-	return st.config.OIDCAdminGroups
-}
-
-// SetOIDCAdminGroups safely sets the Configuration value for state's 'OIDCAdminGroups' field
-func (st *ConfigState) SetOIDCAdminGroups(v []string) {
-	st.config.OIDCAdminGroups = v
-	st.reloadToViper()
-}
-
-// GetOIDCAdminGroups safely fetches the value for global configuration 'OIDCAdminGroups' field
-func GetOIDCAdminGroups() []string { return global.GetOIDCAdminGroups() }
-
-// SetOIDCAdminGroups safely sets the value for global configuration 'OIDCAdminGroups' field
-func SetOIDCAdminGroups(v []string) { global.SetOIDCAdminGroups(v) }
-
-// GetTracingEnabled safely fetches the Configuration value for state's 'TracingEnabled' field
-func (st *ConfigState) GetTracingEnabled() (v bool) {
-	return st.config.TracingEnabled
-}
-
-// SetTracingEnabled safely sets the Configuration value for state's 'TracingEnabled' field
-func (st *ConfigState) SetTracingEnabled(v bool) {
-	st.config.TracingEnabled = v
-	st.reloadToViper()
-}
-
-// GetTracingEnabled safely fetches the value for global configuration 'TracingEnabled' field
-func GetTracingEnabled() bool { return global.GetTracingEnabled() }
-
-// SetTracingEnabled safely sets the value for global configuration 'TracingEnabled' field
-func SetTracingEnabled(v bool) { global.SetTracingEnabled(v) }
-
-// GetMetricsEnabled safely fetches the Configuration value for state's 'MetricsEnabled' field
-func (st *ConfigState) GetMetricsEnabled() (v bool) {
-	return st.config.MetricsEnabled
-}
-
-// SetMetricsEnabled safely sets the Configuration value for state's 'MetricsEnabled' field
-func (st *ConfigState) SetMetricsEnabled(v bool) {
-	st.config.MetricsEnabled = v
-	st.reloadToViper()
-}
-
-// GetMetricsEnabled safely fetches the value for global configuration 'MetricsEnabled' field
-func GetMetricsEnabled() bool { return global.GetMetricsEnabled() }
-
-// SetMetricsEnabled safely sets the value for global configuration 'MetricsEnabled' field
-func SetMetricsEnabled(v bool) { global.SetMetricsEnabled(v) }
-
-// GetSMTPHost safely fetches the Configuration value for state's 'SMTPHost' field
-func (st *ConfigState) GetSMTPHost() (v string) {
-	return st.config.SMTPHost
-}
-
-// SetSMTPHost safely sets the Configuration value for state's 'SMTPHost' field
-func (st *ConfigState) SetSMTPHost(v string) {
-	st.config.SMTPHost = v
-	st.reloadToViper()
-}
-
-// GetSMTPHost safely fetches the value for global configuration 'SMTPHost' field
-func GetSMTPHost() string { return global.GetSMTPHost() }
-
-// SetSMTPHost safely sets the value for global configuration 'SMTPHost' field
-func SetSMTPHost(v string) { global.SetSMTPHost(v) }
-
-// GetSMTPPort safely fetches the Configuration value for state's 'SMTPPort' field
-func (st *ConfigState) GetSMTPPort() (v int) {
-	return st.config.SMTPPort
-}
-
-// SetSMTPPort safely sets the Configuration value for state's 'SMTPPort' field
-func (st *ConfigState) SetSMTPPort(v int) {
-	st.config.SMTPPort = v
-	st.reloadToViper()
-}
-
-// GetSMTPPort safely fetches the value for global configuration 'SMTPPort' field
-func GetSMTPPort() int { return global.GetSMTPPort() }
-
-// SetSMTPPort safely sets the value for global configuration 'SMTPPort' field
-func SetSMTPPort(v int) { global.SetSMTPPort(v) }
-
-// GetSMTPUsername safely fetches the Configuration value for state's 'SMTPUsername' field
-func (st *ConfigState) GetSMTPUsername() (v string) {
-	return st.config.SMTPUsername
-}
-
-// SetSMTPUsername safely sets the Configuration value for state's 'SMTPUsername' field
-func (st *ConfigState) SetSMTPUsername(v string) {
-	st.config.SMTPUsername = v
-	st.reloadToViper()
-}
-
-// GetSMTPUsername safely fetches the value for global configuration 'SMTPUsername' field
-func GetSMTPUsername() string { return global.GetSMTPUsername() }
-
-// SetSMTPUsername safely sets the value for global configuration 'SMTPUsername' field
-func SetSMTPUsername(v string) { global.SetSMTPUsername(v) }
-
-// GetSMTPPassword safely fetches the Configuration value for state's 'SMTPPassword' field
-func (st *ConfigState) GetSMTPPassword() (v string) {
-	return st.config.SMTPPassword
-}
-
-// SetSMTPPassword safely sets the Configuration value for state's 'SMTPPassword' field
-func (st *ConfigState) SetSMTPPassword(v string) {
-	st.config.SMTPPassword = v
-	st.reloadToViper()
-}
-
-// GetSMTPPassword safely fetches the value for global configuration 'SMTPPassword' field
-func GetSMTPPassword() string { return global.GetSMTPPassword() }
-
-// SetSMTPPassword safely sets the value for global configuration 'SMTPPassword' field
-func SetSMTPPassword(v string) { global.SetSMTPPassword(v) }
-
-// GetSMTPFrom safely fetches the Configuration value for state's 'SMTPFrom' field
-func (st *ConfigState) GetSMTPFrom() (v string) {
-	return st.config.SMTPFrom
-}
-
-// SetSMTPFrom safely sets the Configuration value for state's 'SMTPFrom' field
-func (st *ConfigState) SetSMTPFrom(v string) {
-	st.config.SMTPFrom = v
-	st.reloadToViper()
-}
-
-// GetSMTPFrom safely fetches the value for global configuration 'SMTPFrom' field
-func GetSMTPFrom() string { return global.GetSMTPFrom() }
+// SetDatabasePostgresTLSCACert safely sets the value for global configuration 'Database.Postgres.TLSCACert' field
+func SetDatabasePostgresTLSCACert(v string) { global.SetDatabasePostgresTLSCACert(v) }
 
-// SetSMTPFrom safely sets the value for global configuration 'SMTPFrom' field
-func SetSMTPFrom(v string) { global.SetSMTPFrom(v) }
-
-// GetSMTPFromDisplayName safely fetches the Configuration value for state's 'SMTPFromDisplayName' field
-func (st *ConfigState) GetSMTPFromDisplayName() (v string) {
-	return st.config.SMTPFromDisplayName
+// GetDatabasePostgresConnectionString safely fetches the Configuration value for state's 'Database.Postgres.ConnectionString' field
+func (st *ConfigState) GetDatabasePostgresConnectionString() (v string) {
+	return st.config.Database.Postgres.ConnectionString
 }
 
-// SetSMTPFromDisplayName safely sets the Configuration value for state's 'SMTPFromDisplayName' field
-func (st *ConfigState) SetSMTPFromDisplayName(v string) {
-	st.config.SMTPFromDisplayName = v
+// SetDatabasePostgresConnectionString safely sets the Configuration value for state's 'Database.Postgres.ConnectionString' field
+func (st *ConfigState) SetDatabasePostgresConnectionString(v string) {
+	st.config.Database.Postgres.ConnectionString = v
 	st.reloadToViper()
-}
-
-// GetSMTPFromDisplayName safely fetches the value for global configuration 'SMTPFromDisplayName' field
-func GetSMTPFromDisplayName() string { return global.GetSMTPFromDisplayName() }
-
-// SetSMTPFromDisplayName safely sets the value for global configuration 'SMTPFromDisplayName' field
-func SetSMTPFromDisplayName(v string) { global.SetSMTPFromDisplayName(v) }
-
-// GetSMTPDiscloseRecipients safely fetches the Configuration value for state's 'SMTPDiscloseRecipients' field
-func (st *ConfigState) GetSMTPDiscloseRecipients() (v bool) {
-	return st.config.SMTPDiscloseRecipients
 }
 
-// SetSMTPDiscloseRecipients safely sets the Configuration value for state's 'SMTPDiscloseRecipients' field
-func (st *ConfigState) SetSMTPDiscloseRecipients(v bool) {
-	st.config.SMTPDiscloseRecipients = v
-	st.reloadToViper()
+// GetDatabasePostgresConnectionString safely fetches the value for global configuration 'Database.Postgres.ConnectionString' field
+func GetDatabasePostgresConnectionString() string {
+	return global.GetDatabasePostgresConnectionString()
 }
-
-// GetSMTPDiscloseRecipients safely fetches the value for global configuration 'SMTPDiscloseRecipients' field
-func GetSMTPDiscloseRecipients() bool { return global.GetSMTPDiscloseRecipients() }
 
-// SetSMTPDiscloseRecipients safely sets the value for global configuration 'SMTPDiscloseRecipients' field
-func SetSMTPDiscloseRecipients(v bool) { global.SetSMTPDiscloseRecipients(v) }
+// SetDatabasePostgresConnectionString safely sets the value for global configuration 'Database.Postgres.ConnectionString' field
+func SetDatabasePostgresConnectionString(v string) { global.SetDatabasePostgresConnectionString(v) }
 
-// GetSyslogEnabled safely fetches the Configuration value for state's 'SyslogEnabled' field
-func (st *ConfigState) GetSyslogEnabled() (v bool) {
-	return st.config.SyslogEnabled
+// GetDatabaseSQLiteJournalMode safely fetches the Configuration value for state's 'Database.SQLite.JournalMode' field
+func (st *ConfigState) GetDatabaseSQLiteJournalMode() (v string) {
+	return st.config.Database.SQLite.JournalMode
 }
 
-// SetSyslogEnabled safely sets the Configuration value for state's 'SyslogEnabled' field
-func (st *ConfigState) SetSyslogEnabled(v bool) {
-	st.config.SyslogEnabled = v
+// SetDatabaseSQLiteJournalMode safely sets the Configuration value for state's 'Database.SQLite.JournalMode' field
+func (st *ConfigState) SetDatabaseSQLiteJournalMode(v string) {
+	st.config.Database.SQLite.JournalMode = v
 	st.reloadToViper()
 }
 
-// GetSyslogEnabled safely fetches the value for global configuration 'SyslogEnabled' field
-func GetSyslogEnabled() bool { return global.GetSyslogEnabled() }
+// GetDatabaseSQLiteJournalMode safely fetches the value for global configuration 'Database.SQLite.JournalMode' field
+func GetDatabaseSQLiteJournalMode() string { return global.GetDatabaseSQLiteJournalMode() }
 
-// SetSyslogEnabled safely sets the value for global configuration 'SyslogEnabled' field
-func SetSyslogEnabled(v bool) { global.SetSyslogEnabled(v) }
+// SetDatabaseSQLiteJournalMode safely sets the value for global configuration 'Database.SQLite.JournalMode' field
+func SetDatabaseSQLiteJournalMode(v string) { global.SetDatabaseSQLiteJournalMode(v) }
 
-// GetSyslogProtocol safely fetches the Configuration value for state's 'SyslogProtocol' field
-func (st *ConfigState) GetSyslogProtocol() (v string) {
-	return st.config.SyslogProtocol
+// GetDatabaseSQLiteSynchronous safely fetches the Configuration value for state's 'Database.SQLite.Synchronous' field
+func (st *ConfigState) GetDatabaseSQLiteSynchronous() (v string) {
+	return st.config.Database.SQLite.Synchronous
 }
 
-// SetSyslogProtocol safely sets the Configuration value for state's 'SyslogProtocol' field
-func (st *ConfigState) SetSyslogProtocol(v string) {
-	st.config.SyslogProtocol = v
+// SetDatabaseSQLiteSynchronous safely sets the Configuration value for state's 'Database.SQLite.Synchronous' field
+func (st *ConfigState) SetDatabaseSQLiteSynchronous(v string) {
+	st.config.Database.SQLite.Synchronous = v
 	st.reloadToViper()
 }
 
-// GetSyslogProtocol safely fetches the value for global configuration 'SyslogProtocol' field
-func GetSyslogProtocol() string { return global.GetSyslogProtocol() }
+// GetDatabaseSQLiteSynchronous safely fetches the value for global configuration 'Database.SQLite.Synchronous' field
+func GetDatabaseSQLiteSynchronous() string { return global.GetDatabaseSQLiteSynchronous() }
 
-// SetSyslogProtocol safely sets the value for global configuration 'SyslogProtocol' field
-func SetSyslogProtocol(v string) { global.SetSyslogProtocol(v) }
+// SetDatabaseSQLiteSynchronous safely sets the value for global configuration 'Database.SQLite.Synchronous' field
+func SetDatabaseSQLiteSynchronous(v string) { global.SetDatabaseSQLiteSynchronous(v) }
 
-// GetSyslogAddress safely fetches the Configuration value for state's 'SyslogAddress' field
-func (st *ConfigState) GetSyslogAddress() (v string) {
-	return st.config.SyslogAddress
+// GetDatabaseSQLiteCacheSize safely fetches the Configuration value for state's 'Database.SQLite.CacheSize' field
+func (st *ConfigState) GetDatabaseSQLiteCacheSize() (v bytesize.Size) {
+	return st.config.Database.SQLite.CacheSize
 }
 
-// SetSyslogAddress safely sets the Configuration value for state's 'SyslogAddress' field
-func (st *ConfigState) SetSyslogAddress(v string) {
-	st.config.SyslogAddress = v
+// SetDatabaseSQLiteCacheSize safely sets the Configuration value for state's 'Database.SQLite.CacheSize' field
+func (st *ConfigState) SetDatabaseSQLiteCacheSize(v bytesize.Size) {
+	st.config.Database.SQLite.CacheSize = v
 	st.reloadToViper()
 }
 
-// GetSyslogAddress safely fetches the value for global configuration 'SyslogAddress' field
-func GetSyslogAddress() string { return global.GetSyslogAddress() }
+// GetDatabaseSQLiteCacheSize safely fetches the value for global configuration 'Database.SQLite.CacheSize' field
+func GetDatabaseSQLiteCacheSize() bytesize.Size { return global.GetDatabaseSQLiteCacheSize() }
 
-// SetSyslogAddress safely sets the value for global configuration 'SyslogAddress' field
-func SetSyslogAddress(v string) { global.SetSyslogAddress(v) }
+// SetDatabaseSQLiteCacheSize safely sets the value for global configuration 'Database.SQLite.CacheSize' field
+func SetDatabaseSQLiteCacheSize(v bytesize.Size) { global.SetDatabaseSQLiteCacheSize(v) }
 
-// GetAdvancedCookiesSamesite safely fetches the Configuration value for state's 'Advanced.CookiesSamesite' field
-func (st *ConfigState) GetAdvancedCookiesSamesite() (v string) {
-	return st.config.Advanced.CookiesSamesite
+// GetDatabaseSQLiteBusyTimeout safely fetches the Configuration value for state's 'Database.SQLite.BusyTimeout' field
+func (st *ConfigState) GetDatabaseSQLiteBusyTimeout() (v time.Duration) {
+	return st.config.Database.SQLite.BusyTimeout
 }
 
-// SetAdvancedCookiesSamesite safely sets the Configuration value for state's 'Advanced.CookiesSamesite' field
-func (st *ConfigState) SetAdvancedCookiesSamesite(v string) {
-	st.config.Advanced.CookiesSamesite = v
+// SetDatabaseSQLiteBusyTimeout safely sets the Configuration value for state's 'Database.SQLite.BusyTimeout' field
+func (st *ConfigState) SetDatabaseSQLiteBusyTimeout(v time.Duration) {
+	st.config.Database.SQLite.BusyTimeout = v
 	st.reloadToViper()
 }
 
-// GetAdvancedCookiesSamesite safely fetches the value for global configuration 'Advanced.CookiesSamesite' field
-func GetAdvancedCookiesSamesite() string { return global.GetAdvancedCookiesSamesite() }
+// GetDatabaseSQLiteBusyTimeout safely fetches the value for global configuration 'Database.SQLite.BusyTimeout' field
+func GetDatabaseSQLiteBusyTimeout() time.Duration { return global.GetDatabaseSQLiteBusyTimeout() }
 
-// SetAdvancedCookiesSamesite safely sets the value for global configuration 'Advanced.CookiesSamesite' field
-func SetAdvancedCookiesSamesite(v string) { global.SetAdvancedCookiesSamesite(v) }
+// SetDatabaseSQLiteBusyTimeout safely sets the value for global configuration 'Database.SQLite.BusyTimeout' field
+func SetDatabaseSQLiteBusyTimeout(v time.Duration) { global.SetDatabaseSQLiteBusyTimeout(v) }
 
-// GetAdvancedSenderMultiplier safely fetches the Configuration value for state's 'Advanced.SenderMultiplier' field
-func (st *ConfigState) GetAdvancedSenderMultiplier() (v int) {
-	return st.config.Advanced.SenderMultiplier
+// GetDatabaseType safely fetches the Configuration value for state's 'Database.Type' field
+func (st *ConfigState) GetDatabaseType() (v string) {
+	return st.config.Database.Type
 }
 
-// SetAdvancedSenderMultiplier safely sets the Configuration value for state's 'Advanced.SenderMultiplier' field
-func (st *ConfigState) SetAdvancedSenderMultiplier(v int) {
-	st.config.Advanced.SenderMultiplier = v
+// SetDatabaseType safely sets the Configuration value for state's 'Database.Type' field
+func (st *ConfigState) SetDatabaseType(v string) {
+	st.config.Database.Type = v
 	st.reloadToViper()
 }
 
-// GetAdvancedSenderMultiplier safely fetches the value for global configuration 'Advanced.SenderMultiplier' field
-func GetAdvancedSenderMultiplier() int { return global.GetAdvancedSenderMultiplier() }
+// GetDatabaseType safely fetches the value for global configuration 'Database.Type' field
+func GetDatabaseType() string { return global.GetDatabaseType() }
 
-// SetAdvancedSenderMultiplier safely sets the value for global configuration 'Advanced.SenderMultiplier' field
-func SetAdvancedSenderMultiplier(v int) { global.SetAdvancedSenderMultiplier(v) }
+// SetDatabaseType safely sets the value for global configuration 'Database.Type' field
+func SetDatabaseType(v string) { global.SetDatabaseType(v) }
 
-// GetAdvancedCSPExtraURIs safely fetches the Configuration value for state's 'Advanced.CSPExtraURIs' field
-func (st *ConfigState) GetAdvancedCSPExtraURIs() (v []string) {
-	return st.config.Advanced.CSPExtraURIs
+// GetDatabaseAddress safely fetches the Configuration value for state's 'Database.Address' field
+func (st *ConfigState) GetDatabaseAddress() (v string) {
+	return st.config.Database.Address
 }
 
-// SetAdvancedCSPExtraURIs safely sets the Configuration value for state's 'Advanced.CSPExtraURIs' field
-func (st *ConfigState) SetAdvancedCSPExtraURIs(v []string) {
-	st.config.Advanced.CSPExtraURIs = v
+// SetDatabaseAddress safely sets the Configuration value for state's 'Database.Address' field
+func (st *ConfigState) SetDatabaseAddress(v string) {
+	st.config.Database.Address = v
 	st.reloadToViper()
 }
 
-// GetAdvancedCSPExtraURIs safely fetches the value for global configuration 'Advanced.CSPExtraURIs' field
-func GetAdvancedCSPExtraURIs() []string { return global.GetAdvancedCSPExtraURIs() }
+// GetDatabaseAddress safely fetches the value for global configuration 'Database.Address' field
+func GetDatabaseAddress() string { return global.GetDatabaseAddress() }
 
-// SetAdvancedCSPExtraURIs safely sets the value for global configuration 'Advanced.CSPExtraURIs' field
-func SetAdvancedCSPExtraURIs(v []string) { global.SetAdvancedCSPExtraURIs(v) }
+// SetDatabaseAddress safely sets the value for global configuration 'Database.Address' field
+func SetDatabaseAddress(v string) { global.SetDatabaseAddress(v) }
 
-// GetAdvancedHeaderFilterMode safely fetches the Configuration value for state's 'Advanced.HeaderFilterMode' field
-func (st *ConfigState) GetAdvancedHeaderFilterMode() (v string) {
-	return st.config.Advanced.HeaderFilterMode
+// GetDatabaseMaxOpenConnsMultiplier safely fetches the Configuration value for state's 'Database.MaxOpenConnsMultiplier' field
+func (st *ConfigState) GetDatabaseMaxOpenConnsMultiplier() (v int) {
+	return st.config.Database.MaxOpenConnsMultiplier
 }
 
-// SetAdvancedHeaderFilterMode safely sets the Configuration value for state's 'Advanced.HeaderFilterMode' field
-func (st *ConfigState) SetAdvancedHeaderFilterMode(v string) {
-	st.config.Advanced.HeaderFilterMode = v
+// SetDatabaseMaxOpenConnsMultiplier safely sets the Configuration value for state's 'Database.MaxOpenConnsMultiplier' field
+func (st *ConfigState) SetDatabaseMaxOpenConnsMultiplier(v int) {
+	st.config.Database.MaxOpenConnsMultiplier = v
 	st.reloadToViper()
 }
 
-// GetAdvancedHeaderFilterMode safely fetches the value for global configuration 'Advanced.HeaderFilterMode' field
-func GetAdvancedHeaderFilterMode() string { return global.GetAdvancedHeaderFilterMode() }
+// GetDatabaseMaxOpenConnsMultiplier safely fetches the value for global configuration 'Database.MaxOpenConnsMultiplier' field
+func GetDatabaseMaxOpenConnsMultiplier() int { return global.GetDatabaseMaxOpenConnsMultiplier() }
 
-// SetAdvancedHeaderFilterMode safely sets the value for global configuration 'Advanced.HeaderFilterMode' field
-func SetAdvancedHeaderFilterMode(v string) { global.SetAdvancedHeaderFilterMode(v) }
+// SetDatabaseMaxOpenConnsMultiplier safely sets the value for global configuration 'Database.MaxOpenConnsMultiplier' field
+func SetDatabaseMaxOpenConnsMultiplier(v int) { global.SetDatabaseMaxOpenConnsMultiplier(v) }
 
 // GetAdvancedRateLimitRequests safely fetches the Configuration value for state's 'Advanced.RateLimit.Requests' field
 func (st *ConfigState) GetAdvancedRateLimitRequests() (v int) {
@@ -4752,6 +3266,74 @@ func GetAdvancedThrottlingRetryAfter() time.Duration { return global.GetAdvanced
 
 // SetAdvancedThrottlingRetryAfter safely sets the value for global configuration 'Advanced.Throttling.RetryAfter' field
 func SetAdvancedThrottlingRetryAfter(v time.Duration) { global.SetAdvancedThrottlingRetryAfter(v) }
+
+// GetAdvancedCookiesSamesite safely fetches the Configuration value for state's 'Advanced.CookiesSamesite' field
+func (st *ConfigState) GetAdvancedCookiesSamesite() (v string) {
+	return st.config.Advanced.CookiesSamesite
+}
+
+// SetAdvancedCookiesSamesite safely sets the Configuration value for state's 'Advanced.CookiesSamesite' field
+func (st *ConfigState) SetAdvancedCookiesSamesite(v string) {
+	st.config.Advanced.CookiesSamesite = v
+	st.reloadToViper()
+}
+
+// GetAdvancedCookiesSamesite safely fetches the value for global configuration 'Advanced.CookiesSamesite' field
+func GetAdvancedCookiesSamesite() string { return global.GetAdvancedCookiesSamesite() }
+
+// SetAdvancedCookiesSamesite safely sets the value for global configuration 'Advanced.CookiesSamesite' field
+func SetAdvancedCookiesSamesite(v string) { global.SetAdvancedCookiesSamesite(v) }
+
+// GetAdvancedSenderMultiplier safely fetches the Configuration value for state's 'Advanced.SenderMultiplier' field
+func (st *ConfigState) GetAdvancedSenderMultiplier() (v int) {
+	return st.config.Advanced.SenderMultiplier
+}
+
+// SetAdvancedSenderMultiplier safely sets the Configuration value for state's 'Advanced.SenderMultiplier' field
+func (st *ConfigState) SetAdvancedSenderMultiplier(v int) {
+	st.config.Advanced.SenderMultiplier = v
+	st.reloadToViper()
+}
+
+// GetAdvancedSenderMultiplier safely fetches the value for global configuration 'Advanced.SenderMultiplier' field
+func GetAdvancedSenderMultiplier() int { return global.GetAdvancedSenderMultiplier() }
+
+// SetAdvancedSenderMultiplier safely sets the value for global configuration 'Advanced.SenderMultiplier' field
+func SetAdvancedSenderMultiplier(v int) { global.SetAdvancedSenderMultiplier(v) }
+
+// GetAdvancedCSPExtraURIs safely fetches the Configuration value for state's 'Advanced.CSPExtraURIs' field
+func (st *ConfigState) GetAdvancedCSPExtraURIs() (v []string) {
+	return st.config.Advanced.CSPExtraURIs
+}
+
+// SetAdvancedCSPExtraURIs safely sets the Configuration value for state's 'Advanced.CSPExtraURIs' field
+func (st *ConfigState) SetAdvancedCSPExtraURIs(v []string) {
+	st.config.Advanced.CSPExtraURIs = v
+	st.reloadToViper()
+}
+
+// GetAdvancedCSPExtraURIs safely fetches the value for global configuration 'Advanced.CSPExtraURIs' field
+func GetAdvancedCSPExtraURIs() []string { return global.GetAdvancedCSPExtraURIs() }
+
+// SetAdvancedCSPExtraURIs safely sets the value for global configuration 'Advanced.CSPExtraURIs' field
+func SetAdvancedCSPExtraURIs(v []string) { global.SetAdvancedCSPExtraURIs(v) }
+
+// GetAdvancedHeaderFilterMode safely fetches the Configuration value for state's 'Advanced.HeaderFilterMode' field
+func (st *ConfigState) GetAdvancedHeaderFilterMode() (v string) {
+	return st.config.Advanced.HeaderFilterMode
+}
+
+// SetAdvancedHeaderFilterMode safely sets the Configuration value for state's 'Advanced.HeaderFilterMode' field
+func (st *ConfigState) SetAdvancedHeaderFilterMode(v string) {
+	st.config.Advanced.HeaderFilterMode = v
+	st.reloadToViper()
+}
+
+// GetAdvancedHeaderFilterMode safely fetches the value for global configuration 'Advanced.HeaderFilterMode' field
+func GetAdvancedHeaderFilterMode() string { return global.GetAdvancedHeaderFilterMode() }
+
+// SetAdvancedHeaderFilterMode safely sets the value for global configuration 'Advanced.HeaderFilterMode' field
+func SetAdvancedHeaderFilterMode(v string) { global.SetAdvancedHeaderFilterMode(v) }
 
 // GetHTTPServerMaxMultipartMemory safely fetches the Configuration value for state's 'HTTPServer.MaxMultipartMemory' field
 func (st *ConfigState) GetHTTPServerMaxMultipartMemory() (v bytesize.Size) {
@@ -6867,6 +5449,1584 @@ func GetCacheVisibilityMemRatio() float64 { return global.GetCacheVisibilityMemR
 // SetCacheVisibilityMemRatio safely sets the value for global configuration 'Cache.VisibilityMemRatio' field
 func SetCacheVisibilityMemRatio(v float64) { global.SetCacheVisibilityMemRatio(v) }
 
+// GetLogLevel safely fetches the Configuration value for state's 'LogLevel' field
+func (st *ConfigState) GetLogLevel() (v string) {
+	return st.config.LogLevel
+}
+
+// SetLogLevel safely sets the Configuration value for state's 'LogLevel' field
+func (st *ConfigState) SetLogLevel(v string) {
+	st.config.LogLevel = v
+	st.reloadToViper()
+}
+
+// GetLogLevel safely fetches the value for global configuration 'LogLevel' field
+func GetLogLevel() string { return global.GetLogLevel() }
+
+// SetLogLevel safely sets the value for global configuration 'LogLevel' field
+func SetLogLevel(v string) { global.SetLogLevel(v) }
+
+// GetLogFormat safely fetches the Configuration value for state's 'LogFormat' field
+func (st *ConfigState) GetLogFormat() (v string) {
+	return st.config.LogFormat
+}
+
+// SetLogFormat safely sets the Configuration value for state's 'LogFormat' field
+func (st *ConfigState) SetLogFormat(v string) {
+	st.config.LogFormat = v
+	st.reloadToViper()
+}
+
+// GetLogFormat safely fetches the value for global configuration 'LogFormat' field
+func GetLogFormat() string { return global.GetLogFormat() }
+
+// SetLogFormat safely sets the value for global configuration 'LogFormat' field
+func SetLogFormat(v string) { global.SetLogFormat(v) }
+
+// GetLogTimestampFormat safely fetches the Configuration value for state's 'LogTimestampFormat' field
+func (st *ConfigState) GetLogTimestampFormat() (v string) {
+	return st.config.LogTimestampFormat
+}
+
+// SetLogTimestampFormat safely sets the Configuration value for state's 'LogTimestampFormat' field
+func (st *ConfigState) SetLogTimestampFormat(v string) {
+	st.config.LogTimestampFormat = v
+	st.reloadToViper()
+}
+
+// GetLogTimestampFormat safely fetches the value for global configuration 'LogTimestampFormat' field
+func GetLogTimestampFormat() string { return global.GetLogTimestampFormat() }
+
+// SetLogTimestampFormat safely sets the value for global configuration 'LogTimestampFormat' field
+func SetLogTimestampFormat(v string) { global.SetLogTimestampFormat(v) }
+
+// GetLogDbQueries safely fetches the Configuration value for state's 'LogDbQueries' field
+func (st *ConfigState) GetLogDbQueries() (v bool) {
+	return st.config.LogDbQueries
+}
+
+// SetLogDbQueries safely sets the Configuration value for state's 'LogDbQueries' field
+func (st *ConfigState) SetLogDbQueries(v bool) {
+	st.config.LogDbQueries = v
+	st.reloadToViper()
+}
+
+// GetLogDbQueries safely fetches the value for global configuration 'LogDbQueries' field
+func GetLogDbQueries() bool { return global.GetLogDbQueries() }
+
+// SetLogDbQueries safely sets the value for global configuration 'LogDbQueries' field
+func SetLogDbQueries(v bool) { global.SetLogDbQueries(v) }
+
+// GetLogClientIP safely fetches the Configuration value for state's 'LogClientIP' field
+func (st *ConfigState) GetLogClientIP() (v bool) {
+	return st.config.LogClientIP
+}
+
+// SetLogClientIP safely sets the Configuration value for state's 'LogClientIP' field
+func (st *ConfigState) SetLogClientIP(v bool) {
+	st.config.LogClientIP = v
+	st.reloadToViper()
+}
+
+// GetLogClientIP safely fetches the value for global configuration 'LogClientIP' field
+func GetLogClientIP() bool { return global.GetLogClientIP() }
+
+// SetLogClientIP safely sets the value for global configuration 'LogClientIP' field
+func SetLogClientIP(v bool) { global.SetLogClientIP(v) }
+
+// GetRequestIDHeader safely fetches the Configuration value for state's 'RequestIDHeader' field
+func (st *ConfigState) GetRequestIDHeader() (v string) {
+	return st.config.RequestIDHeader
+}
+
+// SetRequestIDHeader safely sets the Configuration value for state's 'RequestIDHeader' field
+func (st *ConfigState) SetRequestIDHeader(v string) {
+	st.config.RequestIDHeader = v
+	st.reloadToViper()
+}
+
+// GetRequestIDHeader safely fetches the value for global configuration 'RequestIDHeader' field
+func GetRequestIDHeader() string { return global.GetRequestIDHeader() }
+
+// SetRequestIDHeader safely sets the value for global configuration 'RequestIDHeader' field
+func SetRequestIDHeader(v string) { global.SetRequestIDHeader(v) }
+
+// GetConfigPath safely fetches the Configuration value for state's 'ConfigPath' field
+func (st *ConfigState) GetConfigPath() (v string) {
+	return st.config.ConfigPath
+}
+
+// SetConfigPath safely sets the Configuration value for state's 'ConfigPath' field
+func (st *ConfigState) SetConfigPath(v string) {
+	st.config.ConfigPath = v
+	st.reloadToViper()
+}
+
+// GetConfigPath safely fetches the value for global configuration 'ConfigPath' field
+func GetConfigPath() string { return global.GetConfigPath() }
+
+// SetConfigPath safely sets the value for global configuration 'ConfigPath' field
+func SetConfigPath(v string) { global.SetConfigPath(v) }
+
+// GetApplicationName safely fetches the Configuration value for state's 'ApplicationName' field
+func (st *ConfigState) GetApplicationName() (v string) {
+	return st.config.ApplicationName
+}
+
+// SetApplicationName safely sets the Configuration value for state's 'ApplicationName' field
+func (st *ConfigState) SetApplicationName(v string) {
+	st.config.ApplicationName = v
+	st.reloadToViper()
+}
+
+// GetApplicationName safely fetches the value for global configuration 'ApplicationName' field
+func GetApplicationName() string { return global.GetApplicationName() }
+
+// SetApplicationName safely sets the value for global configuration 'ApplicationName' field
+func SetApplicationName(v string) { global.SetApplicationName(v) }
+
+// GetLandingPageUser safely fetches the Configuration value for state's 'LandingPageUser' field
+func (st *ConfigState) GetLandingPageUser() (v string) {
+	return st.config.LandingPageUser
+}
+
+// SetLandingPageUser safely sets the Configuration value for state's 'LandingPageUser' field
+func (st *ConfigState) SetLandingPageUser(v string) {
+	st.config.LandingPageUser = v
+	st.reloadToViper()
+}
+
+// GetLandingPageUser safely fetches the value for global configuration 'LandingPageUser' field
+func GetLandingPageUser() string { return global.GetLandingPageUser() }
+
+// SetLandingPageUser safely sets the value for global configuration 'LandingPageUser' field
+func SetLandingPageUser(v string) { global.SetLandingPageUser(v) }
+
+// GetHost safely fetches the Configuration value for state's 'Host' field
+func (st *ConfigState) GetHost() (v string) {
+	return st.config.Host
+}
+
+// SetHost safely sets the Configuration value for state's 'Host' field
+func (st *ConfigState) SetHost(v string) {
+	st.config.Host = v
+	st.reloadToViper()
+}
+
+// GetHost safely fetches the value for global configuration 'Host' field
+func GetHost() string { return global.GetHost() }
+
+// SetHost safely sets the value for global configuration 'Host' field
+func SetHost(v string) { global.SetHost(v) }
+
+// GetAccountDomain safely fetches the Configuration value for state's 'AccountDomain' field
+func (st *ConfigState) GetAccountDomain() (v string) {
+	return st.config.AccountDomain
+}
+
+// SetAccountDomain safely sets the Configuration value for state's 'AccountDomain' field
+func (st *ConfigState) SetAccountDomain(v string) {
+	st.config.AccountDomain = v
+	st.reloadToViper()
+}
+
+// GetAccountDomain safely fetches the value for global configuration 'AccountDomain' field
+func GetAccountDomain() string { return global.GetAccountDomain() }
+
+// SetAccountDomain safely sets the value for global configuration 'AccountDomain' field
+func SetAccountDomain(v string) { global.SetAccountDomain(v) }
+
+// GetProtocol safely fetches the Configuration value for state's 'Protocol' field
+func (st *ConfigState) GetProtocol() (v string) {
+	return st.config.Protocol
+}
+
+// SetProtocol safely sets the Configuration value for state's 'Protocol' field
+func (st *ConfigState) SetProtocol(v string) {
+	st.config.Protocol = v
+	st.reloadToViper()
+}
+
+// GetProtocol safely fetches the value for global configuration 'Protocol' field
+func GetProtocol() string { return global.GetProtocol() }
+
+// SetProtocol safely sets the value for global configuration 'Protocol' field
+func SetProtocol(v string) { global.SetProtocol(v) }
+
+// GetBindAddress safely fetches the Configuration value for state's 'BindAddress' field
+func (st *ConfigState) GetBindAddress() (v string) {
+	return st.config.BindAddress
+}
+
+// SetBindAddress safely sets the Configuration value for state's 'BindAddress' field
+func (st *ConfigState) SetBindAddress(v string) {
+	st.config.BindAddress = v
+	st.reloadToViper()
+}
+
+// GetBindAddress safely fetches the value for global configuration 'BindAddress' field
+func GetBindAddress() string { return global.GetBindAddress() }
+
+// SetBindAddress safely sets the value for global configuration 'BindAddress' field
+func SetBindAddress(v string) { global.SetBindAddress(v) }
+
+// GetPort safely fetches the Configuration value for state's 'Port' field
+func (st *ConfigState) GetPort() (v int) {
+	return st.config.Port
+}
+
+// SetPort safely sets the Configuration value for state's 'Port' field
+func (st *ConfigState) SetPort(v int) {
+	st.config.Port = v
+	st.reloadToViper()
+}
+
+// GetPort safely fetches the value for global configuration 'Port' field
+func GetPort() int { return global.GetPort() }
+
+// SetPort safely sets the value for global configuration 'Port' field
+func SetPort(v int) { global.SetPort(v) }
+
+// GetTrustedProxies safely fetches the Configuration value for state's 'TrustedProxies' field
+func (st *ConfigState) GetTrustedProxies() (v IPPrefixes) {
+	return st.config.TrustedProxies
+}
+
+// SetTrustedProxies safely sets the Configuration value for state's 'TrustedProxies' field
+func (st *ConfigState) SetTrustedProxies(v IPPrefixes) {
+	st.config.TrustedProxies = v
+	st.reloadToViper()
+}
+
+// GetTrustedProxies safely fetches the value for global configuration 'TrustedProxies' field
+func GetTrustedProxies() IPPrefixes { return global.GetTrustedProxies() }
+
+// SetTrustedProxies safely sets the value for global configuration 'TrustedProxies' field
+func SetTrustedProxies(v IPPrefixes) { global.SetTrustedProxies(v) }
+
+// GetSoftwareVersion safely fetches the Configuration value for state's 'SoftwareVersion' field
+func (st *ConfigState) GetSoftwareVersion() (v string) {
+	return st.config.SoftwareVersion
+}
+
+// SetSoftwareVersion safely sets the Configuration value for state's 'SoftwareVersion' field
+func (st *ConfigState) SetSoftwareVersion(v string) {
+	st.config.SoftwareVersion = v
+	st.reloadToViper()
+}
+
+// GetSoftwareVersion safely fetches the value for global configuration 'SoftwareVersion' field
+func GetSoftwareVersion() string { return global.GetSoftwareVersion() }
+
+// SetSoftwareVersion safely sets the value for global configuration 'SoftwareVersion' field
+func SetSoftwareVersion(v string) { global.SetSoftwareVersion(v) }
+
+// GetWebTemplateBaseDir safely fetches the Configuration value for state's 'WebTemplateBaseDir' field
+func (st *ConfigState) GetWebTemplateBaseDir() (v string) {
+	return st.config.WebTemplateBaseDir
+}
+
+// SetWebTemplateBaseDir safely sets the Configuration value for state's 'WebTemplateBaseDir' field
+func (st *ConfigState) SetWebTemplateBaseDir(v string) {
+	st.config.WebTemplateBaseDir = v
+	st.reloadToViper()
+}
+
+// GetWebTemplateBaseDir safely fetches the value for global configuration 'WebTemplateBaseDir' field
+func GetWebTemplateBaseDir() string { return global.GetWebTemplateBaseDir() }
+
+// SetWebTemplateBaseDir safely sets the value for global configuration 'WebTemplateBaseDir' field
+func SetWebTemplateBaseDir(v string) { global.SetWebTemplateBaseDir(v) }
+
+// GetWebAssetBaseDir safely fetches the Configuration value for state's 'WebAssetBaseDir' field
+func (st *ConfigState) GetWebAssetBaseDir() (v string) {
+	return st.config.WebAssetBaseDir
+}
+
+// SetWebAssetBaseDir safely sets the Configuration value for state's 'WebAssetBaseDir' field
+func (st *ConfigState) SetWebAssetBaseDir(v string) {
+	st.config.WebAssetBaseDir = v
+	st.reloadToViper()
+}
+
+// GetWebAssetBaseDir safely fetches the value for global configuration 'WebAssetBaseDir' field
+func GetWebAssetBaseDir() string { return global.GetWebAssetBaseDir() }
+
+// SetWebAssetBaseDir safely sets the value for global configuration 'WebAssetBaseDir' field
+func SetWebAssetBaseDir(v string) { global.SetWebAssetBaseDir(v) }
+
+// GetInstanceFederationMode safely fetches the Configuration value for state's 'InstanceFederationMode' field
+func (st *ConfigState) GetInstanceFederationMode() (v string) {
+	return st.config.InstanceFederationMode
+}
+
+// SetInstanceFederationMode safely sets the Configuration value for state's 'InstanceFederationMode' field
+func (st *ConfigState) SetInstanceFederationMode(v string) {
+	st.config.InstanceFederationMode = v
+	st.reloadToViper()
+}
+
+// GetInstanceFederationMode safely fetches the value for global configuration 'InstanceFederationMode' field
+func GetInstanceFederationMode() string { return global.GetInstanceFederationMode() }
+
+// SetInstanceFederationMode safely sets the value for global configuration 'InstanceFederationMode' field
+func SetInstanceFederationMode(v string) { global.SetInstanceFederationMode(v) }
+
+// GetInstanceFederationSpamFilter safely fetches the Configuration value for state's 'InstanceFederationSpamFilter' field
+func (st *ConfigState) GetInstanceFederationSpamFilter() (v bool) {
+	return st.config.InstanceFederationSpamFilter
+}
+
+// SetInstanceFederationSpamFilter safely sets the Configuration value for state's 'InstanceFederationSpamFilter' field
+func (st *ConfigState) SetInstanceFederationSpamFilter(v bool) {
+	st.config.InstanceFederationSpamFilter = v
+	st.reloadToViper()
+}
+
+// GetInstanceFederationSpamFilter safely fetches the value for global configuration 'InstanceFederationSpamFilter' field
+func GetInstanceFederationSpamFilter() bool { return global.GetInstanceFederationSpamFilter() }
+
+// SetInstanceFederationSpamFilter safely sets the value for global configuration 'InstanceFederationSpamFilter' field
+func SetInstanceFederationSpamFilter(v bool) { global.SetInstanceFederationSpamFilter(v) }
+
+// GetInstanceExposePeers safely fetches the Configuration value for state's 'InstanceExposePeers' field
+func (st *ConfigState) GetInstanceExposePeers() (v bool) {
+	return st.config.InstanceExposePeers
+}
+
+// SetInstanceExposePeers safely sets the Configuration value for state's 'InstanceExposePeers' field
+func (st *ConfigState) SetInstanceExposePeers(v bool) {
+	st.config.InstanceExposePeers = v
+	st.reloadToViper()
+}
+
+// GetInstanceExposePeers safely fetches the value for global configuration 'InstanceExposePeers' field
+func GetInstanceExposePeers() bool { return global.GetInstanceExposePeers() }
+
+// SetInstanceExposePeers safely sets the value for global configuration 'InstanceExposePeers' field
+func SetInstanceExposePeers(v bool) { global.SetInstanceExposePeers(v) }
+
+// GetInstanceExposeBlocklist safely fetches the Configuration value for state's 'InstanceExposeBlocklist' field
+func (st *ConfigState) GetInstanceExposeBlocklist() (v bool) {
+	return st.config.InstanceExposeBlocklist
+}
+
+// SetInstanceExposeBlocklist safely sets the Configuration value for state's 'InstanceExposeBlocklist' field
+func (st *ConfigState) SetInstanceExposeBlocklist(v bool) {
+	st.config.InstanceExposeBlocklist = v
+	st.reloadToViper()
+}
+
+// GetInstanceExposeBlocklist safely fetches the value for global configuration 'InstanceExposeBlocklist' field
+func GetInstanceExposeBlocklist() bool { return global.GetInstanceExposeBlocklist() }
+
+// SetInstanceExposeBlocklist safely sets the value for global configuration 'InstanceExposeBlocklist' field
+func SetInstanceExposeBlocklist(v bool) { global.SetInstanceExposeBlocklist(v) }
+
+// GetInstanceExposeBlocklistWeb safely fetches the Configuration value for state's 'InstanceExposeBlocklistWeb' field
+func (st *ConfigState) GetInstanceExposeBlocklistWeb() (v bool) {
+	return st.config.InstanceExposeBlocklistWeb
+}
+
+// SetInstanceExposeBlocklistWeb safely sets the Configuration value for state's 'InstanceExposeBlocklistWeb' field
+func (st *ConfigState) SetInstanceExposeBlocklistWeb(v bool) {
+	st.config.InstanceExposeBlocklistWeb = v
+	st.reloadToViper()
+}
+
+// GetInstanceExposeBlocklistWeb safely fetches the value for global configuration 'InstanceExposeBlocklistWeb' field
+func GetInstanceExposeBlocklistWeb() bool { return global.GetInstanceExposeBlocklistWeb() }
+
+// SetInstanceExposeBlocklistWeb safely sets the value for global configuration 'InstanceExposeBlocklistWeb' field
+func SetInstanceExposeBlocklistWeb(v bool) { global.SetInstanceExposeBlocklistWeb(v) }
+
+// GetInstanceExposeAllowlist safely fetches the Configuration value for state's 'InstanceExposeAllowlist' field
+func (st *ConfigState) GetInstanceExposeAllowlist() (v bool) {
+	return st.config.InstanceExposeAllowlist
+}
+
+// SetInstanceExposeAllowlist safely sets the Configuration value for state's 'InstanceExposeAllowlist' field
+func (st *ConfigState) SetInstanceExposeAllowlist(v bool) {
+	st.config.InstanceExposeAllowlist = v
+	st.reloadToViper()
+}
+
+// GetInstanceExposeAllowlist safely fetches the value for global configuration 'InstanceExposeAllowlist' field
+func GetInstanceExposeAllowlist() bool { return global.GetInstanceExposeAllowlist() }
+
+// SetInstanceExposeAllowlist safely sets the value for global configuration 'InstanceExposeAllowlist' field
+func SetInstanceExposeAllowlist(v bool) { global.SetInstanceExposeAllowlist(v) }
+
+// GetInstanceExposeAllowlistWeb safely fetches the Configuration value for state's 'InstanceExposeAllowlistWeb' field
+func (st *ConfigState) GetInstanceExposeAllowlistWeb() (v bool) {
+	return st.config.InstanceExposeAllowlistWeb
+}
+
+// SetInstanceExposeAllowlistWeb safely sets the Configuration value for state's 'InstanceExposeAllowlistWeb' field
+func (st *ConfigState) SetInstanceExposeAllowlistWeb(v bool) {
+	st.config.InstanceExposeAllowlistWeb = v
+	st.reloadToViper()
+}
+
+// GetInstanceExposeAllowlistWeb safely fetches the value for global configuration 'InstanceExposeAllowlistWeb' field
+func GetInstanceExposeAllowlistWeb() bool { return global.GetInstanceExposeAllowlistWeb() }
+
+// SetInstanceExposeAllowlistWeb safely sets the value for global configuration 'InstanceExposeAllowlistWeb' field
+func SetInstanceExposeAllowlistWeb(v bool) { global.SetInstanceExposeAllowlistWeb(v) }
+
+// GetInstanceExposePublicTimeline safely fetches the Configuration value for state's 'InstanceExposePublicTimeline' field
+func (st *ConfigState) GetInstanceExposePublicTimeline() (v bool) {
+	return st.config.InstanceExposePublicTimeline
+}
+
+// SetInstanceExposePublicTimeline safely sets the Configuration value for state's 'InstanceExposePublicTimeline' field
+func (st *ConfigState) SetInstanceExposePublicTimeline(v bool) {
+	st.config.InstanceExposePublicTimeline = v
+	st.reloadToViper()
+}
+
+// GetInstanceExposePublicTimeline safely fetches the value for global configuration 'InstanceExposePublicTimeline' field
+func GetInstanceExposePublicTimeline() bool { return global.GetInstanceExposePublicTimeline() }
+
+// SetInstanceExposePublicTimeline safely sets the value for global configuration 'InstanceExposePublicTimeline' field
+func SetInstanceExposePublicTimeline(v bool) { global.SetInstanceExposePublicTimeline(v) }
+
+// GetInstanceExposeCustomEmojis safely fetches the Configuration value for state's 'InstanceExposeCustomEmojis' field
+func (st *ConfigState) GetInstanceExposeCustomEmojis() (v bool) {
+	return st.config.InstanceExposeCustomEmojis
+}
+
+// SetInstanceExposeCustomEmojis safely sets the Configuration value for state's 'InstanceExposeCustomEmojis' field
+func (st *ConfigState) SetInstanceExposeCustomEmojis(v bool) {
+	st.config.InstanceExposeCustomEmojis = v
+	st.reloadToViper()
+}
+
+// GetInstanceExposeCustomEmojis safely fetches the value for global configuration 'InstanceExposeCustomEmojis' field
+func GetInstanceExposeCustomEmojis() bool { return global.GetInstanceExposeCustomEmojis() }
+
+// SetInstanceExposeCustomEmojis safely sets the value for global configuration 'InstanceExposeCustomEmojis' field
+func SetInstanceExposeCustomEmojis(v bool) { global.SetInstanceExposeCustomEmojis(v) }
+
+// GetInstanceDirectoryMode safely fetches the Configuration value for state's 'InstanceDirectoryMode' field
+func (st *ConfigState) GetInstanceDirectoryMode() (v InstanceDirectoryMode) {
+	return st.config.InstanceDirectoryMode
+}
+
+// SetInstanceDirectoryMode safely sets the Configuration value for state's 'InstanceDirectoryMode' field
+func (st *ConfigState) SetInstanceDirectoryMode(v InstanceDirectoryMode) {
+	st.config.InstanceDirectoryMode = v
+	st.reloadToViper()
+}
+
+// GetInstanceDirectoryMode safely fetches the value for global configuration 'InstanceDirectoryMode' field
+func GetInstanceDirectoryMode() InstanceDirectoryMode { return global.GetInstanceDirectoryMode() }
+
+// SetInstanceDirectoryMode safely sets the value for global configuration 'InstanceDirectoryMode' field
+func SetInstanceDirectoryMode(v InstanceDirectoryMode) { global.SetInstanceDirectoryMode(v) }
+
+// GetInstanceDeliverToSharedInboxes safely fetches the Configuration value for state's 'InstanceDeliverToSharedInboxes' field
+func (st *ConfigState) GetInstanceDeliverToSharedInboxes() (v bool) {
+	return st.config.InstanceDeliverToSharedInboxes
+}
+
+// SetInstanceDeliverToSharedInboxes safely sets the Configuration value for state's 'InstanceDeliverToSharedInboxes' field
+func (st *ConfigState) SetInstanceDeliverToSharedInboxes(v bool) {
+	st.config.InstanceDeliverToSharedInboxes = v
+	st.reloadToViper()
+}
+
+// GetInstanceDeliverToSharedInboxes safely fetches the value for global configuration 'InstanceDeliverToSharedInboxes' field
+func GetInstanceDeliverToSharedInboxes() bool { return global.GetInstanceDeliverToSharedInboxes() }
+
+// SetInstanceDeliverToSharedInboxes safely sets the value for global configuration 'InstanceDeliverToSharedInboxes' field
+func SetInstanceDeliverToSharedInboxes(v bool) { global.SetInstanceDeliverToSharedInboxes(v) }
+
+// GetInstanceInjectMastodonVersion safely fetches the Configuration value for state's 'InstanceInjectMastodonVersion' field
+func (st *ConfigState) GetInstanceInjectMastodonVersion() (v bool) {
+	return st.config.InstanceInjectMastodonVersion
+}
+
+// SetInstanceInjectMastodonVersion safely sets the Configuration value for state's 'InstanceInjectMastodonVersion' field
+func (st *ConfigState) SetInstanceInjectMastodonVersion(v bool) {
+	st.config.InstanceInjectMastodonVersion = v
+	st.reloadToViper()
+}
+
+// GetInstanceInjectMastodonVersion safely fetches the value for global configuration 'InstanceInjectMastodonVersion' field
+func GetInstanceInjectMastodonVersion() bool { return global.GetInstanceInjectMastodonVersion() }
+
+// SetInstanceInjectMastodonVersion safely sets the value for global configuration 'InstanceInjectMastodonVersion' field
+func SetInstanceInjectMastodonVersion(v bool) { global.SetInstanceInjectMastodonVersion(v) }
+
+// GetInstanceLanguages safely fetches the Configuration value for state's 'InstanceLanguages' field
+func (st *ConfigState) GetInstanceLanguages() (v language.Languages) {
+	return st.config.InstanceLanguages
+}
+
+// SetInstanceLanguages safely sets the Configuration value for state's 'InstanceLanguages' field
+func (st *ConfigState) SetInstanceLanguages(v language.Languages) {
+	st.config.InstanceLanguages = v
+	st.reloadToViper()
+}
+
+// GetInstanceLanguages safely fetches the value for global configuration 'InstanceLanguages' field
+func GetInstanceLanguages() language.Languages { return global.GetInstanceLanguages() }
+
+// SetInstanceLanguages safely sets the value for global configuration 'InstanceLanguages' field
+func SetInstanceLanguages(v language.Languages) { global.SetInstanceLanguages(v) }
+
+// GetInstanceSubscriptionsProcessFrom safely fetches the Configuration value for state's 'InstanceSubscriptionsProcessFrom' field
+func (st *ConfigState) GetInstanceSubscriptionsProcessFrom() (v Deprecated) {
+	return st.config.InstanceSubscriptionsProcessFrom
+}
+
+// SetInstanceSubscriptionsProcessFrom safely sets the Configuration value for state's 'InstanceSubscriptionsProcessFrom' field
+func (st *ConfigState) SetInstanceSubscriptionsProcessFrom(v Deprecated) {
+	st.config.InstanceSubscriptionsProcessFrom = v
+	st.reloadToViper()
+}
+
+// GetInstanceSubscriptionsProcessFrom safely fetches the value for global configuration 'InstanceSubscriptionsProcessFrom' field
+func GetInstanceSubscriptionsProcessFrom() Deprecated {
+	return global.GetInstanceSubscriptionsProcessFrom()
+}
+
+// SetInstanceSubscriptionsProcessFrom safely sets the value for global configuration 'InstanceSubscriptionsProcessFrom' field
+func SetInstanceSubscriptionsProcessFrom(v Deprecated) { global.SetInstanceSubscriptionsProcessFrom(v) }
+
+// GetInstanceSubscriptionsProcessEvery safely fetches the Configuration value for state's 'InstanceSubscriptionsProcessEvery' field
+func (st *ConfigState) GetInstanceSubscriptionsProcessEvery() (v Deprecated) {
+	return st.config.InstanceSubscriptionsProcessEvery
+}
+
+// SetInstanceSubscriptionsProcessEvery safely sets the Configuration value for state's 'InstanceSubscriptionsProcessEvery' field
+func (st *ConfigState) SetInstanceSubscriptionsProcessEvery(v Deprecated) {
+	st.config.InstanceSubscriptionsProcessEvery = v
+	st.reloadToViper()
+}
+
+// GetInstanceSubscriptionsProcessEvery safely fetches the value for global configuration 'InstanceSubscriptionsProcessEvery' field
+func GetInstanceSubscriptionsProcessEvery() Deprecated {
+	return global.GetInstanceSubscriptionsProcessEvery()
+}
+
+// SetInstanceSubscriptionsProcessEvery safely sets the value for global configuration 'InstanceSubscriptionsProcessEvery' field
+func SetInstanceSubscriptionsProcessEvery(v Deprecated) {
+	global.SetInstanceSubscriptionsProcessEvery(v)
+}
+
+// GetInstanceSubscriptionsProcessCron safely fetches the Configuration value for state's 'InstanceSubscriptionsProcessCron' field
+func (st *ConfigState) GetInstanceSubscriptionsProcessCron() (v CronExpression) {
+	return st.config.InstanceSubscriptionsProcessCron
+}
+
+// SetInstanceSubscriptionsProcessCron safely sets the Configuration value for state's 'InstanceSubscriptionsProcessCron' field
+func (st *ConfigState) SetInstanceSubscriptionsProcessCron(v CronExpression) {
+	st.config.InstanceSubscriptionsProcessCron = v
+	st.reloadToViper()
+}
+
+// GetInstanceSubscriptionsProcessCron safely fetches the value for global configuration 'InstanceSubscriptionsProcessCron' field
+func GetInstanceSubscriptionsProcessCron() CronExpression {
+	return global.GetInstanceSubscriptionsProcessCron()
+}
+
+// SetInstanceSubscriptionsProcessCron safely sets the value for global configuration 'InstanceSubscriptionsProcessCron' field
+func SetInstanceSubscriptionsProcessCron(v CronExpression) {
+	global.SetInstanceSubscriptionsProcessCron(v)
+}
+
+// GetInstanceStatsMode safely fetches the Configuration value for state's 'InstanceStatsMode' field
+func (st *ConfigState) GetInstanceStatsMode() (v string) {
+	return st.config.InstanceStatsMode
+}
+
+// SetInstanceStatsMode safely sets the Configuration value for state's 'InstanceStatsMode' field
+func (st *ConfigState) SetInstanceStatsMode(v string) {
+	st.config.InstanceStatsMode = v
+	st.reloadToViper()
+}
+
+// GetInstanceStatsMode safely fetches the value for global configuration 'InstanceStatsMode' field
+func GetInstanceStatsMode() string { return global.GetInstanceStatsMode() }
+
+// SetInstanceStatsMode safely sets the value for global configuration 'InstanceStatsMode' field
+func SetInstanceStatsMode(v string) { global.SetInstanceStatsMode(v) }
+
+// GetInstanceAllowBackdatingStatuses safely fetches the Configuration value for state's 'InstanceAllowBackdatingStatuses' field
+func (st *ConfigState) GetInstanceAllowBackdatingStatuses() (v bool) {
+	return st.config.InstanceAllowBackdatingStatuses
+}
+
+// SetInstanceAllowBackdatingStatuses safely sets the Configuration value for state's 'InstanceAllowBackdatingStatuses' field
+func (st *ConfigState) SetInstanceAllowBackdatingStatuses(v bool) {
+	st.config.InstanceAllowBackdatingStatuses = v
+	st.reloadToViper()
+}
+
+// GetInstanceAllowBackdatingStatuses safely fetches the value for global configuration 'InstanceAllowBackdatingStatuses' field
+func GetInstanceAllowBackdatingStatuses() bool { return global.GetInstanceAllowBackdatingStatuses() }
+
+// SetInstanceAllowBackdatingStatuses safely sets the value for global configuration 'InstanceAllowBackdatingStatuses' field
+func SetInstanceAllowBackdatingStatuses(v bool) { global.SetInstanceAllowBackdatingStatuses(v) }
+
+// GetInstanceRobotsAllowIndexing safely fetches the Configuration value for state's 'InstanceRobotsAllowIndexing' field
+func (st *ConfigState) GetInstanceRobotsAllowIndexing() (v bool) {
+	return st.config.InstanceRobotsAllowIndexing
+}
+
+// SetInstanceRobotsAllowIndexing safely sets the Configuration value for state's 'InstanceRobotsAllowIndexing' field
+func (st *ConfigState) SetInstanceRobotsAllowIndexing(v bool) {
+	st.config.InstanceRobotsAllowIndexing = v
+	st.reloadToViper()
+}
+
+// GetInstanceRobotsAllowIndexing safely fetches the value for global configuration 'InstanceRobotsAllowIndexing' field
+func GetInstanceRobotsAllowIndexing() bool { return global.GetInstanceRobotsAllowIndexing() }
+
+// SetInstanceRobotsAllowIndexing safely sets the value for global configuration 'InstanceRobotsAllowIndexing' field
+func SetInstanceRobotsAllowIndexing(v bool) { global.SetInstanceRobotsAllowIndexing(v) }
+
+// GetAccountsRegistrationOpen safely fetches the Configuration value for state's 'AccountsRegistrationOpen' field
+func (st *ConfigState) GetAccountsRegistrationOpen() (v bool) {
+	return st.config.AccountsRegistrationOpen
+}
+
+// SetAccountsRegistrationOpen safely sets the Configuration value for state's 'AccountsRegistrationOpen' field
+func (st *ConfigState) SetAccountsRegistrationOpen(v bool) {
+	st.config.AccountsRegistrationOpen = v
+	st.reloadToViper()
+}
+
+// GetAccountsRegistrationOpen safely fetches the value for global configuration 'AccountsRegistrationOpen' field
+func GetAccountsRegistrationOpen() bool { return global.GetAccountsRegistrationOpen() }
+
+// SetAccountsRegistrationOpen safely sets the value for global configuration 'AccountsRegistrationOpen' field
+func SetAccountsRegistrationOpen(v bool) { global.SetAccountsRegistrationOpen(v) }
+
+// GetAccountsReasonRequired safely fetches the Configuration value for state's 'AccountsReasonRequired' field
+func (st *ConfigState) GetAccountsReasonRequired() (v bool) {
+	return st.config.AccountsReasonRequired
+}
+
+// SetAccountsReasonRequired safely sets the Configuration value for state's 'AccountsReasonRequired' field
+func (st *ConfigState) SetAccountsReasonRequired(v bool) {
+	st.config.AccountsReasonRequired = v
+	st.reloadToViper()
+}
+
+// GetAccountsReasonRequired safely fetches the value for global configuration 'AccountsReasonRequired' field
+func GetAccountsReasonRequired() bool { return global.GetAccountsReasonRequired() }
+
+// SetAccountsReasonRequired safely sets the value for global configuration 'AccountsReasonRequired' field
+func SetAccountsReasonRequired(v bool) { global.SetAccountsReasonRequired(v) }
+
+// GetAccountsRegistrationDailyLimit safely fetches the Configuration value for state's 'AccountsRegistrationDailyLimit' field
+func (st *ConfigState) GetAccountsRegistrationDailyLimit() (v int) {
+	return st.config.AccountsRegistrationDailyLimit
+}
+
+// SetAccountsRegistrationDailyLimit safely sets the Configuration value for state's 'AccountsRegistrationDailyLimit' field
+func (st *ConfigState) SetAccountsRegistrationDailyLimit(v int) {
+	st.config.AccountsRegistrationDailyLimit = v
+	st.reloadToViper()
+}
+
+// GetAccountsRegistrationDailyLimit safely fetches the value for global configuration 'AccountsRegistrationDailyLimit' field
+func GetAccountsRegistrationDailyLimit() int { return global.GetAccountsRegistrationDailyLimit() }
+
+// SetAccountsRegistrationDailyLimit safely sets the value for global configuration 'AccountsRegistrationDailyLimit' field
+func SetAccountsRegistrationDailyLimit(v int) { global.SetAccountsRegistrationDailyLimit(v) }
+
+// GetAccountsRegistrationBacklogLimit safely fetches the Configuration value for state's 'AccountsRegistrationBacklogLimit' field
+func (st *ConfigState) GetAccountsRegistrationBacklogLimit() (v int) {
+	return st.config.AccountsRegistrationBacklogLimit
+}
+
+// SetAccountsRegistrationBacklogLimit safely sets the Configuration value for state's 'AccountsRegistrationBacklogLimit' field
+func (st *ConfigState) SetAccountsRegistrationBacklogLimit(v int) {
+	st.config.AccountsRegistrationBacklogLimit = v
+	st.reloadToViper()
+}
+
+// GetAccountsRegistrationBacklogLimit safely fetches the value for global configuration 'AccountsRegistrationBacklogLimit' field
+func GetAccountsRegistrationBacklogLimit() int { return global.GetAccountsRegistrationBacklogLimit() }
+
+// SetAccountsRegistrationBacklogLimit safely sets the value for global configuration 'AccountsRegistrationBacklogLimit' field
+func SetAccountsRegistrationBacklogLimit(v int) { global.SetAccountsRegistrationBacklogLimit(v) }
+
+// GetAccountsAllowCustomCSS safely fetches the Configuration value for state's 'AccountsAllowCustomCSS' field
+func (st *ConfigState) GetAccountsAllowCustomCSS() (v bool) {
+	return st.config.AccountsAllowCustomCSS
+}
+
+// SetAccountsAllowCustomCSS safely sets the Configuration value for state's 'AccountsAllowCustomCSS' field
+func (st *ConfigState) SetAccountsAllowCustomCSS(v bool) {
+	st.config.AccountsAllowCustomCSS = v
+	st.reloadToViper()
+}
+
+// GetAccountsAllowCustomCSS safely fetches the value for global configuration 'AccountsAllowCustomCSS' field
+func GetAccountsAllowCustomCSS() bool { return global.GetAccountsAllowCustomCSS() }
+
+// SetAccountsAllowCustomCSS safely sets the value for global configuration 'AccountsAllowCustomCSS' field
+func SetAccountsAllowCustomCSS(v bool) { global.SetAccountsAllowCustomCSS(v) }
+
+// GetAccountsCustomCSSLength safely fetches the Configuration value for state's 'AccountsCustomCSSLength' field
+func (st *ConfigState) GetAccountsCustomCSSLength() (v int) {
+	return st.config.AccountsCustomCSSLength
+}
+
+// SetAccountsCustomCSSLength safely sets the Configuration value for state's 'AccountsCustomCSSLength' field
+func (st *ConfigState) SetAccountsCustomCSSLength(v int) {
+	st.config.AccountsCustomCSSLength = v
+	st.reloadToViper()
+}
+
+// GetAccountsCustomCSSLength safely fetches the value for global configuration 'AccountsCustomCSSLength' field
+func GetAccountsCustomCSSLength() int { return global.GetAccountsCustomCSSLength() }
+
+// SetAccountsCustomCSSLength safely sets the value for global configuration 'AccountsCustomCSSLength' field
+func SetAccountsCustomCSSLength(v int) { global.SetAccountsCustomCSSLength(v) }
+
+// GetAccountsMaxProfileFields safely fetches the Configuration value for state's 'AccountsMaxProfileFields' field
+func (st *ConfigState) GetAccountsMaxProfileFields() (v int) {
+	return st.config.AccountsMaxProfileFields
+}
+
+// SetAccountsMaxProfileFields safely sets the Configuration value for state's 'AccountsMaxProfileFields' field
+func (st *ConfigState) SetAccountsMaxProfileFields(v int) {
+	st.config.AccountsMaxProfileFields = v
+	st.reloadToViper()
+}
+
+// GetAccountsMaxProfileFields safely fetches the value for global configuration 'AccountsMaxProfileFields' field
+func GetAccountsMaxProfileFields() int { return global.GetAccountsMaxProfileFields() }
+
+// SetAccountsMaxProfileFields safely sets the value for global configuration 'AccountsMaxProfileFields' field
+func SetAccountsMaxProfileFields(v int) { global.SetAccountsMaxProfileFields(v) }
+
+// GetStorageBackend safely fetches the Configuration value for state's 'StorageBackend' field
+func (st *ConfigState) GetStorageBackend() (v string) {
+	return st.config.StorageBackend
+}
+
+// SetStorageBackend safely sets the Configuration value for state's 'StorageBackend' field
+func (st *ConfigState) SetStorageBackend(v string) {
+	st.config.StorageBackend = v
+	st.reloadToViper()
+}
+
+// GetStorageBackend safely fetches the value for global configuration 'StorageBackend' field
+func GetStorageBackend() string { return global.GetStorageBackend() }
+
+// SetStorageBackend safely sets the value for global configuration 'StorageBackend' field
+func SetStorageBackend(v string) { global.SetStorageBackend(v) }
+
+// GetStorageLocalBasePath safely fetches the Configuration value for state's 'StorageLocalBasePath' field
+func (st *ConfigState) GetStorageLocalBasePath() (v string) {
+	return st.config.StorageLocalBasePath
+}
+
+// SetStorageLocalBasePath safely sets the Configuration value for state's 'StorageLocalBasePath' field
+func (st *ConfigState) SetStorageLocalBasePath(v string) {
+	st.config.StorageLocalBasePath = v
+	st.reloadToViper()
+}
+
+// GetStorageLocalBasePath safely fetches the value for global configuration 'StorageLocalBasePath' field
+func GetStorageLocalBasePath() string { return global.GetStorageLocalBasePath() }
+
+// SetStorageLocalBasePath safely sets the value for global configuration 'StorageLocalBasePath' field
+func SetStorageLocalBasePath(v string) { global.SetStorageLocalBasePath(v) }
+
+// GetStorageS3Endpoint safely fetches the Configuration value for state's 'StorageS3Endpoint' field
+func (st *ConfigState) GetStorageS3Endpoint() (v string) {
+	return st.config.StorageS3Endpoint
+}
+
+// SetStorageS3Endpoint safely sets the Configuration value for state's 'StorageS3Endpoint' field
+func (st *ConfigState) SetStorageS3Endpoint(v string) {
+	st.config.StorageS3Endpoint = v
+	st.reloadToViper()
+}
+
+// GetStorageS3Endpoint safely fetches the value for global configuration 'StorageS3Endpoint' field
+func GetStorageS3Endpoint() string { return global.GetStorageS3Endpoint() }
+
+// SetStorageS3Endpoint safely sets the value for global configuration 'StorageS3Endpoint' field
+func SetStorageS3Endpoint(v string) { global.SetStorageS3Endpoint(v) }
+
+// GetStorageS3AccessKey safely fetches the Configuration value for state's 'StorageS3AccessKey' field
+func (st *ConfigState) GetStorageS3AccessKey() (v string) {
+	return st.config.StorageS3AccessKey
+}
+
+// SetStorageS3AccessKey safely sets the Configuration value for state's 'StorageS3AccessKey' field
+func (st *ConfigState) SetStorageS3AccessKey(v string) {
+	st.config.StorageS3AccessKey = v
+	st.reloadToViper()
+}
+
+// GetStorageS3AccessKey safely fetches the value for global configuration 'StorageS3AccessKey' field
+func GetStorageS3AccessKey() string { return global.GetStorageS3AccessKey() }
+
+// SetStorageS3AccessKey safely sets the value for global configuration 'StorageS3AccessKey' field
+func SetStorageS3AccessKey(v string) { global.SetStorageS3AccessKey(v) }
+
+// GetStorageS3SecretKey safely fetches the Configuration value for state's 'StorageS3SecretKey' field
+func (st *ConfigState) GetStorageS3SecretKey() (v string) {
+	return st.config.StorageS3SecretKey
+}
+
+// SetStorageS3SecretKey safely sets the Configuration value for state's 'StorageS3SecretKey' field
+func (st *ConfigState) SetStorageS3SecretKey(v string) {
+	st.config.StorageS3SecretKey = v
+	st.reloadToViper()
+}
+
+// GetStorageS3SecretKey safely fetches the value for global configuration 'StorageS3SecretKey' field
+func GetStorageS3SecretKey() string { return global.GetStorageS3SecretKey() }
+
+// SetStorageS3SecretKey safely sets the value for global configuration 'StorageS3SecretKey' field
+func SetStorageS3SecretKey(v string) { global.SetStorageS3SecretKey(v) }
+
+// GetStorageS3UseSSL safely fetches the Configuration value for state's 'StorageS3UseSSL' field
+func (st *ConfigState) GetStorageS3UseSSL() (v bool) {
+	return st.config.StorageS3UseSSL
+}
+
+// SetStorageS3UseSSL safely sets the Configuration value for state's 'StorageS3UseSSL' field
+func (st *ConfigState) SetStorageS3UseSSL(v bool) {
+	st.config.StorageS3UseSSL = v
+	st.reloadToViper()
+}
+
+// GetStorageS3UseSSL safely fetches the value for global configuration 'StorageS3UseSSL' field
+func GetStorageS3UseSSL() bool { return global.GetStorageS3UseSSL() }
+
+// SetStorageS3UseSSL safely sets the value for global configuration 'StorageS3UseSSL' field
+func SetStorageS3UseSSL(v bool) { global.SetStorageS3UseSSL(v) }
+
+// GetStorageS3BucketName safely fetches the Configuration value for state's 'StorageS3BucketName' field
+func (st *ConfigState) GetStorageS3BucketName() (v string) {
+	return st.config.StorageS3BucketName
+}
+
+// SetStorageS3BucketName safely sets the Configuration value for state's 'StorageS3BucketName' field
+func (st *ConfigState) SetStorageS3BucketName(v string) {
+	st.config.StorageS3BucketName = v
+	st.reloadToViper()
+}
+
+// GetStorageS3BucketName safely fetches the value for global configuration 'StorageS3BucketName' field
+func GetStorageS3BucketName() string { return global.GetStorageS3BucketName() }
+
+// SetStorageS3BucketName safely sets the value for global configuration 'StorageS3BucketName' field
+func SetStorageS3BucketName(v string) { global.SetStorageS3BucketName(v) }
+
+// GetStorageS3Proxy safely fetches the Configuration value for state's 'StorageS3Proxy' field
+func (st *ConfigState) GetStorageS3Proxy() (v bool) {
+	return st.config.StorageS3Proxy
+}
+
+// SetStorageS3Proxy safely sets the Configuration value for state's 'StorageS3Proxy' field
+func (st *ConfigState) SetStorageS3Proxy(v bool) {
+	st.config.StorageS3Proxy = v
+	st.reloadToViper()
+}
+
+// GetStorageS3Proxy safely fetches the value for global configuration 'StorageS3Proxy' field
+func GetStorageS3Proxy() bool { return global.GetStorageS3Proxy() }
+
+// SetStorageS3Proxy safely sets the value for global configuration 'StorageS3Proxy' field
+func SetStorageS3Proxy(v bool) { global.SetStorageS3Proxy(v) }
+
+// GetStorageS3RedirectURL safely fetches the Configuration value for state's 'StorageS3RedirectURL' field
+func (st *ConfigState) GetStorageS3RedirectURL() (v string) {
+	return st.config.StorageS3RedirectURL
+}
+
+// SetStorageS3RedirectURL safely sets the Configuration value for state's 'StorageS3RedirectURL' field
+func (st *ConfigState) SetStorageS3RedirectURL(v string) {
+	st.config.StorageS3RedirectURL = v
+	st.reloadToViper()
+}
+
+// GetStorageS3RedirectURL safely fetches the value for global configuration 'StorageS3RedirectURL' field
+func GetStorageS3RedirectURL() string { return global.GetStorageS3RedirectURL() }
+
+// SetStorageS3RedirectURL safely sets the value for global configuration 'StorageS3RedirectURL' field
+func SetStorageS3RedirectURL(v string) { global.SetStorageS3RedirectURL(v) }
+
+// GetStorageS3BucketLookup safely fetches the Configuration value for state's 'StorageS3BucketLookup' field
+func (st *ConfigState) GetStorageS3BucketLookup() (v string) {
+	return st.config.StorageS3BucketLookup
+}
+
+// SetStorageS3BucketLookup safely sets the Configuration value for state's 'StorageS3BucketLookup' field
+func (st *ConfigState) SetStorageS3BucketLookup(v string) {
+	st.config.StorageS3BucketLookup = v
+	st.reloadToViper()
+}
+
+// GetStorageS3BucketLookup safely fetches the value for global configuration 'StorageS3BucketLookup' field
+func GetStorageS3BucketLookup() string { return global.GetStorageS3BucketLookup() }
+
+// SetStorageS3BucketLookup safely sets the value for global configuration 'StorageS3BucketLookup' field
+func SetStorageS3BucketLookup(v string) { global.SetStorageS3BucketLookup(v) }
+
+// GetStorageS3KeyPrefix safely fetches the Configuration value for state's 'StorageS3KeyPrefix' field
+func (st *ConfigState) GetStorageS3KeyPrefix() (v string) {
+	return st.config.StorageS3KeyPrefix
+}
+
+// SetStorageS3KeyPrefix safely sets the Configuration value for state's 'StorageS3KeyPrefix' field
+func (st *ConfigState) SetStorageS3KeyPrefix(v string) {
+	st.config.StorageS3KeyPrefix = v
+	st.reloadToViper()
+}
+
+// GetStorageS3KeyPrefix safely fetches the value for global configuration 'StorageS3KeyPrefix' field
+func GetStorageS3KeyPrefix() string { return global.GetStorageS3KeyPrefix() }
+
+// SetStorageS3KeyPrefix safely sets the value for global configuration 'StorageS3KeyPrefix' field
+func SetStorageS3KeyPrefix(v string) { global.SetStorageS3KeyPrefix(v) }
+
+// GetStorageS3Region safely fetches the Configuration value for state's 'StorageS3Region' field
+func (st *ConfigState) GetStorageS3Region() (v string) {
+	return st.config.StorageS3Region
+}
+
+// SetStorageS3Region safely sets the Configuration value for state's 'StorageS3Region' field
+func (st *ConfigState) SetStorageS3Region(v string) {
+	st.config.StorageS3Region = v
+	st.reloadToViper()
+}
+
+// GetStorageS3Region safely fetches the value for global configuration 'StorageS3Region' field
+func GetStorageS3Region() string { return global.GetStorageS3Region() }
+
+// SetStorageS3Region safely sets the value for global configuration 'StorageS3Region' field
+func SetStorageS3Region(v string) { global.SetStorageS3Region(v) }
+
+// GetStatusesMaxChars safely fetches the Configuration value for state's 'StatusesMaxChars' field
+func (st *ConfigState) GetStatusesMaxChars() (v int) {
+	return st.config.StatusesMaxChars
+}
+
+// SetStatusesMaxChars safely sets the Configuration value for state's 'StatusesMaxChars' field
+func (st *ConfigState) SetStatusesMaxChars(v int) {
+	st.config.StatusesMaxChars = v
+	st.reloadToViper()
+}
+
+// GetStatusesMaxChars safely fetches the value for global configuration 'StatusesMaxChars' field
+func GetStatusesMaxChars() int { return global.GetStatusesMaxChars() }
+
+// SetStatusesMaxChars safely sets the value for global configuration 'StatusesMaxChars' field
+func SetStatusesMaxChars(v int) { global.SetStatusesMaxChars(v) }
+
+// GetStatusesPollMaxOptions safely fetches the Configuration value for state's 'StatusesPollMaxOptions' field
+func (st *ConfigState) GetStatusesPollMaxOptions() (v int) {
+	return st.config.StatusesPollMaxOptions
+}
+
+// SetStatusesPollMaxOptions safely sets the Configuration value for state's 'StatusesPollMaxOptions' field
+func (st *ConfigState) SetStatusesPollMaxOptions(v int) {
+	st.config.StatusesPollMaxOptions = v
+	st.reloadToViper()
+}
+
+// GetStatusesPollMaxOptions safely fetches the value for global configuration 'StatusesPollMaxOptions' field
+func GetStatusesPollMaxOptions() int { return global.GetStatusesPollMaxOptions() }
+
+// SetStatusesPollMaxOptions safely sets the value for global configuration 'StatusesPollMaxOptions' field
+func SetStatusesPollMaxOptions(v int) { global.SetStatusesPollMaxOptions(v) }
+
+// GetStatusesPollOptionMaxChars safely fetches the Configuration value for state's 'StatusesPollOptionMaxChars' field
+func (st *ConfigState) GetStatusesPollOptionMaxChars() (v int) {
+	return st.config.StatusesPollOptionMaxChars
+}
+
+// SetStatusesPollOptionMaxChars safely sets the Configuration value for state's 'StatusesPollOptionMaxChars' field
+func (st *ConfigState) SetStatusesPollOptionMaxChars(v int) {
+	st.config.StatusesPollOptionMaxChars = v
+	st.reloadToViper()
+}
+
+// GetStatusesPollOptionMaxChars safely fetches the value for global configuration 'StatusesPollOptionMaxChars' field
+func GetStatusesPollOptionMaxChars() int { return global.GetStatusesPollOptionMaxChars() }
+
+// SetStatusesPollOptionMaxChars safely sets the value for global configuration 'StatusesPollOptionMaxChars' field
+func SetStatusesPollOptionMaxChars(v int) { global.SetStatusesPollOptionMaxChars(v) }
+
+// GetStatusesMediaMaxFiles safely fetches the Configuration value for state's 'StatusesMediaMaxFiles' field
+func (st *ConfigState) GetStatusesMediaMaxFiles() (v int) {
+	return st.config.StatusesMediaMaxFiles
+}
+
+// SetStatusesMediaMaxFiles safely sets the Configuration value for state's 'StatusesMediaMaxFiles' field
+func (st *ConfigState) SetStatusesMediaMaxFiles(v int) {
+	st.config.StatusesMediaMaxFiles = v
+	st.reloadToViper()
+}
+
+// GetStatusesMediaMaxFiles safely fetches the value for global configuration 'StatusesMediaMaxFiles' field
+func GetStatusesMediaMaxFiles() int { return global.GetStatusesMediaMaxFiles() }
+
+// SetStatusesMediaMaxFiles safely sets the value for global configuration 'StatusesMediaMaxFiles' field
+func SetStatusesMediaMaxFiles(v int) { global.SetStatusesMediaMaxFiles(v) }
+
+// GetStatusesCleanupCron safely fetches the Configuration value for state's 'StatusesCleanupCron' field
+func (st *ConfigState) GetStatusesCleanupCron() (v CronExpression) {
+	return st.config.StatusesCleanupCron
+}
+
+// SetStatusesCleanupCron safely sets the Configuration value for state's 'StatusesCleanupCron' field
+func (st *ConfigState) SetStatusesCleanupCron(v CronExpression) {
+	st.config.StatusesCleanupCron = v
+	st.reloadToViper()
+}
+
+// GetStatusesCleanupCron safely fetches the value for global configuration 'StatusesCleanupCron' field
+func GetStatusesCleanupCron() CronExpression { return global.GetStatusesCleanupCron() }
+
+// SetStatusesCleanupCron safely sets the value for global configuration 'StatusesCleanupCron' field
+func SetStatusesCleanupCron(v CronExpression) { global.SetStatusesCleanupCron(v) }
+
+// GetStatusesCleanupRemoteOlderThan safely fetches the Configuration value for state's 'StatusesCleanupRemoteOlderThan' field
+func (st *ConfigState) GetStatusesCleanupRemoteOlderThan() (v longdur.Duration) {
+	return st.config.StatusesCleanupRemoteOlderThan
+}
+
+// SetStatusesCleanupRemoteOlderThan safely sets the Configuration value for state's 'StatusesCleanupRemoteOlderThan' field
+func (st *ConfigState) SetStatusesCleanupRemoteOlderThan(v longdur.Duration) {
+	st.config.StatusesCleanupRemoteOlderThan = v
+	st.reloadToViper()
+}
+
+// GetStatusesCleanupRemoteOlderThan safely fetches the value for global configuration 'StatusesCleanupRemoteOlderThan' field
+func GetStatusesCleanupRemoteOlderThan() longdur.Duration {
+	return global.GetStatusesCleanupRemoteOlderThan()
+}
+
+// SetStatusesCleanupRemoteOlderThan safely sets the value for global configuration 'StatusesCleanupRemoteOlderThan' field
+func SetStatusesCleanupRemoteOlderThan(v longdur.Duration) {
+	global.SetStatusesCleanupRemoteOlderThan(v)
+}
+
+// GetScheduledStatusesMaxTotal safely fetches the Configuration value for state's 'ScheduledStatusesMaxTotal' field
+func (st *ConfigState) GetScheduledStatusesMaxTotal() (v int) {
+	return st.config.ScheduledStatusesMaxTotal
+}
+
+// SetScheduledStatusesMaxTotal safely sets the Configuration value for state's 'ScheduledStatusesMaxTotal' field
+func (st *ConfigState) SetScheduledStatusesMaxTotal(v int) {
+	st.config.ScheduledStatusesMaxTotal = v
+	st.reloadToViper()
+}
+
+// GetScheduledStatusesMaxTotal safely fetches the value for global configuration 'ScheduledStatusesMaxTotal' field
+func GetScheduledStatusesMaxTotal() int { return global.GetScheduledStatusesMaxTotal() }
+
+// SetScheduledStatusesMaxTotal safely sets the value for global configuration 'ScheduledStatusesMaxTotal' field
+func SetScheduledStatusesMaxTotal(v int) { global.SetScheduledStatusesMaxTotal(v) }
+
+// GetScheduledStatusesMaxDaily safely fetches the Configuration value for state's 'ScheduledStatusesMaxDaily' field
+func (st *ConfigState) GetScheduledStatusesMaxDaily() (v int) {
+	return st.config.ScheduledStatusesMaxDaily
+}
+
+// SetScheduledStatusesMaxDaily safely sets the Configuration value for state's 'ScheduledStatusesMaxDaily' field
+func (st *ConfigState) SetScheduledStatusesMaxDaily(v int) {
+	st.config.ScheduledStatusesMaxDaily = v
+	st.reloadToViper()
+}
+
+// GetScheduledStatusesMaxDaily safely fetches the value for global configuration 'ScheduledStatusesMaxDaily' field
+func GetScheduledStatusesMaxDaily() int { return global.GetScheduledStatusesMaxDaily() }
+
+// SetScheduledStatusesMaxDaily safely sets the value for global configuration 'ScheduledStatusesMaxDaily' field
+func SetScheduledStatusesMaxDaily(v int) { global.SetScheduledStatusesMaxDaily(v) }
+
+// GetLetsEncryptEnabled safely fetches the Configuration value for state's 'LetsEncryptEnabled' field
+func (st *ConfigState) GetLetsEncryptEnabled() (v bool) {
+	return st.config.LetsEncryptEnabled
+}
+
+// SetLetsEncryptEnabled safely sets the Configuration value for state's 'LetsEncryptEnabled' field
+func (st *ConfigState) SetLetsEncryptEnabled(v bool) {
+	st.config.LetsEncryptEnabled = v
+	st.reloadToViper()
+}
+
+// GetLetsEncryptEnabled safely fetches the value for global configuration 'LetsEncryptEnabled' field
+func GetLetsEncryptEnabled() bool { return global.GetLetsEncryptEnabled() }
+
+// SetLetsEncryptEnabled safely sets the value for global configuration 'LetsEncryptEnabled' field
+func SetLetsEncryptEnabled(v bool) { global.SetLetsEncryptEnabled(v) }
+
+// GetLetsEncryptPort safely fetches the Configuration value for state's 'LetsEncryptPort' field
+func (st *ConfigState) GetLetsEncryptPort() (v int) {
+	return st.config.LetsEncryptPort
+}
+
+// SetLetsEncryptPort safely sets the Configuration value for state's 'LetsEncryptPort' field
+func (st *ConfigState) SetLetsEncryptPort(v int) {
+	st.config.LetsEncryptPort = v
+	st.reloadToViper()
+}
+
+// GetLetsEncryptPort safely fetches the value for global configuration 'LetsEncryptPort' field
+func GetLetsEncryptPort() int { return global.GetLetsEncryptPort() }
+
+// SetLetsEncryptPort safely sets the value for global configuration 'LetsEncryptPort' field
+func SetLetsEncryptPort(v int) { global.SetLetsEncryptPort(v) }
+
+// GetLetsEncryptCertDir safely fetches the Configuration value for state's 'LetsEncryptCertDir' field
+func (st *ConfigState) GetLetsEncryptCertDir() (v string) {
+	return st.config.LetsEncryptCertDir
+}
+
+// SetLetsEncryptCertDir safely sets the Configuration value for state's 'LetsEncryptCertDir' field
+func (st *ConfigState) SetLetsEncryptCertDir(v string) {
+	st.config.LetsEncryptCertDir = v
+	st.reloadToViper()
+}
+
+// GetLetsEncryptCertDir safely fetches the value for global configuration 'LetsEncryptCertDir' field
+func GetLetsEncryptCertDir() string { return global.GetLetsEncryptCertDir() }
+
+// SetLetsEncryptCertDir safely sets the value for global configuration 'LetsEncryptCertDir' field
+func SetLetsEncryptCertDir(v string) { global.SetLetsEncryptCertDir(v) }
+
+// GetLetsEncryptEmailAddress safely fetches the Configuration value for state's 'LetsEncryptEmailAddress' field
+func (st *ConfigState) GetLetsEncryptEmailAddress() (v string) {
+	return st.config.LetsEncryptEmailAddress
+}
+
+// SetLetsEncryptEmailAddress safely sets the Configuration value for state's 'LetsEncryptEmailAddress' field
+func (st *ConfigState) SetLetsEncryptEmailAddress(v string) {
+	st.config.LetsEncryptEmailAddress = v
+	st.reloadToViper()
+}
+
+// GetLetsEncryptEmailAddress safely fetches the value for global configuration 'LetsEncryptEmailAddress' field
+func GetLetsEncryptEmailAddress() string { return global.GetLetsEncryptEmailAddress() }
+
+// SetLetsEncryptEmailAddress safely sets the value for global configuration 'LetsEncryptEmailAddress' field
+func SetLetsEncryptEmailAddress(v string) { global.SetLetsEncryptEmailAddress(v) }
+
+// GetTLSCertificateChain safely fetches the Configuration value for state's 'TLSCertificateChain' field
+func (st *ConfigState) GetTLSCertificateChain() (v string) {
+	return st.config.TLSCertificateChain
+}
+
+// SetTLSCertificateChain safely sets the Configuration value for state's 'TLSCertificateChain' field
+func (st *ConfigState) SetTLSCertificateChain(v string) {
+	st.config.TLSCertificateChain = v
+	st.reloadToViper()
+}
+
+// GetTLSCertificateChain safely fetches the value for global configuration 'TLSCertificateChain' field
+func GetTLSCertificateChain() string { return global.GetTLSCertificateChain() }
+
+// SetTLSCertificateChain safely sets the value for global configuration 'TLSCertificateChain' field
+func SetTLSCertificateChain(v string) { global.SetTLSCertificateChain(v) }
+
+// GetTLSCertificateKey safely fetches the Configuration value for state's 'TLSCertificateKey' field
+func (st *ConfigState) GetTLSCertificateKey() (v string) {
+	return st.config.TLSCertificateKey
+}
+
+// SetTLSCertificateKey safely sets the Configuration value for state's 'TLSCertificateKey' field
+func (st *ConfigState) SetTLSCertificateKey(v string) {
+	st.config.TLSCertificateKey = v
+	st.reloadToViper()
+}
+
+// GetTLSCertificateKey safely fetches the value for global configuration 'TLSCertificateKey' field
+func GetTLSCertificateKey() string { return global.GetTLSCertificateKey() }
+
+// SetTLSCertificateKey safely sets the value for global configuration 'TLSCertificateKey' field
+func SetTLSCertificateKey(v string) { global.SetTLSCertificateKey(v) }
+
+// GetOIDCEnabled safely fetches the Configuration value for state's 'OIDCEnabled' field
+func (st *ConfigState) GetOIDCEnabled() (v bool) {
+	return st.config.OIDCEnabled
+}
+
+// SetOIDCEnabled safely sets the Configuration value for state's 'OIDCEnabled' field
+func (st *ConfigState) SetOIDCEnabled(v bool) {
+	st.config.OIDCEnabled = v
+	st.reloadToViper()
+}
+
+// GetOIDCEnabled safely fetches the value for global configuration 'OIDCEnabled' field
+func GetOIDCEnabled() bool { return global.GetOIDCEnabled() }
+
+// SetOIDCEnabled safely sets the value for global configuration 'OIDCEnabled' field
+func SetOIDCEnabled(v bool) { global.SetOIDCEnabled(v) }
+
+// GetOIDCIdpName safely fetches the Configuration value for state's 'OIDCIdpName' field
+func (st *ConfigState) GetOIDCIdpName() (v string) {
+	return st.config.OIDCIdpName
+}
+
+// SetOIDCIdpName safely sets the Configuration value for state's 'OIDCIdpName' field
+func (st *ConfigState) SetOIDCIdpName(v string) {
+	st.config.OIDCIdpName = v
+	st.reloadToViper()
+}
+
+// GetOIDCIdpName safely fetches the value for global configuration 'OIDCIdpName' field
+func GetOIDCIdpName() string { return global.GetOIDCIdpName() }
+
+// SetOIDCIdpName safely sets the value for global configuration 'OIDCIdpName' field
+func SetOIDCIdpName(v string) { global.SetOIDCIdpName(v) }
+
+// GetOIDCSkipVerification safely fetches the Configuration value for state's 'OIDCSkipVerification' field
+func (st *ConfigState) GetOIDCSkipVerification() (v bool) {
+	return st.config.OIDCSkipVerification
+}
+
+// SetOIDCSkipVerification safely sets the Configuration value for state's 'OIDCSkipVerification' field
+func (st *ConfigState) SetOIDCSkipVerification(v bool) {
+	st.config.OIDCSkipVerification = v
+	st.reloadToViper()
+}
+
+// GetOIDCSkipVerification safely fetches the value for global configuration 'OIDCSkipVerification' field
+func GetOIDCSkipVerification() bool { return global.GetOIDCSkipVerification() }
+
+// SetOIDCSkipVerification safely sets the value for global configuration 'OIDCSkipVerification' field
+func SetOIDCSkipVerification(v bool) { global.SetOIDCSkipVerification(v) }
+
+// GetOIDCIssuer safely fetches the Configuration value for state's 'OIDCIssuer' field
+func (st *ConfigState) GetOIDCIssuer() (v string) {
+	return st.config.OIDCIssuer
+}
+
+// SetOIDCIssuer safely sets the Configuration value for state's 'OIDCIssuer' field
+func (st *ConfigState) SetOIDCIssuer(v string) {
+	st.config.OIDCIssuer = v
+	st.reloadToViper()
+}
+
+// GetOIDCIssuer safely fetches the value for global configuration 'OIDCIssuer' field
+func GetOIDCIssuer() string { return global.GetOIDCIssuer() }
+
+// SetOIDCIssuer safely sets the value for global configuration 'OIDCIssuer' field
+func SetOIDCIssuer(v string) { global.SetOIDCIssuer(v) }
+
+// GetOIDCClientID safely fetches the Configuration value for state's 'OIDCClientID' field
+func (st *ConfigState) GetOIDCClientID() (v string) {
+	return st.config.OIDCClientID
+}
+
+// SetOIDCClientID safely sets the Configuration value for state's 'OIDCClientID' field
+func (st *ConfigState) SetOIDCClientID(v string) {
+	st.config.OIDCClientID = v
+	st.reloadToViper()
+}
+
+// GetOIDCClientID safely fetches the value for global configuration 'OIDCClientID' field
+func GetOIDCClientID() string { return global.GetOIDCClientID() }
+
+// SetOIDCClientID safely sets the value for global configuration 'OIDCClientID' field
+func SetOIDCClientID(v string) { global.SetOIDCClientID(v) }
+
+// GetOIDCClientSecret safely fetches the Configuration value for state's 'OIDCClientSecret' field
+func (st *ConfigState) GetOIDCClientSecret() (v string) {
+	return st.config.OIDCClientSecret
+}
+
+// SetOIDCClientSecret safely sets the Configuration value for state's 'OIDCClientSecret' field
+func (st *ConfigState) SetOIDCClientSecret(v string) {
+	st.config.OIDCClientSecret = v
+	st.reloadToViper()
+}
+
+// GetOIDCClientSecret safely fetches the value for global configuration 'OIDCClientSecret' field
+func GetOIDCClientSecret() string { return global.GetOIDCClientSecret() }
+
+// SetOIDCClientSecret safely sets the value for global configuration 'OIDCClientSecret' field
+func SetOIDCClientSecret(v string) { global.SetOIDCClientSecret(v) }
+
+// GetOIDCScopes safely fetches the Configuration value for state's 'OIDCScopes' field
+func (st *ConfigState) GetOIDCScopes() (v []string) {
+	return st.config.OIDCScopes
+}
+
+// SetOIDCScopes safely sets the Configuration value for state's 'OIDCScopes' field
+func (st *ConfigState) SetOIDCScopes(v []string) {
+	st.config.OIDCScopes = v
+	st.reloadToViper()
+}
+
+// GetOIDCScopes safely fetches the value for global configuration 'OIDCScopes' field
+func GetOIDCScopes() []string { return global.GetOIDCScopes() }
+
+// SetOIDCScopes safely sets the value for global configuration 'OIDCScopes' field
+func SetOIDCScopes(v []string) { global.SetOIDCScopes(v) }
+
+// GetOIDCLinkExisting safely fetches the Configuration value for state's 'OIDCLinkExisting' field
+func (st *ConfigState) GetOIDCLinkExisting() (v bool) {
+	return st.config.OIDCLinkExisting
+}
+
+// SetOIDCLinkExisting safely sets the Configuration value for state's 'OIDCLinkExisting' field
+func (st *ConfigState) SetOIDCLinkExisting(v bool) {
+	st.config.OIDCLinkExisting = v
+	st.reloadToViper()
+}
+
+// GetOIDCLinkExisting safely fetches the value for global configuration 'OIDCLinkExisting' field
+func GetOIDCLinkExisting() bool { return global.GetOIDCLinkExisting() }
+
+// SetOIDCLinkExisting safely sets the value for global configuration 'OIDCLinkExisting' field
+func SetOIDCLinkExisting(v bool) { global.SetOIDCLinkExisting(v) }
+
+// GetOIDCAllowedGroups safely fetches the Configuration value for state's 'OIDCAllowedGroups' field
+func (st *ConfigState) GetOIDCAllowedGroups() (v []string) {
+	return st.config.OIDCAllowedGroups
+}
+
+// SetOIDCAllowedGroups safely sets the Configuration value for state's 'OIDCAllowedGroups' field
+func (st *ConfigState) SetOIDCAllowedGroups(v []string) {
+	st.config.OIDCAllowedGroups = v
+	st.reloadToViper()
+}
+
+// GetOIDCAllowedGroups safely fetches the value for global configuration 'OIDCAllowedGroups' field
+func GetOIDCAllowedGroups() []string { return global.GetOIDCAllowedGroups() }
+
+// SetOIDCAllowedGroups safely sets the value for global configuration 'OIDCAllowedGroups' field
+func SetOIDCAllowedGroups(v []string) { global.SetOIDCAllowedGroups(v) }
+
+// GetOIDCAdminGroups safely fetches the Configuration value for state's 'OIDCAdminGroups' field
+func (st *ConfigState) GetOIDCAdminGroups() (v []string) {
+	return st.config.OIDCAdminGroups
+}
+
+// SetOIDCAdminGroups safely sets the Configuration value for state's 'OIDCAdminGroups' field
+func (st *ConfigState) SetOIDCAdminGroups(v []string) {
+	st.config.OIDCAdminGroups = v
+	st.reloadToViper()
+}
+
+// GetOIDCAdminGroups safely fetches the value for global configuration 'OIDCAdminGroups' field
+func GetOIDCAdminGroups() []string { return global.GetOIDCAdminGroups() }
+
+// SetOIDCAdminGroups safely sets the value for global configuration 'OIDCAdminGroups' field
+func SetOIDCAdminGroups(v []string) { global.SetOIDCAdminGroups(v) }
+
+// GetTracingEnabled safely fetches the Configuration value for state's 'TracingEnabled' field
+func (st *ConfigState) GetTracingEnabled() (v bool) {
+	return st.config.TracingEnabled
+}
+
+// SetTracingEnabled safely sets the Configuration value for state's 'TracingEnabled' field
+func (st *ConfigState) SetTracingEnabled(v bool) {
+	st.config.TracingEnabled = v
+	st.reloadToViper()
+}
+
+// GetTracingEnabled safely fetches the value for global configuration 'TracingEnabled' field
+func GetTracingEnabled() bool { return global.GetTracingEnabled() }
+
+// SetTracingEnabled safely sets the value for global configuration 'TracingEnabled' field
+func SetTracingEnabled(v bool) { global.SetTracingEnabled(v) }
+
+// GetMetricsEnabled safely fetches the Configuration value for state's 'MetricsEnabled' field
+func (st *ConfigState) GetMetricsEnabled() (v bool) {
+	return st.config.MetricsEnabled
+}
+
+// SetMetricsEnabled safely sets the Configuration value for state's 'MetricsEnabled' field
+func (st *ConfigState) SetMetricsEnabled(v bool) {
+	st.config.MetricsEnabled = v
+	st.reloadToViper()
+}
+
+// GetMetricsEnabled safely fetches the value for global configuration 'MetricsEnabled' field
+func GetMetricsEnabled() bool { return global.GetMetricsEnabled() }
+
+// SetMetricsEnabled safely sets the value for global configuration 'MetricsEnabled' field
+func SetMetricsEnabled(v bool) { global.SetMetricsEnabled(v) }
+
+// GetSMTPHost safely fetches the Configuration value for state's 'SMTPHost' field
+func (st *ConfigState) GetSMTPHost() (v string) {
+	return st.config.SMTPHost
+}
+
+// SetSMTPHost safely sets the Configuration value for state's 'SMTPHost' field
+func (st *ConfigState) SetSMTPHost(v string) {
+	st.config.SMTPHost = v
+	st.reloadToViper()
+}
+
+// GetSMTPHost safely fetches the value for global configuration 'SMTPHost' field
+func GetSMTPHost() string { return global.GetSMTPHost() }
+
+// SetSMTPHost safely sets the value for global configuration 'SMTPHost' field
+func SetSMTPHost(v string) { global.SetSMTPHost(v) }
+
+// GetSMTPPort safely fetches the Configuration value for state's 'SMTPPort' field
+func (st *ConfigState) GetSMTPPort() (v int) {
+	return st.config.SMTPPort
+}
+
+// SetSMTPPort safely sets the Configuration value for state's 'SMTPPort' field
+func (st *ConfigState) SetSMTPPort(v int) {
+	st.config.SMTPPort = v
+	st.reloadToViper()
+}
+
+// GetSMTPPort safely fetches the value for global configuration 'SMTPPort' field
+func GetSMTPPort() int { return global.GetSMTPPort() }
+
+// SetSMTPPort safely sets the value for global configuration 'SMTPPort' field
+func SetSMTPPort(v int) { global.SetSMTPPort(v) }
+
+// GetSMTPUsername safely fetches the Configuration value for state's 'SMTPUsername' field
+func (st *ConfigState) GetSMTPUsername() (v string) {
+	return st.config.SMTPUsername
+}
+
+// SetSMTPUsername safely sets the Configuration value for state's 'SMTPUsername' field
+func (st *ConfigState) SetSMTPUsername(v string) {
+	st.config.SMTPUsername = v
+	st.reloadToViper()
+}
+
+// GetSMTPUsername safely fetches the value for global configuration 'SMTPUsername' field
+func GetSMTPUsername() string { return global.GetSMTPUsername() }
+
+// SetSMTPUsername safely sets the value for global configuration 'SMTPUsername' field
+func SetSMTPUsername(v string) { global.SetSMTPUsername(v) }
+
+// GetSMTPPassword safely fetches the Configuration value for state's 'SMTPPassword' field
+func (st *ConfigState) GetSMTPPassword() (v string) {
+	return st.config.SMTPPassword
+}
+
+// SetSMTPPassword safely sets the Configuration value for state's 'SMTPPassword' field
+func (st *ConfigState) SetSMTPPassword(v string) {
+	st.config.SMTPPassword = v
+	st.reloadToViper()
+}
+
+// GetSMTPPassword safely fetches the value for global configuration 'SMTPPassword' field
+func GetSMTPPassword() string { return global.GetSMTPPassword() }
+
+// SetSMTPPassword safely sets the value for global configuration 'SMTPPassword' field
+func SetSMTPPassword(v string) { global.SetSMTPPassword(v) }
+
+// GetSMTPFrom safely fetches the Configuration value for state's 'SMTPFrom' field
+func (st *ConfigState) GetSMTPFrom() (v string) {
+	return st.config.SMTPFrom
+}
+
+// SetSMTPFrom safely sets the Configuration value for state's 'SMTPFrom' field
+func (st *ConfigState) SetSMTPFrom(v string) {
+	st.config.SMTPFrom = v
+	st.reloadToViper()
+}
+
+// GetSMTPFrom safely fetches the value for global configuration 'SMTPFrom' field
+func GetSMTPFrom() string { return global.GetSMTPFrom() }
+
+// SetSMTPFrom safely sets the value for global configuration 'SMTPFrom' field
+func SetSMTPFrom(v string) { global.SetSMTPFrom(v) }
+
+// GetSMTPFromDisplayName safely fetches the Configuration value for state's 'SMTPFromDisplayName' field
+func (st *ConfigState) GetSMTPFromDisplayName() (v string) {
+	return st.config.SMTPFromDisplayName
+}
+
+// SetSMTPFromDisplayName safely sets the Configuration value for state's 'SMTPFromDisplayName' field
+func (st *ConfigState) SetSMTPFromDisplayName(v string) {
+	st.config.SMTPFromDisplayName = v
+	st.reloadToViper()
+}
+
+// GetSMTPFromDisplayName safely fetches the value for global configuration 'SMTPFromDisplayName' field
+func GetSMTPFromDisplayName() string { return global.GetSMTPFromDisplayName() }
+
+// SetSMTPFromDisplayName safely sets the value for global configuration 'SMTPFromDisplayName' field
+func SetSMTPFromDisplayName(v string) { global.SetSMTPFromDisplayName(v) }
+
+// GetSMTPDiscloseRecipients safely fetches the Configuration value for state's 'SMTPDiscloseRecipients' field
+func (st *ConfigState) GetSMTPDiscloseRecipients() (v bool) {
+	return st.config.SMTPDiscloseRecipients
+}
+
+// SetSMTPDiscloseRecipients safely sets the Configuration value for state's 'SMTPDiscloseRecipients' field
+func (st *ConfigState) SetSMTPDiscloseRecipients(v bool) {
+	st.config.SMTPDiscloseRecipients = v
+	st.reloadToViper()
+}
+
+// GetSMTPDiscloseRecipients safely fetches the value for global configuration 'SMTPDiscloseRecipients' field
+func GetSMTPDiscloseRecipients() bool { return global.GetSMTPDiscloseRecipients() }
+
+// SetSMTPDiscloseRecipients safely sets the value for global configuration 'SMTPDiscloseRecipients' field
+func SetSMTPDiscloseRecipients(v bool) { global.SetSMTPDiscloseRecipients(v) }
+
+// GetSyslogEnabled safely fetches the Configuration value for state's 'SyslogEnabled' field
+func (st *ConfigState) GetSyslogEnabled() (v bool) {
+	return st.config.SyslogEnabled
+}
+
+// SetSyslogEnabled safely sets the Configuration value for state's 'SyslogEnabled' field
+func (st *ConfigState) SetSyslogEnabled(v bool) {
+	st.config.SyslogEnabled = v
+	st.reloadToViper()
+}
+
+// GetSyslogEnabled safely fetches the value for global configuration 'SyslogEnabled' field
+func GetSyslogEnabled() bool { return global.GetSyslogEnabled() }
+
+// SetSyslogEnabled safely sets the value for global configuration 'SyslogEnabled' field
+func SetSyslogEnabled(v bool) { global.SetSyslogEnabled(v) }
+
+// GetSyslogProtocol safely fetches the Configuration value for state's 'SyslogProtocol' field
+func (st *ConfigState) GetSyslogProtocol() (v string) {
+	return st.config.SyslogProtocol
+}
+
+// SetSyslogProtocol safely sets the Configuration value for state's 'SyslogProtocol' field
+func (st *ConfigState) SetSyslogProtocol(v string) {
+	st.config.SyslogProtocol = v
+	st.reloadToViper()
+}
+
+// GetSyslogProtocol safely fetches the value for global configuration 'SyslogProtocol' field
+func GetSyslogProtocol() string { return global.GetSyslogProtocol() }
+
+// SetSyslogProtocol safely sets the value for global configuration 'SyslogProtocol' field
+func SetSyslogProtocol(v string) { global.SetSyslogProtocol(v) }
+
+// GetSyslogAddress safely fetches the Configuration value for state's 'SyslogAddress' field
+func (st *ConfigState) GetSyslogAddress() (v string) {
+	return st.config.SyslogAddress
+}
+
+// SetSyslogAddress safely sets the Configuration value for state's 'SyslogAddress' field
+func (st *ConfigState) SetSyslogAddress(v string) {
+	st.config.SyslogAddress = v
+	st.reloadToViper()
+}
+
+// GetSyslogAddress safely fetches the value for global configuration 'SyslogAddress' field
+func GetSyslogAddress() string { return global.GetSyslogAddress() }
+
+// SetSyslogAddress safely sets the value for global configuration 'SyslogAddress' field
+func SetSyslogAddress(v string) { global.SetSyslogAddress(v) }
+
 // GetAdminAccountUsername safely fetches the Configuration value for state's 'AdminAccountUsername' field
 func (st *ConfigState) GetAdminAccountUsername() (v string) {
 	return st.config.AdminAccountUsername
@@ -7096,1444 +7256,3 @@ func (st *ConfigState) GetTotalOfMemRatios() (total float64) {
 
 // GetTotalOfMemRatios safely fetches the combined value for all the global state's mem ratio fields
 func GetTotalOfMemRatios() (total float64) { return global.GetTotalOfMemRatios() }
-
-func flattenConfigMap(cfgmap map[string]any) {
-	nestedKeys := make(map[string]struct{})
-	for _, key := range [][]string{
-		{"advanced", "cookies-samesite"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["advanced-cookies-samesite"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"advanced", "sender-multiplier"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["advanced-sender-multiplier"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"advanced", "csp-extra-uris"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["advanced-csp-extra-uris"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"advanced", "header-filter-mode"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["advanced-header-filter-mode"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"advanced-rate-limit", "requests"},
-		{"advanced", "rate-limit", "requests"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["advanced-rate-limit-requests"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"advanced-rate-limit", "exceptions"},
-		{"advanced", "rate-limit", "exceptions"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["advanced-rate-limit-exceptions"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"advanced-throttling", "multiplier"},
-		{"advanced", "throttling", "multiplier"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["advanced-throttling-multiplier"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"advanced-throttling", "retry-after"},
-		{"advanced", "throttling", "retry-after"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["advanced-throttling-retry-after"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "max-multipart-memory"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-max-multipart-memory"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "use-h2c"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-use-h2c"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "read-timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-read-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "read-header-timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-read-header-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "write-timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-write-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "idle-timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-idle-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "max-header-bytes"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-max-header-bytes"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "max-concurrent-streams"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-max-concurrent-streams"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "max-decoder-header-table-size"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-max-decoder-header-table-size"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "max-encoder-header-table-size"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-max-encoder-header-table-size"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "max-read-frame-size"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-max-read-frame-size"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "max-receive-buffer-per-connection"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-max-receive-buffer-per-connection"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "max-receive-buffer-per-stream"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-max-receive-buffer-per-stream"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "send-ping-timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-send-ping-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "ping-timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-ping-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-server", "write-byte-timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-server-write-byte-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "allow-ips"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-allow-ips"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "block-ips"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-block-ips"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "tls-insecure-skip-verify"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-tls-insecure-skip-verify"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "insecure-outgoing"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-insecure-outgoing"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "disable-keep-alives"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-disable-keep-alives"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "max-idle-conns"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-max-idle-conns"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "max-idle-conns-per-host"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-max-idle-conns-per-host"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "max-conns-per-host"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-max-conns-per-host"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "idle-conn-timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-idle-conn-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "tls-handshake-timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-tls-handshake-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "response-header-timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-response-header-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "read-buffer-size"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-read-buffer-size"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"http-client", "write-buffer-size"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["http-client-write-buffer-size"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "description-min-chars"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-description-min-chars"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "description-max-chars"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-description-max-chars"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "emoji-local-max-size"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-emoji-local-max-size"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "emoji-remote-max-size"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-emoji-remote-max-size"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "image-size-hint"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-image-size-hint"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "video-size-hint"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-video-size-hint"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "local-max-size"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-local-max-size"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "remote-max-size"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-remote-max-size"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "ffmpeg-pool-size"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-ffmpeg-pool-size"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "thumb-max-pixels"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-thumb-max-pixels"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "remote-cache-duration"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-remote-cache-duration"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "cleanup-cron"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-cleanup-cron"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "remote-cache-days"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-remote-cache-days"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "cleanup-from"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-cleanup-from"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"media", "cleanup-every"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["media-cleanup-every"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "s3-object-info"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-s3-object-info"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "home-timeline-size"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-home-timeline-size"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "list-timeline-size"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-list-timeline-size"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "tag-timeline-size"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-tag-timeline-size"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "home-timeline-timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-home-timeline-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "list-timeline-timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-list-timeline-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "tag-timeline-timeout"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-tag-timeline-timeout"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "memory-target"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-memory-target"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "account-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-account-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "account-note-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-account-note-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "account-settings-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-account-settings-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "account-stats-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-account-stats-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "application-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-application-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "block-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-block-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "block-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-block-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "boost-of-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-boost-of-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "client-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-client-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "conversation-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-conversation-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "conversation-last-status-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-conversation-last-status-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "domain-permission-draft-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-domain-permission-draft-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "domain-permission-limit-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-domain-permission-limit-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "domain-permission-subscription-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-domain-permission-subscription-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "emoji-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-emoji-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "emoji-category-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-emoji-category-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "federation-error-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-federation-error-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "filter-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-filter-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "filter-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-filter-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "filter-keyword-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-filter-keyword-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "filter-status-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-filter-status-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "follow-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-follow-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "follow-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-follow-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "follow-request-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-follow-request-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "follow-request-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-follow-request-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "following-tag-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-following-tag-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "home-account-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-home-account-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "in-reply-to-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-in-reply-to-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "instance-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-instance-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "interaction-request-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-interaction-request-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "list-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-list-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "list-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-list-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "listed-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-listed-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "marker-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-marker-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "media-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-media-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "mention-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-mention-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "move-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-move-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "notification-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-notification-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "poll-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-poll-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "poll-vote-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-poll-vote-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "poll-vote-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-poll-vote-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "report-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-report-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "relay-actor-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-relay-actor-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "relay-matcher-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-relay-matcher-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "relay-push-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-relay-push-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "relay-push-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-relay-push-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "relay-subscription-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-relay-subscription-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "scheduled-status-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-scheduled-status-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "sin-bin-status-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-sin-bin-status-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "status-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-status-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "status-bookmark-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-status-bookmark-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "status-bookmark-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-status-bookmark-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "status-edit-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-status-edit-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "status-fave-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-status-fave-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "status-fave-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-status-fave-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "status-pinned-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-status-pinned-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "tag-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-tag-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "thread-mute-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-thread-mute-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "token-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-token-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "tombstone-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-tombstone-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "user-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-user-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "user-mute-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-user-mute-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "user-mute-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-user-mute-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "webfinger-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-webfinger-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "web-push-subscription-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-web-push-subscription-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "web-push-subscription-ids-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-web-push-subscription-ids-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "mutes-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-mutes-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "status-filter-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-status-filter-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for _, key := range [][]string{
-		{"cache", "visibility-mem-ratio"},
-	} {
-		ival, ok := mapGet(cfgmap, key...)
-		if ok {
-			cfgmap["cache-visibility-mem-ratio"] = ival
-			nestedKeys[key[0]] = struct{}{}
-			break
-		}
-	}
-
-	for key := range nestedKeys {
-		delete(cfgmap, key)
-	}
-}

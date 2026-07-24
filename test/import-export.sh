@@ -5,8 +5,8 @@ set -ex
 HOST='localhost:8080'
 ADDR='127.0.0.1'
 PORT='8080'
-DB=$(mktemp)
-STORAGE=$(mktemp -d)
+DB="$(mktemp)"
+STORAGE="$(mktemp -d)"
 EXPORT="$(mktemp --suffix '.json')"
 
 _kill() {
@@ -33,6 +33,15 @@ gotosocial() {
 # Cleanup instance, database file, export file, storage on exit
 trap "_kill 9; rm -f $DB; rm -f $EXPORT; rm -rf $STORAGE" exit
 
+# Ensure server runs once
+# to create instance account
+gotosocial server start &
+
+# Kill server
+sleep 5
+_kill 15
+sleep 5
+
 # Iterate list of usernames
 for username in scoobert \
                 shaggy \
@@ -51,14 +60,6 @@ for username in scoobert \
     gotosocial admin account confirm \
         --username ${username}
 done
-
-# Ensure server runs once
-gotosocial server start &
-
-# Kill server
-sleep 5
-_kill 15
-sleep 5
 
 # Export current gts database to file
 gotosocial admin export --path "$EXPORT" \

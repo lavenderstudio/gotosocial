@@ -730,7 +730,7 @@ func (c *Converter) addPollToAS(poll *gtsmodel.Poll, dst ap.Pollable) error {
 
 	if !*poll.HideCounts {
 		// Set total no. voting accounts.
-		ap.SetVotersCount(dst, *poll.Voters)
+		ap.SetVotersCount(dst, poll.Voters)
 	}
 
 	if *poll.Multiple {

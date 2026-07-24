@@ -260,7 +260,7 @@ func (suite *PollTestSuite) TestPutPollVote() {
 		for _, choice := range vote.Choices {
 			latest.Votes[choice]--
 		}
-		(*latest.Voters)--
+		(latest.Voters)--
 
 		// Old poll and latest model after decr
 		// should have equal vote + voter counts.
@@ -303,7 +303,7 @@ func (suite *PollTestSuite) TestDeletePollVotesBy() {
 		suite.NoError(err)
 
 		// Voters count should be reduced by 1.
-		suite.Equal(*pollBefore.Voters-1, *pollAfter.Voters)
+		suite.Equal(pollBefore.Voters-1, pollAfter.Voters)
 	}
 }
 

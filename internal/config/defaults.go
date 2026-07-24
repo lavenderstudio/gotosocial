@@ -46,19 +46,27 @@ var Defaults = Configuration{
 		MustParsePrefix("::1"),
 	}, // localhost
 
-	DbType:                   "",
-	DbAddress:                "",
-	DbPort:                   5432,
-	DbUser:                   "",
-	DbPassword:               "",
-	DbDatabase:               "gotosocial",
-	DbTLSMode:                "disable",
-	DbTLSCACert:              "",
-	DbMaxOpenConnsMultiplier: 8,
-	DbSqliteJournalMode:      "WAL",
-	DbSqliteSynchronous:      "NORMAL",
-	DbSqliteCacheSize:        8 * bytesize.MiB,
-	DbSqliteBusyTimeout:      time.Minute * 30,
+	Database: DatabaseConfiguration{
+		Type:                   "",
+		Address:                "",
+		MaxOpenConnsMultiplier: 8,
+
+		Postgres: PostgresConfiguration{
+			Port:      5432,
+			User:      "",
+			Password:  "",
+			Database:  "gotosocial",
+			TLSMode:   "disable",
+			TLSCACert: "",
+		},
+
+		SQLite: SQLiteConfiguration{
+			JournalMode: "WAL",
+			Synchronous: "NORMAL",
+			CacheSize:   8 * bytesize.MiB,
+			BusyTimeout: time.Minute * 30,
+		},
+	},
 
 	WebTemplateBaseDir: "./web/template/",
 	WebAssetBaseDir:    "./web/assets/",

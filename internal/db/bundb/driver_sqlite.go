@@ -42,10 +42,10 @@ func init() {
 }
 
 func sqliteConn(ctx context.Context) (*sql.DB, func() schema.Dialect, error) {
-	// validate db address has actually been set
-	address := config.GetDbAddress()
+	// Ensure "address" has actually been set.
+	address := config.GetDatabaseAddress()
 	if address == "" {
-		return nil, nil, fmt.Errorf("'%s' was not set when attempting to start sqlite", config.DbAddressFlag)
+		return nil, nil, fmt.Errorf("'%s' was not set when attempting to start sqlite", config.DatabaseAddressFlag)
 	}
 
 	// Build SQLite connection address with prefs.
@@ -141,23 +141,23 @@ func buildSQLiteAddress(addr string) (string, bool) {
 		prefs.Add("vfs", "memdb")
 	}
 
-	if dur := config.GetDbSqliteBusyTimeout(); dur > 0 {
+	if dur := config.GetDatabaseSQLiteBusyTimeout(); dur > 0 {
 		// Set the user provided SQLite busy timeout
 		// NOTE: MUST BE SET BEFORE THE JOURNAL MODE.
 		prefs.Add("_pragma", fmt.Sprintf("busy_timeout(%d)", dur.Milliseconds()))
 	}
 
-	if mode := config.GetDbSqliteJournalMode(); mode != "" {
+	if mode := config.GetDatabaseSQLiteJournalMode(); mode != "" {
 		// Set the user provided SQLite journal mode.
 		prefs.Add("_pragma", fmt.Sprintf("journal_mode(%s)", mode))
 	}
 
-	if mode := config.GetDbSqliteSynchronous(); mode != "" {
+	if mode := config.GetDatabaseSQLiteSynchronous(); mode != "" {
 		// Set the user provided SQLite synchronous mode.
 		prefs.Add("_pragma", fmt.Sprintf("synchronous(%s)", mode))
 	}
 
-	if sz := config.GetDbSqliteCacheSize(); sz > 0 {
+	if sz := config.GetDatabaseSQLiteCacheSize(); sz > 0 {
 		// Set the user provided SQLite cache size (in kibibytes)
 		// Prepend a '-' character to this to indicate to sqlite
 		// that we're giving kibibytes rather than num pages.

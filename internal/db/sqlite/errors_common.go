@@ -15,23 +15,23 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package db
+package sqlite
 
-import (
-	"database/sql"
-	"errors"
-)
+import "code.superseriousbusiness.org/gotosocial/internal/db"
 
-var (
-	// ErrNoEntries is a direct ptr to sql.ErrNoRows since that is returned regardless
-	// of DB dialect. It is returned when no rows (entries) can be found for a query.
-	ErrNoEntries = sql.ErrNoRows
+// isAlreadyExistsErr wraps an en error to separately
+// implement Is() to return true for db.ErrAlreadyExists,
+// while still returning the more useful err string.
+type isAlreadyExistsErr struct{ err error }
 
-	// ErrAlreadyExists is returned when a conflict
-	// was encountered in the db when doing an insert.
-	ErrAlreadyExists = errors.New("already exists")
+func (err isAlreadyExistsErr) Is(target error) bool {
+	return target == db.ErrAlreadyExists
+}
 
-	// ErrMultipleEntries is returned when multiple entries
-	// are found in the db when only one entry is sought.
-	ErrMultipleEntries = errors.New("multiple entries")
-)
+func (err isAlreadyExistsErr) Error() string {
+	return err.err.Error()
+}
+
+func (err isAlreadyExistsErr) Unwrap() error {
+	return err.err
+}

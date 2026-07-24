@@ -27,9 +27,9 @@ type Poll struct {
 	ID         string    `bun:"type:CHAR(26),pk,nullzero,notnull,unique"` // Unique identity string.
 	Multiple   *bool     `bun:",nullzero,notnull,default:false"`          // Is this a multiple choice poll? i.e. can you vote on multiple options.
 	HideCounts *bool     `bun:",nullzero,notnull,default:false"`          // Hides vote counts until poll ends.
-	Options    []string  `bun:",nullzero,notnull"`                        // The available options for this poll.
-	Votes      []int     `bun:",nullzero,notnull"`                        // Vote counts per choice.
-	Voters     *int      `bun:",nullzero,notnull"`                        // Total no. voters count.
+	Options    []string  `bun:",notnull"`                                 // The available options for this poll.
+	Votes      []int     `bun:",notnull"`                                 // Vote counts per choice.
+	Voters     int       `bun:",notnull"`                                 // Total no. voters count.
 	StatusID   string    `bun:"type:CHAR(26),nullzero,notnull,unique"`    // Status ID of which this Poll is attached to.
 	Status     *Status   `bun:"-"`                                        // The related Status for StatusID (not always set).
 	ExpiresAt  time.Time `bun:"type:timestamptz,nullzero"`                // The expiry date of this Poll, will be zerotime until set. (local polls ALWAYS have this set).
@@ -84,7 +84,7 @@ func (p *Poll) IncrementVotes(choices []int, isNew bool) {
 		p.Votes[choice]++
 	}
 	if isNew {
-		(*p.Voters)++
+		p.Voters++
 	}
 }
 
@@ -99,16 +99,16 @@ func (p *Poll) DecrementVotes(choices []int, withVoter bool) {
 			p.Votes[choice]--
 		}
 	}
-	if (*p.Voters) != 0 &&
+	if p.Voters != 0 &&
 		withVoter {
-		(*p.Voters)--
+		p.Voters--
 	}
 }
 
 // ResetVotes resets all stored vote counts.
 func (p *Poll) ResetVotes() {
 	p.Votes = make([]int, len(p.Options))
-	p.Voters = new(int)
+	p.Voters = 0
 }
 
 // CheckVotes ensures that the Poll.Votes slice is not nil,
@@ -118,9 +118,6 @@ func (p *Poll) ResetVotes() {
 func (p *Poll) CheckVotes() {
 	if p.Votes == nil {
 		p.Votes = make([]int, len(p.Options))
-	}
-	if p.Voters == nil {
-		p.Voters = new(int)
 	}
 }
 

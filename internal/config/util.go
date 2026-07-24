@@ -24,6 +24,19 @@ import (
 	"github.com/spf13/cast"
 )
 
+// joinFlag joins 2 not-empty flag parts with a hyphen '-',
+// else just returns the single not-empty flag part.
+func joinFlag(p1, p2 string) string {
+	if p1 == "" {
+		return p2
+	} else if p2 == "" {
+		return p1
+	}
+	return p1 + "-" + p2
+}
+
+// toStringSlice attempts to coerce input variable to a string slice,
+// preferably by some form of casting, else splitting as comma-separated.
 func toStringSlice(a any) ([]string, error) {
 	switch a := a.(type) {
 	case []string:
@@ -45,30 +58,24 @@ func toStringSlice(a any) ([]string, error) {
 	}
 }
 
-func mapGet(m map[string]any, keys ...string) (any, bool) {
-	for len(keys) > 0 {
-		key := keys[0]
-		keys = keys[1:]
-
-		// Check for key.
-		v, ok := m[key]
-		if !ok {
-			return nil, false
-		}
-
-		if len(keys) == 0 {
-			// Has to be value.
-			return v, true
-		}
-
-		// Else, it needs to have
-		// nesting to keep searching.
-		switch t := v.(type) {
-		case map[string]any:
-			m = t
-		default:
-			return nil, false
+// flattenConfigMap ...
+func flattenConfigMap(m map[string]any) {
+	var flatten func(src map[string]any, prefix string)
+	flatten = func(src map[string]any, prefix string) {
+		for k, v := range src {
+			switch v := v.(type) {
+			case map[string]any:
+				flatten(v, joinFlag(prefix, k))
+			default:
+				m[joinFlag(prefix, k)] = v
+			}
 		}
 	}
-	return nil, false
+	for k, v := range m {
+		switch v := v.(type) { //nolint
+		case map[string]any:
+			flatten(v, k)
+			delete(m, k)
+		}
+	}
 }

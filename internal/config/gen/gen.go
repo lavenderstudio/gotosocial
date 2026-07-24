@@ -24,7 +24,6 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
-	"slices"
 	"strings"
 	"time"
 
@@ -34,7 +33,7 @@ import (
 const license = `// GoToSocial
 // Copyright (C) GoToSocial Authors admin@gotosocial.org
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -68,10 +67,13 @@ func main() {
 		panic(err)
 	}
 
-	configType := reflect.TypeOf(config.Configuration{})
+	var confStruct ConfigStruct
+	confType := reflect.TypeOf(config.Configuration{})
 
-	// Parse our config type for usable fields.
-	fields := loadConfigFields(nil, nil, configType)
+	// Parse our config type for
+	// usable configuration fields.
+	confStruct.Type = confType
+	confStruct.Load(confType)
 
 	fprintf(output, "// THIS IS A GENERATED FILE, DO NOT EDIT BY HAND\n")
 	fprintf(output, license)
@@ -85,28 +87,52 @@ func main() {
 	fprintf(output, "\t\"github.com/spf13/cast\"\n")
 	fprintf(output, ")\n")
 	fprintf(output, "\n")
-	generateFlagConsts(output, fields)
-	generateFlagRegistering(output, fields)
-	generateMapMarshaler(output, fields)
-	generateMapUnmarshaler(output, fields)
-	generateGetSetters(output, fields)
-	generateMapFlattener(output, fields)
+	generateFlagConsts(output, &confStruct)
+	generateFlagRegistering(output, &confStruct)
+	generateMapMarshaler(output, &confStruct)
+	generateMapUnmarshaler(output, &confStruct)
+	generateGetSetters(output, &confStruct)
 	must(output.Close())
 	must(exec.Command("goimports", "-w", out).Run())
 }
 
+type ConfigStruct struct {
+	// The config struct this
+	// struct *may* be a member of,
+	// this provides prefixes.
+	Struct *ConfigStruct
+
+	// ...
+	FlagName string
+
+	// The name of struct's field
+	// in its containing struct.
+	FieldName string
+
+	// The underlying Go type
+	// of the config struct.
+	Type reflect.Type
+
+	// ...
+	Fields []ConfigField
+
+	// ...
+	Structs []ConfigStruct
+}
+
 type ConfigField struct {
-	// Any CLI flag prefixes,
-	// i.e. with nested fields.
-	Prefixes []string
+	// The config struct this
+	// field is a member of,
+	// this provides prefixes.
+	Struct *ConfigStruct
 
-	// The base CLI flag
+	// The config flag
 	// name of the field.
-	Name string
+	FlagName string
 
-	// Path to struct field
-	// in dot-separated form.
-	Path string
+	// The name of this field
+	// in containing struct.
+	FieldName string
 
 	// Usage string.
 	Usage string
@@ -124,106 +150,137 @@ type ConfigField struct {
 	DeprecatedBy string
 }
 
-// Flag returns the combined "prefixes-name" CLI flag for config field.
-func (f ConfigField) Flag() string {
-	flag := strings.Join(append(f.Prefixes, f.Name), "-")
-	flag = strings.ToLower(flag)
+// Flag ...
+func (f *ConfigField) Flag() string {
+	flag := f.FlagName
+	parent := f.Struct
+	for parent != nil && parent.FlagName != "" {
+		flag = parent.FlagName + "-" + flag
+		parent = parent.Struct
+	}
 	return flag
 }
 
-// PossibleKeys returns a list of possible map key combinations
-// that this config field may be found under. The combined "prefixes-name"
-// will always be in the list, but also separates them out to account for
-// possible nesting. This allows us to support both nested and un-nested
-// configuration files, always prioritizing "prefixes-name" as its the CLI flag.
-func (f ConfigField) PossibleKeys() [][]string {
-	if len(f.Prefixes) == 0 {
-		return [][]string{{f.Name}}
+// Path ...
+func (f *ConfigField) Path() string {
+	path := f.FieldName
+	parent := f.Struct
+	for parent != nil && parent.FieldName != "" {
+		path = parent.FieldName + "." + path
+		parent = parent.Struct
 	}
-
-	var keys [][]string
-
-	combined := f.Flag()
-	keys = append(keys, []string{combined})
-
-	basePrefix := strings.TrimSuffix(combined, "-"+f.Name)
-	keys = append(keys, []string{basePrefix, f.Name})
-
-	for i := len(f.Prefixes) - 1; i >= 0; i-- {
-		prefix := f.Prefixes[i]
-
-		basePrefix = strings.TrimSuffix(basePrefix, prefix)
-		basePrefix = strings.TrimSuffix(basePrefix, "-")
-		if len(basePrefix) == 0 {
-			break
-		}
-
-		var key []string
-		key = append(key, basePrefix)
-		key = append(key, f.Prefixes[i:]...)
-		key = append(key, f.Name)
-		keys = append(keys, key)
-	}
-
-	return keys
+	return path
 }
 
-func loadConfigFields(pathPrefixes, flagPrefixes []string, t reflect.Type) []ConfigField {
-	var out []ConfigField
+// TypeName ...
+func (f *ConfigField) TypeName() string {
+	return strings.TrimPrefix(f.Type.String(), "config.")
+}
+
+// TypeName ...
+func (s *ConfigStruct) TypeName() string {
+	return strings.TrimPrefix(s.Type.String(), "config.")
+}
+
+// Load ...
+func (s *ConfigStruct) Load(t reflect.Type) {
 	for i := 0; i < t.NumField(); i++ {
-		// Struct field at index.
 		field := t.Field(i)
 
 		// Get field's tagged name.
 		name := field.Tag.Get("name")
-		if name == "" || name == "-" {
+		if name == "-" {
 			continue
 		}
 
 		// Get field's tagged usage.
 		usage := field.Tag.Get("usage")
 
-		// Look for name that deprecates this one.
+		// Check if another deprecates this one.
 		depBy := field.Tag.Get("deprecated-by")
 
 		if ft := field.Type; ft.Kind() == reflect.Struct &&
 			depBy == "" && usage == "" {
+
 			// This is a nested struct, load nested fields.
-			pathPrefixes := append(pathPrefixes, field.Name)
-			flagPrefixes := append(flagPrefixes, name)
-			out = append(out, loadConfigFields(pathPrefixes, flagPrefixes, ft)...)
+			s.Structs = append(s.Structs, ConfigStruct{})
+			nested := &(s.Structs[len(s.Structs)-1])
+			nested.Struct = s
+			nested.Type = ft
+			nested.FlagName = name // can be empty
+			nested.FieldName = field.Name
+			nested.Load(ft)
 			continue
 		}
 
-		// Get prefixed, period-separated, config variable struct "path".
-		fieldPath := strings.Join(append(pathPrefixes, field.Name), ".")
+		// We have a config value,
+		// ensure is valid field.
+		if name == "" {
+			panic("field with empty name")
+		}
 
-		// Append prepared ConfigField.
-		out = append(out, ConfigField{
-			Prefixes:     flagPrefixes,
-			Name:         name,
-			Path:         fieldPath,
-			Type:         field.Type,
+		// Append ConfigField to parent struct.
+		s.Fields = append(s.Fields, ConfigField{
+			Struct:       s,
+			FlagName:     name,
+			FieldName:    field.Name,
 			Usage:        usage,
+			Type:         field.Type,
 			RegisterCLI:  field.Tag.Get("nocli") != "yes",
 			DeprecatedBy: depBy,
 		})
 	}
-	return out
 }
 
-func generateFlagConsts(out io.Writer, fields []ConfigField) {
+// RangeFields ...
+func (s *ConfigStruct) RangeFields(yield func(*ConfigField) bool) {
+	if yield == nil {
+		panic("nil func")
+	}
+	for i := range s.Structs {
+		(&s.Structs[i]).RangeFields(yield)
+	}
+	for i := range s.Fields {
+		if !yield(&s.Fields[i]) {
+			return
+		}
+	}
+}
+
+func generateFlagConsts(out io.Writer, config *ConfigStruct) {
 	fprintf(out, "const (\n")
-	for _, field := range fields {
-		name := strings.ReplaceAll(field.Path, ".", "")
+	for field := range config.RangeFields {
+		name := strings.ReplaceAll(field.Path(), ".", "")
 		fprintf(out, "\t%sFlag = \"%s\"\n", name, field.Flag())
 	}
 	fprintf(out, ")\n\n")
 }
 
-func generateFlagRegistering(out io.Writer, fields []ConfigField) {
-	fprintf(out, "func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {\n")
-	for _, field := range fields {
+func generateFlagRegistering(out io.Writer, config *ConfigStruct) {
+	// Before starting to define our
+	// own function definition, call
+	// generate() for our sub-structs.
+	for i := range config.Structs {
+		generateFlagRegistering(out, &config.Structs[i])
+	}
+
+	// Generate RegisterFlags() function,
+	// for the top-level Configuration{}
+	// type it takes no flag prefix, but
+	// all other configuration types do.
+	if config.FieldName == "" {
+		fprintf(out, "func (cfg *%s) RegisterFlags(flags *pflag.FlagSet) {\n", config.TypeName())
+		for _, strct := range config.Structs {
+			fprintf(out, "\tcfg.%s.RegisterFlags(\"%s\", flags)\n", strct.FieldName, strct.FlagName)
+		}
+	} else {
+		fprintf(out, "func (cfg *%s) RegisterFlags(prefix string, flags *pflag.FlagSet) {\n", config.TypeName())
+		for _, strct := range config.Structs {
+			fprintf(out, "\tcfg.%s.RegisterFlags(joinFlag(prefix, \"%s\"), flags)\n", strct.FieldName, strct.FlagName)
+		}
+	}
+
+	for _, field := range config.Fields {
 		if !field.RegisterCLI {
 			// Skip registering flags
 			// unpermitted in env / cli.
@@ -236,11 +293,27 @@ func generateFlagRegistering(out io.Writer, fields []ConfigField) {
 			continue
 		}
 
+		var flag string
+
+		// For top level Configuration{} type
+		// without a prefix, each field flag name
+		// is as-is (quoted for fmt string below).
+		// For others, they need to add prefix.
+		if config.FieldName == "" {
+			flag = "\"" + field.FlagName + "\""
+		} else {
+			flag = "joinFlag(prefix, \"" + field.FlagName + "\")"
+		}
+
+		// "path" to the struct field
+		// member is simple its name.
+		path := field.FieldName
+
 		// Check for easy cases of just regular primitive types.
 		if field.Type.Kind().String() == field.Type.String() {
 			typeName := field.Type.String()
 			typeName = strings.ToUpper(typeName[:1]) + typeName[1:]
-			fprintf(out, "\tflags.%s(\"%s\", cfg.%s, \"%s\")\n", typeName, field.Flag(), field.Path, field.Usage)
+			fprintf(out, "\tflags.%s(%s, cfg.%s, \"%s\")\n", typeName, flag, path, field.Usage)
 			continue
 		}
 
@@ -251,7 +324,7 @@ func generateFlagRegistering(out io.Writer, fields []ConfigField) {
 			if elem.Kind().String() == elem.String() {
 				typeName := elem.String()
 				typeName = strings.ToUpper(typeName[:1]) + typeName[1:]
-				fprintf(out, "\tflags.%sSlice(\"%s\", cfg.%s, \"%s\")\n", typeName, field.Flag(), field.Path, field.Usage)
+				fprintf(out, "\tflags.%sSlice(%s, cfg.%s, \"%s\")\n", typeName, flag, path, field.Usage)
 				continue
 			}
 		}
@@ -260,56 +333,109 @@ func generateFlagRegistering(out io.Writer, fields []ConfigField) {
 		// as their types as viper knows how
 		// to deal with this type directly.
 		if field.Type == durationType {
-			fprintf(out, "\tflags.Duration(\"%s\", cfg.%s, \"%s\")\n", field.Flag(), field.Path, field.Usage)
+			fprintf(out, "\tflags.Duration(%s, cfg.%s, \"%s\")\n", flag, path, field.Usage)
 			continue
 		}
 
 		if field.Type.Kind() == reflect.Slice {
 			// Check if the field supports Stringers{}.
 			if field.Type.Implements(stringersType) {
-				fprintf(out, "\tflags.StringSlice(\"%s\", cfg.%s.Strings(), \"%s\")\n", field.Flag(), field.Path, field.Usage)
+				fprintf(out, "\tflags.StringSlice(%s, cfg.%s.Strings(), \"%s\")\n", flag, path, field.Usage)
 				continue
 			}
 
 			// Or the pointer type of the field value supports Stringers{}.
 			if ptr := reflect.PointerTo(field.Type); ptr.Implements(stringersType) {
-				fprintf(out, "\tflags.StringSlice(\"%s\", cfg.%s.Strings(), \"%s\")\n", field.Flag(), field.Path, field.Usage)
+				fprintf(out, "\tflags.StringSlice(%s, cfg.%s.Strings(), \"%s\")\n", flag, path, field.Usage)
 				continue
 			}
 
-			fprintf(os.Stderr, "field %s doesn't implement %s!\n", field.Path, stringersType)
+			fprintf(os.Stderr, "field %s doesn't implement %s!\n", field.Flag(), stringersType)
 		} else {
 			// Check if the field supports Stringer{}.
 			if field.Type.Implements(stringerType) {
-				fprintf(out, "\tflags.String(\"%s\", cfg.%s.String(), \"%s\")\n", field.Flag(), field.Path, field.Usage)
+				fprintf(out, "\tflags.String(%s, cfg.%s.String(), \"%s\")\n", flag, path, field.Usage)
 				continue
 			}
 
 			// Or the pointer type of the field value supports Stringer{}.
 			if ptr := reflect.PointerTo(field.Type); ptr.Implements(stringerType) {
-				fprintf(out, "\tflags.String(\"%s\", cfg.%s.String(), \"%s\")\n", field.Flag(), field.Path, field.Usage)
+				fprintf(out, "\tflags.String(%s, cfg.%s.String(), \"%s\")\n", flag, path, field.Usage)
 				continue
 			}
 
-			fprintf(os.Stderr, "field %s doesn't implement %s!\n", field.Path, stringerType)
+			fprintf(os.Stderr, "field %s doesn't implement %s!\n", field.Flag(), stringerType)
 		}
 	}
+
 	fprintf(out, "}\n\n")
 }
 
-func generateMapMarshaler(out io.Writer, fields []ConfigField) {
-	fprintf(out, "func (cfg *Configuration) MarshalMap() map[string]any {\n")
-	fprintf(out, "\tcfgmap := make(map[string]any, %d)\n", len(fields))
-	for _, field := range fields {
+func generateMapMarshaler(out io.Writer, config *ConfigStruct) {
+	// Before starting to define our
+	// own function definition, call
+	// generate() for our sub-structs.
+	for i := range config.Structs {
+		generateMapMarshaler(out, &config.Structs[i])
+	}
+
+	if config.FieldName == "" {
+		var count int
+		for range config.RangeFields {
+			count++
+		}
+
+		// The top-level Configuration{} type gets a special MarshalMap() function,
+		// different from the below MarshalIntoMap() functions in that it returns its value.
+		fprintf(out, "func (cfg *%s) MarshalMap() map[string]any {\n", config.TypeName())
+		fprintf(out, "\tcfgmap := make(map[string]any, %d)\n", count)
+		fprintf(out, "\tcfg.MarshalIntoMap(cfgmap)\n")
+		fprintf(out, "\treturn cfgmap\n")
+		fprintf(out, "}\n\n")
+	}
+
+	// Generate MarshalIntoMap() function,
+	// for the top-level Configuration{}
+	// type it takes no flag prefix, but
+	// all other configuration types do.
+	if config.FieldName == "" {
+		fprintf(out, "func (cfg *%s) MarshalIntoMap(cfgmap map[string]any) {\n", config.TypeName())
+		for _, strct := range config.Structs {
+			fprintf(out, "\tcfg.%s.MarshalIntoMap(\"%s\", cfgmap)\n", strct.FieldName, strct.FlagName)
+		}
+	} else {
+		fprintf(out, "func (cfg *%s) MarshalIntoMap(prefix string, cfgmap map[string]any) {\n", config.TypeName())
+		for _, strct := range config.Structs {
+			fprintf(out, "\tcfg.%s.MarshalIntoMap(joinFlag(prefix, \"%s\"), cfgmap)\n", strct.FieldName, strct.FlagName)
+		}
+	}
+
+	for _, field := range config.Fields {
 		// Deprecated fields don't need
 		// including in marshaled map.
 		if field.DeprecatedBy != "" {
 			continue
 		}
 
+		var flag string
+
+		// For top level Configuration{} type
+		// without a prefix, each field flag name
+		// is as-is (quoted for fmt string below).
+		// For others, they need to add prefix.
+		if config.FieldName == "" {
+			flag = "\"" + field.FlagName + "\""
+		} else {
+			flag = "joinFlag(prefix, \"" + field.FlagName + "\")"
+		}
+
+		// "path" to the struct field
+		// member is simple its name.
+		path := field.FieldName
+
 		// Check for easy cases of just regular primitive types.
 		if field.Type.Kind().String() == field.Type.String() {
-			fprintf(out, "\tcfgmap[\"%s\"] = cfg.%s\n", field.Flag(), field.Path)
+			fprintf(out, "\tcfgmap[%s] = cfg.%s\n", flag, path)
 			continue
 		}
 
@@ -318,7 +444,7 @@ func generateMapMarshaler(out io.Writer, fields []ConfigField) {
 		if field.Type.Kind() == reflect.Slice {
 			elem := field.Type.Elem()
 			if elem.Kind().String() == elem.String() {
-				fprintf(out, "\tcfgmap[\"%s\"] = cfg.%s\n", field.Flag(), field.Path)
+				fprintf(out, "\tcfgmap[%s] = cfg.%s\n", flag, path)
 				continue
 			}
 		}
@@ -327,61 +453,99 @@ func generateMapMarshaler(out io.Writer, fields []ConfigField) {
 		// as their types as viper knows how
 		// to deal with this type directly.
 		if field.Type == durationType {
-			fprintf(out, "\tcfgmap[\"%s\"] = cfg.%s\n", field.Flag(), field.Path)
+			fprintf(out, "\tcfgmap[%s] = cfg.%s\n", flag, path)
 			continue
 		}
 
 		if field.Type.Kind() == reflect.Slice {
 			// Either the field must support Stringers{}.
 			if field.Type.Implements(stringersType) {
-				fprintf(out, "\tcfgmap[\"%s\"] = cfg.%s.Strings()\n", field.Flag(), field.Path)
+				fprintf(out, "\tcfgmap[%s] = cfg.%s.Strings()\n", flag, path)
 				continue
 			}
 
 			// Or the pointer type of the field value must support Stringers{}.
 			if ptr := reflect.PointerTo(field.Type); ptr.Implements(stringersType) {
-				fprintf(out, "\tcfgmap[\"%s\"] = cfg.%s.Strings()\n", field.Flag(), field.Path)
+				fprintf(out, "\tcfgmap[%s] = cfg.%s.Strings()\n", flag, path)
 				continue
 			}
 
-			fprintf(os.Stderr, "field %s doesn't implement %s!\n", field.Path, stringersType)
+			fprintf(os.Stderr, "field %s doesn't implement %s!\n", field.Flag(), stringersType)
 		} else {
 			// Either the field must support Stringer{}.
 			if field.Type.Implements(stringerType) {
-				fprintf(out, "\tcfgmap[\"%s\"] = cfg.%s.String()\n", field.Flag(), field.Path)
+				fprintf(out, "\tcfgmap[%s] = cfg.%s.String()\n", flag, path)
 				continue
 			}
 
 			// Or the pointer type of the field value must support Stringer{}.
 			if ptr := reflect.PointerTo(field.Type); ptr.Implements(stringerType) {
-				fprintf(out, "\tcfgmap[\"%s\"] = cfg.%s.String()\n", field.Flag(), field.Path)
+				fprintf(out, "\tcfgmap[%s] = cfg.%s.String()\n", flag, path)
 				continue
 			}
 
-			fprintf(os.Stderr, "field %s doesn't implement %s!\n", field.Path, stringerType)
+			fprintf(os.Stderr, "field %s doesn't implement %s!\n", field.Flag(), stringerType)
 		}
 	}
-	fprintf(out, "\treturn cfgmap")
 	fprintf(out, "}\n\n")
 }
 
-func generateMapUnmarshaler(out io.Writer, fields []ConfigField) {
-	fprintf(out, "func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {\n")
-	fprintf(out, "\t// VERY IMPORTANT FIRST STEP!\n")
-	fprintf(out, "\t// flatten to normalize map to\n")
-	fprintf(out, "\t// entirely un-nested key values\n")
-	fprintf(out, "\tflattenConfigMap(cfgmap)\n")
-	fprintf(out, "\n")
-	for _, field := range fields {
+func generateMapUnmarshaler(out io.Writer, config *ConfigStruct) {
+	// Before starting to define our
+	// own function definition, call
+	// generate() for our sub-structs.
+	for i := range config.Structs {
+		generateMapUnmarshaler(out, &config.Structs[i])
+	}
+
+	// Generate UnmarshalMap() function,
+	// for the top-level Configuration{}
+	// type it takes no flag prefix, but
+	// all other configuration types do.
+	if config.FieldName == "" {
+		fprintf(out, "func (cfg *%s) UnmarshalMap(cfgmap map[string]any) error {\n", config.TypeName())
+		for _, strct := range config.Structs {
+			fprintf(out, "\tif err := cfg.%s.UnmarshalMap(\"%s\", cfgmap); err != nil {\n", strct.FieldName, strct.FlagName)
+			fprintf(out, "\t\treturn err\n")
+			fprintf(out, "\t}\n\n")
+		}
+	} else {
+		fprintf(out, "func (cfg *%s) UnmarshalMap(prefix string, cfgmap map[string]any) error {\n", config.TypeName())
+		for _, strct := range config.Structs {
+			fprintf(out, "\tif err := cfg.%s.UnmarshalMap(joinFlag(prefix, \"%s\"), cfgmap); err != nil {\n", strct.FieldName, strct.FlagName)
+			fprintf(out, "\t\treturn err\n")
+			fprintf(out, "\t}\n\n")
+		}
+	}
+
+	for i := range config.Fields {
+		field := &(config.Fields[i])
+
+		var flag string
+
+		// For top level Configuration{} type
+		// without a prefix, each field flag name
+		// is as-is (quoted for fmt string below).
+		// For others, they need to add prefix.
+		if config.FieldName == "" {
+			flag = "\"" + field.FlagName + "\""
+		} else {
+			flag = "joinFlag(prefix, \"" + field.FlagName + "\")"
+		}
+
+		// "path" to the struct field
+		// member is simple its name.
+		path := field.FieldName
+
 		// Check for case of deprecated.
 		if field.DeprecatedBy != "" {
-			generateUnmarshalerDeprecated(out, field)
+			generateUnmarshalerDeprecated(out, flag, path, field)
 			continue
 		}
 
 		// Check for easy cases of just regular primitive types.
 		if field.Type.Kind().String() == field.Type.String() {
-			generateUnmarshalerPrimitive(out, field)
+			generateUnmarshalerPrimitive(out, flag, path, field)
 			continue
 		}
 
@@ -390,7 +554,7 @@ func generateMapUnmarshaler(out io.Writer, fields []ConfigField) {
 		if field.Type.Kind() == reflect.Slice {
 			elem := field.Type.Elem()
 			if elem.Kind().String() == elem.String() {
-				generateUnmarshalerPrimitive(out, field)
+				generateUnmarshalerPrimitive(out, flag, path, field)
 				continue
 			}
 		}
@@ -399,37 +563,37 @@ func generateMapUnmarshaler(out io.Writer, fields []ConfigField) {
 		// as their types as viper knows how
 		// to deal with this type directly.
 		if field.Type == durationType {
-			generateUnmarshalerPrimitive(out, field)
+			generateUnmarshalerPrimitive(out, flag, path, field)
 			continue
 		}
 
 		// Either the field must support flag.Value{}.
 		if field.Type.Implements(flagSetType) {
-			generateUnmarshalerFlagType(out, field)
+			generateUnmarshalerFlagType(out, flag, path, field)
 			continue
 		}
 
 		// Or the pointer type of the field value must support flag.Value{}.
 		if ptr := reflect.PointerTo(field.Type); ptr.Implements(flagSetType) {
-			generateUnmarshalerFlagType(out, field)
+			generateUnmarshalerFlagType(out, flag, path, field)
 			continue
 		}
 
-		fprintf(os.Stderr, "field %s doesn't implement %s!\n", field.Path, flagSetType)
+		fprintf(os.Stderr, "field %s doesn't implement %s!\n", field.Flag(), flagSetType)
 	}
 	fprintf(out, "\treturn nil\n")
 	fprintf(out, "}\n\n")
 }
 
-func generateUnmarshalerDeprecated(out io.Writer, field ConfigField) {
-	fprintf(out, "\tif ival, ok := cfgmap[\"%s\"]; ok && ival != \"\" {\n", field.Flag())
-	fprintf(out, "\t\treturn errors.New(\"value received for deprecated field '%s', please use '%s' instead\")\n", field.Flag(), field.DeprecatedBy)
+func generateUnmarshalerDeprecated(out io.Writer, flag, path string, field *ConfigField) {
+	fprintf(out, "\tif ival, ok := cfgmap[%s]; ok && ival != \"\" {\n", flag)
+	fprintf(out, "\t\treturn fmt.Errorf(\"value received for deprecated field '%%s', please use '%%s' instead\", %s, %q)\n", flag, field.DeprecatedBy)
 	fprintf(out, "\t}\n")
 	fprintf(out, "\n")
 }
 
-func generateUnmarshalerPrimitive(out io.Writer, field ConfigField) {
-	fprintf(out, "\tif ival, ok := cfgmap[\"%s\"]; ok {\n", field.Flag())
+func generateUnmarshalerPrimitive(out io.Writer, flag, path string, field *ConfigField) {
+	fprintf(out, "\tif ival, ok := cfgmap[%s]; ok {\n", flag)
 	if field.Type.Kind() == reflect.Slice {
 		elem := field.Type.Elem()
 		typeName := elem.String()
@@ -439,9 +603,9 @@ func generateUnmarshalerPrimitive(out io.Writer, field ConfigField) {
 		typeName = strings.ToUpper(typeName[:1]) + typeName[1:]
 		fprintf(out, "\t\tvar err error\n")
 		// note we specifically handle slice types ourselves to split by comma
-		fprintf(out, "\t\tcfg.%s, err = to%sSlice(ival)\n", field.Path, typeName)
+		fprintf(out, "\t\tcfg.%s, err = to%sSlice(ival)\n", path, typeName)
 		fprintf(out, "\t\tif err != nil {\n")
-		fprintf(out, "\t\t\treturn fmt.Errorf(\"error casting %%#v -> []%s for '%s': %%w\", ival, err)\n", elem.String(), field.Flag())
+		fprintf(out, "\t\t\treturn fmt.Errorf(\"error casting %%#v -> %%s for '%%s': %%w\", ival, \"[]%s\", %s, err)\n", elem.String(), flag)
 		fprintf(out, "\t\t}\n")
 	} else {
 		typeName := field.Type.String()
@@ -450,37 +614,37 @@ func generateUnmarshalerPrimitive(out io.Writer, field ConfigField) {
 		}
 		typeName = strings.ToUpper(typeName[:1]) + typeName[1:]
 		fprintf(out, "\t\tvar err error\n")
-		fprintf(out, "\t\tcfg.%s, err = cast.To%sE(ival)\n", field.Path, typeName)
+		fprintf(out, "\t\tcfg.%s, err = cast.To%sE(ival)\n", path, typeName)
 		fprintf(out, "\t\tif err != nil {\n")
-		fprintf(out, "\t\t\treturn fmt.Errorf(\"error casting %%#v -> %s for '%s': %%w\", ival, err)\n", field.Type.String(), field.Flag())
+		fprintf(out, "\t\t\treturn fmt.Errorf(\"error casting %%#v -> %%s for '%%s': %%w\", ival, \"%s\", %s, err)\n", field.TypeName(), flag)
 		fprintf(out, "\t\t}\n")
 	}
 	fprintf(out, "\t}\n")
 	fprintf(out, "\n")
 }
 
-func generateUnmarshalerFlagType(out io.Writer, field ConfigField) {
-	fprintf(out, "\t\tif ival, ok := cfgmap[\"%s\"]; ok {\n", field.Flag())
+func generateUnmarshalerFlagType(out io.Writer, flag, path string, field *ConfigField) {
+	fprintf(out, "\t\tif ival, ok := cfgmap[%s]; ok {\n", flag)
 	if field.Type.Kind() == reflect.Slice {
 		// same as above re: slice types and splitting on comma
 		fprintf(out, "\t\tt, err := toStringSlice(ival)\n")
 		fprintf(out, "\t\tif err != nil {\n")
-		fprintf(out, "\t\t\treturn fmt.Errorf(\"error casting %%#v -> []string for '%s': %%w\", ival, err)\n", field.Flag())
+		fprintf(out, "\t\t\treturn fmt.Errorf(\"error casting %%#v -> []string for '%%s': %%w\", ival, %s, err)\n", flag)
 		fprintf(out, "\t\t}\n")
-		fprintf(out, "\t\tcfg.%s = %s{}\n", field.Path, strings.TrimPrefix(field.Type.String(), "config."))
+		fprintf(out, "\t\tcfg.%s = %s{}\n", path, strings.TrimPrefix(field.Type.String(), "config."))
 		fprintf(out, "\t\tfor _, in := range t {\n")
-		fprintf(out, "\t\t\tif err := cfg.%s.Set(in); err != nil {\n", field.Path)
-		fprintf(out, "\t\t\t\treturn fmt.Errorf(\"error parsing %%#v for '%s': %%w\", ival, err)\n", field.Flag())
+		fprintf(out, "\t\t\tif err := cfg.%s.Set(in); err != nil {\n", path)
+		fprintf(out, "\t\t\t\treturn fmt.Errorf(\"error parsing %%#v for '%%s': %%w\", ival, %s, err)\n", flag)
 		fprintf(out, "\t\t\t}\n")
 		fprintf(out, "\t\t}\n")
 	} else {
 		fprintf(out, "\t\tt, err := cast.ToStringE(ival)\n")
 		fprintf(out, "\t\tif err != nil {\n")
-		fprintf(out, "\t\t\treturn fmt.Errorf(\"error casting %%#v -> string for '%s': %%w\", ival, err)\n", field.Flag())
+		fprintf(out, "\t\t\treturn fmt.Errorf(\"error casting %%#v -> string for '%%s': %%w\", ival, %s, err)\n", flag)
 		fprintf(out, "\t\t}\n")
-		fprintf(out, "\t\tcfg.%s = %s\n", field.Path, strings.TrimPrefix(zeroValueStr(field.Type), "config."))
-		fprintf(out, "\t\tif err := cfg.%s.Set(t); err != nil {\n", field.Path)
-		fprintf(out, "\t\t\treturn fmt.Errorf(\"error parsing %%#v for '%s': %%w\", ival, err)\n", field.Flag())
+		fprintf(out, "\t\tcfg.%s = %s\n", path, strings.TrimPrefix(zeroValueStr(field.Type), "config."))
+		fprintf(out, "\t\tif err := cfg.%s.Set(t); err != nil {\n", path)
+		fprintf(out, "\t\t\treturn fmt.Errorf(\"error parsing %%#v for '%%s': %%w\", ival, %s, err)\n", flag)
 		fprintf(out, "\t\t}\n")
 	}
 	fprintf(out, "\t}\n")
@@ -491,77 +655,51 @@ func zeroValueStr(t reflect.Type) string {
 	return fmt.Sprintf("%#v", reflect.New(t).Elem().Interface())
 }
 
-func generateGetSetters(out io.Writer, fields []ConfigField) {
-	for _, field := range fields {
+func generateGetSetters(out io.Writer, config *ConfigStruct) {
+	for field := range config.RangeFields {
 		// Get name from struct path, without periods.
-		name := strings.ReplaceAll(field.Path, ".", "")
+		name := strings.ReplaceAll(field.Path(), ".", "")
 
-		// Get type without "config." prefix.
-		fieldType := strings.ReplaceAll(
-			field.Type.String(),
-			"config.", "",
-		)
+		// Type without "config." prefix.
+		fieldType := field.TypeName()
 
 		// ConfigState structure helper methods
-		fprintf(out, "// Get%s safely fetches the Configuration value for state's '%s' field\n", name, field.Path)
+		fprintf(out, "// Get%s safely fetches the Configuration value for state's '%s' field\n", name, field.Path())
 		fprintf(out, "func (st *ConfigState) Get%s() (v %s) {\n", name, fieldType)
-		fprintf(out, "\treturn st.config.%s\n", field.Path)
+		fprintf(out, "\treturn st.config.%s\n", field.Path())
 		fprintf(out, "}\n\n")
-		fprintf(out, "// Set%s safely sets the Configuration value for state's '%s' field\n", name, field.Path)
+		fprintf(out, "// Set%s safely sets the Configuration value for state's '%s' field\n", name, field.Path())
 		fprintf(out, "func (st *ConfigState) Set%s(v %s) {\n", name, fieldType)
-		fprintf(out, "\tst.config.%s = v\n", field.Path)
+		fprintf(out, "\tst.config.%s = v\n", field.Path())
 		fprintf(out, "\tst.reloadToViper()\n")
 		fprintf(out, "}\n\n")
 
 		// Global ConfigState helper methods
-		fprintf(out, "// Get%s safely fetches the value for global configuration '%s' field\n", name, field.Path)
+		fprintf(out, "// Get%s safely fetches the value for global configuration '%s' field\n", name, field.Path())
 		fprintf(out, "func Get%[1]s() %[2]s { return global.Get%[1]s() }\n\n", name, fieldType)
-		fprintf(out, "// Set%s safely sets the value for global configuration '%s' field\n", name, field.Path)
+		fprintf(out, "// Set%s safely sets the value for global configuration '%s' field\n", name, field.Path())
 		fprintf(out, "func Set%[1]s(v %[2]s) { global.Set%[1]s(v) }\n\n", name, fieldType)
 	}
 
-	// Separate out the config fields (from a clone!!!) to get only the 'mem-ratio' members.
-	memFields := slices.DeleteFunc(slices.Clone(fields), func(field ConfigField) bool {
-		return !strings.Contains(field.Path, "MemRatio")
-	})
+	// Separate out the config fields
+	// to get only the `mem-ratio` ones.
+	var memFields []*ConfigField
+	for field := range config.RangeFields {
+		if strings.Contains(field.FieldName, "MemRatio") {
+			memFields = append(memFields, field)
+		}
+	}
 
 	fprintf(out, "// GetTotalOfMemRatios safely fetches the combined value for all the state's mem ratio fields\n")
 	fprintf(out, "func (st *ConfigState) GetTotalOfMemRatios() (total float64) {\n")
 	for _, field := range memFields {
-		fprintf(out, "\ttotal += st.config.%s\n", field.Path)
+		fprintf(out, "\ttotal += st.config.%s\n", field.Path())
 	}
 	fprintf(out, "\treturn\n")
 	fprintf(out, "}\n\n")
 
 	fprintf(out, "// GetTotalOfMemRatios safely fetches the combined value for all the global state's mem ratio fields\n")
 	fprintf(out, "func GetTotalOfMemRatios() (total float64) { return global.GetTotalOfMemRatios() }\n\n")
-}
-
-func generateMapFlattener(out io.Writer, fields []ConfigField) {
-	fprintf(out, "func flattenConfigMap(cfgmap map[string]any) {\n")
-	fprintf(out, "\tnestedKeys := make(map[string]struct{})\n")
-	for _, field := range fields {
-		keys := field.PossibleKeys()
-		if len(keys) <= 1 {
-			continue
-		}
-		fprintf(out, "\tfor _, key := range [][]string{\n")
-		for _, key := range keys[1:] {
-			fprintf(out, "\t\t{\"%s\"},\n", strings.Join(key, "\", \""))
-		}
-		fprintf(out, "\t} {\n")
-		fprintf(out, "\t\tival, ok := mapGet(cfgmap, key...)\n")
-		fprintf(out, "\t\tif ok {\n")
-		fprintf(out, "\t\t\tcfgmap[\"%s\"] = ival\n", field.Flag())
-		fprintf(out, "\t\t\tnestedKeys[key[0]] = struct{}{}\n")
-		fprintf(out, "\t\t\tbreak\n")
-		fprintf(out, "\t\t}\n")
-		fprintf(out, "\t}\n\n")
-	}
-	fprintf(out, "\tfor key := range nestedKeys {\n")
-	fprintf(out, "\t\tdelete(cfgmap, key)\n")
-	fprintf(out, "\t}\n")
-	fprintf(out, "}\n\n")
 }
 
 func fprintf(out io.Writer, format string, args ...any) {
@@ -573,4 +711,5 @@ func must(err error) {
 	if err != nil {
 		panic(err)
 	}
+
 }

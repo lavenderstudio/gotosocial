@@ -28,59 +28,6 @@ import (
 	"codeberg.org/gruf/go-kv/v2"
 )
 
-var testModels = []interface{}{
-	&gtsmodel.Account{},
-	&gtsmodel.AccountNote{},
-	&gtsmodel.AccountSettings{},
-	&gtsmodel.AccountToEmoji{},
-	&gtsmodel.Application{},
-	&gtsmodel.Block{},
-	&gtsmodel.DomainBlock{},
-	&gtsmodel.EmailDomainBlock{},
-	&gtsmodel.FederationError{},
-	&gtsmodel.Filter{},
-	&gtsmodel.FilterKeyword{},
-	&gtsmodel.FilterStatus{},
-	&gtsmodel.Follow{},
-	&gtsmodel.FollowRequest{},
-	&gtsmodel.InteractionRequest{},
-	&gtsmodel.List{},
-	&gtsmodel.ListEntry{},
-	&gtsmodel.Marker{},
-	&gtsmodel.MediaAttachment{},
-	&gtsmodel.Mention{},
-	&gtsmodel.Poll{},
-	&gtsmodel.PollVote{},
-	&gtsmodel.RelaySubscription{},
-	&gtsmodel.RelayPush{},
-	&gtsmodel.RelayMatcher{},
-	&gtsmodel.Status{},
-	&gtsmodel.StatusToEmoji{},
-	&gtsmodel.StatusToTag{},
-	&gtsmodel.StatusEdit{},
-	&gtsmodel.StatusFave{},
-	&gtsmodel.StatusBookmark{},
-	&gtsmodel.StatusPin{},
-	&gtsmodel.Tag{},
-	&gtsmodel.Thread{},
-	&gtsmodel.ThreadMute{},
-	&gtsmodel.User{},
-	&gtsmodel.UserMute{},
-	&gtsmodel.VAPIDKeyPair{},
-	&gtsmodel.WebPushSubscription{},
-	&gtsmodel.Emoji{},
-	&gtsmodel.Instance{},
-	&gtsmodel.InstanceSettings{},
-	&gtsmodel.Notification{},
-	&gtsmodel.RouterSession{},
-	&gtsmodel.Token{},
-	&gtsmodel.EmojiCategory{},
-	&gtsmodel.Tombstone{},
-	&gtsmodel.Report{},
-	&gtsmodel.Rule{},
-	&gtsmodel.WorkerTask{},
-}
-
 // NewTestDB returns a new initialized, empty database for testing.
 //
 // If the environment variable GTS_DB_ADDRESS is set, it will take that
@@ -107,7 +54,7 @@ func NewTestDB(state *state.State) db.DB {
 // CreateTestTables creates prerequisite test tables in the database, but doesn't populate them.
 func CreateTestTables(db db.DB) {
 	ctx := context.Background()
-	for _, m := range testModels {
+	for _, m := range gtsmodel.AllModels() {
 		if err := db.CreateTable(ctx, m); err != nil {
 			log.Panicf(ctx, "error creating table for %+v: %s", m, err)
 		}
@@ -407,7 +354,7 @@ func StandardDBTeardown(db db.DB) {
 		return
 	}
 	defer db.Close()
-	for _, m := range testModels {
+	for _, m := range gtsmodel.AllModels() {
 		if err := db.DropTable(ctx, m); err != nil {
 			log.Error(ctx, err)
 		}

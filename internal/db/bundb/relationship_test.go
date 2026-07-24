@@ -81,7 +81,7 @@ func (suite *RelationshipTestSuite) TestGetBlockBy() {
 
 			// Attempt to place the block in database (if not already).
 			if err := suite.db.PutBlock(ctx, block); err != nil {
-				if err != db.ErrAlreadyExists {
+				if !errors.Is(err, db.ErrAlreadyExists) {
 					// Unrecoverable database error.
 					t.Fatalf("error creating block: %v", err)
 				}

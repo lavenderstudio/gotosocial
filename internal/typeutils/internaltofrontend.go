@@ -2424,7 +2424,7 @@ func (c *Converter) PollToAPIPoll(ctx context.Context, requester *gtsmodel.Accou
 			// The total number of voters are only
 			// provided in the case of a multiple
 			// choice poll. All else leaves it nil.
-			totalVoters = poll.Voters
+			totalVoters = &poll.Voters
 		}
 
 		// Populate per-vote counts

@@ -23,13 +23,13 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"github.com/ncruces/go-sqlite3"
 )
 
 // processSQLiteError processes an sqlite3.Error to
 // handle conversion to any of our common db types.
 func processSQLiteError(err error) error {
+
 	// Attempt to cast as sqlite error.
 	sqliteErr, ok := err.(*sqlite3.Error)
 	if !ok {
@@ -40,7 +40,7 @@ func processSQLiteError(err error) error {
 	switch sqliteErr.ExtendedCode() {
 	case sqlite3.CONSTRAINT_UNIQUE,
 		sqlite3.CONSTRAINT_PRIMARYKEY:
-		return db.ErrAlreadyExists
+		return isAlreadyExistsErr{err}
 
 	// Busy should be very rare, but on
 	// busy tell the database to close the

@@ -2817,7 +2817,7 @@ func NewTestPolls() map[string]*gtsmodel.Poll {
 			HideCounts: util.Ptr(true),
 			Options:    []string{"good", "bad", "meh"},
 			Votes:      []int{2, 0, 0}, // needs to match stored poll votes
-			Voters:     util.Ptr(2),    // needs to match stored poll votes
+			Voters:     2,              // needs to match stored poll votes
 			StatusID:   "01HEN2RZ8BG29Y5Z9VJC73HZW7",
 			Status:     nil,
 			ExpiresAt:  TimeMustParse("2022-05-21T11:41:10Z"),
@@ -2830,7 +2830,7 @@ func NewTestPolls() map[string]*gtsmodel.Poll {
 			HideCounts: util.Ptr(false),
 			Options:    []string{"50:50", "phone a friend", "ask the audience"},
 			Votes:      []int{0, 1, 1}, // needs to match stored poll votes
-			Voters:     util.Ptr(2),    // needs to match stored poll votes
+			Voters:     2,              // needs to match stored poll votes
 			StatusID:   "01HEN2PRXT0TF4YDRA64FZZRN7",
 			Status:     nil,
 			ExpiresAt:  TimeMustParse("2021-08-28T10:40:37+02:00"),
@@ -2843,7 +2843,7 @@ func NewTestPolls() map[string]*gtsmodel.Poll {
 			HideCounts: util.Ptr(false),
 			Options:    []string{"vaseline", "tissues", "financial times"},
 			Votes:      []int{3, 2, 18},
-			Voters:     util.Ptr(6),
+			Voters:     6,
 			StatusID:   "01HEN2QRFA8H3C6QPN7RD4KSR6",
 			Status:     nil,
 			ExpiresAt:  TimeMustParse("2021-09-11T12:40:37+02:00"),
@@ -2856,7 +2856,7 @@ func NewTestPolls() map[string]*gtsmodel.Poll {
 			HideCounts: util.Ptr(false),
 			Options:    []string{"vaseline", "tissues", "financial times"},
 			Votes:      []int{0, 0, 0},
-			Voters:     util.Ptr(0),
+			Voters:     0,
 			StatusID:   "01HEWV37MHV8BAC8ANFGVRRM5D",
 			Status:     nil,
 			// nil expiry AND closed date, i.e. no end
@@ -2870,7 +2870,7 @@ func NewTestPolls() map[string]*gtsmodel.Poll {
 			HideCounts: util.Ptr(false),
 			Options:    []string{"yes", "no", "maybe", "i don't know", "can you repeat the question"},
 			Votes:      []int{0, 0, 0, 0, 2},
-			Voters:     util.Ptr(2),
+			Voters:     2,
 			StatusID:   "01JDQ07JZTX9CMDJP67CNA71YD",
 			// empty expiry AND closed date, i.e. no end
 			ExpiresAt: time.Time{},

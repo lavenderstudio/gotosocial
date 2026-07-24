@@ -71,8 +71,8 @@ func main() {
 	config.SetHost("localhost:8080")
 	config.SetStorageBackend("disk")
 	config.SetStorageLocalBasePath("/tmp/gotosocial")
-	config.SetDbType("sqlite")
-	config.SetDbAddress(":memory:")
+	config.SetDatabaseType("sqlite")
+	config.SetDatabaseAddress(":memory:")
 
 	state.DB, err = bundb.NewBunDBService(ctx, &state)
 	if err != nil {
