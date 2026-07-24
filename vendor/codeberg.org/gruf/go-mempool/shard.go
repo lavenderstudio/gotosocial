@@ -38,9 +38,7 @@ func (p *PoolShard[T]) Put(t *T) {
 }
 
 // Original returns a reference to the shard's origin pool.
-func (p *PoolShard[T]) Original() *Pool[T] {
-	return p.original
-}
+func (p *PoolShard[T]) Original() *Pool[T] { return p.original }
 
 // UnsafePoolShard contains a reference to an original
 // UnsafePool, but with its own separate fast-access ring
@@ -62,14 +60,14 @@ type shard_internal struct {
 
 func (s *UnsafePoolShard) Get() unsafe.Pointer {
 	pid := procPin()
-	ptr := s.ring.local(pid).Swap(nil)
+	ptr := s.ring.local(pid).Get()
 
 	if s.pool == nil || ptr != nil {
 		procUnpin()
 		return ptr
 	}
 
-	ptr = s.pool.ring.local(pid).Swap(nil)
+	ptr = s.pool.ring.local(pid).Get()
 	procUnpin()
 
 	if ptr != nil {
@@ -85,14 +83,14 @@ func (s *UnsafePoolShard) Get() unsafe.Pointer {
 
 func (s *UnsafePoolShard) Put(ptr unsafe.Pointer) {
 	pid := procPin()
-	ptr = s.ring.local(pid).Swap(ptr)
+	ok := s.ring.local(pid).Set(ptr)
 
-	if s.pool == nil || ptr == nil {
+	if s.pool == nil || ok {
 		procUnpin()
 		return
 	}
 
-	ptr = s.pool.ring.local(pid).Swap(ptr)
+	ok = s.pool.ring.local(pid).Set(ptr)
 	procUnpin()
 
 	if ptr == nil {
@@ -105,9 +103,7 @@ func (s *UnsafePoolShard) Put(ptr unsafe.Pointer) {
 }
 
 // Original returns a reference to the shard's origin pool.
-func (s *UnsafePoolShard) Original() *UnsafePool {
-	return s.pool
-}
+func (s *UnsafePoolShard) Original() *UnsafePool { return s.pool }
 
 // Release will release resources of this particular shard.
 func (s *UnsafePoolShard) Release() { s.ring.clear() }

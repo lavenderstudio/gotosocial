@@ -27,8 +27,8 @@ import (
 )
 
 var (
-	// global map of memory pool instances.
-	buffers = make(map[uint32]*MemoryPool, 8)
+	// global map of base (unshareded) memory pools.
+	buffers = make(map[uint32]*mempool.UnsafePool, 8)
 
 	// global map lock.
 	mutex sync.Mutex
@@ -37,10 +37,13 @@ var (
 // MemoryPool is a memory pool of
 // byte buffers, of a predefined size.
 //
-// This will be a shared global instance that
-// any callers of buffers.Pool($sz) can access.
+// This will be a shard of a shared global
+// instance, itself a unique pointer but the
+// underlying shard pointing back to the same
+// underlying pool callers of buffers.Pool($sz)
+// will all have access to.
 type MemoryPool struct {
-	p mempool.UnsafePool
+	p mempool.UnsafePoolShard
 	s uint32
 }
 
@@ -51,19 +54,36 @@ type MemoryPool struct {
 // instance and should generally only be called
 // on package init to store a global reference.
 func Pool(sz uint32) *MemoryPool {
+
+	// Calculate 2^n rounded
+	// size of memory pool.
 	n := math.Log2(float64(sz))
 	n = math.Round(n)
 	n = math.Exp2(max(8, n))
 	sz = uint32(n)
+
+	// Get lock.
 	mutex.Lock()
+
+	// Check for existing
+	// memory pool of size.
 	p := buffers[sz]
+
 	if p == nil {
-		p = new(MemoryPool)
-		p.s = sz
+		// Allocate new memory pool.
+		p = new(mempool.UnsafePool)
+
+		// Place in map.
 		buffers[sz] = p
 	}
+
+	// Done locking.
 	mutex.Unlock()
-	return p
+
+	return &MemoryPool{
+		p: p.Shard(),
+		s: sz,
+	}
 }
 
 // Get returns a byteutil.Buffer{} instance from pool.

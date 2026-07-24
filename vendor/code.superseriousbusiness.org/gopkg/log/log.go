@@ -99,6 +99,25 @@ func SetOutputCLI() {
 	}
 }
 
+// ExtractFields extracts logging fields from given
+// context, nil context is supported and a no-op.
+func ExtractFields(ctx context.Context) []kv.Field {
+	if ctx != nil && len(state.hooks) > 0 {
+
+		// Allocate fields slice for our context hooks.
+		fields := make([]kv.Field, 0, len(state.hooks))
+
+		// Pass context through our hooks.
+		for _, hook := range state.hooks {
+			fields = hook(ctx, fields)
+		}
+
+		return fields
+	}
+
+	return nil
+}
+
 // New starts a new log entry.
 func New() Entry {
 	return Entry{}
@@ -414,7 +433,8 @@ func logf(ctx context.Context, lvl LEVEL, fields []kv.Field, msg string, args ..
 	defer bufpool.Put(buf)
 
 	if ctx != nil && len(state.hooks) > 0 {
-		// Ensure fields have space for our context hooks.
+
+		// Ensure fields slice has space for context hooks.
 		fields = xslices.GrowJust(fields, len(state.hooks))
 
 		// Pass context through our hooks.

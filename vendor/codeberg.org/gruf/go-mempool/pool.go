@@ -118,7 +118,7 @@ func (p *pool_internal) Check(fn func(current, victim int) bool) func(current, v
 
 func (p *pool_internal) Get() unsafe.Pointer {
 	pid := procPin()
-	ptr := p.ring.local(pid).Swap(nil)
+	ptr := p.ring.local(pid).Get()
 	procUnpin()
 
 	if ptr != nil {
@@ -133,10 +133,10 @@ func (p *pool_internal) Get() unsafe.Pointer {
 
 func (p *pool_internal) Put(ptr unsafe.Pointer) {
 	pid := procPin()
-	ptr = p.ring.local(pid).Swap(ptr)
+	ok := p.ring.local(pid).Set(ptr)
 	procUnpin()
 
-	if ptr == nil {
+	if ok {
 		return
 	}
 
@@ -232,10 +232,19 @@ func (r *locals_ring) clear() { atomic.StorePointer(&r.p, nil) }
 // DOG-ARSE BULLSHIT. WRITE CODE WITH *NICE VIBES*.
 type pointer_elem struct{ p unsafe.Pointer }
 
-func (p *pointer_elem) Swap(new unsafe.Pointer) unsafe.Pointer {
-	old := p.p
-	p.p = new
-	return old
+func (e *pointer_elem) Get() (p unsafe.Pointer) {
+	if e.p != nil {
+		p = e.p
+		e.p = nil
+	}
+	return
+}
+
+func (e *pointer_elem) Set(p unsafe.Pointer) (ok bool) {
+	if ok = (e.p == nil); ok {
+		e.p = p
+	}
+	return
 }
 
 // maxprocs prevents runtime.GOMAXPROCS() from
