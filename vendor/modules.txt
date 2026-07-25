@@ -213,7 +213,7 @@ code.superseriousbusiness.org/go-jpeg-image-structure/v2
 # code.superseriousbusiness.org/go-png-image-structure/v2 v2.3.0
 ## explicit; go 1.12
 code.superseriousbusiness.org/go-png-image-structure/v2
-# code.superseriousbusiness.org/gopkg v0.0.0-20260724132427-5ed05badd926
+# code.superseriousbusiness.org/gopkg v0.0.0-20260725175433-57d7dfb043f8
 ## explicit; go 1.25.0
 code.superseriousbusiness.org/gopkg/buffers
 code.superseriousbusiness.org/gopkg/httputil
@@ -290,7 +290,7 @@ codeberg.org/gruf/go-mangler/v2
 # codeberg.org/gruf/go-maps v1.0.4
 ## explicit; go 1.20
 codeberg.org/gruf/go-maps
-# codeberg.org/gruf/go-mempool v0.0.0-20260724131454-64eb4138898c
+# codeberg.org/gruf/go-mempool v0.0.0-20260725175151-a6c72946cbf7
 ## explicit; go 1.24.0
 codeberg.org/gruf/go-mempool
 # codeberg.org/gruf/go-mmap v0.0.0-20251111184116-345a42dab154

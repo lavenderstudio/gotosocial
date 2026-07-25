@@ -60,14 +60,16 @@ type shard_internal struct {
 
 func (s *UnsafePoolShard) Get() unsafe.Pointer {
 	pid := procPin()
-	ptr := s.ring.local(pid).Get()
+	elem, pid := s.ring.local(pid)
+	ptr := elem.Swap(nil)
 
 	if s.pool == nil || ptr != nil {
 		procUnpin()
 		return ptr
 	}
 
-	ptr = s.pool.ring.local(pid).Get()
+	elem, pid = s.pool.ring.local(pid)
+	ptr = elem.Swap(nil)
 	procUnpin()
 
 	if ptr != nil {
@@ -83,14 +85,16 @@ func (s *UnsafePoolShard) Get() unsafe.Pointer {
 
 func (s *UnsafePoolShard) Put(ptr unsafe.Pointer) {
 	pid := procPin()
-	ok := s.ring.local(pid).Set(ptr)
+	elem, pid := s.ring.local(pid)
+	ptr = elem.Swap(ptr)
 
-	if s.pool == nil || ok {
+	if s.pool == nil || ptr == nil {
 		procUnpin()
 		return
 	}
 
-	ok = s.pool.ring.local(pid).Set(ptr)
+	elem, pid = s.pool.ring.local(pid)
+	ptr = elem.Swap(ptr)
 	procUnpin()
 
 	if ptr == nil {

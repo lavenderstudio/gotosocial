@@ -118,7 +118,8 @@ func (p *pool_internal) Check(fn func(current, victim int) bool) func(current, v
 
 func (p *pool_internal) Get() unsafe.Pointer {
 	pid := procPin()
-	ptr := p.ring.local(pid).Get()
+	elem, pid := p.ring.local(pid)
+	ptr := elem.Swap(nil)
 	procUnpin()
 
 	if ptr != nil {
@@ -133,10 +134,11 @@ func (p *pool_internal) Get() unsafe.Pointer {
 
 func (p *pool_internal) Put(ptr unsafe.Pointer) {
 	pid := procPin()
-	ok := p.ring.local(pid).Set(ptr)
+	elem, pid := p.ring.local(pid)
+	ptr = elem.Swap(ptr)
 	procUnpin()
 
-	if ok {
+	if ptr == nil {
 		return
 	}
 
@@ -174,7 +176,7 @@ type locals_ring struct{ p unsafe.Pointer }
 
 // local returns an atomic_pointer from the fast-access
 // ring buffer for the given goroutine PID index.
-func (r *locals_ring) local(pid uint) *pointer_elem {
+func (r *locals_ring) local(pid uint) (*pointer_elem, uint) {
 	for {
 		// Load current ring from ptr.
 		ptr := atomic.LoadPointer(&r.p)
@@ -183,7 +185,7 @@ func (r *locals_ring) local(pid uint) *pointer_elem {
 			// Check if pid within ring length.
 			ring := *(*[]pointer_elem)(ptr)
 			if pid < uint(len(ring)) {
-				return &ring[pid]
+				return &ring[pid], pid
 			}
 		}
 
@@ -191,7 +193,7 @@ func (r *locals_ring) local(pid uint) *pointer_elem {
 		// which acquires a blocking mutex
 		// lock on scheduler and may cause
 		// goroutine to be rescheduled.
-		procUnpin()
+		pid = procPin()
 
 		// Allocate new ring buffer capable
 		// of accomodating an index of 'pid'.
@@ -200,7 +202,7 @@ func (r *locals_ring) local(pid uint) *pointer_elem {
 
 		// Repin and get a (potentially)
 		// different goroutine PID index.
-		pid = procPin()
+		procUnpin()
 
 		// Attempt to replace
 		// ring ptr with new.
@@ -209,7 +211,7 @@ func (r *locals_ring) local(pid uint) *pointer_elem {
 				ptr,
 				newptr,
 			) {
-			return &ring[pid]
+			return &ring[pid], pid
 		}
 	}
 }
@@ -232,19 +234,8 @@ func (r *locals_ring) clear() { atomic.StorePointer(&r.p, nil) }
 // DOG-ARSE BULLSHIT. WRITE CODE WITH *NICE VIBES*.
 type pointer_elem struct{ p unsafe.Pointer }
 
-func (e *pointer_elem) Get() (p unsafe.Pointer) {
-	if e.p != nil {
-		p = e.p
-		e.p = nil
-	}
-	return
-}
-
-func (e *pointer_elem) Set(p unsafe.Pointer) (ok bool) {
-	if ok = (e.p == nil); ok {
-		e.p = p
-	}
-	return
+func (e *pointer_elem) Swap(p unsafe.Pointer) unsafe.Pointer {
+	return atomic.SwapPointer(&e.p, p)
 }
 
 // maxprocs prevents runtime.GOMAXPROCS() from
