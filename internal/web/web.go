@@ -67,6 +67,7 @@ const (
 	cssProfile          = distPathPrefix + "/profile.css"
 	cssProfileWideStats = distPathPrefix + "/_profile-header-wide-stats.css"
 	cssProfileGallery   = distPathPrefix + "/profile-gallery.css"
+	cssProfileRelay     = distPathPrefix + "/profile-relay.css"
 	cssSettings         = distPathPrefix + "/settings-style.css"
 	cssTag              = distPathPrefix + "/tag.css"
 	cssDirectory        = distPathPrefix + "/directory.css"

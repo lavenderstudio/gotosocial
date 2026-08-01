@@ -49,7 +49,7 @@ func (p *Processor) MuteCreate(
 		*existingMute.Notifications == *form.Notifications &&
 		existingMute.ExpiresAt.IsZero() && form.Duration == nil {
 		// Mute already exists and doesn't require updating, nothing to do.
-		return p.RelationshipGet(ctx, requestingAccount, targetAccountID)
+		return p.c.APIRelationship(ctx, requestingAccount, targetAccountID)
 	}
 
 	// Create a new mute or update an existing one.
@@ -74,7 +74,7 @@ func (p *Processor) MuteCreate(
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	return p.RelationshipGet(ctx, requestingAccount, targetAccountID)
+	return p.c.APIRelationship(ctx, requestingAccount, targetAccountID)
 }
 
 // MuteRemove handles the removal of a mute from requestingAccount to targetAccountID.
@@ -90,7 +90,7 @@ func (p *Processor) MuteRemove(
 
 	if existingMute == nil {
 		// Already not muted, nothing to do.
-		return p.RelationshipGet(ctx, requestingAccount, targetAccountID)
+		return p.c.APIRelationship(ctx, requestingAccount, targetAccountID)
 	}
 
 	// We got a mute, remove it from the db.
@@ -99,7 +99,7 @@ func (p *Processor) MuteRemove(
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	return p.RelationshipGet(ctx, requestingAccount, targetAccountID)
+	return p.c.APIRelationship(ctx, requestingAccount, targetAccountID)
 }
 
 // MutesGet retrieves the user's list of muted accounts, with an extra field for mute expiration (if applicable).

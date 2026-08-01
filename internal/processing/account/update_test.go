@@ -45,7 +45,7 @@ func (suite *AccountUpdateTestSuite) TestAccountUpdateSimple() {
 	)
 
 	// Call update function.
-	apiAccount, errWithCode := suite.accountProcessor.Update(ctx, testAccount, &apimodel.UpdateCredentialsRequest{
+	apiAccount, errWithCode := suite.accountProcessor.Update(ctx, testAccount, &apimodel.UpdateAccountRequest{
 		DisplayName: &displayName,
 		Locked:      &locked,
 		Note:        &note,
@@ -95,7 +95,7 @@ func (suite *AccountUpdateTestSuite) TestAccountUpdateWithMention() {
 	)
 
 	// Call update function.
-	apiAccount, errWithCode := suite.accountProcessor.Update(ctx, testAccount, &apimodel.UpdateCredentialsRequest{
+	apiAccount, errWithCode := suite.accountProcessor.Update(ctx, testAccount, &apimodel.UpdateAccountRequest{
 		DisplayName: &displayName,
 		Locked:      &locked,
 		Note:        &note,
@@ -155,7 +155,7 @@ func (suite *AccountUpdateTestSuite) TestAccountUpdateWithMarkdownNote() {
 	}
 
 	// Call update function.
-	apiAccount, errWithCode := suite.accountProcessor.Update(ctx, testAccount, &apimodel.UpdateCredentialsRequest{
+	apiAccount, errWithCode := suite.accountProcessor.Update(ctx, testAccount, &apimodel.UpdateAccountRequest{
 		Note: &note,
 	})
 	if errWithCode != nil {
@@ -238,7 +238,7 @@ func (suite *AccountUpdateTestSuite) TestAccountUpdateWithFields() {
 		}
 	)
 
-	apiAccount, errWithCode := suite.accountProcessor.Update(ctx, testAccount, &apimodel.UpdateCredentialsRequest{
+	apiAccount, errWithCode := suite.accountProcessor.Update(ctx, testAccount, &apimodel.UpdateAccountRequest{
 		FieldsAttributes: &updateFields,
 	})
 	if errWithCode != nil {
@@ -294,7 +294,7 @@ func (suite *AccountUpdateTestSuite) TestAccountUpdateNoteNotFields() {
 	)
 
 	// Call update function.
-	apiAccount, errWithCode := suite.accountProcessor.Update(ctx, testAccount, &apimodel.UpdateCredentialsRequest{
+	apiAccount, errWithCode := suite.accountProcessor.Update(ctx, testAccount, &apimodel.UpdateAccountRequest{
 		Note: &note,
 	})
 	if errWithCode != nil {
@@ -340,7 +340,7 @@ func (suite *AccountUpdateTestSuite) TestAccountUpdateBotNotBot() {
 	apiAccount, errWithCode := suite.accountProcessor.Update(
 		ctx,
 		testAccount,
-		&apimodel.UpdateCredentialsRequest{
+		&apimodel.UpdateAccountRequest{
 			Bot: util.Ptr(true),
 		},
 	)
@@ -366,7 +366,7 @@ func (suite *AccountUpdateTestSuite) TestAccountUpdateBotNotBot() {
 	apiAccount, errWithCode = suite.accountProcessor.Update(
 		ctx,
 		testAccount,
-		&apimodel.UpdateCredentialsRequest{
+		&apimodel.UpdateAccountRequest{
 			Bot: util.Ptr(false),
 		},
 	)

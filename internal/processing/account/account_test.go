@@ -110,8 +110,8 @@ func (suite *AccountStandardTestSuite) SetupTest() {
 	mutesFilter := mutes.NewFilter(&suite.state)
 	statusFilter := status.NewFilter(&suite.state)
 	surfacer := testrig.NewTestSurfacer(&suite.state, suite.federator, suite.emailSender, testrig.NewNoopWebPushSender())
-	common := common.New(&suite.state, suite.mediaManager, suite.tc, suite.federator, visFilter, mutesFilter, statusFilter, surfacer)
-	suite.accountProcessor = account.New(&common, &suite.state, suite.tc, suite.mediaManager, suite.federator, visFilter, statusFilter, processing.GetParseMentionFunc(&suite.state, suite.federator))
+	common := common.New(&suite.state, suite.mediaManager, suite.tc, suite.federator, visFilter, mutesFilter, statusFilter, processing.GetParseMentionFunc(&suite.state, suite.federator), surfacer)
+	suite.accountProcessor = account.New(&common, &suite.state, suite.tc, suite.mediaManager, suite.federator, visFilter, statusFilter)
 	testrig.StandardDBSetup(suite.db, nil)
 	testrig.StandardStorageSetup(suite.storage, "../../../testrig/media")
 }

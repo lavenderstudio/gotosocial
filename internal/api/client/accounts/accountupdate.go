@@ -19,18 +19,12 @@ package accounts
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
-	"slices"
-	"strconv"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
-	"code.superseriousbusiness.org/gopkg/httputil/binding"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
-	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"github.com/go-playground/form/v4"
 )
 
 // AccountUpdateCredentialsPATCHHandler swagger:operation PATCH /api/v1/accounts/update_credentials accountUpdate
@@ -281,8 +275,45 @@ func (m *Module) AccountUpdateCredentialsPATCHHandler(c *httputil.Context) {
 		return
 	}
 
-	form, err := parseUpdateAccountForm(c)
+	// Parse form.
+	f, err := apiutil.ParseWithFieldsAttributes(c,
+		&apimodel.UpdateAccountRequest{
+			Source: &apimodel.UpdateSource{},
+		},
+	)
 	if err != nil {
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
+		return
+	}
+
+	// Safe type assertion as we just
+	// instantiated this ourselves above.
+	form := f.(*apimodel.UpdateAccountRequest)
+
+	// Ensure something is being updated.
+	if form.Discoverable == nil &&
+		form.Indexable == nil &&
+		form.Bot == nil &&
+		form.DisplayName == nil &&
+		form.Note == nil &&
+		form.Avatar == nil &&
+		form.AvatarDescription == nil &&
+		form.Header == nil &&
+		form.HeaderDescription == nil &&
+		form.Locked == nil &&
+		form.Source.Privacy == nil &&
+		form.Source.Sensitive == nil &&
+		form.Source.Language == nil &&
+		form.Source.StatusContentType == nil &&
+		form.FieldsAttributes == nil &&
+		form.Theme == nil &&
+		form.CustomCSS == nil &&
+		form.EnableRSS == nil &&
+		form.HideCollections == nil &&
+		form.WebVisibility == nil &&
+		form.WebLayout == nil &&
+		form.WebIncludeBoosts == nil {
+		err := errors.New("empty form submitted")
 		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
@@ -294,137 +325,4 @@ func (m *Module) AccountUpdateCredentialsPATCHHandler(c *httputil.Context) {
 	}
 
 	httputil.JSON(c, http.StatusOK, acctSensitive)
-}
-
-// fieldsAttributesFormBinding satisfies gin's binding.Binding interface.
-// Should only be used specifically for multipart/form-data MIME type.
-type fieldsAttributesFormBinding struct{}
-
-func (fieldsAttributesFormBinding) Name() string {
-	return "FieldsAttributes"
-}
-
-func (fieldsAttributesFormBinding) Bind(req *http.Request, obj any) error {
-	if err := req.ParseForm(); err != nil {
-		return err
-	}
-
-	// Change default namespace prefix and suffix to
-	// allow correct parsing of the field attributes.
-	decoder := form.NewDecoder()
-	decoder.SetNamespacePrefix("[")
-	decoder.SetNamespaceSuffix("]")
-
-	return decoder.Decode(obj, req.Form)
-}
-
-func parseUpdateAccountForm(c *httputil.Context) (*apimodel.UpdateCredentialsRequest, error) {
-	form := &apimodel.UpdateCredentialsRequest{
-		Source: &apimodel.UpdateSource{},
-	}
-
-	switch ct := c.ContentType(); ct {
-	case binding.MIMEJSON:
-		// Bind with default json binding first.
-		if err := binding.BindJSON(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { //nolint
-			return nil, err
-		}
-
-		// Now use custom form binding for
-		// field attributes in the json data.
-		var err error
-		form.FieldsAttributes, err = parseFieldsAttributesFromJSON(form.JSONFieldsAttributes)
-		if err != nil {
-			return nil, fmt.Errorf("custom json binding failed: %w", err)
-		}
-	case binding.MIMEPOSTForm:
-		// Bind with default form binding first.
-		if err := binding.BindForm(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { //nolint
-			return nil, err
-		}
-
-		// Now use custom form binding for
-		// field attributes in the form data.
-		if err := (fieldsAttributesFormBinding{}).Bind(c.R, form); err != nil {
-			return nil, fmt.Errorf("custom form binding failed: %w", err)
-		}
-	case binding.MIMEMultipartPOSTForm:
-		// Bind with default form binding first.
-		if err := binding.BindFormMultipart(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { //nolint
-			return nil, err
-		}
-
-		// Now use custom form binding for
-		// field attributes in the form data.
-		if err := (fieldsAttributesFormBinding{}).Bind(c.R, form); err != nil {
-			return nil, fmt.Errorf("custom form binding failed: %w", err)
-		}
-	default:
-		err := fmt.Errorf("content-type %s not supported for this endpoint; supported content-types are %s, %s, %s", ct, binding.MIMEJSON, binding.MIMEPOSTForm, binding.MIMEMultipartPOSTForm)
-		return nil, err
-	}
-
-	if form == nil ||
-		(form.Discoverable == nil &&
-			form.Indexable == nil &&
-			form.Bot == nil &&
-			form.DisplayName == nil &&
-			form.Note == nil &&
-			form.Avatar == nil &&
-			form.AvatarDescription == nil &&
-			form.Header == nil &&
-			form.HeaderDescription == nil &&
-			form.Locked == nil &&
-			form.Source.Privacy == nil &&
-			form.Source.Sensitive == nil &&
-			form.Source.Language == nil &&
-			form.Source.StatusContentType == nil &&
-			form.FieldsAttributes == nil &&
-			form.Theme == nil &&
-			form.CustomCSS == nil &&
-			form.EnableRSS == nil &&
-			form.HideCollections == nil &&
-			form.WebVisibility == nil &&
-			form.WebLayout == nil &&
-			form.WebIncludeBoosts == nil) {
-		return nil, errors.New("empty form submitted")
-	}
-
-	return form, nil
-}
-
-func parseFieldsAttributesFromJSON(jsonFieldsAttributes *map[string]apimodel.UpdateField) (*[]apimodel.UpdateField, error) {
-	if jsonFieldsAttributes == nil {
-		// Nothing set, nothing to do.
-		return nil, nil
-	}
-
-	fieldsAttributes := make([]apimodel.UpdateField, 0, len(*jsonFieldsAttributes))
-	for keyStr, updateField := range *jsonFieldsAttributes {
-		key, err := strconv.Atoi(keyStr)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't parse fieldAttributes key %s to int: %w", keyStr, err)
-		}
-
-		fieldsAttributes = append(fieldsAttributes, apimodel.UpdateField{
-			Key:   key,
-			Name:  updateField.Name,
-			Value: updateField.Value,
-		})
-	}
-
-	// Sort slice by the key each field was submitted with.
-	slices.SortFunc(fieldsAttributes, func(a, b apimodel.UpdateField) int {
-		const k = +1
-		switch {
-		case a.Key > b.Key:
-			return +k
-		case a.Key < b.Key:
-			return -k
-		default:
-			return 0
-		}
-	})
-
-	return &fieldsAttributes, nil
 }

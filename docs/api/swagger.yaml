@@ -3161,6 +3161,67 @@ definitions:
         type: object
         x-go-name: PollOption
         x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/model
+    relayActor:
+        description: |-
+            RelayActor models a local
+            admin-created relay actor.
+        properties:
+            account:
+                $ref: '#/definitions/account'
+            created_at:
+                description: The date when this relay actor was created (ISO 8601 Datetime).
+                example: "2021-07-30T09:20:25+00:00"
+                type: string
+                x-go-name: CreatedAt
+            created_by_account_id:
+                description: ID of the admin account that created this relay actor.
+                example: 01KMQFY8C9P2049NN09R9CCMSR
+                type: string
+                x-go-name: CreatedByAccountID
+            id:
+                description: ID of this item.
+                example: 01KMQFY8C9P2049NN09R9CCMSR
+                type: string
+                x-go-name: ID
+            ignore_media:
+                description: Ignore posts with media attachments when relaying.
+                type: boolean
+                x-go-name: IgnoreMedia
+            ignore_replies:
+                description: Ignore replies to other accounts when relaying.
+                type: boolean
+                x-go-name: IgnoreReplies
+            ignore_sensitive:
+                description: Ignore sensitive posts when relaying.
+                type: boolean
+                x-go-name: IgnoreSensitive
+            match_by_default:
+                description: |-
+                    Controls whether a relay should match included, non-ignored statuses by default.
+                    If set true, and no "exclude"-type matchers are set, then all included, non-ignored statuses will be relayed.
+                type: boolean
+                x-go-name: MatchByDefault
+            matchers:
+                description: Matchers that apply to this relay actor.
+                items:
+                    $ref: '#/definitions/relayMatcher'
+                type: array
+                x-go-name: Matchers
+            public:
+                description: Include public posts when relaying.
+                type: boolean
+                x-go-name: Public
+            unlisted:
+                description: Include unlisted/unlocked posts when relaying.
+                type: boolean
+                x-go-name: Unlisted
+            web_show_followers:
+                description: Show followers of this relay actor on the web view of the relay actor account.
+                type: boolean
+                x-go-name: WebShowFollowers
+        type: object
+        x-go-name: RelayActor
+        x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/model
     relayConnection:
         properties:
             account_id:
@@ -3185,21 +3246,21 @@ definitions:
                 type: string
                 x-go-name: ID
             ignore_media:
-                description: Ignore posts with media attachments when relaying via this connection.
+                description: Ignore posts with media attachments when relaying.
                 type: boolean
                 x-go-name: IgnoreMedia
             ignore_replies:
-                description: Ignore replies to other accounts when relaying via this connection.
+                description: Ignore replies to other accounts when relaying.
                 type: boolean
                 x-go-name: IgnoreReplies
             ignore_sensitive:
-                description: Ignore sensitive posts when relaying via this connection.
+                description: Ignore sensitive posts when relaying.
                 type: boolean
                 x-go-name: IgnoreSensitive
             match_by_default:
                 description: |-
-                    Controls whether a relay connection should match included, non-ignored statuses by default.
-                    If set true, and no "exclude"-type matchers are set on the relay connection, then all included, non-ignored statuses will be relayed.
+                    Controls whether a relay should match included, non-ignored statuses by default.
+                    If set true, and no "exclude"-type matchers are set, then all included, non-ignored statuses will be relayed.
                 type: boolean
                 x-go-name: MatchByDefault
             matchers:
@@ -3209,7 +3270,7 @@ definitions:
                 type: array
                 x-go-name: Matchers
             public:
-                description: Include public posts when relaying via this connection.
+                description: Include public posts when relaying.
                 type: boolean
                 x-go-name: Public
             relay_actor_uri:
@@ -3218,12 +3279,43 @@ definitions:
                 type: string
                 x-go-name: RelayActorURI
             unlisted:
-                description: Include unlisted/unlocked posts when relaying via this connection.
+                description: Include unlisted/unlocked posts when relaying.
                 type: boolean
                 x-go-name: Unlisted
         title: RelayConnection models a relay push or relay subscription targeting a relay actor.
         type: object
         x-go-name: RelayConnection
+        x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/model
+    relayFlags:
+        properties:
+            ignore_media:
+                description: Ignore posts with media attachments when relaying.
+                type: boolean
+                x-go-name: IgnoreMedia
+            ignore_replies:
+                description: Ignore replies to other accounts when relaying.
+                type: boolean
+                x-go-name: IgnoreReplies
+            ignore_sensitive:
+                description: Ignore sensitive posts when relaying.
+                type: boolean
+                x-go-name: IgnoreSensitive
+            match_by_default:
+                description: |-
+                    Controls whether a relay should match included, non-ignored statuses by default.
+                    If set true, and no "exclude"-type matchers are set, then all included, non-ignored statuses will be relayed.
+                type: boolean
+                x-go-name: MatchByDefault
+            public:
+                description: Include public posts when relaying.
+                type: boolean
+                x-go-name: Public
+            unlisted:
+                description: Include unlisted/unlocked posts when relaying.
+                type: boolean
+                x-go-name: Unlisted
+        type: object
+        x-go-name: RelayFlags
         x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/model
     relayMatcher:
         properties:
@@ -9456,6 +9548,1101 @@ paths:
                 - OAuth2 Bearer:
                     - admin:write
             summary: Refetch media specified in the database but missing from storage.
+            tags:
+                - admin
+    /api/v1/admin/relay_actors:
+        get:
+            description: The actors will be returned in descending chronological order (newest first), with sequential IDs (bigger = newer).
+            operationId: adminRelayActors
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Array of relay actors.
+                    schema:
+                        items:
+                            $ref: '#/definitions/relayActor'
+                        type: array
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:read:relays
+            summary: View relay actors.
+            tags:
+                - admin
+        post:
+            consumes:
+                - application/json
+                - application/xml
+                - application/x-www-form-urlencoded
+            description: |-
+                The parameters can also be given in the body of the request, as JSON, if the content-type is set to 'application/json'.
+                The parameters can also be given in the body of the request, as XML, if the content-type is set to 'application/xml'.
+            operationId: relayActorCreate
+            parameters:
+                - description: The desired username for the relay actor account. Will be prefixed with "relay." to form the final username. Eg., "username=example" results in username "relay.example".
+                  in: formData
+                  name: username
+                  type: string
+                - description: Relay actor account should be made discoverable and shown in the profile directory (if enabled).
+                  in: formData
+                  name: discoverable
+                  type: boolean
+                - allowEmptyValue: true
+                  description: The display name to use for the account.
+                  in: formData
+                  name: display_name
+                  type: string
+                - allowEmptyValue: true
+                  description: Bio/description of this account.
+                  in: formData
+                  name: note
+                  type: string
+                - description: Avatar of the user.
+                  in: formData
+                  name: avatar
+                  type: file
+                - allowEmptyValue: true
+                  description: Description of avatar image, for alt-text.
+                  in: formData
+                  name: avatar_description
+                  type: string
+                - description: Header of the user.
+                  in: formData
+                  name: header
+                  type: file
+                - allowEmptyValue: true
+                  description: Description of header image, for alt-text.
+                  in: formData
+                  name: header_description
+                  type: string
+                - description: Require manual approval of follow requests.
+                  in: formData
+                  name: locked
+                  type: boolean
+                - description: Name of 1st profile field to be added to this account's profile. (The index may be any string; add more indexes to send more fields.)
+                  in: formData
+                  name: fields_attributes[0][name]
+                  type: string
+                - description: Value of 1st profile field to be added to this account's profile. (The index may be any string; add more indexes to send more fields.)
+                  in: formData
+                  name: fields_attributes[0][value]
+                  type: string
+                - description: Name of 2nd profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[1][name]
+                  type: string
+                - description: Value of 2nd profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[1][value]
+                  type: string
+                - description: Name of 3rd profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[2][name]
+                  type: string
+                - description: Value of 3rd profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[2][value]
+                  type: string
+                - description: Name of 4th profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[3][name]
+                  type: string
+                - description: Value of 4th profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[3][value]
+                  type: string
+                - description: Name of 5th profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[4][name]
+                  type: string
+                - description: Value of 5th profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[4][value]
+                  type: string
+                - description: Name of 6th profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[5][name]
+                  type: string
+                - description: Value of 6th profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[5][value]
+                  type: string
+                - default: true
+                  description: Relay public posts. If false, never relay public posts via this actor.
+                  in: formData
+                  name: public
+                  type: boolean
+                - description: Relay unlisted posts. If false, never relay unlisted posts via this actor.
+                  in: formData
+                  name: unlisted
+                  type: boolean
+                - description: Controls whether the relay actor should relay all non-ignored posts by default. If set true, and no "exclude"-type matchers are set on the actor, then all included, non-ignored posts will be relayed.
+                  in: formData
+                  name: match_by_default
+                  type: boolean
+                - description: Never relay sensitive posts via this actor.
+                  in: formData
+                  name: ignore_sensitive
+                  type: boolean
+                - description: Never relay posts with media attachments via this actor.
+                  in: formData
+                  name: ignore_media
+                  type: boolean
+                - description: Never relay non-self-replies (ie., comments) via this actor.
+                  in: formData
+                  name: ignore_replies
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The newly-created relay actor.
+                    schema:
+                        $ref: '#/definitions/relayActor'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "403":
+                    description: forbidden
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Application:
+                    - admin:write:relays
+            summary: Create a new relay actor.
+            tags:
+                - admin
+    /api/v1/admin/relay_actors/{id}:
+        delete:
+            operationId: adminRelayActorDelete
+            parameters:
+                - description: The id of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The deleted relay actor.
+                    schema:
+                        $ref: '#/definitions/relayActor'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Delete relay actor with the given ID.
+            tags:
+                - admin
+        get:
+            operationId: adminRelayActorGet
+            parameters:
+                - description: The id of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The requested relay actor.
+                    schema:
+                        $ref: '#/definitions/relayActor'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:read:relays
+            summary: View relay actor with the given ID.
+            tags:
+                - admin
+        put:
+            consumes:
+                - application/json
+                - application/xml
+                - application/x-www-form-urlencoded
+            description: |-
+                The parameters can also be given in the body of the request, as JSON, if the content-type is set to 'application/json'.
+                The parameters can also be given in the body of the request, as XML, if the content-type is set to 'application/xml'.
+            operationId: relayActorUpdate
+            parameters:
+                - description: The id of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: Relay actor account should be made discoverable and shown in the profile directory (if enabled).
+                  in: formData
+                  name: discoverable
+                  type: boolean
+                - description: The display name to use for the account.
+                  in: formData
+                  name: display_name
+                  type: string
+                - description: Bio/description of this account.
+                  in: formData
+                  name: note
+                  type: string
+                - description: Avatar of the user.
+                  in: formData
+                  name: avatar
+                  type: file
+                - description: Description of avatar image, for alt-text.
+                  in: formData
+                  name: avatar_description
+                  type: string
+                - description: Header of the user.
+                  in: formData
+                  name: header
+                  type: file
+                - description: Description of header image, for alt-text.
+                  in: formData
+                  name: header_description
+                  type: string
+                - description: Require manual approval of follow requests.
+                  in: formData
+                  name: locked
+                  type: boolean
+                - description: Name of 1st profile field to be added to this account's profile. (The index may be any string; add more indexes to send more fields.)
+                  in: formData
+                  name: fields_attributes[0][name]
+                  type: string
+                - description: Value of 1st profile field to be added to this account's profile. (The index may be any string; add more indexes to send more fields.)
+                  in: formData
+                  name: fields_attributes[0][value]
+                  type: string
+                - description: Name of 2nd profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[1][name]
+                  type: string
+                - description: Value of 2nd profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[1][value]
+                  type: string
+                - description: Name of 3rd profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[2][name]
+                  type: string
+                - description: Value of 3rd profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[2][value]
+                  type: string
+                - description: Name of 4th profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[3][name]
+                  type: string
+                - description: Value of 4th profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[3][value]
+                  type: string
+                - description: Name of 5th profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[4][name]
+                  type: string
+                - description: Value of 5th profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[4][value]
+                  type: string
+                - description: Name of 6th profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[5][name]
+                  type: string
+                - description: Value of 6th profile field to be added to this account's profile.
+                  in: formData
+                  name: fields_attributes[5][value]
+                  type: string
+                - default: true
+                  description: Relay public posts. If false, never relay public posts via this actor.
+                  in: formData
+                  name: public
+                  type: boolean
+                - description: Relay unlisted posts. If false, never relay unlisted posts via this actor.
+                  in: formData
+                  name: unlisted
+                  type: boolean
+                - description: Controls whether the relay actor should relay all non-ignored posts by default. If set true, and no "exclude"-type matchers are set on the actor, then all included, non-ignored posts will be relayed.
+                  in: formData
+                  name: match_by_default
+                  type: boolean
+                - description: Never relay sensitive posts via this actor.
+                  in: formData
+                  name: ignore_sensitive
+                  type: boolean
+                - description: Never relay posts with media attachments via this actor.
+                  in: formData
+                  name: ignore_media
+                  type: boolean
+                - description: Never relay non-self-replies (ie., comments) via this actor.
+                  in: formData
+                  name: ignore_replies
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The newly-created relay actor.
+                    schema:
+                        $ref: '#/definitions/relayActor'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "403":
+                    description: forbidden
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "422":
+                    description: unprocessable -- remote actor URI could not be dereferenced, or remote actor host is blocked
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Update a relay actor.
+            tags:
+                - admin
+    /api/v1/admin/relay_actors/{id}/accounts/{target_account_id}/block:
+        post:
+            operationId: relayActorAccountBlock
+            parameters:
+                - description: ID of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: ID of the account to block.
+                  in: path
+                  name: target_account_id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The relay actor account's updated relationship to the target account.
+                    schema:
+                        $ref: '#/definitions/accountRelationship'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Create a block targeting the given account on behalf of the relay actor.
+            tags:
+                - admin
+    /api/v1/admin/relay_actors/{id}/accounts/{target_account_id}/remove_from_followers:
+        post:
+            operationId: relayActorAccountRemoveFromFollowers
+            parameters:
+                - description: ID of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: ID of the account to remove from followers.
+                  in: path
+                  name: target_account_id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The relay actor account's updated relationship to the target account.
+                    schema:
+                        $ref: '#/definitions/accountRelationship'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Remove the given account from the followers of the relay actor.
+            tags:
+                - admin
+    /api/v1/admin/relay_actors/{id}/accounts/{target_account_id}/unblock:
+        post:
+            operationId: relayActorAccountUnblock
+            parameters:
+                - description: ID of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: ID of the account to block.
+                  in: path
+                  name: target_account_id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The relay actor account's updated relationship to the target account.
+                    schema:
+                        $ref: '#/definitions/accountRelationship'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Remove a block targeting the given account on behalf of the relay actor.
+            tags:
+                - admin
+    /api/v1/admin/relay_actors/{id}/blocks:
+        get:
+            description: |-
+                The next and previous queries can be parsed from the returned Link header.
+                Example:
+
+                ```
+                <https://example.org/api/v1/admin/relay_actors/0657WMDEC3KQDTD6NZ4XJZBK4M/blocks?limit=80&max_id=01FC0SKA48HNSVR6YKZCQGS2V8>; rel="next", <https://example.org/api/v1/admin/relay_actors/0657WMDEC3KQDTD6NZ4XJZBK4M/blocks?limit=80&min_id=01FC0SKW5JK2Q4EVAV2B462YY0>; rel="prev"
+                ````
+            operationId: relayActorBlocks
+            parameters:
+                - description: ID of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: 'Return only items *OLDER* than the given max ID. The item with the specified ID will not be included in the response. NOTE: the ID is of the internal block, NOT any of the returned accounts.'
+                  in: query
+                  name: max_id
+                  type: string
+                - description: 'Return only items *NEWER* than the given since ID. The item with the specified ID will not be included in the response. NOTE: the ID is of the internal block, NOT any of the returned accounts.'
+                  in: query
+                  name: since_id
+                  type: string
+                - description: 'Return only items *IMMEDIATELY NEWER* than the given min ID. The item with the specified ID will not be included in the response. NOTE: the ID is of the internal block, NOT any of the returned accounts.'
+                  in: query
+                  name: min_id
+                  type: string
+                - default: 40
+                  description: Number of items to return.
+                  in: query
+                  maximum: 80
+                  minimum: 1
+                  name: limit
+                  type: integer
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Array of accounts blocked by the relay actor account.
+                    headers:
+                        Link:
+                            description: Links to the next and previous queries.
+                            type: string
+                    schema:
+                        items:
+                            $ref: '#/definitions/account'
+                        type: array
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:read:relays
+            summary: See accounts blocked by the relay actor account.
+            tags:
+                - admin
+    /api/v1/admin/relay_actors/{id}/follow_requests:
+        get:
+            description: |-
+                The next and previous queries can be parsed from the returned Link header.
+                Example:
+
+                ```
+                <https://example.org/api/v1/admin/relay_actors/0657WMDEC3KQDTD6NZ4XJZBK4M/follow_requests?limit=80&max_id=01FC0SKA48HNSVR6YKZCQGS2V8>; rel="next", <https://example.org/api/v1/admin/relay_actors/0657WMDEC3KQDTD6NZ4XJZBK4M/follow_requests?limit=80&min_id=01FC0SKW5JK2Q4EVAV2B462YY0>; rel="prev"
+                ````
+            operationId: relayActorFollowRequests
+            parameters:
+                - description: ID of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: 'Return only items *OLDER* than the given max ID. The item with the specified ID will not be included in the response. NOTE: the ID is of the internal follow request, NOT any of the returned accounts.'
+                  in: query
+                  name: max_id
+                  type: string
+                - description: 'Return only items *NEWER* than the given since ID. The item with the specified ID will not be included in the response. NOTE: the ID is of the internal follow request, NOT any of the returned accounts.'
+                  in: query
+                  name: since_id
+                  type: string
+                - description: 'Return only items *IMMEDIATELY NEWER* than the given min ID. The item with the specified ID will not be included in the response. NOTE: the ID is of the internal follow request, NOT any of the returned accounts.'
+                  in: query
+                  name: min_id
+                  type: string
+                - default: 40
+                  description: Number of items to return.
+                  in: query
+                  maximum: 80
+                  minimum: 1
+                  name: limit
+                  type: integer
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Array of accounts that follow request the relay actor account.
+                    headers:
+                        Link:
+                            description: Links to the next and previous queries.
+                            type: string
+                    schema:
+                        items:
+                            $ref: '#/definitions/account'
+                        type: array
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:read:relays
+            summary: See follow requests targeting relay actor account.
+            tags:
+                - admin
+    /api/v1/admin/relay_actors/{id}/follow_requests/{target_account_id}/authorize:
+        post:
+            operationId: relayActorAuthorizeFollowRequest
+            parameters:
+                - description: ID of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: ID of the account whose follow request to accept.
+                  in: path
+                  name: target_account_id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The relay actor account's updated relationship to the target account.
+                    schema:
+                        $ref: '#/definitions/accountRelationship'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Accept/authorize follow request from the given account ID.
+            tags:
+                - admin
+    /api/v1/admin/relay_actors/{id}/follow_requests/{target_account_id}/reject:
+        post:
+            operationId: relayActorRejectFollowRequest
+            parameters:
+                - description: ID of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: ID of the account whose follow request to reject.
+                  in: path
+                  name: target_account_id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The relay actor account's updated relationship to the target account.
+                    schema:
+                        $ref: '#/definitions/accountRelationship'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Reject follow request from the given account ID.
+            tags:
+                - admin
+    /api/v1/admin/relay_actors/{id}/followers:
+        get:
+            description: |-
+                The next and previous queries can be parsed from the returned Link header.
+                Example:
+
+                ```
+                <https://example.org/api/v1/admin/relay_actors/0657WMDEC3KQDTD6NZ4XJZBK4M/followers?limit=80&max_id=01FC0SKA48HNSVR6YKZCQGS2V8>; rel="next", <https://example.org/api/v1/admin/relay_actors/0657WMDEC3KQDTD6NZ4XJZBK4M/followers?limit=80&min_id=01FC0SKW5JK2Q4EVAV2B462YY0>; rel="prev"
+                ````
+            operationId: relayActorFollowers
+            parameters:
+                - description: ID of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: 'Return only items *OLDER* than the given max ID. The item with the specified ID will not be included in the response. NOTE: the ID is of the internal follow, NOT any of the returned accounts.'
+                  in: query
+                  name: max_id
+                  type: string
+                - description: 'Return only items *NEWER* than the given since ID. The item with the specified ID will not be included in the response. NOTE: the ID is of the internal follow, NOT any of the returned accounts.'
+                  in: query
+                  name: since_id
+                  type: string
+                - description: 'Return only items *IMMEDIATELY NEWER* than the given min ID. The item with the specified ID will not be included in the response. NOTE: the ID is of the internal follow, NOT any of the returned accounts.'
+                  in: query
+                  name: min_id
+                  type: string
+                - default: 40
+                  description: Number of items to return.
+                  in: query
+                  maximum: 80
+                  minimum: 1
+                  name: limit
+                  type: integer
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Array of accounts that follow the relay actor account.
+                    headers:
+                        Link:
+                            description: Links to the next and previous queries.
+                            type: string
+                    schema:
+                        items:
+                            $ref: '#/definitions/account'
+                        type: array
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:read:relays
+            summary: See followers of account with given relay actor id.
+            tags:
+                - admin
+    /api/v1/admin/relay_actors/{id}/matchers:
+        post:
+            consumes:
+                - application/json
+                - application/xml
+                - application/x-www-form-urlencoded
+            description: Returns the relay actor with the given matcher added to it.
+            operationId: relayActorMatcherPost
+            parameters:
+                - description: ID of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: The text to be matched.
+                  in: formData
+                  name: keyword
+                  required: true
+                  type: string
+                - default: false
+                  description: Matcher should consider word boundaries.
+                  in: formData
+                  name: whole_word
+                  type: boolean
+                - default: false
+                  description: Matcher should cause matched posts to be excluded from relaying rather than included.
+                  in: formData
+                  name: exclude
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Relay actor the newly-created matcher belongs to.
+                    schema:
+                        $ref: '#/definitions/relayActor'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "403":
+                    description: forbidden to moved accounts
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "422":
+                    description: unprocessable content
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Add a relay matcher to a relay actor.
+            tags:
+                - admin
+    /api/v1/admin/relay_actors/{id}/matchers/{matcher_id}:
+        delete:
+            description: Returns the relay actor with the given matcher removed from it.
+            operationId: relayActorMatcherDelete
+            parameters:
+                - description: ID of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: ID of the relay matcher.
+                  in: path
+                  name: matcher_id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Relay actor the now-deleted matcher belonged to.
+                    schema:
+                        $ref: '#/definitions/relayActor'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Remove a relay matcher from a relay actor.
+            tags:
+                - admin
+        put:
+            consumes:
+                - application/json
+                - application/xml
+                - application/x-www-form-urlencoded
+            operationId: relayActorMatcherPut
+            parameters:
+                - description: ID of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+                - description: ID of the relay matcher.
+                  in: path
+                  name: matcher_id
+                  required: true
+                  type: string
+                - description: The text to be matched.
+                  in: formData
+                  name: keyword
+                  required: true
+                  type: string
+                - default: false
+                  description: Matcher should consider word boundaries.
+                  in: formData
+                  name: whole_word
+                  type: boolean
+                - default: false
+                  description: Matcher should cause matched posts to be excluded from relaying rather than included.
+                  in: formData
+                  name: exclude
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Relay actor the now-updated matcher belongs to.
+                    schema:
+                        $ref: '#/definitions/relayActor'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "403":
+                    description: forbidden to moved accounts
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "409":
+                    description: conflict (duplicate keyword)
+                    schema:
+                        $ref: '#/definitions/error'
+                "422":
+                    description: unprocessable content
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Update a relay matcher on a relay actor.
             tags:
                 - admin
     /api/v1/admin/relay_subscriptions:

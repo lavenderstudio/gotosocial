@@ -20,12 +20,18 @@ package util
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
+	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/httputil/binding"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
+	"github.com/go-playground/form/v4"
 )
 
 // ParseFocus parses a media attachment focus parameters from incoming API string.
@@ -127,4 +133,123 @@ func ParseNullableDuration(
 	}
 
 	return ParseDuration(rawI, fieldName)
+}
+
+func parseFieldsAttributesFromJSON(jsonFieldsAttributes *map[string]apimodel.UpdateField) (*[]apimodel.UpdateField, error) {
+	if jsonFieldsAttributes == nil {
+		// Nothing set, nothing to do.
+		return nil, nil
+	}
+
+	fieldsAttributes := make([]apimodel.UpdateField, 0, len(*jsonFieldsAttributes))
+	for keyStr, updateField := range *jsonFieldsAttributes {
+		key, err := strconv.Atoi(keyStr)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't parse fieldAttributes key %s to int: %w", keyStr, err)
+		}
+
+		fieldsAttributes = append(fieldsAttributes, apimodel.UpdateField{
+			Key:   key,
+			Name:  updateField.Name,
+			Value: updateField.Value,
+		})
+	}
+
+	// Sort slice by the key each field was submitted with.
+	slices.SortFunc(fieldsAttributes, func(a, b apimodel.UpdateField) int {
+		const k = +1
+		switch {
+		case a.Key > b.Key:
+			return +k
+		case a.Key < b.Key:
+			return -k
+		default:
+			return 0
+		}
+	})
+
+	return &fieldsAttributes, nil
+}
+
+// fieldsAttributesFormBinding satisfies
+// httputil's binding.Binding interface.
+//
+// Should only be used specifically
+// for multipart/form-data MIME type.
+type fieldsAttributesFormBinding struct{}
+
+func (fieldsAttributesFormBinding) Name() string {
+	return "FieldsAttributes"
+}
+
+func (fieldsAttributesFormBinding) Bind(req *http.Request, obj any) error {
+	if err := req.ParseForm(); err != nil {
+		return err
+	}
+
+	// Change default namespace prefix
+	// and suffix to allow correct parsing
+	// of the field attributes.
+	decoder := form.NewDecoder()
+	decoder.SetNamespacePrefix("[")
+	decoder.SetNamespaceSuffix("]")
+
+	return decoder.Decode(obj, req.Form)
+}
+
+func ParseWithFieldsAttributes(
+	c *httputil.Context,
+	form apimodel.WithFieldsAttributes,
+) (apimodel.WithFieldsAttributes, error) {
+	// nolint
+	maxMemory := int64(config.GetHTTPServerMaxMultipartMemory())
+
+	switch ct := c.ContentType(); ct {
+	case binding.MIMEJSON:
+		// Bind with default json binding first.
+		if err := binding.BindJSON(c, form, maxMemory); err != nil {
+			return nil, err
+		}
+
+		// Now use custom form binding for
+		// field attributes in the json data.
+		fa, err := parseFieldsAttributesFromJSON(form.GetJSONFieldsAttributes())
+		if err != nil {
+			return nil, fmt.Errorf("custom json binding failed: %w", err)
+		}
+		form.SetFieldsAttributes(fa)
+
+	case binding.MIMEPOSTForm:
+		// Bind with default form binding first.
+		if err := binding.BindForm(c, form, maxMemory); err != nil {
+			return nil, err
+		}
+
+		// Now use custom form binding for
+		// field attributes in the form data.
+		if err := (fieldsAttributesFormBinding{}).Bind(c.R, form); err != nil {
+			return nil, fmt.Errorf("custom form binding failed: %w", err)
+		}
+
+	case binding.MIMEMultipartPOSTForm:
+		// Bind with default form binding first.
+		if err := binding.BindFormMultipart(c, form, maxMemory); err != nil {
+			return nil, err
+		}
+
+		// Now use custom form binding for
+		// field attributes in the form data.
+		if err := (fieldsAttributesFormBinding{}).Bind(c.R, form); err != nil {
+			return nil, fmt.Errorf("custom form binding failed: %w", err)
+		}
+
+	default:
+		err := fmt.Errorf(
+			"content-type %s not supported for this endpoint; supported content-types are %s, %s, %s",
+			ct, binding.MIMEJSON, binding.MIMEPOSTForm, binding.MIMEMultipartPOSTForm,
+		)
+		return nil, err
+	}
+
+	return form, nil
 }

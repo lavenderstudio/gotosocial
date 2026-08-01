@@ -26,56 +26,81 @@ import (
 )
 
 const (
-	BasePath                                   = "/v1/admin"
-	WithID                                     = "/:" + apiutil.IDKey
-	EmojiPath                                  = BasePath + "/custom_emojis"
-	EmojiPathWithID                            = EmojiPath + WithID
-	EmojiCategoriesPath                        = EmojiPath + "/categories"
-	DomainBlocksPath                           = BasePath + "/domain_blocks"
-	DomainBlocksPathWithID                     = DomainBlocksPath + WithID
-	DomainAllowsPath                           = BasePath + "/domain_allows"
-	DomainAllowsPathWithID                     = DomainAllowsPath + WithID
-	DomainLimitsPath                           = BasePath + "/domain_limits"
-	DomainLimitsPathWithID                     = DomainLimitsPath + WithID
-	DomainPermissionDraftsPath                 = BasePath + "/domain_permission_drafts"
-	DomainPermissionDraftsPathWithID           = DomainPermissionDraftsPath + WithID
-	DomainPermissionDraftAcceptPath            = DomainPermissionDraftsPathWithID + "/accept"
-	DomainPermissionDraftRemovePath            = DomainPermissionDraftsPathWithID + "/remove"
-	DomainPermissionExcludesPath               = BasePath + "/domain_permission_excludes"
-	DomainPermissionExcludesPathWithID         = DomainPermissionExcludesPath + WithID
-	DomainPermissionSubscriptionsPath          = BasePath + "/domain_permission_subscriptions"
-	DomainPermissionSubscriptionsPathWithID    = DomainPermissionSubscriptionsPath + WithID
-	DomainPermissionSubscriptionsPreviewPath   = DomainPermissionSubscriptionsPath + "/preview"
-	DomainPermissionSubscriptionRemovePath     = DomainPermissionSubscriptionsPathWithID + "/remove"
-	DomainPermissionSubscriptionTestPath       = DomainPermissionSubscriptionsPathWithID + "/test"
-	DomainKeysExpirePath                       = BasePath + "/domain_keys_expire"
-	HeaderAllowsPath                           = BasePath + "/header_allows"
-	HeaderAllowsPathWithID                     = HeaderAllowsPath + WithID
-	HeaderBlocksPath                           = BasePath + "/header_blocks"
-	HeaderBlocksPathWithID                     = HeaderBlocksPath + WithID
-	AccountsV1Path                             = BasePath + "/accounts"
-	AccountsV2Path                             = "/v2/admin/accounts"
-	AccountsPathWithID                         = AccountsV1Path + WithID
-	AccountsActionPath                         = AccountsPathWithID + "/action"
-	AccountsApprovePath                        = AccountsPathWithID + "/approve"
-	AccountsRejectPath                         = AccountsPathWithID + "/reject"
-	MediaCleanupPath                           = BasePath + "/media_cleanup"
-	MediaPurgePath                             = BasePath + "/media_purge"
-	MediaRefetchPath                           = BasePath + "/media_refetch"
-	ReportsPath                                = BasePath + "/reports"
-	ReportsPathWithID                          = ReportsPath + WithID
-	ReportsResolvePath                         = ReportsPathWithID + "/resolve"
-	EmailPath                                  = BasePath + "/email"
-	EmailTestPath                              = EmailPath + "/test"
-	InstanceRulesPath                          = BasePath + "/instance/rules"
-	InstanceRulesPathWithID                    = InstanceRulesPath + WithID
-	InstancesPath                              = BasePath + "/instances"
-	InstancesPathWithID                        = InstancesPath + WithID
-	InstanceClearDeliveryErrorsPath            = InstancesPathWithID + "/clear_delivery_errors"
+	BasePath = "/v1/admin"
+	WithID   = "/:" + apiutil.IDKey
+
+	EmojiPath           = BasePath + "/custom_emojis"
+	EmojiPathWithID     = EmojiPath + WithID
+	EmojiCategoriesPath = EmojiPath + "/categories"
+
+	DomainBlocksPath       = BasePath + "/domain_blocks"
+	DomainBlocksPathWithID = DomainBlocksPath + WithID
+	DomainAllowsPath       = BasePath + "/domain_allows"
+	DomainAllowsPathWithID = DomainAllowsPath + WithID
+	DomainLimitsPath       = BasePath + "/domain_limits"
+	DomainLimitsPathWithID = DomainLimitsPath + WithID
+
+	DomainPermissionDraftsPath               = BasePath + "/domain_permission_drafts"
+	DomainPermissionDraftsPathWithID         = DomainPermissionDraftsPath + WithID
+	DomainPermissionDraftAcceptPath          = DomainPermissionDraftsPathWithID + "/accept"
+	DomainPermissionDraftRemovePath          = DomainPermissionDraftsPathWithID + "/remove"
+	DomainPermissionExcludesPath             = BasePath + "/domain_permission_excludes"
+	DomainPermissionExcludesPathWithID       = DomainPermissionExcludesPath + WithID
+	DomainPermissionSubscriptionsPath        = BasePath + "/domain_permission_subscriptions"
+	DomainPermissionSubscriptionsPathWithID  = DomainPermissionSubscriptionsPath + WithID
+	DomainPermissionSubscriptionsPreviewPath = DomainPermissionSubscriptionsPath + "/preview"
+	DomainPermissionSubscriptionRemovePath   = DomainPermissionSubscriptionsPathWithID + "/remove"
+	DomainPermissionSubscriptionTestPath     = DomainPermissionSubscriptionsPathWithID + "/test"
+
+	DomainKeysExpirePath = BasePath + "/domain_keys_expire"
+
+	HeaderAllowsPath       = BasePath + "/header_allows"
+	HeaderAllowsPathWithID = HeaderAllowsPath + WithID
+	HeaderBlocksPath       = BasePath + "/header_blocks"
+	HeaderBlocksPathWithID = HeaderBlocksPath + WithID
+
+	AccountsV1Path      = BasePath + "/accounts"
+	AccountsV2Path      = "/v2/admin/accounts"
+	AccountsPathWithID  = AccountsV1Path + WithID
+	AccountsActionPath  = AccountsPathWithID + "/action"
+	AccountsApprovePath = AccountsPathWithID + "/approve"
+	AccountsRejectPath  = AccountsPathWithID + "/reject"
+
+	MediaCleanupPath = BasePath + "/media_cleanup"
+	MediaPurgePath   = BasePath + "/media_purge"
+	MediaRefetchPath = BasePath + "/media_refetch"
+
+	ReportsPath        = BasePath + "/reports"
+	ReportsPathWithID  = ReportsPath + WithID
+	ReportsResolvePath = ReportsPathWithID + "/resolve"
+
+	EmailPath     = BasePath + "/email"
+	EmailTestPath = EmailPath + "/test"
+
+	InstanceRulesPath               = BasePath + "/instance/rules"
+	InstanceRulesPathWithID         = InstanceRulesPath + WithID
+	InstancesPath                   = BasePath + "/instances"
+	InstancesPathWithID             = InstancesPath + WithID
+	InstanceClearDeliveryErrorsPath = InstancesPathWithID + "/clear_delivery_errors"
+
 	RelaySubscriptionsPath                     = BasePath + "/relay_subscriptions"
 	RelaySubscriptionsPathWithID               = RelaySubscriptionsPath + WithID
 	RelaySubscriptionMatchersPath              = RelaySubscriptionsPathWithID + "/matchers"
 	RelaySubscriptionMatchersPathWithMatcherID = RelaySubscriptionMatchersPath + "/:" + apiutil.RelayMatcherIDKey
+
+	RelayActorsPath                      = BasePath + "/relay_actors"
+	RelayActorsPathWithID                = RelayActorsPath + WithID
+	RelayActorFollowRequestsPath         = RelayActorsPathWithID + "/follow_requests"
+	RelayActorFollowRequestAuthorizePath = RelayActorFollowRequestsPath + "/:" + apiutil.TargetAccountIDKey + "/authorize"
+	RelayActorFollowRequestRejectPath    = RelayActorFollowRequestsPath + "/:" + apiutil.TargetAccountIDKey + "/reject"
+	RelayActorFollowersPath              = RelayActorsPathWithID + "/followers"
+	RelayActorAccountsPath               = RelayActorsPathWithID + "/accounts"
+	RelayActorRemoveFromFollowersPath    = RelayActorAccountsPath + "/:" + apiutil.TargetAccountIDKey + "/remove_from_followers"
+	RelayActorBlocksPath                 = RelayActorsPathWithID + "/blocks"
+	RelayActorBlockPath                  = RelayActorAccountsPath + "/:" + apiutil.TargetAccountIDKey + "/block"
+	RelayActorUnblockPath                = RelayActorAccountsPath + "/:" + apiutil.TargetAccountIDKey + "/unblock"
+	RelayActorMatchersPath               = RelayActorsPathWithID + "/matchers"
+	RelayActorMatchersPathWithMatcherID  = RelayActorMatchersPath + "/:" + apiutil.RelayMatcherIDKey
 
 	FilterQueryKey        = "filter"
 	MaxShortcodeDomainKey = "max_shortcode_domain"
@@ -194,7 +219,7 @@ func (m *Module) Route(g *httputil.RouteGroup) {
 	g.GET(InstancesPathWithID, m.InstanceGETHandler)
 	g.POST(InstanceClearDeliveryErrorsPath, m.InstanceClearDeliveryErrorsPOSTHandler)
 
-	// relays stuff
+	// relay subscriptions stuff
 	g.GET(RelaySubscriptionsPath, m.RelaySubscriptionsGETHandler)
 	g.GET(RelaySubscriptionsPathWithID, m.RelaySubscriptionGETHandler)
 	g.POST(RelaySubscriptionsPath, m.RelaySubscriptionPOSTHandler)
@@ -203,4 +228,26 @@ func (m *Module) Route(g *httputil.RouteGroup) {
 	g.POST(RelaySubscriptionMatchersPath, m.RelaySubscriptionMatcherPOSTHandler)
 	g.DELETE(RelaySubscriptionMatchersPathWithMatcherID, m.RelaySubscriptionMatcherDELETEHandler)
 	g.PUT(RelaySubscriptionMatchersPathWithMatcherID, m.RelaySubscriptionMatcherPUTHandler)
+
+	// relay actors stuff
+	g.GET(RelayActorsPath, m.RelayActorsGETHandler)
+	g.GET(RelayActorsPathWithID, m.RelayActorGETHandler)
+	g.POST(RelayActorsPath, m.RelayActorPOSTHandler)
+	g.PUT(RelayActorsPathWithID, m.RelayActorPUTHandler)
+	g.DELETE(RelayActorsPathWithID, m.RelayActorDELETEHandler)
+	g.POST(RelayActorMatchersPath, m.RelayActorMatcherPOSTHandler)
+	g.DELETE(RelayActorMatchersPathWithMatcherID, m.RelayActorMatcherDELETEHandler)
+	g.PUT(RelayActorMatchersPathWithMatcherID, m.RelayActorMatcherPUTHandler)
+
+	// relay actor account moderation stuff
+	// follow (requests) management
+	g.GET(RelayActorFollowRequestsPath, m.RelayActorFollowRequestsGETHandler)
+	g.POST(RelayActorFollowRequestAuthorizePath, m.RelayActorFollowRequestAuthorizePOSTHandler)
+	g.POST(RelayActorFollowRequestRejectPath, m.RelayActorFollowRequestRejectPOSTHandler)
+	g.GET(RelayActorFollowersPath, m.RelayActorFollowersGETHandler)
+	g.POST(RelayActorRemoveFromFollowersPath, m.RelayActorRemoveFromFollowersPOSTHandler)
+	// block management
+	g.GET(RelayActorBlocksPath, m.RelayActorBlocksGETHandler)
+	g.POST(RelayActorBlockPath, m.RelayActorBlockPOSTHandler)
+	g.POST(RelayActorUnblockPath, m.RelayActorUnblockPOSTHandler)
 }

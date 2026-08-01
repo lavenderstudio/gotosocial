@@ -18,150 +18,210 @@
 package account
 
 import (
+	"cmp"
 	"context"
 	"errors"
+	"slices"
 
+	"code.superseriousbusiness.org/gopkg/log"
+	"code.superseriousbusiness.org/gopkg/xslices"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
+	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
-// FollowersGet fetches a list of the target account's followers.
-func (p *Processor) FollowersGet(ctx context.Context, requestingAccount *gtsmodel.Account, targetAccountID string, page *paging.Page) (*apimodel.PageableResponse, gtserror.WithCode) {
+// RelationshipGet returns the relationship
+// between requester account and target account.
+func (p *Processor) RelationshipGet(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	targetAcctID string,
+) (*apimodel.Relationship, gtserror.WithCode) {
+	return p.c.APIRelationship(ctx, requester, targetAcctID)
+}
+
+// FollowersGet fetches a list of
+// the target account's followers.
+func (p *Processor) FollowersGet(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	targetAccountID string,
+	page *paging.Page,
+) (*apimodel.PageableResponse, gtserror.WithCode) {
 	// Fetch target account to check it exists, and visibility of requester->target.
-	targetAccount, errWithCode := p.c.GetVisibleTargetAccount(ctx, requestingAccount, targetAccountID)
+	target, errWithCode := p.c.GetVisibleTargetAccount(ctx, requester, targetAccountID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
-	if targetAccount.IsInstance() {
-		// Instance accounts can't follow/be followed.
+	if target.IsInstance() || target.IsRelayActor() {
+		// Hide for instance and relay actors.
 		return paging.EmptyResponse(), nil
 	}
 
 	// If account isn't requesting its own followers list,
 	// but instead the list for a local account that has
 	// hide_followers set, just return an empty array.
-	if targetAccountID != requestingAccount.ID &&
-		targetAccount.IsLocalUserAccount() &&
-		*targetAccount.Settings.HideCollections {
+	if targetAccountID != requester.ID &&
+		target.IsLocal() &&
+		*target.Settings.HideCollections {
 		return paging.EmptyResponse(), nil
 	}
 
-	follows, err := p.state.DB.GetAccountFollowers(ctx, targetAccountID, page)
-	if err != nil && !errors.Is(err, db.ErrNoEntries) {
-		err = gtserror.Newf("db error getting followers: %w", err)
-		return nil, gtserror.NewErrorInternalError(err)
-	}
-
-	// Check for empty response.
-	count := len(follows)
-	if count == 0 {
-		return paging.EmptyResponse(), nil
-	}
-
-	// Get the lowest and highest
-	// ID values, used for paging.
-	lo := follows[count-1].ID
-	hi := follows[0].ID
-
-	// Func to fetch follow source at index.
-	getIdx := func(i int) *gtsmodel.Account {
-		return follows[i].Account
-	}
-
-	// Get a filtered slice of public API account models.
-	items := p.c.GetVisibleAPIAccountsPaged(ctx,
-		requestingAccount,
-		getIdx,
-		len(follows),
-	)
-
-	return paging.PackageResponse(paging.ResponseParams{
-		Items: items,
-		Path:  "/api/v1/accounts/" + targetAccountID + "/followers",
-		Next:  page.Next(lo, hi),
-		Prev:  page.Prev(lo, hi),
-	}), nil
+	path := "/api/v1/accounts/" + targetAccountID + "/followers"
+	return p.c.FollowersGet(ctx, target, requester, page, path)
 }
 
-// FollowingGet fetches a list of the accounts that target account is following.
-func (p *Processor) FollowingGet(ctx context.Context, requestingAccount *gtsmodel.Account, targetAccountID string, page *paging.Page) (*apimodel.PageableResponse, gtserror.WithCode) {
+// FollowingGet fetches a list of accounts
+// that the target account is following.
+func (p *Processor) FollowingGet(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	targetAccountID string,
+	page *paging.Page,
+) (*apimodel.PageableResponse, gtserror.WithCode) {
 	// Fetch target account to check it exists, and visibility of requester->target.
-	targetAccount, errWithCode := p.c.GetVisibleTargetAccount(ctx, requestingAccount, targetAccountID)
+	target, errWithCode := p.c.GetVisibleTargetAccount(ctx, requester, targetAccountID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
-	if targetAccount.IsInstance() {
-		// Instance accounts can't follow/be followed.
+	if target.IsInstance() || target.IsRelayActor() {
+		// Hide for instance and relay actors.
 		return paging.EmptyResponse(), nil
 	}
 
 	// If account isn't requesting its own following list,
 	// but instead the list for a local account that has
 	// hide_followers set, just return an empty array.
-	if targetAccountID != requestingAccount.ID &&
-		targetAccount.IsLocalUserAccount() &&
-		*targetAccount.Settings.HideCollections {
+	if targetAccountID != requester.ID &&
+		target.IsLocal() &&
+		*target.Settings.HideCollections {
 		return paging.EmptyResponse(), nil
 	}
 
-	// Fetch known accounts that follow given target account ID.
-	follows, err := p.state.DB.GetAccountFollows(ctx, targetAccountID, page)
+	path := "/api/v1/accounts/" + targetAccountID + "/following"
+	return p.c.FollowingGet(ctx, target, requester, page, path)
+}
+
+// ConnectedDomainsGet returns an alphabetical,
+// deduplicated, depunified list of all domains
+// that the target account is connected with
+// via a following and/or follower relationship.
+func (p *Processor) ConnectedDomainsGet(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	targetAccountID string,
+) ([]string, gtserror.WithCode) {
+	// Fetch target account to check it exists, and visibility of requester->target.
+	target, errWithCode := p.c.GetVisibleTargetAccount(ctx, requester, targetAccountID)
+	if errWithCode != nil {
+		return nil, errWithCode
+	}
+
+	if target.IsInstance() {
+		// Instance actor only
+		// follows relay actors,
+		// just return nil here.
+		return nil, nil
+	}
+
+	if target.IsLocalUserAccount() &&
+		*target.Settings.HideCollections &&
+		(requester == nil || requester.ID != target.ID) {
+		// Target account
+		// is not requester,
+		// and hides collections.
+		return nil, nil
+	}
+
+	// OK to show connected
+	// domains to this requester.
+
+	// Get all follows that target targetAccountID.
+	followers, err := p.state.DB.GetAccountFollowers(ctx, targetAccountID, nil)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		err = gtserror.Newf("db error getting followers: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	// Check for empty response.
-	count := len(follows)
-	if count == 0 {
-		return paging.EmptyResponse(), nil
+	// Get all follows that are owned by targetAccountID.
+	following, err := p.state.DB.GetAccountFollows(ctx, targetAccountID, nil)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		err = gtserror.Newf("db error getting followers: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	// Get the lowest and highest
-	// ID values, used for paging.
-	lo := follows[count-1].ID
-	hi := follows[0].ID
+	// Map for deduplication.
+	l := len(followers) + len(following)
+	domainsMap := make(map[string]any, l)
 
-	// Func to fetch follow source at index.
-	getIdx := func(i int) *gtsmodel.Account {
-		return follows[i].TargetAccount
+	// Function to depunify and dedupe a domain.
+	uniqueDomain := func(domain string) (string, bool) {
+		// Depunify the domain.
+		domain, err = util.DePunify(domain)
+		if err != nil {
+			log.Errorf(ctx, "error depunifying follower domain: %v", err)
+			return "", false
+		}
+
+		// Check if already gathered.
+		if _, gathered := domainsMap[domain]; gathered {
+			// Do nothing.
+			return "", false
+		}
+
+		// Mark domain in dedupe map.
+		domainsMap[domain] = struct{}{}
+		return domain, true
 	}
 
-	// Get a filtered slice of public API account models.
-	items := p.c.GetVisibleAPIAccountsPaged(ctx,
-		requestingAccount,
-		getIdx,
-		len(follows),
+	// Get our own domain
+	// once outside the loops.
+	ourDomain := config.GetAccountDomain()
+
+	// Collect domains
+	// of all followers.
+	domains := xslices.GatherIf(
+		nil,
+		followers,
+		func(f *gtsmodel.Follow) (string, bool) {
+			// Use follow owner domain,
+			// fall back to our domain
+			// for local accounts.
+			domain := cmp.Or(
+				f.Account.Domain,
+				ourDomain,
+			)
+			return uniqueDomain(domain)
+		},
 	)
 
-	return paging.PackageResponse(paging.ResponseParams{
-		Items: items,
-		Path:  "/api/v1/accounts/" + targetAccountID + "/following",
-		Next:  page.Next(lo, hi),
-		Prev:  page.Prev(lo, hi),
-	}), nil
-}
+	// Collect domains
+	// of all following.
+	domains = append(domains,
+		xslices.GatherIf(
+			nil,
+			following,
+			func(f *gtsmodel.Follow) (string, bool) {
+				// Use follow target domain,
+				// fall back to our domain
+				// for local accounts.
+				domain := cmp.Or(
+					f.TargetAccount.Domain,
+					ourDomain,
+				)
+				return uniqueDomain(domain)
+			},
+		)...,
+	)
 
-// RelationshipGet returns a relationship model describing the relationship of the targetAccount to the Authed account.
-func (p *Processor) RelationshipGet(ctx context.Context, requestingAccount *gtsmodel.Account, targetAccountID string) (*apimodel.Relationship, gtserror.WithCode) {
-	if requestingAccount == nil {
-		return nil, gtserror.NewErrorForbidden(gtserror.New("not authed"))
-	}
-
-	gtsR, err := p.state.DB.GetRelationship(ctx, requestingAccount.ID, targetAccountID)
-	if err != nil {
-		return nil, gtserror.NewErrorInternalError(gtserror.Newf("error getting relationship: %s", err))
-	}
-
-	r, err := p.converter.RelationshipToAPIRelationship(ctx, gtsR)
-	if err != nil {
-		return nil, gtserror.NewErrorInternalError(gtserror.Newf("error converting relationship: %s", err))
-	}
-
-	return r, nil
+	// Sort alphabetically
+	// before returning.
+	slices.Sort(domains)
+	return domains, nil
 }

@@ -22,9 +22,11 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/filter/mutes"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/status"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
+	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/internal/surfacing"
+	"code.superseriousbusiness.org/gotosocial/internal/text"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 )
 
@@ -39,7 +41,10 @@ type Processor struct {
 	visFilter    *visibility.Filter
 	muteFilter   *mutes.Filter
 	statusFilter *status.Filter
+	formatter    *text.Formatter
+	parseMention gtsmodel.ParseMentionFunc
 	surfacer     *surfacing.Surfacer
+	themes       *Themes
 }
 
 // New returns a new Processor instance.
@@ -51,6 +56,7 @@ func New(
 	visFilter *visibility.Filter,
 	muteFilter *mutes.Filter,
 	statusFilter *status.Filter,
+	parseMention gtsmodel.ParseMentionFunc,
 	surfacer *surfacing.Surfacer,
 ) Processor {
 	return Processor{
@@ -61,6 +67,9 @@ func New(
 		visFilter:    visFilter,
 		muteFilter:   muteFilter,
 		statusFilter: statusFilter,
+		parseMention: parseMention,
+		formatter:    text.NewFormatter(state.DB),
 		surfacer:     surfacer,
+		themes:       PopulateThemes(),
 	}
 }

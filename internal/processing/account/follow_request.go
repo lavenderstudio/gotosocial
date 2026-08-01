@@ -21,107 +21,60 @@ import (
 	"context"
 	"errors"
 
-	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"code.superseriousbusiness.org/gotosocial/internal/messages"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 )
 
-// FollowRequestAccept handles the accepting of a follow request from the sourceAccountID to the requestingAccount (the currently authorized account).
-func (p *Processor) FollowRequestAccept(ctx context.Context, requestingAccount *gtsmodel.Account, sourceAccountID string) (*apimodel.Relationship, gtserror.WithCode) {
-	follow, err := p.state.DB.AcceptFollowRequest(ctx, sourceAccountID, requestingAccount.ID)
-	if err != nil {
-		return nil, gtserror.NewErrorNotFound(err)
-	}
-
-	if follow.Account != nil {
-		// Only enqueue work in the case we have a request creating account stored.
-		// NOTE: due to how AcceptFollowRequest works, the inverse shouldn't be possible.
-		p.state.Workers.Client.Queue.Push(&messages.FromClientAPI{
-			APObjectType:   ap.ActivityFollow,
-			APActivityType: ap.ActivityAccept,
-			GTSModel:       follow,
-			Origin:         follow.Account,
-			Target:         follow.TargetAccount,
-		})
-	}
-
-	return p.RelationshipGet(ctx, requestingAccount, sourceAccountID)
+// FollowRequestAccept accepts a follow request on behalf of
+// requester, where follow requester is the given accountID.
+func (p *Processor) FollowRequestAccept(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	accountID string,
+) (*apimodel.Relationship, gtserror.WithCode) {
+	return p.c.FollowRequestAccept(ctx, requester, accountID)
 }
 
-// FollowRequestReject handles the rejection of a follow request from the sourceAccountID to the requestingAccount (the currently authorized account).
-func (p *Processor) FollowRequestReject(ctx context.Context, requestingAccount *gtsmodel.Account, sourceAccountID string) (*apimodel.Relationship, gtserror.WithCode) {
-	followRequest, err := p.state.DB.GetFollowRequest(ctx, sourceAccountID, requestingAccount.ID)
-	if err != nil {
-		return nil, gtserror.NewErrorNotFound(err)
-	}
-
-	err = p.state.DB.RejectFollowRequest(ctx, sourceAccountID, requestingAccount.ID)
-	if err != nil {
-		return nil, gtserror.NewErrorNotFound(err)
-	}
-
-	if followRequest.Account != nil {
-		// Only enqueue work in the case we have a request creating account stored.
-		// NOTE: due to how GetFollowRequest works, the inverse shouldn't be possible.
-		p.state.Workers.Client.Queue.Push(&messages.FromClientAPI{
-			APObjectType:   ap.ActivityFollow,
-			APActivityType: ap.ActivityReject,
-			GTSModel:       followRequest,
-			Origin:         followRequest.Account,
-			Target:         followRequest.TargetAccount,
-		})
-	}
-
-	return p.RelationshipGet(ctx, requestingAccount, sourceAccountID)
+// FollowRequestReject rejects a follow request on behalf of
+// requester, where follow requester is the given accountID.
+func (p *Processor) FollowRequestReject(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	accountID string,
+) (*apimodel.Relationship, gtserror.WithCode) {
+	return p.c.FollowRequestReject(ctx, requester, accountID)
 }
 
-// FollowRequestsGet fetches a list of the accounts that are follow requesting the given requestingAccount (the currently authorized account).
-func (p *Processor) FollowRequestsGet(ctx context.Context, requestingAccount *gtsmodel.Account, page *paging.Page) (*apimodel.PageableResponse, gtserror.WithCode) {
-	// Fetch follow requests targeting the given requesting account model.
-	followRequests, err := p.state.DB.GetAccountFollowRequests(ctx, requestingAccount.ID, page)
-	if err != nil && !errors.Is(err, db.ErrNoEntries) {
-		return nil, gtserror.NewErrorInternalError(err)
-	}
-
-	// Check for empty response.
-	count := len(followRequests)
-	if count == 0 {
-		return paging.EmptyResponse(), nil
-	}
-
-	// Get the lowest and highest
-	// ID values, used for paging.
-	lo := followRequests[count-1].ID
-	hi := followRequests[0].ID
-
-	// Func to fetch follow source at index.
-	getIdx := func(i int) *gtsmodel.Account {
-		return followRequests[i].Account
-	}
-
-	// Get a filtered slice of public API account models.
-	items := p.c.GetVisibleAPIAccountsPaged(ctx,
-		requestingAccount,
-		getIdx,
-		count,
-	)
-
-	return paging.PackageResponse(paging.ResponseParams{
-		Items: items,
-		Path:  "/api/v1/follow_requests",
-		Next:  page.Next(lo, hi),
-		Prev:  page.Prev(lo, hi),
-	}), nil
+// OutgoingFollowRequestsGet returns a page of accounts
+// which target the requester with follow requests.
+//
+// The pagePath param should be set to the API path that's being
+// used to call this function, eg "/api/v1/follow_requests".
+func (p *Processor) FollowRequestsGet(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	page *paging.Page,
+	pagePath string,
+) (*apimodel.PageableResponse, gtserror.WithCode) {
+	return p.c.FollowRequestsGet(ctx, requester, page, pagePath)
 }
 
-// OutgoingFollowRequestsGet fetches a list of the accounts with a pending follow request originating from the given requestingAccount (the currently authorized account).
-func (p *Processor) OutgoingFollowRequestsGet(ctx context.Context, requestingAccount *gtsmodel.Account, page *paging.Page) (*apimodel.PageableResponse, gtserror.WithCode) {
+// OutgoingFollowRequestsGet returns a page of accounts
+// targeted by follow requests owned by the requester.
+//
+// The pagePath param should be set to the API path that's being
+// used to call this function, eg "/api/v1/follow_requesting".
+func (p *Processor) OutgoingFollowRequestsGet(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	page *paging.Page,
+	pagePath string,
+) (*apimodel.PageableResponse, gtserror.WithCode) {
 	// Fetch follow requests originating from the given requesting account model.
-	followRequests, err := p.state.DB.GetAccountFollowRequesting(ctx, requestingAccount.ID, page)
+	followRequests, err := p.state.DB.GetAccountFollowRequesting(ctx, requester.ID, page)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		return nil, gtserror.NewErrorInternalError(err)
 	}
@@ -144,14 +97,14 @@ func (p *Processor) OutgoingFollowRequestsGet(ctx context.Context, requestingAcc
 
 	// Get a filtered slice of public API account models.
 	items := p.c.GetVisibleAPIAccountsPaged(ctx,
-		requestingAccount,
+		requester,
 		getIdx,
 		count,
 	)
 
 	return paging.PackageResponse(paging.ResponseParams{
 		Items: items,
-		Path:  "/api/v1/follow_requests/outgoing",
+		Path:  pagePath,
 		Next:  page.Next(lo, hi),
 		Prev:  page.Prev(lo, hi),
 	}), nil

@@ -320,6 +320,19 @@ func ParseID(value string) (string, gtserror.WithCode) {
 	return value, nil
 }
 
+func ParseTargetAccountID(value string) (string, gtserror.WithCode) {
+	key := TargetAccountIDKey
+
+	if value == "" {
+		return "", requiredError(key)
+	}
+
+	// ULIDs are always uppercase.
+	value = strings.ToUpper(value)
+
+	return value, nil
+}
+
 func ParseRelayMatcherID(value string) (string, gtserror.WithCode) {
 	key := RelayMatcherIDKey
 

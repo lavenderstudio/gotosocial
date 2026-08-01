@@ -163,6 +163,18 @@ type WebAccount struct {
 	//    "unlisted" = show Public *and* Unlisted visibility posts on the web.
 	//    "none" = show no posts on the web, not even Public ones.
 	WebVisibility Visibility `json:"-"`
+
+	// Set to "true" if this is a local relay actor
+	// account with "RelayShowFollowers" set to "true".
+	RelayShowFollowers bool `json:"-"`
+
+	// AP ID/URI of the relay actor,
+	// if a local relay actor.
+	RelayActorURI string `json:"-"`
+
+	// AP Inbox URI of the relay actor,
+	// if a local relay actor.
+	RelayInboxURI string `json:"-"`
 }
 
 // MutedAccount extends Account with a field used only by the muted user list.
@@ -212,10 +224,10 @@ type AccountCreateRequest struct {
 	IP net.IP `form:"-"`
 }
 
-// UpdateCredentialsRequest models an update to an account, by the account owner.
+// UpdateAccountRequest models an update to an account, by the account owner.
 //
 // swagger:ignore
-type UpdateCredentialsRequest struct {
+type UpdateAccountRequest struct {
 	// Account should be made discoverable and shown in the profile directory (if enabled).
 	Discoverable *bool `form:"discoverable" json:"discoverable"`
 	// Account should be made indexable and opted into full-text search (if enabled).
@@ -263,7 +275,27 @@ type UpdateCredentialsRequest struct {
 	WebIncludeBoosts *bool `form:"web_include_boosts" json:"web_include_boosts"`
 }
 
-// UpdateSource is to be used specifically in an UpdateCredentialsRequest.
+// Comply with interface WithFieldsAttributes (api/model/common.go).
+func (form *UpdateAccountRequest) GetFieldsAttributes() *[]UpdateField {
+	return form.FieldsAttributes
+}
+
+// Comply with interface WithFieldsAttributes (api/model/common.go).
+func (form *UpdateAccountRequest) SetFieldsAttributes(v *[]UpdateField) {
+	form.FieldsAttributes = v
+}
+
+// Comply with interface WithFieldsAttributes (api/model/common.go).
+func (form *UpdateAccountRequest) GetJSONFieldsAttributes() *map[string]UpdateField {
+	return form.JSONFieldsAttributes
+}
+
+// Comply with interface WithFieldsAttributes (api/model/common.go).
+func (form *UpdateAccountRequest) SetJSONFieldsAttributes(v *map[string]UpdateField) {
+	form.JSONFieldsAttributes = v
+}
+
+// UpdateSource is to be used specifically in an UpdateAccountRequest.
 //
 // swagger:ignore
 type UpdateSource struct {
@@ -277,7 +309,7 @@ type UpdateSource struct {
 	StatusContentType *string `form:"status_content_type" json:"status_content_type"`
 }
 
-// UpdateField is to be used specifically in an UpdateCredentialsRequest.
+// UpdateField is to be used specifically in an UpdateAccountRequest.
 // By default, max 6 fields and 255 characters per property/value.
 //
 // swagger:ignore

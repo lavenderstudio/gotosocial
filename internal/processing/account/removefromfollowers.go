@@ -21,13 +21,10 @@ import (
 	"context"
 	"errors"
 
-	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
-	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"code.superseriousbusiness.org/gotosocial/internal/messages"
 )
 
 // RemoveFromFollowers removes targetAccountID from
@@ -49,38 +46,5 @@ func (p *Processor) RemoveFromFollowers(
 		return nil, gtserror.NewErrorNotFound(err)
 	}
 
-	// Check if a follow exists from
-	// targetAccountID -> requester.
-	follow, err := p.state.DB.GetFollow(
-		gtscontext.SetBarebones(ctx),
-		targetAccountID,
-		requester.ID,
-	)
-	if err != nil && !errors.Is(err, db.ErrNoEntries) {
-		err = gtserror.Newf("db error checking existing follow: %w", err)
-		return nil, gtserror.NewErrorInternalError(err)
-	}
-
-	if follow != nil {
-		// Follow exists, remove it.
-		if err := p.state.DB.DeleteFollow(ctx,
-			follow.AccountID,
-			follow.TargetAccountID,
-		); err != nil {
-			err = gtserror.Newf("db error removing follow: %w", err)
-			return nil, gtserror.NewErrorInternalError(err)
-		}
-
-		// Handle side effects async.
-		p.state.Workers.Client.Queue.Push(&messages.FromClientAPI{
-			APObjectType:   ap.ActivityFollow,
-			APActivityType: ap.ActivityReject,
-			GTSModel:       follow,
-			Origin:         requester,
-			Target:         targetAccount,
-		})
-	}
-
-	// Return the (changed) relationship state.
-	return p.RelationshipGet(ctx, requester, targetAccountID)
+	return p.c.RemoveFromFollowers(ctx, requester, targetAccount)
 }

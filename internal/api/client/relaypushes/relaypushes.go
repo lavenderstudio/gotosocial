@@ -505,7 +505,7 @@ func (m *Module) RelayPushPUTHandler(c *httputil.Context) {
 	}
 
 	// Parse form.
-	form := new(apimodel.RelayConnectionUpdateRequest)
+	form := new(apimodel.RelayFlagsForm)
 	if err := binding.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
 		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return

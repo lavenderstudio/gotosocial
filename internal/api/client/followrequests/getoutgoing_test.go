@@ -170,7 +170,7 @@ func (suite *GetOutgoingTestSuite) testGetOutgoingPage(limit int, direction stri
 	}
 
 	// Get _ALL_ follow requests we expect to see without any paging (this filters invisible).
-	apiRsp, err := suite.processor.Account().OutgoingFollowRequestsGet(ctx, requestingAccount, nil)
+	apiRsp, err := suite.processor.Account().OutgoingFollowRequestsGet(ctx, requestingAccount, nil, "")
 	suite.NoError(err)
 	expectAccounts := apiRsp.Items // interfaced{} account slice
 

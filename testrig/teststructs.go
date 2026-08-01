@@ -100,6 +100,7 @@ func SetupTestStructs(
 		visFilter,
 		muteFilter,
 		statusFilter,
+		processing.GetParseMentionFunc(&state, federator),
 		surfacer,
 	)
 

@@ -21,11 +21,9 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/federation"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/status"
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
-	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/common"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
-	"code.superseriousbusiness.org/gotosocial/internal/text"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 )
 
@@ -41,10 +39,7 @@ type Processor struct {
 	mediaManager *media.Manager
 	visFilter    *visibility.Filter
 	statusFilter *status.Filter
-	formatter    *text.Formatter
 	federator    *federation.Federator
-	parseMention gtsmodel.ParseMentionFunc
-	themes       *Themes
 }
 
 // New returns a new account processor.
@@ -56,7 +51,6 @@ func New(
 	federator *federation.Federator,
 	visFilter *visibility.Filter,
 	statusFilter *status.Filter,
-	parseMention gtsmodel.ParseMentionFunc,
 ) Processor {
 	return Processor{
 		c:            common,
@@ -65,9 +59,6 @@ func New(
 		mediaManager: mediaManager,
 		visFilter:    visFilter,
 		statusFilter: statusFilter,
-		formatter:    text.NewFormatter(state.DB),
 		federator:    federator,
-		parseMention: parseMention,
-		themes:       PopulateThemes(),
 	}
 }

@@ -1,0 +1,99 @@
+{{- /*
+// GoToSocial
+// Copyright (C) GoToSocial Authors admin@gotosocial.org
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/ -}}
+
+{{- with . }}
+<main class="profile h-card">
+    {{- with . }}
+    {{- include "profile_header.tmpl" . | indent 1 }}
+    {{- end }}
+    <section id="profile-about-user" class="about-user" role="region" aria-labelledby="about-header">
+        <div id="profile-col-header" class="col-header">
+            <h3 id="about-header">About<span class="sr-only">&nbsp;{{- .account.Username -}}</span></h3>
+        </div>
+        {{- if .account.Fields }}
+        {{- include "profile_fields.tmpl" . | indent 2 }}
+        {{- end }}
+        <div id="profile-bio" class="bio p-note">
+            <h4 class="sr-only">Description</h4>
+            {{- if .account.Note }}
+            {{ emojify .account.Emojis (noescape .account.Note) }}
+            {{- else }}
+            <p>This relay actor does not have a description yet.</p>
+            {{- end }}
+            <h4>Subscribe/push to this relay</h4>
+            <p>
+                You can subscribe and/or push to this relay using one of
+                the links below, depending on your fedi server software:
+            </p>
+            <dl class="relay-links">
+                <div>
+                    <dt>Actor URI (GoToSocial, Akkoma, etc):</dt>
+                    <dd><pre><code class="language-url">{{- .account.RelayActorURI -}}</code></pre></dd>
+                </div>
+                <div>
+                    <dt>Inbox URI (Mastodon, Misskey, etc):</dt>
+                    <dd><pre><code class="language-url">{{- .account.RelayInboxURI -}}</code></pre></dd>
+                </div>
+            </dl>
+        </div>
+    </section>
+    <section id="relay-connections" class="relay-connections" role="region" aria-labelledby="relay-connections-header">
+        <div class="col-header">
+            <h3 id="relay-connections-header">Connections</h3>
+        </div>
+        <div id="relay-connections-content" class="bio">
+            <p>
+                Connection (ie., follow) requests sent to this relay actor
+                {{- if .account.Locked }} require <strong>manual approval</strong> by an admin on this instance.
+                {{- else }} will be <strong>automatically approved</strong>.
+                {{- end }}
+            </p>
+            {{- if not .account.RelayShowFollowers }}
+            <p>This relay actor does not expose its list of connections via the web.</p>
+            {{- else }}
+            {{- if eq .followersCount 0 }}
+            <p>This relay actor currently has no connections.</p>
+            {{- else }}
+            <p>
+                This relay actor currently has
+                {{- if eq .followersCount 1 }} 1 connection
+                {{- else }} {{ .followersCount }} connections
+                {{- end }} across
+                {{- if eq .connectedDomainsCount 1 }} 1 domain
+                {{- else }} {{ .connectedDomainsCount }} domains
+                {{- end }}:
+            </p>
+            <ul class="list relay-connections-list">
+                {{- range $connectedDomain := .connectedDomains }}
+                <li class="relay-connections-list-entry">
+                    <a
+                        href="https://{{- $connectedDomain -}}"
+                        rel="nofollow noreferrer noopener" target="_blank"
+                    >
+                        {{- $connectedDomain -}}
+                    </a>
+                </li>
+                {{- end }}
+            </ul>
+            {{- end }}
+            {{- end }}
+        </div>
+    </section>
+</main>
+{{- end }}

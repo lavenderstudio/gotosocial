@@ -81,7 +81,7 @@ export default function RelayNew({
 				label="Relay actor URI"
 				placeholder="https://relay.example.org/actor"
 				type="url"
-				pattern="https://.*"
+				pattern="https?://.*"
 				spellCheck="false"
 				autoCapitalize="none"
 				required={true}

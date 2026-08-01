@@ -88,6 +88,7 @@ type Processor struct {
 	admin               admin.Processor
 	advancedmigrations  advancedmigrations.Processor
 	application         application.Processor
+	common              common.Processor
 	conversations       conversations.Processor
 	fedi                fedi.Processor
 	filtersv1           filtersv1.Processor
@@ -231,30 +232,29 @@ func NewProcessor(
 	processor.stream = stream.New(state, oauthServer)
 	processor.conversations = conversations.New(state, converter, visFilter, muteFilter, statusFilter)
 	surfacer := surfacing.New(state, converter, federator, &processor.stream, visFilter, muteFilter, statusFilter, emailSender, webPushSender, &processor.conversations)
-	common := common.New(state, mediaManager, converter, federator, visFilter, muteFilter, statusFilter, surfacer)
-	processor.account = account.New(&common, state, converter, mediaManager, federator, visFilter, statusFilter, parseMentionFunc)
-	processor.media = media.New(&common, state, converter, federator, mediaManager, federator.TransportController())
+	processor.common = common.New(state, mediaManager, converter, federator, visFilter, muteFilter, statusFilter, parseMentionFunc, surfacer)
 	filterCommon := filterCommon.New(state, &processor.stream)
 
 	// Instantiate the rest of the sub
 	// processors + pin them to this struct.
-	processor.account = account.New(&common, state, converter, mediaManager, federator, visFilter, statusFilter, parseMentionFunc)
-	processor.admin = admin.New(&common, state, cleaner, subscriptions, federator, converter, mediaManager, federator.TransportController(), emailSender)
+	processor.account = account.New(&processor.common, state, converter, mediaManager, federator, visFilter, statusFilter)
+	processor.admin = admin.New(&processor.common, state, cleaner, subscriptions, federator, converter, mediaManager, federator.TransportController(), emailSender)
 	processor.application = application.New(state, converter)
-	processor.fedi = fedi.New(state, &common, converter, federator, visFilter)
+	processor.fedi = fedi.New(state, &processor.common, converter, federator, visFilter)
 	processor.filtersv1 = filtersv1.New(state, converter, filterCommon)
 	processor.filtersv2 = filtersv2.New(state, converter, filterCommon)
-	processor.interactionRequests = interactionrequests.New(&common, state, converter)
+	processor.interactionRequests = interactionrequests.New(&processor.common, state, converter)
 	processor.list = list.New(state, converter)
 	processor.markers = markers.New(state, converter)
-	processor.polls = polls.New(&common, state, converter)
+	processor.media = media.New(&processor.common, state, converter, federator, mediaManager, federator.TransportController())
+	processor.polls = polls.New(&processor.common, state, converter)
 	processor.push = push.New(state, converter)
-	processor.relayPush = relaypush.New(&common, state, converter)
+	processor.relayPush = relaypush.New(&processor.common, state, converter)
 	processor.report = report.New(state, converter)
 	processor.tags = tags.New(state, converter)
-	processor.timeline = timeline.New(state, &common, converter, visFilter, muteFilter, statusFilter)
+	processor.timeline = timeline.New(state, &processor.common, converter, visFilter, muteFilter, statusFilter)
 	processor.search = search.New(state, federator, converter, visFilter, surfacer)
-	processor.status = status.New(state, &common, &processor.polls, &processor.interactionRequests, federator, converter, visFilter, muteFilter, statusFilter, intFilter, parseMentionFunc)
+	processor.status = status.New(state, &processor.common, &processor.polls, &processor.interactionRequests, federator, converter, visFilter, muteFilter, statusFilter, intFilter, parseMentionFunc)
 	processor.user = user.New(state, converter, oauthServer, emailSender)
 
 	// The advanced migrations processor sequences advanced migrations from all other processors.

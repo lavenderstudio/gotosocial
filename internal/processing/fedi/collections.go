@@ -81,11 +81,9 @@ func (p *Processor) OutboxGet(
 	var params ap.CollectionParams
 	params.ID = collectionID
 
-	// Instance and relay actor accounts,
-	// and user accounts who hide collections,
-	// all hide their outbox.
-	hideOutbox := receiver.IsInstance() ||
-		receiver.IsRelayActor() ||
+	// Instance and relay actors, and user accounts
+	// who hide collections, all hide their outbox.
+	hideOutbox := (!receiver.IsLocalUserAccount()) ||
 		*receiver.Settings.HideCollections
 
 	switch {
@@ -225,14 +223,10 @@ func (p *Processor) FollowersGet(
 	var params ap.CollectionParams
 	params.ID = collectionID
 
-	// Any account that's not a relay actor
-	// account can choose to hide followers.
-	// Instance accounts can't have followers.
-	hideFollowers := false
-	if !receiver.IsRelayActor() {
-		hideFollowers = receiver.IsInstance() ||
-			*receiver.Settings.HideCollections
-	}
+	// Instance and relay actors, and user accounts
+	// who hide collections, all hide their followers.
+	hideFollowers := (!receiver.IsLocalUserAccount()) ||
+		*receiver.Settings.HideCollections
 
 	switch {
 	case hideFollowers:
@@ -343,14 +337,15 @@ func (p *Processor) FollowingGet(ctx context.Context, requestedUser string, page
 	var params ap.CollectionParams
 	params.ID = collectionID
 
-	switch {
+	// Instance and relay actors, and user accounts
+	// who hide collections, all hide their following.
+	hideFollowing := (!receiver.IsLocalUserAccount()) ||
+		*receiver.Settings.HideCollections
 
-	case receiver.IsInstance() ||
-		receiver.IsRelayActor() ||
-		*receiver.Settings.HideCollections:
-		// If account that hides collections,
-		// or instance or relay actor account,
-		// just return barest stub of collection.
+	switch {
+	case hideFollowing:
+		// If hiding following, just
+		// return stub of collection.
 		obj = ap.NewASOrderedCollection(params)
 
 	case page == nil || auth.handshakingURI != nil:

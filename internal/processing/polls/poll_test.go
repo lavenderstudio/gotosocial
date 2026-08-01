@@ -30,6 +30,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
+	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/common"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/polls"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
@@ -63,7 +64,7 @@ func (suite *PollTestSuite) SetupTest() {
 	suite.muteFilter = mutes.NewFilter(&suite.state)
 	statusFilter := status.NewFilter(&suite.state)
 	surfacer := testrig.NewTestSurfacer(&suite.state, federator, testrig.NewEmailSender("../../../web/template", nil), testrig.NewNoopWebPushSender())
-	common := common.New(&suite.state, mediaMgr, converter, federator, suite.visFilter, suite.muteFilter, statusFilter, surfacer)
+	common := common.New(&suite.state, mediaMgr, converter, federator, suite.visFilter, suite.muteFilter, statusFilter, processing.GetParseMentionFunc(&suite.state, federator), surfacer)
 	suite.polls = polls.New(&common, &suite.state, converter)
 }
 

@@ -321,7 +321,7 @@ func (p *Processor) InstancePatch(ctx context.Context, form *apimodel.InstanceSe
 
 	if form.Avatar != nil && form.Avatar.Size != 0 {
 		// Process instance avatar image + description.
-		avatarInfo, errWithCode := p.account.UpdateAvatar(ctx,
+		avatarInfo, errWithCode := p.common.UpdateAvatar(ctx,
 			instanceAcc,
 			form.Avatar,
 			form.AvatarDescription,
@@ -343,7 +343,7 @@ func (p *Processor) InstancePatch(ctx context.Context, form *apimodel.InstanceSe
 
 	if form.Header != nil && form.Header.Size != 0 {
 		// process instance header image
-		headerInfo, errWithCode := p.account.UpdateHeader(ctx,
+		headerInfo, errWithCode := p.common.UpdateHeader(ctx,
 			instanceAcc,
 			form.Header,
 			nil,

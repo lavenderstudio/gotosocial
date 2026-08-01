@@ -44,5 +44,5 @@ func (p *Processor) PutNote(ctx context.Context, requestingAccount *gtsmodel.Acc
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	return p.RelationshipGet(ctx, requestingAccount, targetAccount.ID)
+	return p.c.APIRelationship(ctx, requestingAccount, targetAccount.ID)
 }

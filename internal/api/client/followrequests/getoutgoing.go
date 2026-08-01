@@ -143,7 +143,11 @@ func (m *Module) OutgoingFollowRequestGETHandler(c *httputil.Context) {
 		return
 	}
 
-	resp, errWithCode := m.processor.Account().OutgoingFollowRequestsGet(c, authed.Account, page)
+	resp, errWithCode := m.processor.Account().OutgoingFollowRequestsGet(c,
+		authed.Account,
+		page,
+		c.R.URL.Path,
+	)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return

@@ -21,6 +21,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
@@ -31,6 +32,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/processing/account"
 	"code.superseriousbusiness.org/gotosocial/internal/templates"
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
+	"code.superseriousbusiness.org/gotosocial/internal/uris"
 )
 
 type profile struct {
@@ -263,21 +265,73 @@ func (m *Module) profileGETHandler(c *httputil.Context) {
 		return
 	}
 
-	// Choose desired web renderer for this acct.
-	switch wrm := p.account.WebLayout; wrm {
+	// Choose desired web view
+	// renderer for this acct.
+	webLayout := p.account.WebLayout
+	isRelay := strings.HasPrefix(
+		p.account.Username,
+		uris.RelayUsernamePrefix,
+	)
+
+	switch {
+	// Relay actor web view is rendered
+	// differently from user accounts.
+	case isRelay:
+		m.profileRelayActor(c, p)
 
 	// El classico.
-	case "", "microblog":
+	case webLayout == "", webLayout == "microblog":
 		m.profileMicroblog(c, p)
 
-	// 'gram style
-	// media gallery.
-	case "gallery":
+	// 'gram style media gallery.
+	case webLayout == "gallery":
 		m.profileGallery(c, p)
 
 	default:
-		panic("unknown web layout: " + wrm)
+		panic("unknown web layout: " + webLayout)
 	}
+}
+
+func (m *Module) profileRelayActor(c *httputil.Context, p *profile) {
+	connectedDomains, errWithCode := m.processor.Account().ConnectedDomainsGet(c,
+		nil, p.account.ID,
+	)
+	if errWithCode != nil {
+		apiutil.WebErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	// Pass to template renderer.
+	m.templates.RenderPage(c,
+		http.StatusOK,
+		templates.WebPage{
+			Template: "profile-relay.tmpl",
+			Stylesheets: []string{
+				cssFA,
+				cssProfileRelay,
+			},
+			Javascript: []templates.JavascriptEntry{
+				{
+					Src:   jsFrontend,
+					Async: true,
+					Defer: true,
+				},
+				{
+					Bottom: true,
+					Src:    jsFrontendPrerender,
+				},
+			},
+			Extra: map[string]any{
+				"account":               p.account,
+				"instance":              p.instance,
+				"ogMeta":                typeutils.OpenGraphAccount(p.instance, p.account),
+				"robotsMeta":            p.robotsMeta,
+				"followersCount":        p.account.FollowersCount,
+				"connectedDomains":      connectedDomains,
+				"connectedDomainsCount": len(connectedDomains),
+			},
+		},
+	)
 }
 
 // profileMicroblog serves the profile

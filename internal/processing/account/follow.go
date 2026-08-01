@@ -33,8 +33,13 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
-// FollowCreate handles a follow request to an account, either remote or local.
-func (p *Processor) FollowCreate(ctx context.Context, requestingAccount *gtsmodel.Account, form *apimodel.AccountFollowRequest) (*apimodel.Relationship, gtserror.WithCode) {
+// FollowCreate handles a follow request
+// to an account, either remote or local.
+func (p *Processor) FollowCreate(
+	ctx context.Context,
+	requestingAccount *gtsmodel.Account,
+	form *apimodel.AccountFollowRequest,
+) (*apimodel.Relationship, gtserror.WithCode) {
 	targetAccount, errWithCode := p.getFollowTarget(ctx, requestingAccount, form.ID)
 	if errWithCode != nil {
 		return nil, errWithCode
@@ -107,7 +112,7 @@ func (p *Processor) FollowCreate(ctx context.Context, requestingAccount *gtsmode
 	}
 
 	// And get the new relationship state.
-	rel, errWithCode := p.RelationshipGet(ctx, requestingAccount, form.ID)
+	rel, errWithCode := p.c.APIRelationship(ctx, requestingAccount, form.ID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
@@ -134,8 +139,13 @@ func (p *Processor) FollowCreate(ctx context.Context, requestingAccount *gtsmode
 	return rel, nil
 }
 
-// FollowRemove handles the removal of a follow/follow request to an account, either remote or local.
-func (p *Processor) FollowRemove(ctx context.Context, requestingAccount *gtsmodel.Account, targetAccountID string) (*apimodel.Relationship, gtserror.WithCode) {
+// FollowRemove handles the removal of a follow/follow
+// request to an account, either remote or local.
+func (p *Processor) FollowRemove(
+	ctx context.Context,
+	requestingAccount *gtsmodel.Account,
+	targetAccountID string,
+) (*apimodel.Relationship, gtserror.WithCode) {
 	targetAccount, errWithCode := p.getFollowTarget(ctx, requestingAccount, targetAccountID)
 	if errWithCode != nil {
 		return nil, errWithCode
@@ -152,7 +162,7 @@ func (p *Processor) FollowRemove(ctx context.Context, requestingAccount *gtsmode
 		return nil, gtserror.NewErrorNotFound(err)
 	}
 
-	return p.RelationshipGet(ctx, requestingAccount, targetAccountID)
+	return p.c.APIRelationship(ctx, requestingAccount, targetAccountID)
 }
 
 /*
@@ -174,7 +184,7 @@ func (p *Processor) updateFollow(
 ) (*apimodel.Relationship, gtserror.WithCode) {
 	if form.Reblogs == nil && form.Notify == nil {
 		// There's nothing to update.
-		return p.RelationshipGet(ctx, requestingAccount, form.ID)
+		return p.c.APIRelationship(ctx, requestingAccount, form.ID)
 	}
 
 	// Including "updated_at", max 3 columns may change.
@@ -193,7 +203,7 @@ func (p *Processor) updateFollow(
 
 	if len(columns) == 0 {
 		// Nothing actually changed.
-		return p.RelationshipGet(ctx, requestingAccount, form.ID)
+		return p.c.APIRelationship(ctx, requestingAccount, form.ID)
 	}
 
 	if err := update(columns...); err != nil {
@@ -201,14 +211,18 @@ func (p *Processor) updateFollow(
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	return p.RelationshipGet(ctx, requestingAccount, form.ID)
+	return p.c.APIRelationship(ctx, requestingAccount, form.ID)
 }
 
 // getFollowTarget is a convenience function which:
 //   - Checks if account is trying to follow/unfollow itself.
 //   - Returns not found if target should not be visible to requester.
 //   - Returns target account according to its id.
-func (p *Processor) getFollowTarget(ctx context.Context, requester *gtsmodel.Account, targetID string) (*gtsmodel.Account, gtserror.WithCode) {
+func (p *Processor) getFollowTarget(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	targetID string,
+) (*gtsmodel.Account, gtserror.WithCode) {
 	// Check for requester.
 	if requester == nil {
 		err := errors.New("no authorized user")

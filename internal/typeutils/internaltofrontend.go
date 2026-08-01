@@ -31,6 +31,7 @@ import (
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
+	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
@@ -243,6 +244,21 @@ func (c *Converter) AccountToWebAccount(
 		webAccount.WebVisibility = accountWebVisibility(account)
 	}
 
+	// If this is the web account of a local relay
+	// actor, set some specific relay actor fields.
+	if account.IsRelayActor() {
+		relayActor, err := c.state.DB.GetRelayActorByURI(
+			gtscontext.SetBarebones(ctx),
+			account.URI,
+		)
+		if err != nil {
+			return nil, gtserror.Newf("db error getting relay actor: %w", err)
+		}
+		webAccount.RelayShowFollowers = relayActor.ActorAccountFlags.WebShowFollowers()
+		webAccount.RelayActorURI = account.URI
+		webAccount.RelayInboxURI = account.InboxURI
+	}
+
 	return webAccount, nil
 }
 
@@ -349,10 +365,9 @@ func (c *Converter) accountToAPIAccountPublic(ctx context.Context, a *gtsmodel.A
 
 		acct = a.Username + "@" + d
 	} else {
-		// This is a local account, try to
-		// fetch more info. Skip for instance
-		// accounts since they have no user.
-		if !a.IsInstance() {
+		// If local user account, try
+		// to fetch more via settings.
+		if a.IsLocalUserAccount() {
 			user, err := c.state.DB.GetUserByAccountID(ctx, a.ID)
 			if err != nil {
 				return nil, gtserror.Newf("error getting user from database for account id %s: %w", a.ID, err)
@@ -3396,17 +3411,70 @@ func (c *Converter) RelayConnectionToAPIRelayConnection(
 
 	flags := rc.GetFlags()
 	return &apimodel.RelayConnection{
-		ID:              rcID,
-		CreatedAt:       util.FormatISO8601(createdAt),
-		AccountID:       accountID,
-		RelayActorURI:   relayActorURI,
-		Matchers:        apiMatchers,
-		Approved:        approved,
-		Public:          flags.Public(),
-		Unlisted:        flags.Unlisted(),
-		MatchByDefault:  flags.MatchByDefault(),
-		IgnoreSensitive: flags.IgnoreSensitive(),
-		IgnoreMedia:     flags.IgnoreMedia(),
-		IgnoreReplies:   flags.IgnoreReplies(),
+		ID:            rcID,
+		CreatedAt:     util.FormatISO8601(createdAt),
+		AccountID:     accountID,
+		RelayActorURI: relayActorURI,
+		Matchers:      apiMatchers,
+		Approved:      approved,
+		RelayFlags: apimodel.RelayFlags{
+			Public:          flags.Public(),
+			Unlisted:        flags.Unlisted(),
+			MatchByDefault:  flags.MatchByDefault(),
+			IgnoreSensitive: flags.IgnoreSensitive(),
+			IgnoreMedia:     flags.IgnoreMedia(),
+			IgnoreReplies:   flags.IgnoreReplies(),
+		},
+	}, nil
+}
+
+func (c *Converter) RelayActorToAPIRelayActor(
+	ctx context.Context,
+	ra *gtsmodel.RelayActor,
+) (*apimodel.RelayActor, error) {
+	// Ensure matchers populated.
+	if err := c.state.DB.PopulateRelayActor(ctx, ra); err != nil {
+		return nil, gtserror.Newf("error populating relay actor: %w", err)
+	}
+
+	// Parse created at time from id.
+	createdAt, err := id.TimeFromULID(ra.ID)
+	if err != nil {
+		return nil, gtserror.Newf("error converting id to time: %w", err)
+	}
+
+	// Convert actor account to API model.
+	account, err := c.AccountToAPIAccountPublic(ctx, ra.ActorAccount)
+	if err != nil {
+		return nil, gtserror.Newf("error converting account to api: %w", err)
+	}
+
+	// Convert matchers (if set).
+	matchers := ra.Matchers
+	apiMatchers := make([]apimodel.RelayMatcher, 0, len(matchers))
+	for _, matcher := range matchers {
+		apiMatchers = append(apiMatchers, apimodel.RelayMatcher{
+			ID:        matcher.ID,
+			Keyword:   matcher.Keyword,
+			WholeWord: matcher.Flags.WholeWord(),
+			Exclude:   matcher.Flags.Exclude(),
+		})
+	}
+
+	return &apimodel.RelayActor{
+		ID:                 ra.ID,
+		CreatedAt:          util.FormatISO8601(createdAt),
+		CreatedByAccountID: ra.CreatedByAccountID,
+		Matchers:           apiMatchers,
+		Account:            account,
+		WebShowFollowers:   ra.ActorAccountFlags.WebShowFollowers(),
+		RelayFlags: apimodel.RelayFlags{
+			Public:          ra.Flags.Public(),
+			Unlisted:        ra.Flags.Unlisted(),
+			MatchByDefault:  ra.Flags.MatchByDefault(),
+			IgnoreSensitive: ra.Flags.IgnoreSensitive(),
+			IgnoreMedia:     ra.Flags.IgnoreMedia(),
+			IgnoreReplies:   ra.Flags.IgnoreReplies(),
+		},
 	}, nil
 }

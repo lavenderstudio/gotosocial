@@ -94,3 +94,12 @@ func (d *DurationOrDays) unmarshal(str string) error {
 	// Parse this as a duration.
 	return d.Duration.Set(str)
 }
+
+// Any Create/Update form with
+// fields attributes settable on it.
+type WithFieldsAttributes interface {
+	GetFieldsAttributes() *[]UpdateField
+	SetFieldsAttributes(*[]UpdateField)
+	GetJSONFieldsAttributes() *map[string]UpdateField
+	SetJSONFieldsAttributes(*map[string]UpdateField)
+}

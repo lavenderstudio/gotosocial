@@ -21,23 +21,19 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
-	"code.superseriousbusiness.org/gopkg/httputil/binding"
-	"code.superseriousbusiness.org/gotosocial/internal/config"
-	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
-
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
+	"code.superseriousbusiness.org/gotosocial/internal/validate"
 )
 
-// RelaySubscriptionsGETHandler swagger:operation GET /api/v1/admin/relay_subscriptions adminRelaySubscriptions
+// RelayActorsGETHandler swagger:operation GET /api/v1/admin/relay_actors adminRelayActors
 //
-// View relay subscriptions.
+// View relay actors.
 //
-// The subscriptions will be returned in descending chronological order (newest first), with sequential IDs (bigger = newer).
+// The actors will be returned in descending chronological order (newest first), with sequential IDs (bigger = newer).
 //
 //	---
 //	tags:
@@ -52,12 +48,12 @@ import (
 //
 //	responses:
 //		'200':
-//			name: relay subscriptions
-//			description: Array of relay subscriptions.
+//			name: relay actors
+//			description: Array of relay actors.
 //			schema:
 //				type: array
 //				items:
-//					"$ref": "#/definitions/relayConnection"
+//					"$ref": "#/definitions/relayActor"
 //		'400':
 //			schema:
 //				"$ref": "#/definitions/error"
@@ -78,7 +74,7 @@ import (
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) RelaySubscriptionsGETHandler(c *httputil.Context) {
+func (m *Module) RelayActorsGETHandler(c *httputil.Context) {
 	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
 		Token:   true,
 		App:     true,
@@ -102,22 +98,18 @@ func (m *Module) RelaySubscriptionsGETHandler(c *httputil.Context) {
 		return
 	}
 
-	resp, errWithCode := m.processor.Admin().RelaySubscriptionsGet(c)
+	resp, errWithCode := m.processor.Admin().RelayActorsGet(c)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	if resp.LinkHeader != "" {
-		c.W.Header().Set("Link", resp.LinkHeader)
-	}
-
-	httputil.JSON(c, http.StatusOK, resp.Items)
+	httputil.JSON(c, http.StatusOK, resp)
 }
 
-// RelaySubscriptionGETHandler swagger:operation GET /api/v1/admin/relay_subscriptions/{id} adminRelaySubscriptionGet
+// RelayActorGETHandler swagger:operation GET /api/v1/admin/relay_actors/{id} adminRelayActorGet
 //
-// View relay subscription with the given ID.
+// View relay actor with the given ID.
 //
 //	---
 //	tags:
@@ -130,7 +122,7 @@ func (m *Module) RelaySubscriptionsGETHandler(c *httputil.Context) {
 //	-
 //		name: id
 //		type: string
-//		description: The id of the relay subscription.
+//		description: The id of the relay actor.
 //		in: path
 //		required: true
 //
@@ -140,10 +132,10 @@ func (m *Module) RelaySubscriptionsGETHandler(c *httputil.Context) {
 //
 //	responses:
 //		'200':
-//			name: relay subscription
-//			description: The requested relay subscription.
+//			name: relay actor
+//			description: The requested relay actor.
 //			schema:
-//				"$ref": "#/definitions/relayConnection"
+//				"$ref": "#/definitions/relayActor"
 //		'400':
 //			schema:
 //				"$ref": "#/definitions/error"
@@ -164,7 +156,7 @@ func (m *Module) RelaySubscriptionsGETHandler(c *httputil.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) RelaySubscriptionGETHandler(c *httputil.Context) {
+func (m *Module) RelayActorGETHandler(c *httputil.Context) {
 	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
 		Token:   true,
 		App:     true,
@@ -194,7 +186,7 @@ func (m *Module) RelaySubscriptionGETHandler(c *httputil.Context) {
 		return
 	}
 
-	resp, errWithCode := m.processor.Admin().RelaySubscriptionGet(c, id)
+	resp, errWithCode := m.processor.Admin().RelayActorGet(c, id)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
@@ -203,9 +195,9 @@ func (m *Module) RelaySubscriptionGETHandler(c *httputil.Context) {
 	httputil.JSON(c, http.StatusOK, resp)
 }
 
-// RelaySubscriptionPOSTHandler swagger:operation POST /api/v1/admin/relay_subscriptions relaySubscriptionCreate
+// RelayActorPOSTHandler swagger:operation POST /api/v1/admin/relay_actors relayActorCreate
 //
-// Create a new relay subscription targeting a remote relay actor URI.
+// Create a new relay actor.
 //
 // The parameters can also be given in the body of the request, as JSON, if the content-type is set to 'application/json'.
 // The parameters can also be given in the body of the request, as XML, if the content-type is set to 'application/xml'.
@@ -222,56 +214,164 @@ func (m *Module) RelaySubscriptionGETHandler(c *httputil.Context) {
 //	produces:
 //	- application/json
 //
+//	security:
+//	- OAuth2 Application:
+//		- admin:write:relays
+//
 //	parameters:
 //	-
-//		name: relay_actor_uri
+//		name: username
 //		in: formData
-//		description: The ActivityPub URI of the remote relay actor.
+//		description: >-
+//			The desired username for the relay actor account.
+//			Will be prefixed with "relay." to form the final username.
+//			Eg., "username=example" results in username "relay.example".
 //		type: string
-//		required: true
+//	-
+//		name: discoverable
+//		in: formData
+//		description: Relay actor account should be made discoverable and shown in the profile directory (if enabled).
+//		type: boolean
+//	-
+//		name: display_name
+//		in: formData
+//		description: The display name to use for the account.
+//		type: string
+//		allowEmptyValue: true
+//	-
+//		name: note
+//		in: formData
+//		description: Bio/description of this account.
+//		type: string
+//		allowEmptyValue: true
+//	-
+//		name: avatar
+//		in: formData
+//		description: Avatar of the user.
+//		type: file
+//	-
+//		name: avatar_description
+//		in: formData
+//		description: Description of avatar image, for alt-text.
+//		type: string
+//		allowEmptyValue: true
+//	-
+//		name: header
+//		in: formData
+//		description: Header of the user.
+//		type: file
+//	-
+//		name: header_description
+//		in: formData
+//		description: Description of header image, for alt-text.
+//		type: string
+//		allowEmptyValue: true
+//	-
+//		name: locked
+//		in: formData
+//		description: Require manual approval of follow requests.
+//		type: boolean
+//	-
+//		name: fields_attributes[0][name]
+//		in: formData
+//		description: Name of 1st profile field to be added to this account's profile.
+//			(The index may be any string; add more indexes to send more fields.)
+//		type: string
+//	-
+//		name: fields_attributes[0][value]
+//		in: formData
+//		description: Value of 1st profile field to be added to this account's profile.
+//			(The index may be any string; add more indexes to send more fields.)
+//		type: string
+//	-
+//		name: fields_attributes[1][name]
+//		in: formData
+//		description: Name of 2nd profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[1][value]
+//		in: formData
+//		description: Value of 2nd profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[2][name]
+//		in: formData
+//		description: Name of 3rd profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[2][value]
+//		in: formData
+//		description: Value of 3rd profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[3][name]
+//		in: formData
+//		description: Name of 4th profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[3][value]
+//		in: formData
+//		description: Value of 4th profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[4][name]
+//		in: formData
+//		description: Name of 5th profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[4][value]
+//		in: formData
+//		description: Value of 5th profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[5][name]
+//		in: formData
+//		description: Name of 6th profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[5][value]
+//		in: formData
+//		description: Value of 6th profile field to be added to this account's profile.
+//		type: string
 //	-
 //		name: public
 //		in: formData
-//		description: Ingest public posts. If false, never ingest public posts via this subscription.
+//		description: Relay public posts. If false, never relay public posts via this actor.
 //		type: boolean
 //		default: true
 //	-
 //		name: unlisted
 //		in: formData
-//		description: Ingest unlisted posts. If false, never ingest unlisted posts via this subscription.
+//		description: Relay unlisted posts. If false, never relay unlisted posts via this actor.
 //		type: boolean
 //	-
 //		name: match_by_default
 //		in: formData
 //		description: >-
-//			Controls whether the relay subscription should ingest all non-ignored posts by default.
-//			If set true, and no "exclude"-type matchers are set on the subscription, then all included, non-ignored posts will be ingested.
+//			Controls whether the relay actor should relay all non-ignored posts by default.
+//			If set true, and no "exclude"-type matchers are set on the actor, then all included, non-ignored posts will be relayed.
 //		type: boolean
 //	-
 //		name: ignore_sensitive
 //		in: formData
-//		description: Never ingest sensitive posts via this subscription.
+//		description: Never relay sensitive posts via this actor.
 //		type: boolean
 //	-
 //		name: ignore_media
 //		in: formData
-//		description: Never ingest posts with media attachments via this subscription.
+//		description: Never relay posts with media attachments via this actor.
 //		type: boolean
 //	-
 //		name: ignore_replies
 //		in: formData
-//		description: Never ingest non-self-replies (ie., comments) via this subscription.
+//		description: Never relay non-self-replies (ie., comments) via this actor.
 //		type: boolean
-//
-//	security:
-//	- OAuth2 Bearer:
-//		- admin:write:relays
 //
 //	responses:
 //		'200':
-//			description: The newly-created relay subscription.
+//			description: The newly-created relay actor.
 //			schema:
-//				"$ref": "#/definitions/relayConnection"
+//				"$ref": "#/definitions/relayActor"
 //		'400':
 //			schema:
 //				"$ref": "#/definitions/error"
@@ -292,15 +392,11 @@ func (m *Module) RelaySubscriptionGETHandler(c *httputil.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: not acceptable
-//		'422':
-//			schema:
-//				"$ref": "#/definitions/error"
-//			description: unprocessable -- remote actor URI could not be dereferenced, or remote actor host is blocked
 //		'500':
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) RelaySubscriptionPOSTHandler(c *httputil.Context) {
+func (m *Module) RelayActorPOSTHandler(c *httputil.Context) {
 	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
 		Token:   true,
 		App:     true,
@@ -316,11 +412,6 @@ func (m *Module) RelaySubscriptionPOSTHandler(c *httputil.Context) {
 	if !*authed.User.Admin {
 		err := fmt.Errorf("user %s not an admin", authed.User.ID)
 		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
-		return
-	}
-
-	if authed.Account.IsMoving() {
-		apiutil.ForbiddenAfterMove(c)
 		return
 	}
 
@@ -329,31 +420,24 @@ func (m *Module) RelaySubscriptionPOSTHandler(c *httputil.Context) {
 		return
 	}
 
-	form := new(apimodel.RelayConnectionCreateRequest)
-	if err := binding.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
-		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
-		return
-	}
-
-	// Ensure relayActorURI is parseable.
-	relayActorURI, err := url.Parse(form.RelayActorURI)
+	// Parse form.
+	f, err := apiutil.ParseWithFieldsAttributes(c, new(apimodel.RelayActorCreateRequest))
 	if err != nil {
-		err := fmt.Errorf("relay_actor_uri not parseable: %w", err)
 		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
-	resp, errWithCode := m.processor.Admin().RelaySubscriptionCreate(
-		c,
-		authed,
-		relayActorURI,
-		util.PtrOrValue(form.Public, true),   // default true
-		util.PtrOrZero(form.Unlisted),        // default false
-		util.PtrOrZero(form.MatchByDefault),  // default false
-		util.PtrOrZero(form.IgnoreSensitive), // default false
-		util.PtrOrZero(form.IgnoreMedia),     // default false
-		util.PtrOrZero(form.IgnoreReplies),   // default false
-	)
+	// Safe type assertion as we just
+	// instantiated this ourselves above.
+	form := f.(*apimodel.RelayActorCreateRequest)
+
+	// Ensure username OK.
+	if err := validate.Username(form.Username); err != nil {
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
+		return
+	}
+
+	resp, errWithCode := m.processor.Admin().RelayActorCreate(c, authed, form)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
@@ -362,9 +446,9 @@ func (m *Module) RelaySubscriptionPOSTHandler(c *httputil.Context) {
 	httputil.JSON(c, http.StatusOK, resp)
 }
 
-// RelaySubscriptionPUTHandler swagger:operation PUT /api/v1/admin/relay_subscriptions/{id} relaySubscriptionUpdate
+// RelayActorPUTHandler swagger:operation PUT /api/v1/admin/relay_actors/{id} relayActorUpdate
 //
-// Update a relay subscription.
+// Update a relay actor.
 //
 // The parameters can also be given in the body of the request, as JSON, if the content-type is set to 'application/json'.
 // The parameters can also be given in the body of the request, as XML, if the content-type is set to 'application/xml'.
@@ -381,55 +465,158 @@ func (m *Module) RelaySubscriptionPOSTHandler(c *httputil.Context) {
 //	produces:
 //	- application/json
 //
+//	security:
+//	- OAuth2 Bearer:
+//		- admin:write:relays
+//
 //	parameters:
 //	-
 //		name: id
 //		type: string
-//		description: The id of the relay subscription.
+//		description: The id of the relay actor.
 //		in: path
 //		required: true
 //	-
+//		name: discoverable
+//		in: formData
+//		description: Relay actor account should be made discoverable and shown in the profile directory (if enabled).
+//		type: boolean
+//	-
+//		name: display_name
+//		in: formData
+//		description: The display name to use for the account.
+//		type: string
+//	-
+//		name: note
+//		in: formData
+//		description: Bio/description of this account.
+//		type: string
+//	-
+//		name: avatar
+//		in: formData
+//		description: Avatar of the user.
+//		type: file
+//	-
+//		name: avatar_description
+//		in: formData
+//		description: Description of avatar image, for alt-text.
+//		type: string
+//	-
+//		name: header
+//		in: formData
+//		description: Header of the user.
+//		type: file
+//	-
+//		name: header_description
+//		in: formData
+//		description: Description of header image, for alt-text.
+//		type: string
+//	-
+//		name: locked
+//		in: formData
+//		description: Require manual approval of follow requests.
+//		type: boolean
+//	-
+//		name: fields_attributes[0][name]
+//		in: formData
+//		description: Name of 1st profile field to be added to this account's profile.
+//			(The index may be any string; add more indexes to send more fields.)
+//		type: string
+//	-
+//		name: fields_attributes[0][value]
+//		in: formData
+//		description: Value of 1st profile field to be added to this account's profile.
+//			(The index may be any string; add more indexes to send more fields.)
+//		type: string
+//	-
+//		name: fields_attributes[1][name]
+//		in: formData
+//		description: Name of 2nd profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[1][value]
+//		in: formData
+//		description: Value of 2nd profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[2][name]
+//		in: formData
+//		description: Name of 3rd profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[2][value]
+//		in: formData
+//		description: Value of 3rd profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[3][name]
+//		in: formData
+//		description: Name of 4th profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[3][value]
+//		in: formData
+//		description: Value of 4th profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[4][name]
+//		in: formData
+//		description: Name of 5th profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[4][value]
+//		in: formData
+//		description: Value of 5th profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[5][name]
+//		in: formData
+//		description: Name of 6th profile field to be added to this account's profile.
+//		type: string
+//	-
+//		name: fields_attributes[5][value]
+//		in: formData
+//		description: Value of 6th profile field to be added to this account's profile.
+//		type: string
+//	-
 //		name: public
 //		in: formData
-//		description: Ingest public posts. If false, never ingest public posts via this subscription.
+//		description: Relay public posts. If false, never relay public posts via this actor.
 //		type: boolean
+//		default: true
 //	-
 //		name: unlisted
 //		in: formData
-//		description: Ingest unlisted posts. If false, never ingest unlisted posts via this subscription.
+//		description: Relay unlisted posts. If false, never relay unlisted posts via this actor.
 //		type: boolean
 //	-
 //		name: match_by_default
 //		in: formData
 //		description: >-
-//			Controls whether the relay subscription should ingest all non-ignored posts by default.
-//			If set true, and no "exclude"-type matchers are set on the subscription, then all included, non-ignored posts will be ingested.
+//			Controls whether the relay actor should relay all non-ignored posts by default.
+//			If set true, and no "exclude"-type matchers are set on the actor, then all included, non-ignored posts will be relayed.
 //		type: boolean
 //	-
 //		name: ignore_sensitive
 //		in: formData
-//		description: Never ingest sensitive posts via this subscription.
+//		description: Never relay sensitive posts via this actor.
 //		type: boolean
 //	-
 //		name: ignore_media
 //		in: formData
-//		description: Never ingest posts with media attachments via this subscription.
+//		description: Never relay posts with media attachments via this actor.
 //		type: boolean
 //	-
 //		name: ignore_replies
 //		in: formData
-//		description: Never ingest non-self-replies (ie., comments) via this subscription.
+//		description: Never relay non-self-replies (ie., comments) via this actor.
 //		type: boolean
-//
-//	security:
-//	- OAuth2 Bearer:
-//		- admin:write:relays
 //
 //	responses:
 //		'200':
-//			description: The newly-created relay subscription.
+//			description: The newly-created relay actor.
 //			schema:
-//				"$ref": "#/definitions/relayConnection"
+//				"$ref": "#/definitions/relayActor"
 //		'400':
 //			schema:
 //				"$ref": "#/definitions/error"
@@ -458,7 +645,7 @@ func (m *Module) RelaySubscriptionPOSTHandler(c *httputil.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) RelaySubscriptionPUTHandler(c *httputil.Context) {
+func (m *Module) RelayActorPUTHandler(c *httputil.Context) {
 	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
 		Token:   true,
 		App:     true,
@@ -474,11 +661,6 @@ func (m *Module) RelaySubscriptionPUTHandler(c *httputil.Context) {
 	if !*authed.User.Admin {
 		err := fmt.Errorf("user %s not an admin", authed.User.ID)
 		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
-		return
-	}
-
-	if authed.Account.IsMoving() {
-		apiutil.ForbiddenAfterMove(c)
 		return
 	}
 
@@ -494,14 +676,27 @@ func (m *Module) RelaySubscriptionPUTHandler(c *httputil.Context) {
 	}
 
 	// Parse form.
-	form := new(apimodel.RelayFlagsForm)
-	if err := binding.ShouldBind(c, form, int64(config.GetHTTPServerMaxMultipartMemory())); err != nil { // nolint
+	f, err := apiutil.ParseWithFieldsAttributes(c, new(apimodel.RelayActorUpdateRequest))
+	if err != nil {
 		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorBadRequest(err, err.Error()))
 		return
 	}
 
+	// Safe type assertion as we just
+	// instantiated this ourselves above.
+	form := f.(*apimodel.RelayActorUpdateRequest)
+
 	// Ensure something is being updated.
-	if form.Public == nil &&
+	if form.Discoverable == nil &&
+		form.DisplayName == nil &&
+		form.Note == nil &&
+		form.Avatar == nil &&
+		form.AvatarDescription == nil &&
+		form.Header == nil &&
+		form.HeaderDescription == nil &&
+		form.Locked == nil &&
+		form.FieldsAttributes == nil &&
+		form.Public == nil &&
 		form.Unlisted == nil &&
 		form.MatchByDefault == nil &&
 		form.IgnoreSensitive == nil &&
@@ -513,16 +708,7 @@ func (m *Module) RelaySubscriptionPUTHandler(c *httputil.Context) {
 		return
 	}
 
-	resp, errWithCode := m.processor.Admin().RelaySubscriptionUpdate(
-		c,
-		id,
-		form.Public,
-		form.Unlisted,
-		form.MatchByDefault,
-		form.IgnoreSensitive,
-		form.IgnoreMedia,
-		form.IgnoreReplies,
-	)
+	resp, errWithCode := m.processor.Admin().RelayActorUpdate(c, id, form)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
@@ -531,9 +717,9 @@ func (m *Module) RelaySubscriptionPUTHandler(c *httputil.Context) {
 	httputil.JSON(c, http.StatusOK, resp)
 }
 
-// RelaySubscriptionDELETEHandler swagger:operation DELETE /api/v1/admin/relay_subscriptions/{id} adminRelaySubscriptionDelete
+// RelayActorDELETEHandler swagger:operation DELETE /api/v1/admin/relay_actors/{id} adminRelayActorDelete
 //
-// Delete relay subscription with the given ID.
+// Delete relay actor with the given ID.
 //
 //	---
 //	tags:
@@ -546,7 +732,7 @@ func (m *Module) RelaySubscriptionPUTHandler(c *httputil.Context) {
 //	-
 //		name: id
 //		type: string
-//		description: The id of the relay subscription.
+//		description: The id of the relay actor.
 //		in: path
 //		required: true
 //
@@ -556,10 +742,10 @@ func (m *Module) RelaySubscriptionPUTHandler(c *httputil.Context) {
 //
 //	responses:
 //		'200':
-//			name: relay subscription
-//			description: The deleted relay subscription.
+//			name: relay actor
+//			description: The deleted relay actor.
 //			schema:
-//				"$ref": "#/definitions/relayConnection"
+//				"$ref": "#/definitions/relayActor"
 //		'400':
 //			schema:
 //				"$ref": "#/definitions/error"
@@ -580,7 +766,7 @@ func (m *Module) RelaySubscriptionPUTHandler(c *httputil.Context) {
 //			schema:
 //				"$ref": "#/definitions/error"
 //			description: internal server error
-func (m *Module) RelaySubscriptionDELETEHandler(c *httputil.Context) {
+func (m *Module) RelayActorDELETEHandler(c *httputil.Context) {
 	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
 		Token:   true,
 		App:     true,
@@ -610,7 +796,7 @@ func (m *Module) RelaySubscriptionDELETEHandler(c *httputil.Context) {
 		return
 	}
 
-	resp, errWithCode := m.processor.Admin().RelaySubscriptionDelete(c, id)
+	resp, errWithCode := m.processor.Admin().RelayActorDelete(c, authed, id)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return

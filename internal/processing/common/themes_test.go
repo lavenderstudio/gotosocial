@@ -15,24 +15,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package account_test
+package common_test
 
 import (
 	"testing"
 
 	"code.superseriousbusiness.org/gotosocial/internal/config"
-	"code.superseriousbusiness.org/gotosocial/internal/processing/account"
+	"code.superseriousbusiness.org/gotosocial/internal/processing/common"
 	"github.com/stretchr/testify/suite"
 )
 
 type ThemesTestSuite struct {
-	AccountStandardTestSuite
+	suite.Suite
 }
 
 func (suite *ThemesTestSuite) TestPopulateThemes() {
 	config.SetWebAssetBaseDir("../../../web/assets")
 
-	themes := account.PopulateThemes()
+	themes := common.PopulateThemes()
 	if themes == nil {
 		suite.FailNow("themes was nil")
 	}

@@ -15,13 +15,25 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package account
+package util
 
 import (
-	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	"crypto/rand"
+	"crypto/rsa"
+
+	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 )
 
-// ThemesGet returns available account css themes.
-func (p *Processor) ThemesGet() []apimodel.Theme {
-	return p.c.ThemesGet()
+// Generate RSA keys
+// of this length.
+const rsaKeyBits = 2048
+
+// NewActorRSA generates a new public/private RSA key pair.
+func NewActorRSA() (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	privKey, err := rsa.GenerateKey(rand.Reader, rsaKeyBits)
+	if err != nil {
+		err := gtserror.Newf("error creating new rsa private key: %w", err)
+		return nil, nil, err
+	}
+	return privKey, &privKey.PublicKey, nil
 }

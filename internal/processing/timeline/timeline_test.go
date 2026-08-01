@@ -25,6 +25,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/filter/visibility"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
+	"code.superseriousbusiness.org/gotosocial/internal/processing"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/common"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/conversations"
 	"code.superseriousbusiness.org/gotosocial/internal/processing/stream"
@@ -99,6 +100,7 @@ func (suite *TimelineStandardTestSuite) SetupTest() {
 		visFilter,
 		muteFilter,
 		statusFilter,
+		processing.GetParseMentionFunc(&suite.state, federator),
 		surfacer,
 	)
 

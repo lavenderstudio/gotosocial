@@ -19,8 +19,6 @@ package bundb
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"errors"
 	"fmt"
 	"net/mail"
@@ -41,9 +39,6 @@ import (
 	"github.com/uptrace/bun"
 	"golang.org/x/crypto/bcrypt"
 )
-
-// generate RSA keys of this length
-const rsaKeyBits = 2048
 
 type adminDB struct {
 	db    *bun.DB
@@ -112,9 +107,8 @@ func (a *adminDB) NewSignup(ctx context.Context, newSignup gtsmodel.NewSignup) (
 		)
 		accountID := id.NewRandomULID()
 
-		privKey, err := rsa.GenerateKey(rand.Reader, rsaKeyBits)
+		privKey, pubKey, err := util.NewActorRSA()
 		if err != nil {
-			err := gtserror.Newf("error creating new rsa private key: %w", err)
 			return nil, err
 		}
 
@@ -131,7 +125,7 @@ func (a *adminDB) NewSignup(ctx context.Context, newSignup gtsmodel.NewSignup) (
 			FeaturedCollectionURI:        uris.FeaturedCollectionURI,
 			ActorType:                    gtsmodel.AccountActorTypePerson,
 			PrivateKey:                   privKey,
-			PublicKey:                    &privKey.PublicKey,
+			PublicKey:                    pubKey,
 			PublicKeyURI:                 uris.PublicKeyURI,
 			HidesCcPublicFromUnauthedWeb: util.Ptr(true), // GtS default to hide unlisted.
 		}
@@ -280,7 +274,7 @@ func (a *adminDB) CreateInstanceAccount(ctx context.Context) error {
 		return nil
 	}
 
-	privKey, err := rsa.GenerateKey(rand.Reader, rsaKeyBits)
+	privKey, pubKey, err := util.NewActorRSA()
 	if err != nil {
 		err := gtserror.Newf("error creating new rsa private key: %w", err)
 		return err
@@ -296,7 +290,7 @@ func (a *adminDB) CreateInstanceAccount(ctx context.Context) error {
 		DisplayName:           username,
 		URL:                   newAccountURIs.ActorURL,
 		PrivateKey:            privKey,
-		PublicKey:             &privKey.PublicKey,
+		PublicKey:             pubKey,
 		PublicKeyURI:          newAccountURIs.PublicKeyURI,
 		ActorType:             gtsmodel.AccountActorTypeApplication,
 		URI:                   newAccountURIs.ActorURI,
