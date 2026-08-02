@@ -28,7 +28,7 @@ import (
 
 var (
 	// global map of base (unshareded) memory pools.
-	buffers = make(map[uint32]*mempool.UnsafePool, 8)
+	pools = make(map[uint32]*mempool.UnsafePool, 8)
 
 	// global map lock.
 	mutex sync.Mutex
@@ -67,14 +67,14 @@ func Pool(sz uint32) *MemoryPool {
 
 	// Check for existing
 	// memory pool of size.
-	p := buffers[sz]
+	p := pools[sz]
 
 	if p == nil {
 		// Allocate new memory pool.
 		p = new(mempool.UnsafePool)
 
 		// Place in map.
-		buffers[sz] = p
+		pools[sz] = p
 	}
 
 	// Done locking.

@@ -68,7 +68,7 @@ func (s *UnsafePoolShard) Get() unsafe.Pointer {
 		return ptr
 	}
 
-	elem, pid = s.pool.ring.local(pid)
+	elem, _ = s.pool.ring.local(pid)
 	ptr = elem.Swap(nil)
 	procUnpin()
 
@@ -93,7 +93,7 @@ func (s *UnsafePoolShard) Put(ptr unsafe.Pointer) {
 		return
 	}
 
-	elem, pid = s.pool.ring.local(pid)
+	elem, _ = s.pool.ring.local(pid)
 	ptr = elem.Swap(ptr)
 	procUnpin()
 

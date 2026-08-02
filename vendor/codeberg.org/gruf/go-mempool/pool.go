@@ -118,7 +118,7 @@ func (p *pool_internal) Check(fn func(current, victim int) bool) func(current, v
 
 func (p *pool_internal) Get() unsafe.Pointer {
 	pid := procPin()
-	elem, pid := p.ring.local(pid)
+	elem, _ := p.ring.local(pid)
 	ptr := elem.Swap(nil)
 	procUnpin()
 
@@ -134,7 +134,7 @@ func (p *pool_internal) Get() unsafe.Pointer {
 
 func (p *pool_internal) Put(ptr unsafe.Pointer) {
 	pid := procPin()
-	elem, pid := p.ring.local(pid)
+	elem, _ := p.ring.local(pid)
 	ptr = elem.Swap(ptr)
 	procUnpin()
 
@@ -174,8 +174,8 @@ func (p *pool_internal) Size() (sz int) {
 // atomic read / write to a particular pointer_elem.
 type locals_ring struct{ p unsafe.Pointer }
 
-// local returns an atomic_pointer from the fast-access
-// ring buffer for the given goroutine PID index.
+// local returns an atomic_pointer from the fast-access ring buffer for given goroutine PID,
+// returns pointer_elem{} and currently pinned goroutine PID (in case of repinning on alloc).
 func (r *locals_ring) local(pid uint) (*pointer_elem, uint) {
 	for {
 		// Load current ring from ptr.
@@ -193,7 +193,7 @@ func (r *locals_ring) local(pid uint) (*pointer_elem, uint) {
 		// which acquires a blocking mutex
 		// lock on scheduler and may cause
 		// goroutine to be rescheduled.
-		pid = procPin()
+		procUnpin()
 
 		// Allocate new ring buffer capable
 		// of accomodating an index of 'pid'.
@@ -202,15 +202,14 @@ func (r *locals_ring) local(pid uint) (*pointer_elem, uint) {
 
 		// Repin and get a (potentially)
 		// different goroutine PID index.
-		procUnpin()
+		pid = procPin()
 
 		// Attempt to replace
 		// ring ptr with new.
 		if pid < uint(len(ring)) &&
 			atomic.CompareAndSwapPointer(&r.p,
 				ptr,
-				newptr,
-			) {
+				newptr) {
 			return &ring[pid], pid
 		}
 	}
