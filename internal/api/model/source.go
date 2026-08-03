@@ -47,8 +47,10 @@ type Source struct {
 	Note string `json:"note"`
 	// Metadata about the account.
 	Fields []Field `json:"fields"`
-	// The number of pending follow requests.
+	// The number of pending follow requests targeting this account.
 	FollowRequestsCount int `json:"follow_requests_count"`
+	// The number of blocks created by this account.
+	BlocksCount int `json:"blocks_count"`
 	// This account is aliased to / also known as accounts at the
 	// given ActivityPub URIs. To set this, use `/api/v1/accounts/alias`.
 	//

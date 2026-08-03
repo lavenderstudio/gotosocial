@@ -134,6 +134,7 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendAliasedAndMoved()
     "note": "hey yo this is my profile!",
     "fields": [],
     "follow_requests_count": 0,
+    "blocks_count": 0,
     "also_known_as_uris": [
       "http://localhost:8080/users/1happyturtle"
     ]
@@ -342,7 +343,8 @@ func (suite *InternalToFrontendTestSuite) TestAccountToFrontendSensitive() {
     "status_content_type": "text/plain",
     "note": "hey yo this is my profile!",
     "fields": [],
-    "follow_requests_count": 0
+    "follow_requests_count": 0,
+    "blocks_count": 0
   },
   "enable_rss": true,
   "role": {

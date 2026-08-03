@@ -140,6 +140,15 @@ func (c *Converter) AccountToAPIAccountSensitive(ctx context.Context, a *gtsmode
 		)
 	}
 
+	// Get block stats separately (todo: add this to stats).
+	blocksCount, err := c.state.DB.CountAccountBlocking(ctx, a.ID)
+	if err != nil {
+		return nil, gtserror.Newf(
+			"error counting blocks for account %s: %w",
+			a.ID, err,
+		)
+	}
+
 	// Populate the account's role permissions bitmap and highlightedness from its public role.
 	if len(apiAccount.Roles) > 0 {
 		apiAccount.Role = c.APIAccountDisplayRoleToAPIAccountRoleSensitive(&apiAccount.Roles[0])
@@ -163,6 +172,7 @@ func (c *Converter) AccountToAPIAccountSensitive(ctx context.Context, a *gtsmode
 		Note:                a.NoteRaw,
 		Fields:              c.fieldsToAPIFields(a.FieldsRaw),
 		FollowRequestsCount: *a.Stats.FollowRequestsCount,
+		BlocksCount:         blocksCount,
 		AlsoKnownAsURIs:     a.AlsoKnownAsURIs,
 	}
 
@@ -3447,6 +3457,21 @@ func (c *Converter) RelayActorToAPIRelayActor(
 	account, err := c.AccountToAPIAccountPublic(ctx, ra.ActorAccount)
 	if err != nil {
 		return nil, gtserror.Newf("error converting account to api: %w", err)
+	}
+
+	blocksCount, err := c.state.DB.CountAccountBlocking(ctx, account.ID)
+	if err != nil {
+		return nil, gtserror.Newf("error counting blocks: %w", err)
+	}
+
+	// Add some extra info to account model
+	// so that admins can more effectively
+	// manage relay accounts.
+	account.Source = &apimodel.Source{
+		Note:                ra.ActorAccount.NoteRaw,
+		Fields:              c.fieldsToAPIFields(ra.ActorAccount.FieldsRaw),
+		FollowRequestsCount: *ra.ActorAccount.Stats.FollowRequestsCount,
+		BlocksCount:         blocksCount,
 	}
 
 	// Convert matchers (if set).

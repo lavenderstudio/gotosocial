@@ -224,6 +224,11 @@ definitions:
                     type: string
                 type: array
                 x-go-name: AlsoKnownAsURIs
+            blocks_count:
+                description: The number of blocks created by this account.
+                format: int64
+                type: integer
+                x-go-name: BlocksCount
             fields:
                 description: Metadata about the account.
                 items:
@@ -231,7 +236,7 @@ definitions:
                 type: array
                 x-go-name: Fields
             follow_requests_count:
-                description: The number of pending follow requests.
+                description: The number of pending follow requests targeting this account.
                 format: int64
                 type: integer
                 x-go-name: FollowRequestsCount
