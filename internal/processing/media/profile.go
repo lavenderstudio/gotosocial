@@ -63,7 +63,7 @@ func (p *Processor) deleteProfileAttachment(
 		}
 
 		// Delete attachment media.
-		if err := p.Delete(ctx, attachmentID); err != nil {
+		if err := p.c.DeleteMediaAttachment(ctx, attachmentID); err != nil {
 			return nil, err
 		}
 	}

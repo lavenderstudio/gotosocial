@@ -10650,6 +10650,90 @@ paths:
             summary: Update a relay matcher on a relay actor.
             tags:
                 - admin
+    /api/v1/admin/relay_actors/{id}/profile/avatar:
+        delete:
+            operationId: adminRelayActorAvatarDelete
+            parameters:
+                - description: The id of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The updated relay actor.
+                    schema:
+                        $ref: '#/definitions/relayActor'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Delete avatar image of account of relay actor with the given ID.
+            tags:
+                - admin
+    /api/v1/admin/relay_actors/{id}/profile/header:
+        delete:
+            operationId: adminRelayActorHeaderDelete
+            parameters:
+                - description: The id of the relay actor.
+                  in: path
+                  name: id
+                  required: true
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: The updated relay actor.
+                    schema:
+                        $ref: '#/definitions/relayActor'
+                "400":
+                    description: bad request
+                    schema:
+                        $ref: '#/definitions/error'
+                "401":
+                    description: unauthorized
+                    schema:
+                        $ref: '#/definitions/error'
+                "404":
+                    description: not found
+                    schema:
+                        $ref: '#/definitions/error'
+                "406":
+                    description: not acceptable
+                    schema:
+                        $ref: '#/definitions/error'
+                "500":
+                    description: internal server error
+                    schema:
+                        $ref: '#/definitions/error'
+            security:
+                - OAuth2 Bearer:
+                    - admin:write:relays
+            summary: Delete header image of account of relay actor with the given ID.
+            tags:
+                - admin
     /api/v1/admin/relay_subscriptions:
         get:
             description: The subscriptions will be returned in descending chronological order (newest first), with sequential IDs (bigger = newer).

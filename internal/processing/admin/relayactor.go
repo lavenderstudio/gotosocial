@@ -384,6 +384,96 @@ func (p *Processor) RelayActorUpdate(
 	return p.apiRelayActor(ctx, relayActor)
 }
 
+// Delete the header image of account
+// belonging to relay actor with the given ID.
+func (p *Processor) RelayActorDeleteHeader(
+	ctx context.Context,
+	relayActorID string,
+) (*apimodel.RelayActor, gtserror.WithCode) {
+	relayActor, errWithCode := p.getRelayActor(ctx, relayActorID)
+	if errWithCode != nil {
+		return nil, errWithCode
+	}
+
+	// Populate the relay actor.
+	if err := p.state.DB.PopulateRelayActor(ctx, relayActor); err != nil {
+		err := gtserror.Newf("db error populating relay actor: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	if !relayActor.ActorAccount.HeaderSet() {
+		// No header image set, nothing to do.
+		return p.apiRelayActor(ctx, relayActor)
+	}
+
+	// Note attachment ID for delete in a second.
+	attachmentID := relayActor.ActorAccount.HeaderMediaAttachmentID
+
+	// Unset header image on account.
+	relayActor.ActorAccount.HeaderMediaAttachmentID = ""
+	relayActor.ActorAccount.HeaderMediaAttachment = nil
+	if err := p.state.DB.UpdateAccount(ctx,
+		relayActor.ActorAccount,
+		"header_media_attachment_id",
+	); err != nil {
+		err := gtserror.Newf("db error updating relay actor account: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	// Remove attachment from storage.
+	if err := p.c.DeleteMediaAttachment(ctx, attachmentID); err != nil {
+		err := gtserror.Newf("error deleting header attachment: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	return p.apiRelayActor(ctx, relayActor)
+}
+
+// Delete the avatar image of account
+// belonging to relay actor with the given ID.
+func (p *Processor) RelayActorDeleteAvatar(
+	ctx context.Context,
+	relayActorID string,
+) (*apimodel.RelayActor, gtserror.WithCode) {
+	relayActor, errWithCode := p.getRelayActor(ctx, relayActorID)
+	if errWithCode != nil {
+		return nil, errWithCode
+	}
+
+	// Populate the relay actor.
+	if err := p.state.DB.PopulateRelayActor(ctx, relayActor); err != nil {
+		err := gtserror.Newf("db error populating relay actor: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	if !relayActor.ActorAccount.AvatarSet() {
+		// No avatar image set, nothing to do.
+		return p.apiRelayActor(ctx, relayActor)
+	}
+
+	// Note attachment ID for delete in a second.
+	attachmentID := relayActor.ActorAccount.AvatarMediaAttachmentID
+
+	// Unset avatar image on account.
+	relayActor.ActorAccount.AvatarMediaAttachmentID = ""
+	relayActor.ActorAccount.AvatarMediaAttachment = nil
+	if err := p.state.DB.UpdateAccount(ctx,
+		relayActor.ActorAccount,
+		"avatar_media_attachment_id",
+	); err != nil {
+		err := gtserror.Newf("db error updating relay actor account: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	// Remove attachment from storage.
+	if err := p.c.DeleteMediaAttachment(ctx, attachmentID); err != nil {
+		err := gtserror.Newf("error deleting avatar attachment: %w", err)
+		return nil, gtserror.NewErrorInternalError(err)
+	}
+
+	return p.apiRelayActor(ctx, relayActor)
+}
+
 func (p *Processor) RelayActorDelete(
 	ctx context.Context,
 	auth *apiutil.Auth,

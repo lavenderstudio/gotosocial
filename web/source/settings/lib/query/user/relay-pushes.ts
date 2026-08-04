@@ -20,7 +20,7 @@
 import type {
 	RelayConnection,
 	RelayConnectionCreateRequest,
-	RelayConnectionUpdateRequest,
+	RelayFlagsUpdateRequest,
 	RelayMatcherCreateUpdateRequest,
 } from "../../types/relay";
 import { gtsApi } from "../gts-api";
@@ -60,7 +60,7 @@ const extended = gtsApi.injectEndpoints({
 			invalidatesTags: (_res) => [{ type: "RelayPush", id: "LIST" }],
 		}),
 
-		updateRelayPush: build.mutation<RelayConnection, {id: string} & RelayConnectionUpdateRequest>({
+		updateRelayPush: build.mutation<RelayConnection, {id: string} & RelayFlagsUpdateRequest>({
 			query: ({ id, ...formData}) => {
 				return {
 					method: "PUT",

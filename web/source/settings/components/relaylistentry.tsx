@@ -21,7 +21,7 @@ import React from "react";
 import { RelayConnection } from "../lib/types/relay";
 import { useLocation } from "wouter";
 
-export default function RelayListEntry({ conn }: { conn: RelayConnection }) {
+export function RelayListEntry({ conn }: { conn: RelayConnection }) {
 	const [ location, setLocation ] = useLocation();
 	
 	const onClick = (e) => {
@@ -65,57 +65,79 @@ export default function RelayListEntry({ conn }: { conn: RelayConnection }) {
 					<dt>Matchers:</dt>
 					<dd>{conn.matchers.length}</dd>
 				</div>
-				<div className="info-list-entry relay-flags">
-					<dt>Flags:</dt>
-					<div className="relay-flags-icons">
-						{ conn.public && 
-							<dd title="public">
-								<i className="fa fa-fw fa-globe" aria-hidden="true"></i>
-								<span className="sr-only">public</span>
-							</dd>
-						}
-						{ conn.unlisted && 
-							<dd title="unlisted">
-								<i className="fa fa-fw fa-unlock" aria-hidden="true"></i>
-								<span className="sr-only">unlisted</span>
-							</dd>
-						}
-						{ conn.match_by_default && 
-							<dd title="match by default">
-								<i className="fa fa-fw fa-check-square-o" aria-hidden="true"></i>
-								<span className="sr-only">match by default</span>
-							</dd>
-						}
-						{ conn.ignore_sensitive && 
-							<dd title="ignore sensitive">
-								<span className="fa-stack fa-fw">
-									<i className="fa fa-fw fa-eye-slash fa-stack-1x"></i>
-									<i className="fa fa-fw fa-ban fa-stack-1x crossed-out"></i>
-								</span>
-								<span className="sr-only">ignore sensitive</span>
-							</dd>
-						}
-						{ conn.ignore_media && 
-							<dd title="ignore media">
-								<span className="fa-stack fa-fw">
-									<i className="fa fa-fw fa-image fa-stack-1x"></i>
-									<i className="fa fa-fw fa-ban fa-stack-1x crossed-out"></i>
-								</span>
-								<span className="sr-only">ignore media</span>
-							</dd>
-						}
-						{ conn.ignore_replies && 
-							<dd title="ignore replies">
-								<span className="fa-stack fa-fw">
-									<i className="fa fa-fw fa-reply-all fa-stack-1x"></i>
-									<i className="fa fa-fw fa-ban fa-stack-1x crossed-out"></i>
-								</span>
-								<span className="sr-only">ignore replies</span>
-							</dd>
-						}
-					</div>
-				</div>
+				<RelayFlagsInfoListEntry
+					public={conn.public}
+					unlisted={conn.unlisted}
+					match_by_default={conn.match_by_default}
+					ignore_sensitive={conn.ignore_sensitive}
+					ignore_media={conn.ignore_media}
+					ignore_replies={conn.ignore_replies}
+				/>
 			</dl>
 		</span>
+	);
+}
+
+interface RelayFlagsInfoListEntryProps {
+	public: boolean;
+	unlisted: boolean;
+	match_by_default: boolean;
+	ignore_sensitive: boolean;
+	ignore_media: boolean;
+	ignore_replies: boolean;
+}
+
+export function RelayFlagsInfoListEntry(props: RelayFlagsInfoListEntryProps) {
+	return (
+		<div className="info-list-entry relay-flags">
+			<dt>Flags:</dt>
+			<div className="relay-flags-icons">
+				{ props.public && 
+					<dd title="public">
+						<i className="fa fa-fw fa-globe" aria-hidden="true"></i>
+						<span className="sr-only">public</span>
+					</dd>
+				}
+				{ props.unlisted && 
+					<dd title="unlisted">
+						<i className="fa fa-fw fa-unlock" aria-hidden="true"></i>
+						<span className="sr-only">unlisted</span>
+					</dd>
+				}
+				{ props.match_by_default && 
+					<dd title="match by default">
+						<i className="fa fa-fw fa-check-square-o" aria-hidden="true"></i>
+						<span className="sr-only">match by default</span>
+					</dd>
+				}
+				{ props.ignore_sensitive && 
+					<dd title="ignore sensitive">
+						<span className="fa-stack fa-fw">
+							<i className="fa fa-fw fa-eye-slash fa-stack-1x"></i>
+							<i className="fa fa-fw fa-ban fa-stack-1x crossed-out"></i>
+						</span>
+						<span className="sr-only">ignore sensitive</span>
+					</dd>
+				}
+				{ props.ignore_media && 
+					<dd title="ignore media">
+						<span className="fa-stack fa-fw">
+							<i className="fa fa-fw fa-image fa-stack-1x"></i>
+							<i className="fa fa-fw fa-ban fa-stack-1x crossed-out"></i>
+						</span>
+						<span className="sr-only">ignore media</span>
+					</dd>
+				}
+				{ props.ignore_replies && 
+					<dd title="ignore replies">
+						<span className="fa-stack fa-fw">
+							<i className="fa fa-fw fa-reply-all fa-stack-1x"></i>
+							<i className="fa fa-fw fa-ban fa-stack-1x crossed-out"></i>
+						</span>
+						<span className="sr-only">ignore replies</span>
+					</dd>
+				}
+			</div>
+		</div>
 	);
 }

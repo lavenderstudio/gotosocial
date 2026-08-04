@@ -197,7 +197,8 @@ func (r *locals_ring) local(pid uint) (*pointer_elem, uint) {
 
 		// Allocate new ring buffer capable
 		// of accomodating an index of 'pid'.
-		ring := make([]pointer_elem, maxprocs())
+		maxprocs := runtime.GOMAXPROCS(0)
+		ring := make([]pointer_elem, maxprocs)
 		newptr := unsafe.Pointer(&ring)
 
 		// Repin and get a (potentially)
@@ -236,13 +237,6 @@ type pointer_elem struct{ p unsafe.Pointer }
 func (e *pointer_elem) Swap(p unsafe.Pointer) unsafe.Pointer {
 	return atomic.SwapPointer(&e.p, p)
 }
-
-// maxprocs prevents runtime.GOMAXPROCS() from
-// being inlined, making it more likely for its
-// caller to be capable of being inlined.
-//
-//go:noinline
-func maxprocs() int { return runtime.GOMAXPROCS(0) }
 
 // note is int in runtime, but should never be negative.
 //

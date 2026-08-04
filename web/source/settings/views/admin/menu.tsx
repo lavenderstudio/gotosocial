@@ -63,6 +63,7 @@ export default function AdminMenu() {
 			<AdminInstanceMenu />
 			<AdminEmojisMenu />
 			<AdminRelaySubscriptionsMenu />
+			<AdminRelayActorsMenu />
 			<AdminInstancesMenu />
 			<AdminActionsMenu />
 			<AdminHTTPHeaderPermissionsMenu />
@@ -153,6 +154,28 @@ function AdminRelaySubscriptionsMenu() {
 			itemUrl="relay-subscriptions"
 			defaultChild="overview"
 			icon="fa-share-alt"
+		>
+			<MenuItem
+				name="Overview"
+				itemUrl="overview"
+				icon="fa-list"
+			/>
+			<MenuItem
+				name="New"
+				itemUrl="new"
+				icon="fa-plus"
+			/>
+		</MenuItem>
+	);
+}
+
+function AdminRelayActorsMenu() {
+	return (
+		<MenuItem
+			name="Relay Actors"
+			itemUrl="relay-actors"
+			defaultChild="overview"
+			icon="fa-microchip"
 		>
 			<MenuItem
 				name="Overview"

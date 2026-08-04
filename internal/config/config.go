@@ -157,9 +157,11 @@ type Configuration struct {
 	SMTPFromDisplayName    string `name:"smtp-from-display-name" usage:"Optional display name to use in addition to 'from' address. Eg., 'Admin'"`
 	SMTPDiscloseRecipients bool   `name:"smtp-disclose-recipients" usage:"If true, email notifications sent to multiple recipients will be To'd to every recipient at once. If false, recipients will not be disclosed"`
 
-	SyslogEnabled  bool   `name:"syslog-enabled" usage:"Enable the syslog logging hook. Logs will be mirrored to the configured destination."`
-	SyslogProtocol string `name:"syslog-protocol" usage:"Protocol to use when directing logs to syslog. Leave empty to connect to local syslog."`
-	SyslogAddress  string `name:"syslog-address" usage:"Address:port to send syslog logs to. Leave empty to connect to local syslog."`
+	SyslogEnabled   bool   `name:"syslog-enabled" usage:"Enable the syslog logging hook. Logs will be mirrored to the configured destination."`
+	SyslogProtocol  string `name:"syslog-protocol" usage:"Protocol to use when directing logs to syslog. Leave empty to connect to local syslog."`
+	SyslogAddress   string `name:"syslog-address" usage:"Address:port to send syslog logs to. Leave empty to connect to local syslog."`
+	SyslogMirror    bool   `name:"syslog-mirror" usage:"When syslog is enabled, whether to mirror output syslog. Else, only outputs to syslog."`
+	SyslogMsgLength uint32 `name:"syslog-msg-length" usage:"Truncates syslog messages beyond this length, defaults to 2048 according to rfc5424."`
 
 	// Database flags.
 	Database DatabaseConfiguration `name:"db"`

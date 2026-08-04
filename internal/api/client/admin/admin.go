@@ -90,6 +90,8 @@ const (
 
 	RelayActorsPath                      = BasePath + "/relay_actors"
 	RelayActorsPathWithID                = RelayActorsPath + WithID
+	RelayActorHeaderPath                 = RelayActorsPathWithID + "/profile/header"
+	RelayActorAvatarPath                 = RelayActorsPathWithID + "/profile/avatar"
 	RelayActorFollowRequestsPath         = RelayActorsPathWithID + "/follow_requests"
 	RelayActorFollowRequestAuthorizePath = RelayActorFollowRequestsPath + "/:" + apiutil.TargetAccountIDKey + "/authorize"
 	RelayActorFollowRequestRejectPath    = RelayActorFollowRequestsPath + "/:" + apiutil.TargetAccountIDKey + "/reject"
@@ -234,6 +236,8 @@ func (m *Module) Route(g *httputil.RouteGroup) {
 	g.GET(RelayActorsPathWithID, m.RelayActorGETHandler)
 	g.POST(RelayActorsPath, m.RelayActorPOSTHandler)
 	g.PUT(RelayActorsPathWithID, m.RelayActorPUTHandler)
+	g.DELETE(RelayActorHeaderPath, m.RelayActorHeaderDELETEHandler)
+	g.DELETE(RelayActorAvatarPath, m.RelayActorAvatarDELETEHandler)
 	g.DELETE(RelayActorsPathWithID, m.RelayActorDELETEHandler)
 	g.POST(RelayActorMatchersPath, m.RelayActorMatcherPOSTHandler)
 	g.DELETE(RelayActorMatchersPathWithMatcherID, m.RelayActorMatcherDELETEHandler)

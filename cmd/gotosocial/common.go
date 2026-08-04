@@ -89,6 +89,8 @@ func run(ctx context.Context, action action.GTSAction) error {
 		if err := gtslog.EnableSyslog(
 			config.GetSyslogProtocol(),
 			config.GetSyslogAddress(),
+			config.GetSyslogMsgLength(),
+			config.GetSyslogMirror(),
 		); err != nil {
 			return fmt.Errorf("error enabling syslogging: %w", err)
 		}

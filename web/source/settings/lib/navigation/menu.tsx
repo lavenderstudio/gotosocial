@@ -26,8 +26,11 @@ import {
 	useHasPermission,
 	useMenuLevel,
 } from "./util";
-import UserLogoutCard from "../../components/user-logout-card";
 import { nanoid } from "nanoid";
+import { useLogoutMutation, useVerifyCredentialsQuery } from "../query/login";
+import Loading from "../../components/loading";
+import { Error as ErrorC } from "../../components/error";
+import AccountCard from "../../components/account-card";
 
 export interface MenuItemProps {
 	/**
@@ -169,7 +172,7 @@ export interface SidebarMenuProps{}
 export function SidebarMenu({ children }: PropsWithChildren<SidebarMenuProps>) {
 	return (
 		<div className="sidebar">
-			<UserLogoutCard />
+			<LogoutButton />
 			<nav className="menu-tree">
 				<MenuLevelContext.Provider value={0}>
 					<ul className="top-level">
@@ -178,5 +181,34 @@ export function SidebarMenu({ children }: PropsWithChildren<SidebarMenuProps>) {
 				</MenuLevelContext.Provider>
 			</nav>
 		</div>
+	);
+}
+
+// "You are logged in as this user"-style account
+// card that lets you click on a button to log out.
+function LogoutButton() {
+	const { data: account, isLoading } = useVerifyCredentialsQuery();
+	const [logoutQuery] = useLogoutMutation();
+
+	if (isLoading) {
+		return <Loading />;
+	}
+	
+	if (!account) {
+		return <ErrorC error={new Error("account was undefined")} />;
+	}
+
+	return (
+		<AccountCard account={account}>
+			<a
+				onClick={logoutQuery}
+				href="#"
+				aria-label="Log out"
+				title="Log out"
+				className="logout"
+			>
+				<i className="fa fa-fw fa-sign-out" aria-hidden="true" />
+			</a>
+		</AccountCard>
 	);
 }

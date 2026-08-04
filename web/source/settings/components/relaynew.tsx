@@ -23,13 +23,13 @@ import { useBoolInput, useTextInput } from "../lib/form";
 import MutationButton from "./form/mutation-button";
 import { TextInput } from "./form/inputs";
 import { useLocation } from "wouter";
-import RelayFlags from "./relayflags";
+import RelayFlagsForm from "./relayflags";
 
 interface RelayNewProps {
-    relayType: string,
+	relayType: string,
 	verb: string,
 	helpBlurb: ReactNode,
-    createHook,
+	createHook,
 }
 
 export default function RelayNew({
@@ -39,9 +39,13 @@ export default function RelayNew({
 	createHook
 }: RelayNewProps) {
 	const [ _location, setLocation ] = useLocation();
+	const ourActor = relayType === "Actor";
 
 	const form = {
-		relay_actor_uri: useTextInput("relay_actor_uri"),
+		// When creating an actor on our instance, don't submit relay_actor_uri.
+		relay_actor_uri: useTextInput("relay_actor_uri", { nosubmit: ourActor }),
+		// When creating a connection to a remote actor, don't submit username.
+		username: useTextInput("username", { nosubmit: !ourActor }),
 		public: useBoolInput("public", { defaultValue: true }),
 		unlisted: useBoolInput("unlisted", { defaultValue: false }),
 		match_by_default: useBoolInput("match_by_default", { defaultValue: false }),
@@ -76,18 +80,31 @@ export default function RelayNew({
 				{helpBlurb}
 			</div>
 
-			<TextInput
-				field={form.relay_actor_uri}
-				label="Relay actor URI"
-				placeholder="https://relay.example.org/actor"
-				type="url"
-				pattern="https?://.*"
-				spellCheck="false"
-				autoCapitalize="none"
-				required={true}
-			/>
+			{ !ourActor
+				? <TextInput
+					field={form.relay_actor_uri}
+					label="Relay actor URI"
+					placeholder="https://relay.example.org/actor"
+					type="url"
+					pattern="https?://.*"
+					spellCheck="false"
+					autoCapitalize="none"
+					required={true}
+				/>
+				: <TextInput
+					field={form.username}
+					label="Relay actor username (lowercase a-z, numbers, and underscores; max 64 characters)"
+					placeholder="some_username_or_whatever"
+					type="text"
+					pattern="^[a-z0-9_]{1,64}$"
+					spellCheck="false"
+					autoCapitalize="off"
+					required={true}
+					title="lowercase a-z, numbers, and underscores; max 64 characters"
+				/>
+			}
 
-			<RelayFlags
+			<RelayFlagsForm
 				verb={verb}
 				form_field_public={form.public}
 				form_field_unlisted={form.unlisted}
@@ -100,7 +117,11 @@ export default function RelayNew({
 			<MutationButton
 				label="Save"
 				result={result}
-				disabled={!form.relay_actor_uri.value || !form.relay_actor_uri.valid}
+				disabled={
+					ourActor
+						? !form.username.value || !form.username.valid
+						: !form.relay_actor_uri.value || !form.relay_actor_uri.valid
+				}
 			/>
 		</form>
 	);

@@ -91,6 +91,7 @@ ul li::before {
 
 		.account-card {
 			grid-template-columns: auto 1fr auto;
+			margin-bottom: 0.3rem;
 
 			img.avatar {
 				width: 4rem;
@@ -105,10 +106,6 @@ ul li::before {
 				font-size: 1.5rem;
 				align-self: center;
 				grid-row: 1 / span 2;
-			}
-
-			&:hover {
-				background: $list-entry-bg;
 			}
 		}
 	}
@@ -1795,34 +1792,32 @@ button.tab-button {
 	}
 }
 
-.export-data {
-	.export-buttons-wrapper {
-		display: grid;
-		max-width: fit-content;
-		gap: 0.5rem;
+.stats-and-buttons {
+	display: grid;
+	max-width: fit-content;
+	gap: 0.5rem;
 
-		.stats-and-button {
-			display: grid;
-			grid-template-columns: 13rem 1fr;
-			align-items: center;
-			gap: 0.25rem;
-	
-			.mutation-button {
+	.stats-and-button {
+		display: grid;
+		grid-template-columns: 13rem 1fr;
+		align-items: center;
+		gap: 0.25rem;
+
+		.mutation-button {
+			width: 100%;
+
+			button {
+				font-size: 1rem;
 				width: 100%;
-	
-				button {
-					font-size: 1rem;
-					width: 100%;
-				}
 			}
 		}
-	
-		@media screen and (max-width: 35rem) {
-			gap: 1rem;
-			
-			.stats-and-button {
-				grid-template-columns: auto;
-			}
+	}
+
+	@media screen and (max-width: 35rem) {
+		gap: 1rem;
+		
+		.stats-and-button {
+			grid-template-columns: auto;
 		}
 	}
 }
@@ -1915,8 +1910,10 @@ button.tab-button {
 	}
 }
 
-.relay-connections {
-	.relay-connection {
+.relay-connections,
+.relay-actors {
+	.relay-connection,
+	.relay-actor {
 		.info-list {
 			border: none;
 			width: 100%;
@@ -1926,6 +1923,59 @@ button.tab-button {
 				padding: 0;
 			}
 		}
+	}
+
+	.relay-actor.entry {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		
+		.account-card {
+			padding: 0;
+			background: transparent;
+
+			img.avatar {
+				width: 4rem;
+				height: 4rem;
+			}
+		}
+	}
+}
+
+.manage-followers,
+.manage-follow-requests,
+.manage-blocks {
+	p.count {
+		margin-bottom: 0;
+	}
+
+	.list .entry {
+		display: flex;
+		gap: 1rem;
+
+		.account-card {
+			padding: 0;
+			background: transparent;
+			margin-right: auto;
+		}
+
+		.action-buttons {
+			display: flex;
+			gap: 0.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+
+			> .mutation-button
+			> button {
+				font-size: 1rem;
+				line-height: 1rem;
+			}
+		}
+	}
+	
+	img.avatar {
+		width: 4rem;
+		height: 4rem;
 	}
 }
 
@@ -1956,7 +2006,8 @@ button.tab-button {
 	}
 }
 
-.relay-connection-detail {
+.relay-connection-detail,
+.relay-actor-detail {
 	& > .info-list {
 		margin-top: 1rem;
 	}
@@ -2034,7 +2085,8 @@ button.tab-button {
 	approved the text shows up in green,
 	and not approved shows up in orange.
 */
-.relay-connections, .relay-connection-detail {
+.relay-connections,
+.relay-connection-detail {
 	dd.relay-connection-approved {
 		color: $green1;
 	}

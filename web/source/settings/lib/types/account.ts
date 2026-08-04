@@ -74,6 +74,7 @@ export interface Account {
 export interface AccountSource {
 	fields: any;
 	follow_requests_count: number;
+	blocks_count: number;
 	language: string;
 	note: string;
 	privacy: string;

@@ -39,6 +39,10 @@ import InstanceDetail from "./instances/detail";
 import RelaySubscriptionsOverview from "./relay-subscriptions";
 import RelaySubscriptionNew from "./relay-subscriptions/new";
 import RelaySubscriptionDetail from "./relay-subscriptions/detail";
+import RelayActorsOverview from "./relay-actors";
+import RelayActorNew from "./relay-actors/new";
+import RelayActorDetail from "./relay-actors/detail";
+import RelayActorManageRelationships from "./relay-actors/relationships";
 
 /*
 	EXPORTED COMPONENTS
@@ -51,6 +55,12 @@ import RelaySubscriptionDetail from "./relay-subscriptions/detail";
  * - /settings/admin/relay-subscriptions/overview
  * - /settings/admin/relay-subscriptions/new
  * - /settings/admin/relay-subscriptions/:relaySubscriptionId
+ * - /settings/admin/relay-actors/overview
+ * - /settings/admin/relay-actors/new
+ * - /settings/admin/relay-actors/:relayActorId
+ * - /settings/admin/relay-actors/:relayActorId/followers
+ * - /settings/admin/relay-actors/:relayActorId/follow_requests
+ * - /settings/admin/relay-actors/:relayActorId/blocks
  * - /settings/admin/emojis
  * - /settings/admin/emojis/local
  * - /settings/admin/emojis/local/:emojiId
@@ -77,6 +87,7 @@ export default function AdminRouter() {
 				<AdminInstanceRouter />
 				<AdminEmojisRouter />
 				<AdminRelaySubscriptionsRouter />
+				<AdminRelayActorsRouter />
 				<AdminInstancesRouter />
 				<AdminActionsRouter />
 				<AdminHTTPHeaderPermissionsRouter />
@@ -147,6 +158,39 @@ function AdminRelaySubscriptionsRouter() {
 						<Route path="/overview" component={RelaySubscriptionsOverview} />
 						<Route path="/new" component={RelaySubscriptionNew} />
 						<Route path="/:relaySubscriptionId" component={RelaySubscriptionDetail} />
+						<Route><Redirect to="/overview" /></Route>
+					</Switch>
+				</ErrorBoundary>
+			</Router>
+		</BaseUrlContext.Provider>
+	);
+}
+
+/**
+ * - /settings/admin/relay-actors/overview
+ * - /settings/admin/relay-actors/new
+ * - /settings/admin/relay-actors/:relayActorId
+ */
+function AdminRelayActorsRouter() {
+	const parentUrl = useBaseUrl();
+	const thisBase = "/relay-actors";
+	const absBase = parentUrl + thisBase;
+
+	const permissions = ["admin"];
+	const admin = useHasPermission(permissions);
+	if (!admin) {
+		return null;
+	}
+
+	return (
+		<BaseUrlContext.Provider value={absBase}>
+			<Router base={thisBase}>
+				<ErrorBoundary>
+					<Switch>
+						<Route path="/overview" component={RelayActorsOverview} />
+						<Route path="/new" component={RelayActorNew} />
+						<Route path="/:relayActorId/:relationshipType" component={RelayActorManageRelationships} />
+						<Route path="/:relayActorId" component={RelayActorDetail} />
 						<Route><Redirect to="/overview" /></Route>
 					</Switch>
 				</ErrorBoundary>

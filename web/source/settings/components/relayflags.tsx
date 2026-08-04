@@ -22,7 +22,7 @@ import { Checkbox } from "./form/inputs";
 import { useCapitalize } from "../lib/util";
 import { BoolFormInputHook } from "../lib/form/types";
 
-interface RelayFlagsProps {
+interface RelayFlagsFormProps {
 	verb: string;
 	form_field_public: BoolFormInputHook;
 	form_field_unlisted: BoolFormInputHook;
@@ -32,7 +32,7 @@ interface RelayFlagsProps {
 	form_field_match_by_default: BoolFormInputHook;
 }
 
-export default function RelayFlags(props: RelayFlagsProps) {
+export default function RelayFlagsForm(props: RelayFlagsFormProps) {
 	const {
 		verb,
 		form_field_public,

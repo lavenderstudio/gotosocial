@@ -149,9 +149,11 @@ var Defaults = Configuration{
 	TracingEnabled: false,
 	MetricsEnabled: false,
 
-	SyslogEnabled:  false,
-	SyslogProtocol: "udp",
-	SyslogAddress:  "localhost:514",
+	SyslogEnabled:   false,
+	SyslogProtocol:  "udp",
+	SyslogAddress:   "localhost:514",
+	SyslogMirror:    true,
+	SyslogMsgLength: 2048,
 
 	Advanced: AdvancedConfig{
 		SenderMultiplier: 2, // 2 senders per CPU

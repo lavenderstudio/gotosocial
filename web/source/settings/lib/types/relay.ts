@@ -17,20 +17,63 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+import { Account } from "./account";
+
 /**
- * RelayConnection models a relay push or relay subscription targeting a relay actor.
+ * RelayEntityCommon models fields that are common
+ * across relay pushes, subscriptions, and actors.
  */
-export interface RelayConnection {
+interface RelayEntityCommon {
 	/**
 	 * ID of this item.
 	 */
 	id: string;
 
 	/**
-	 * The date when this relay connection was created (ISO 8601 Datetime).
+	 * The date when this entity was created (ISO 8601 Datetime).
 	 */
 	created_at: string;
 
+	/**
+	 * Matchers that apply to this relay entity.
+	 */
+	matchers: RelayMatcher[];
+
+	/**
+	 * Include public posts when relaying.
+	 */
+	public: boolean;
+
+	/**
+	 * Include unlisted/unlocked posts when relaying.
+	 */
+	unlisted: boolean;
+
+	/**
+	 * Match all posts by default.
+	 */
+	match_by_default: boolean;
+
+	/**
+	 * Ignore sensitive posts when relaying.
+	 */
+	ignore_sensitive: boolean;
+
+	/**
+	 * Ignore posts with media attachments when relaying.
+	 */
+	ignore_media: boolean;
+
+	/**
+	 * Ignore replies to other accounts when relaying.
+	 */
+	ignore_replies: boolean;
+}
+
+/**
+ * RelayConnection models a relay push or relay subscription targeting a relay actor.
+ */
+export interface RelayConnection extends RelayEntityCommon {
 	/**
 	 * ID of the account that created this relay connection.
 	 * Will only be set for relay subscriptions, not relay pushes.
@@ -43,78 +86,45 @@ export interface RelayConnection {
 	relay_actor_uri: string;
 
 	/**
-	 * Matchers that apply to this relay connection.
-	 */
-	matchers: RelayMatcher[];
-
-	/**
 	 * True if this relay connection has been approved by the relay actor.
 	 */
 	approved: boolean;
-
-	/**
-	 * Include public posts when relaying via this connection.
-	 */
-	public: boolean;
-
-	/**
-	 * Include unlisted/unlocked posts when relaying via this connection.
-	 */
-	unlisted: boolean;
-
-	
-	match_by_default: boolean;
-
-	/**
-	 * Exclude sensitive posts when relaying via this connection.
-	 */
-	ignore_sensitive: boolean;
-
-	/**
-	 * Exclude posts with media attachments when relaying via this connection.
-	 */
-	ignore_media: boolean;
-
-	/**
-	 * Exclude replies to other accounts when relaying via this connection.
-	 */
-	ignore_replies: boolean;
 }
 
 /**
- * RelayConnectionUpdateRequest models an update request for a relay push or relay subscription.
+ * RelayFlagsUpdateRequest models an update request for modifying a relay entity's flags.
  */
-export interface RelayConnectionUpdateRequest {
+export interface RelayFlagsUpdateRequest {
 	/**
-	 * Include public posts when relaying via this connection.
+	 * Include public posts when relaying.
 	 */
-	include_public?: boolean;
+	public?: boolean;
 
 	/**
-	 * Include unlisted/unlocked posts when relaying via this connection.
+	 * Include unlisted/unlocked posts when relaying.
 	 */
-	include_unlisted?: boolean;
+	unlisted?: boolean;
 
 	/**
-	 * Exclude sensitive posts when relaying via this connection.
+	 * Ignore sensitive posts when relaying.
 	 */
-	exclude_sensitive?: boolean;
+	ignore_sensitive?: boolean;
 
 	/**
-	 * Exclude posts with media attachments when relaying via this connection.
+	 * Ignore posts with media attachments when relaying.
 	 */
-	exclude_media?: boolean;
+	ignore_media?: boolean;
 
 	/**
-	 * Exclude replies to other accounts when relaying via this connection.
+	 * Ignore replies to other accounts when relaying.
 	 */
-	exclude_replies?: boolean;
+	ignore_replies?: boolean;
 }
 
 /**
  * RelayConnectionCreateRequest models an create request for a relay push or relay subscription.
  */
-export interface RelayConnectionCreateRequest extends RelayConnectionUpdateRequest {
+export interface RelayConnectionCreateRequest extends RelayFlagsUpdateRequest {
 	/**
 	 * ActivityPub URI of the relay service actor.
 	 */
@@ -165,3 +175,80 @@ export interface RelayMatcherCreateUpdateRequest {
 	 */
 	exclude?: boolean;
 } 
+
+/**
+ * RelayActor models a local relay actor created by an admin on this instance.
+ */
+export interface RelayActor extends RelayConnection {
+	/**
+	 * Relay actor account model.
+	 */
+	account: Account;
+
+	/**
+	 * ID of the admin account that
+	 * created this relay actor.
+	 */
+	created_by_account_id: string;
+}
+
+/**
+ * RelayActorCreateRequest models a request to create a relay actor.
+ */
+export interface RelayActorCreateRequest extends RelayActorUpdateRequest {
+	/**
+	 * The desired username for the relay actor account.
+	 * Will be prefixed with "relay." to form the final
+	 * username. Eg., "username=example" results in
+	 * username "relay.example".
+	 */
+	username: string;
+}
+
+/**
+ * RelayActorUpdateRequest models a request to update a relay actor.
+ */
+export interface RelayActorUpdateRequest extends RelayFlagsUpdateRequest {
+	/**
+	 * Relay actor account should be made discoverable
+	 * and shown in the profile directory (if enabled).
+	 */
+	discoverable?: boolean;
+
+	/**
+	 * The display name to use for the account.
+	 */
+	display_name?: string;
+
+	/**
+	 * Bio/description of this account.
+	 */
+	note?: string;
+
+	/**
+	 * Relay account avatar.
+	 */
+	avatar;
+
+	/**
+	 * Description of avatar image, for alt-text.
+	 */
+	avatar_description?: string;
+
+	/**
+	 * Relay account header.
+	 */
+	header;
+
+	/**
+	 * Description of header image, for alt-text.
+	 */
+	header_description?: string;
+
+	/**
+	 * Require manual approval of follow requests.
+	 */
+	locked?: boolean;
+
+	fields_attributes;
+}

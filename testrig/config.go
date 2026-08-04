@@ -190,9 +190,11 @@ func testDefaults() config.Configuration {
 		TracingEnabled: false,
 		MetricsEnabled: false,
 
-		SyslogEnabled:  false,
-		SyslogProtocol: "udp",
-		SyslogAddress:  "localhost:514",
+		SyslogEnabled:   false,
+		SyslogProtocol:  "udp",
+		SyslogAddress:   "localhost:514",
+		SyslogMirror:    false,
+		SyslogMsgLength: 2048,
 
 		Advanced: config.AdvancedConfig{
 			CookiesSamesite:  "lax",

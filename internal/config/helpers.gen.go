@@ -267,6 +267,8 @@ const (
 	SyslogEnabledFlag                             = "syslog-enabled"
 	SyslogProtocolFlag                            = "syslog-protocol"
 	SyslogAddressFlag                             = "syslog-address"
+	SyslogMirrorFlag                              = "syslog-mirror"
+	SyslogMsgLengthFlag                           = "syslog-msg-length"
 	AdminAccountUsernameFlag                      = "username"
 	AdminAccountEmailFlag                         = "email"
 	AdminAccountPasswordFlag                      = "password"
@@ -550,6 +552,8 @@ func (cfg *Configuration) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Bool("syslog-enabled", cfg.SyslogEnabled, "Enable the syslog logging hook. Logs will be mirrored to the configured destination.")
 	flags.String("syslog-protocol", cfg.SyslogProtocol, "Protocol to use when directing logs to syslog. Leave empty to connect to local syslog.")
 	flags.String("syslog-address", cfg.SyslogAddress, "Address:port to send syslog logs to. Leave empty to connect to local syslog.")
+	flags.Bool("syslog-mirror", cfg.SyslogMirror, "When syslog is enabled, whether to mirror output syslog. Else, only outputs to syslog.")
+	flags.Uint32("syslog-msg-length", cfg.SyslogMsgLength, "Truncates syslog messages beyond this length, defaults to 2048 according to rfc5424.")
 }
 
 func (cfg *PostgresConfiguration) MarshalIntoMap(prefix string, cfgmap map[string]any) {
@@ -728,7 +732,7 @@ func (cfg *CacheConfiguration) MarshalIntoMap(prefix string, cfgmap map[string]a
 }
 
 func (cfg *Configuration) MarshalMap() map[string]any {
-	cfgmap := make(map[string]any, 245)
+	cfgmap := make(map[string]any, 247)
 	cfg.MarshalIntoMap(cfgmap)
 	return cfgmap
 }
@@ -830,6 +834,8 @@ func (cfg *Configuration) MarshalIntoMap(cfgmap map[string]any) {
 	cfgmap["syslog-enabled"] = cfg.SyslogEnabled
 	cfgmap["syslog-protocol"] = cfg.SyslogProtocol
 	cfgmap["syslog-address"] = cfg.SyslogAddress
+	cfgmap["syslog-mirror"] = cfg.SyslogMirror
+	cfgmap["syslog-msg-length"] = cfg.SyslogMsgLength
 	cfgmap["username"] = cfg.AdminAccountUsername
 	cfgmap["email"] = cfg.AdminAccountEmail
 	cfgmap["password"] = cfg.AdminAccountPassword
@@ -2881,6 +2887,22 @@ func (cfg *Configuration) UnmarshalMap(cfgmap map[string]any) error {
 		cfg.SyslogAddress, err = cast.ToStringE(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "string", "syslog-address", err)
+		}
+	}
+
+	if ival, ok := cfgmap["syslog-mirror"]; ok {
+		var err error
+		cfg.SyslogMirror, err = cast.ToBoolE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "bool", "syslog-mirror", err)
+		}
+	}
+
+	if ival, ok := cfgmap["syslog-msg-length"]; ok {
+		var err error
+		cfg.SyslogMsgLength, err = cast.ToUint32E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "uint32", "syslog-msg-length", err)
 		}
 	}
 
@@ -7026,6 +7048,40 @@ func GetSyslogAddress() string { return global.GetSyslogAddress() }
 
 // SetSyslogAddress safely sets the value for global configuration 'SyslogAddress' field
 func SetSyslogAddress(v string) { global.SetSyslogAddress(v) }
+
+// GetSyslogMirror safely fetches the Configuration value for state's 'SyslogMirror' field
+func (st *ConfigState) GetSyslogMirror() (v bool) {
+	return st.config.SyslogMirror
+}
+
+// SetSyslogMirror safely sets the Configuration value for state's 'SyslogMirror' field
+func (st *ConfigState) SetSyslogMirror(v bool) {
+	st.config.SyslogMirror = v
+	st.reloadToViper()
+}
+
+// GetSyslogMirror safely fetches the value for global configuration 'SyslogMirror' field
+func GetSyslogMirror() bool { return global.GetSyslogMirror() }
+
+// SetSyslogMirror safely sets the value for global configuration 'SyslogMirror' field
+func SetSyslogMirror(v bool) { global.SetSyslogMirror(v) }
+
+// GetSyslogMsgLength safely fetches the Configuration value for state's 'SyslogMsgLength' field
+func (st *ConfigState) GetSyslogMsgLength() (v uint32) {
+	return st.config.SyslogMsgLength
+}
+
+// SetSyslogMsgLength safely sets the Configuration value for state's 'SyslogMsgLength' field
+func (st *ConfigState) SetSyslogMsgLength(v uint32) {
+	st.config.SyslogMsgLength = v
+	st.reloadToViper()
+}
+
+// GetSyslogMsgLength safely fetches the value for global configuration 'SyslogMsgLength' field
+func GetSyslogMsgLength() uint32 { return global.GetSyslogMsgLength() }
+
+// SetSyslogMsgLength safely sets the value for global configuration 'SyslogMsgLength' field
+func SetSyslogMsgLength(v uint32) { global.SetSyslogMsgLength(v) }
 
 // GetAdminAccountUsername safely fetches the Configuration value for state's 'AdminAccountUsername' field
 func (st *ConfigState) GetAdminAccountUsername() (v string) {

@@ -23,9 +23,11 @@ import (
 	"fmt"
 
 	"code.superseriousbusiness.org/gotosocial/internal/config"
+	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/media"
+	"code.superseriousbusiness.org/gotosocial/internal/storage"
 )
 
 // StoreLocalMedia is a wrapper around CreateMedia() and
@@ -109,4 +111,49 @@ func (p *Processor) StoreLocalEmoji(
 	}
 
 	return emoji, nil
+}
+
+// DeleteMediaAttachment deletes attachment with the given ID,
+// including any cached files pertaining to that attachment.
+func (p *Processor) DeleteMediaAttachment(
+	ctx context.Context,
+	attachmentID string,
+) gtserror.WithCode {
+	attachment, err := p.state.DB.GetAttachmentByID(ctx, attachmentID)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		err := gtserror.Newf("db error getting attachment: %w", err)
+		return gtserror.NewErrorInternalError(err)
+	}
+
+	if attachment == nil {
+		// Already deleted.
+		return nil
+	}
+
+	// Delete thumbnail from storage.
+	if attachment.Thumbnail.Cached() {
+		err := p.state.Storage.Delete(ctx, attachment.Thumbnail.Path)
+		if err != nil && !storage.IsNotFound(err) {
+			err := gtserror.Newf("error removing thumbnail %s: %w", attachment.Thumbnail.Path, err)
+			return gtserror.NewErrorInternalError(err)
+		}
+	}
+
+	// Delete original from storage.
+	if attachment.File.Cached() {
+		err := p.state.Storage.Delete(ctx, attachment.File.Path)
+		if err != nil && !storage.IsNotFound(err) {
+			err := gtserror.Newf("error removing file %s: %w", attachment.File.Path, err)
+			return gtserror.NewErrorInternalError(err)
+		}
+	}
+
+	// After deleting files, delete attachment itself.
+	err = p.state.DB.DeleteAttachment(ctx, attachment)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		err := gtserror.Newf("db error deleting attachment: %w", err)
+		return gtserror.NewErrorInternalError(err)
+	}
+
+	return nil
 }

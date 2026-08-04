@@ -27,12 +27,10 @@ import {
 } from "../../../lib/form";
 
 import useFormSubmit from "../../../lib/form/submit";
-import { useWithFormContext, FormContext } from "../../../lib/form/context";
 
 import {
 	TextInput,
 	TextArea,
-	FileInput,
 	Checkbox,
 	Select
 } from "../../../components/form/inputs";
@@ -50,6 +48,8 @@ import { useUpdateCredentialsMutation } from "../../../lib/query/user";
 import { useVerifyCredentialsQuery } from "../../../lib/query/login";
 import { useInstanceV1Query } from "../../../lib/query/gts-api";
 import { Account } from "../../../lib/types/account";
+import ProfileFields from "../../../components/fields";
+import ProfileImageUpload from "../../../components/profileimage";
 
 export default function Profile() {
 	return (
@@ -166,69 +166,37 @@ function ProfileForm({ data: profile }: ProfileFormProps) {
 					role={profile.role}
 				/>
 
-				<fieldset className="file-input-with-image-description">
-					<legend>Header</legend>
-					<FileInput
-						label="Upload file"
-						field={form.header}
-						accept="image/png, image/jpeg, image/webp, image/gif"
-					/>
-					<TextInput
-						field={form.headerDescription}
-						label="Image description; only settable if not using default header"
-						placeholder="A green field with pink flowers."
-						autoCapitalize="sentences"
-						disabled={noHeader && !form.header.value}
-					/>
-					<MutationButton
-						className="delete-header-button"
-						label="Delete header"
-						tabIndex={0}
-						disabled={noHeader}
-						result={deleteHeaderRes}
-						submit={false}
-						onClick={(e) => {
-							e.preventDefault();
-							deleteHeader().then(res => {
-								if ('data' in res) {
-									setNoHeader(true);
-								}
-							});
-						}}
-					/>
-				</fieldset>
+				<ProfileImageUpload
+					headerOrAvatar="header"
+					imageField={form.header}
+					descriptionField={form.headerDescription}
+					deleteRes={deleteHeaderRes}
+					deleteOnClick={(e) => {
+						e.preventDefault();
+						deleteHeader().then(res => {
+							if ('data' in res) {
+								setNoHeader(true);
+							}
+						});
+					}}
+					unset={noHeader}
+				/>
 
-				<fieldset className="file-input-with-image-description">
-					<legend>Avatar</legend>
-					<FileInput
-						label="Upload file (1:1 images look best)"
-						field={form.avatar}
-						accept="image/png, image/jpeg, image/webp, image/gif"
-					/>
-					<TextInput
-						field={form.avatarDescription}
-						label="Image description; only settable if not using default avatar"
-						placeholder="A cute drawing of a smiling sloth."
-						autoCapitalize="sentences"
-						disabled={noAvatar && !form.avatar.value}
-					/>
-					<MutationButton
-						className="delete-avatar-button"
-						label="Delete avatar"
-						tabIndex={0}
-						disabled={noAvatar}
-						result={deleteAvatarRes}
-						submit={false}
-						onClick={(e) => {
-							e.preventDefault();
-							deleteAvatar().then(res => {
-								if ('data' in res) {
-									setNoAvatar(true);
-								}
-							});
-						}}
-					/>
-				</fieldset>
+				<ProfileImageUpload
+					headerOrAvatar="avatar"
+					imageField={form.avatar}
+					descriptionField={form.avatarDescription}
+					deleteRes={deleteAvatarRes}
+					deleteOnClick={(e) => {
+						e.preventDefault();
+						deleteAvatar().then(res => {
+							if ('data' in res) {
+								setNoAvatar(true);
+							}
+						});
+					}}
+					unset={noAvatar}
+				/>
 
 				<span>After choosing theme or layout and saving, <a href={profile.url} target="_blank">open your profile</a> and refresh to see changes.</span>
 
@@ -359,45 +327,5 @@ function ProfileForm({ data: profile }: ProfileFormProps) {
 				result={result}
 			/>
 		</form>
-	);
-}
-
-function ProfileFields({ field: formField }) {
-	return (
-		<div className="fields">
-			<FormContext.Provider value={formField.ctx}>
-				{formField.value.map((data, i) => (
-					<Field
-						key={i}
-						index={i}
-						data={data}
-					/>
-				))}
-			</FormContext.Provider>
-		</div>
-	);
-}
-
-function Field({ index, data }) {
-	const form = useWithFormContext(index, {
-		name: useTextInput("name", { defaultValue: data.name }),
-		value: useTextInput("value", { defaultValue: data.value })
-	});
-
-	return (
-		<div className="entry">
-			<TextInput
-				field={form.name}
-				placeholder="Name"
-				autoCapitalize="none"
-				spellCheck="false"
-			/>
-			<TextInput
-				field={form.value}
-				placeholder="Value"
-				autoCapitalize="none"
-				spellCheck="false"
-			/>
-		</div>
 	);
 }

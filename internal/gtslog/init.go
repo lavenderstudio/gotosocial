@@ -95,13 +95,21 @@ func GetTimeFormat() string {
 	return baseFmt.TimeFormat
 }
 
-// SetTimeFormat sets the timestamp format to given string.
+// SetTimeFormat sets the timestamp format to given string,
+// this handles a set of empty quotes as an empty string.
 func SetTimeFormat(str string) {
+	switch str {
+	case `''`, `""`:
+		str = ""
+	}
 	baseFmt.TimeFormat = str
 }
 
-// EnableSyslog will enabling logging to the syslog at given address.
-func EnableSyslog(proto, addr string) error {
+// EnableSyslog will enabling logging to the syslog at given
+// address. If mirror is set, output will be mirrored to BOTH
+// stdout / stderr AND syslog, else will only output to syslog.
+// Message length dictates length at which long messages are truncated.
+func EnableSyslog(proto, addr string, msglen uint32, mirror bool) error {
 	sysout, err := syslog.Dial(proto, addr, 0, "gotosocial")
 	if err != nil {
 		return err
@@ -112,11 +120,20 @@ func EnableSyslog(proto, addr string) error {
 		panic("nil syslog output")
 	}
 
-	// Get std{out,err}.
-	stdout := os.Stdout
-	stderr := os.Stderr
-	if stdout == nil || stderr == nil {
-		panic("nil log output")
+	// Stdout / stderr
+	// file descriptors,
+	// nil if ! mirrored.
+	//
+	// Write to a nil file
+	// only returns error,
+	// which we ignore.
+	var stdout *os.File
+	var stderr *os.File
+	if mirror {
+
+		// Get std{out,err}.
+		stdout = os.Stdout
+		stderr = os.Stderr
 	}
 
 	// Set new log output function to include syslog.
@@ -131,12 +148,11 @@ func EnableSyslog(proto, addr string) error {
 
 		// Cast to string for write.
 		msg := byteutil.B2S(line)
+		if uint32(len(msg)) > msglen { //nolint
 
-		const max = 2048
-		if len(msg) > max {
-			// Truncate up to max
+			// Truncate up to max (configurable).
 			// see: https://www.rfc-editor.org/rfc/rfc5424.html#section-6.1
-			msg = msg[:max]
+			msg = msg[:msglen]
 		}
 
 		// Write

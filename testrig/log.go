@@ -39,6 +39,8 @@ func InitTestLog() {
 		if err := gtslog.EnableSyslog(
 			config.GetSyslogProtocol(),
 			config.GetSyslogAddress(),
+			config.GetSyslogMsgLength(),
+			config.GetSyslogMirror(),
 		); err != nil {
 			log.Panicf(nil, "error enabling syslogging: %v", err)
 		}

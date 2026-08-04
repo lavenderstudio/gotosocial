@@ -249,6 +249,8 @@ EXPECT=$(cat << "EOF"
     "storage-s3-use-ssl": false,
     "syslog-address": "127.0.0.1:6969",
     "syslog-enabled": true,
+    "syslog-mirror": true,
+    "syslog-msg-length": 2048,
     "syslog-protocol": "udp",
     "tls-certificate-chain": "",
     "tls-certificate-key": "",

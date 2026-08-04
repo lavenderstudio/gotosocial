@@ -717,6 +717,182 @@ func (m *Module) RelayActorPUTHandler(c *httputil.Context) {
 	httputil.JSON(c, http.StatusOK, resp)
 }
 
+// RelayActorHeaderDELETEHandler swagger:operation DELETE /api/v1/admin/relay_actors/{id}/profile/header adminRelayActorHeaderDelete
+//
+// Delete header image of account of relay actor with the given ID.
+//
+//	---
+//	tags:
+//	- admin
+//
+//	produces:
+//	- application/json
+//
+//	parameters:
+//	-
+//		name: id
+//		type: string
+//		description: The id of the relay actor.
+//		in: path
+//		required: true
+//
+//	security:
+//	- OAuth2 Bearer:
+//		- admin:write:relays
+//
+//	responses:
+//		'200':
+//			name: relay actor
+//			description: The updated relay actor.
+//			schema:
+//				"$ref": "#/definitions/relayActor"
+//		'400':
+//			schema:
+//				"$ref": "#/definitions/error"
+//			description: bad request
+//		'401':
+//			schema:
+//				"$ref": "#/definitions/error"
+//			description: unauthorized
+//		'404':
+//			schema:
+//				"$ref": "#/definitions/error"
+//			description: not found
+//		'406':
+//			schema:
+//				"$ref": "#/definitions/error"
+//			description: not acceptable
+//		'500':
+//			schema:
+//				"$ref": "#/definitions/error"
+//			description: internal server error
+func (m *Module) RelayActorHeaderDELETEHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeAdminWriteRelays},
+	})
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	if !*authed.User.Admin {
+		err := fmt.Errorf("user %s not an admin", authed.User.ID)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
+		return
+	}
+
+	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	id, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	resp, errWithCode := m.processor.Admin().RelayActorDeleteHeader(c, id)
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	httputil.JSON(c, http.StatusOK, resp)
+}
+
+// RelayActorAvatarDELETEHandler swagger:operation DELETE /api/v1/admin/relay_actors/{id}/profile/avatar adminRelayActorAvatarDelete
+//
+// Delete avatar image of account of relay actor with the given ID.
+//
+//	---
+//	tags:
+//	- admin
+//
+//	produces:
+//	- application/json
+//
+//	parameters:
+//	-
+//		name: id
+//		type: string
+//		description: The id of the relay actor.
+//		in: path
+//		required: true
+//
+//	security:
+//	- OAuth2 Bearer:
+//		- admin:write:relays
+//
+//	responses:
+//		'200':
+//			name: relay actor
+//			description: The updated relay actor.
+//			schema:
+//				"$ref": "#/definitions/relayActor"
+//		'400':
+//			schema:
+//				"$ref": "#/definitions/error"
+//			description: bad request
+//		'401':
+//			schema:
+//				"$ref": "#/definitions/error"
+//			description: unauthorized
+//		'404':
+//			schema:
+//				"$ref": "#/definitions/error"
+//			description: not found
+//		'406':
+//			schema:
+//				"$ref": "#/definitions/error"
+//			description: not acceptable
+//		'500':
+//			schema:
+//				"$ref": "#/definitions/error"
+//			description: internal server error
+func (m *Module) RelayActorAvatarDELETEHandler(c *httputil.Context) {
+	authed, errWithCode := apiutil.TokenAuth(c, apiutil.AuthRequirements{
+		Token:   true,
+		App:     true,
+		User:    true,
+		Account: true,
+		Scope:   []apiutil.Scope{apiutil.ScopeAdminWriteRelays},
+	})
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	if !*authed.User.Admin {
+		err := fmt.Errorf("user %s not an admin", authed.User.ID)
+		apiutil.ErrorHandler(c, m.templates, gtserror.NewErrorForbidden(err, err.Error()))
+		return
+	}
+
+	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	id, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	resp, errWithCode := m.processor.Admin().RelayActorDeleteAvatar(c, id)
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	httputil.JSON(c, http.StatusOK, resp)
+}
+
 // RelayActorDELETEHandler swagger:operation DELETE /api/v1/admin/relay_actors/{id} adminRelayActorDelete
 //
 // Delete relay actor with the given ID.

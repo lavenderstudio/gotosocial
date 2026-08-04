@@ -96,7 +96,7 @@ export default function Export({ exportStats }: { exportStats: AccountExportStat
 				</a>
 			</div>
 			
-			<div className="export-buttons-wrapper">
+			<div className="stats-and-buttons">
 				<div className="stats-and-button">
 					<span className="text-cutoff">
 						Following {exportStats.following_count} account{ exportStats.following_count !== 1 && "s" }

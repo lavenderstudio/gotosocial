@@ -23,7 +23,7 @@ import Loading from "../../../components/loading";
 import { Error } from "../../../components/error";
 import { RelayConnection } from "../../../lib/types/relay";
 import { PageableList } from "../../../components/pageable-list";
-import RelayListEntry from "../../../components/relaylistentry";
+import { RelayListEntry } from "../../../components/relaylistentry";
 
 export default function RelaySubscriptionsOverview() {
 	

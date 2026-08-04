@@ -639,9 +639,8 @@ section.oob-token {
 }
 
 /*
-	TODO: this is only used on About
-	page and in settings application;
-	consider moving it somewhere else.
+	Used in about page and various
+	places in the settings panel.
 */
 .account-card {
 	display: inline-grid;
@@ -652,7 +651,6 @@ section.oob-token {
 	border-radius: $br;
 	padding: 0.5rem;
 	min-width: 40%;
-	margin-bottom: 0.3rem;
 
 	background: $list-entry-bg;
 
