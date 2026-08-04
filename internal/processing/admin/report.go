@@ -46,8 +46,6 @@ func (p *Processor) ReportsGet(
 	targetAccountID string,
 	page *paging.Page,
 ) (*apimodel.PageableResponse, gtserror.WithCode) {
-	// Mastodon API doesn't allow returning both resolved and unresolved reports in one query.
-	// Introduced an `unresolved` param to allow requesting both.
 	var resolved *bool
 	switch {
 	case resolvedParam && unresolvedParam:
@@ -55,6 +53,7 @@ func (p *Processor) ReportsGet(
 	case resolvedParam:
 		resolved = util.Ptr(true)
 	case unresolvedParam:
+		resolved = util.Ptr(false)
 	case !resolvedParam && !unresolvedParam:
 		resolved = util.Ptr(false)
 	}
