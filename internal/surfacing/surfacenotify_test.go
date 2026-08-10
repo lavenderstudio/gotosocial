@@ -94,7 +94,7 @@ func (suite *SurfacingTestSuite) TestSpamNotifs() {
 	notifs, err := testStructs.State.DB.GetAccountNotifications(
 		gtscontext.SetBarebones(ctx),
 		targetAccount.ID,
-		nil, nil, nil,
+		nil,
 	)
 	if err != nil {
 		suite.FailNow(err.Error())

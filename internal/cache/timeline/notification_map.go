@@ -24,12 +24,13 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 )
 
-// StatusTimelines is a concurrency safe map of StatusTimeline{}
-// objects, optimizing *very heavily* for reads over writes.
-type StatusTimelines struct {
+// NotificationTimelines is a concurrency safe map of
+// NotificationTimeline{} objects, optimizing *very heavily*
+// for reads over writes.
+type NotificationTimelines struct {
 
 	// atomic cache map pointer, RO outside CAS
-	ptr atomic_map[string, *_StatusTimeline]
+	ptr atomic_map[string, *_NotificationTimeline]
 
 	// usage timeout before
 	// entries are unloaded.
@@ -40,26 +41,26 @@ type StatusTimelines struct {
 	cap int
 }
 
-// a simple wrapper around StatusTimeline
+// a simple wrapper around NotificationTimeline
 // to add a last-use-time tracking value.
-type _StatusTimeline struct {
-	StatusTimeline
+type _NotificationTimeline struct {
+	NotificationTimeline
 	last atomic.Pointer[time.Time]
 }
 
-// Init stores the given argument(s) such that any created StatusTimeline{}
+// Init stores the given argument(s) such that any created NotificationTimeline{}
 // objects by MustGet() will initialize them with the given arguments.
-func (t *StatusTimelines) Init(cap int, timeout time.Duration) {
+func (t *NotificationTimelines) Init(cap int, timeout time.Duration) {
 	t.timeout = timeout
 	t.cap = cap
 }
 
-// MustGet will attempt to fetch StatusTimeline{} stored under key, else creating one.
-func (t *StatusTimelines) MustGet(key string) *StatusTimeline {
-	var tt *_StatusTimeline
+// MustGet will attempt to fetch NotificationTimeline{} stored under key, else creating one.
+func (t *NotificationTimelines) MustGet(key string) *NotificationTimeline {
+	var tt *_NotificationTimeline
 
 	// Perform load and (potential) store operation within main loadAndCAS() function loop.
-	t.ptr.loadAndCAS(func(m map[string]*_StatusTimeline) (map[string]*_StatusTimeline, bool) {
+	t.ptr.loadAndCAS(func(m map[string]*_NotificationTimeline) (map[string]*_NotificationTimeline, bool) {
 
 		// Look for an existing
 		// timeline object in cache.
@@ -73,8 +74,8 @@ func (t *StatusTimelines) MustGet(key string) *StatusTimeline {
 		// before changes.
 		m = clone(m)
 
-		// Allocate new timeline.
-		tt = new(_StatusTimeline)
+		// Allocate new notif timeline.
+		tt = new(_NotificationTimeline)
 		tt.Init(t.cap)
 
 		// Store timeline
@@ -93,22 +94,21 @@ func (t *StatusTimelines) MustGet(key string) *StatusTimeline {
 	}
 
 	// Return embedded timeline.
-	return &tt.StatusTimeline
+	return &tt.NotificationTimeline
 }
 
-// InsertOne attempts to call StatusTimeline{}.InsertOne() on timeline under key, only if it exists.
-func (t *StatusTimelines) InsertOne(key string, status *gtsmodel.Status) bool {
+// InsertOne attempts to call NotificationTimeline{}.InsertOne() on timeline under key, only if it exists.
+func (t *NotificationTimelines) InsertOne(key string, notif *gtsmodel.Notification) {
 	if p := t.ptr.Load(); p != nil {
 		if tt := (*p)[key]; tt != nil {
-			return tt.InsertOne(status)
+			tt.InsertOne(notif)
 		}
 	}
-	return false
 }
 
-// Delete will delete the stored StatusTimeline{} under key, if any.
-func (t *StatusTimelines) Delete(key string) {
-	t.ptr.loadAndCAS(func(m map[string]*_StatusTimeline) (map[string]*_StatusTimeline, bool) {
+// Delete will delete the stored NotificationTimeline{} under key, if any.
+func (t *NotificationTimelines) Delete(key string) {
+	t.ptr.loadAndCAS(func(m map[string]*_NotificationTimeline) (map[string]*_NotificationTimeline, bool) {
 		if m[key] == nil {
 
 			// i.e. no change.
@@ -127,27 +127,27 @@ func (t *StatusTimelines) Delete(key string) {
 	})
 }
 
-// RemoveByStatusIDs calls RemoveByStatusIDs() for each of the stored StatusTimeline{}s.
-func (t *StatusTimelines) RemoveByStatusIDs(statusIDs ...string) {
+// RemoveByOriginAccountIDs calls RemoveByOriginAccountIDs() for each of the stored NotificationTimeline{}s.
+func (t *NotificationTimelines) RemoveByOriginAccountIDs(accountIDs ...string) {
 	if p := t.ptr.Load(); p != nil {
 		for _, tt := range *p {
-			tt.RemoveByStatusIDs(statusIDs...)
+			tt.RemoveByOriginAccountIDs(accountIDs...)
 		}
 	}
 }
 
-// RemoveByAccountIDs calls RemoveByAccountIDs() for each of the stored StatusTimeline{}s.
-func (t *StatusTimelines) RemoveByAccountIDs(accountIDs ...string) {
+// RemoveByStatusOrEditIDs calls RemoveByStatusOrEditIDs() for each of the stored NotificationTimeline{}s.
+func (t *NotificationTimelines) RemoveByStatusOrEditIDs(statusOrEditIDs ...string) {
 	if p := t.ptr.Load(); p != nil {
 		for _, tt := range *p {
-			tt.RemoveByAccountIDs(accountIDs...)
+			tt.RemoveByStatusOrEditIDs(statusOrEditIDs...)
 		}
 	}
 }
 
-// Trim calls Trim() for each of the stored StatusTimeline{}s,
+// Trim calls Trim() for each of the stored NotificationTimeline{}s,
 // clearing and / or dropping timelines beyond timeout time.
-func (t *StatusTimelines) Trim() {
+func (t *NotificationTimelines) Trim() {
 	if t.timeout <= 0 {
 		// No timeout is set, perform
 		// a simple trim of timelines.
@@ -164,7 +164,7 @@ func (t *StatusTimelines) Trim() {
 	t.trim()
 }
 
-func (t *StatusTimelines) trim() {
+func (t *NotificationTimelines) trim() {
 	// A longer duration than timeout
 	// after which we mark an unused
 	// timeline as stale and *delete*
@@ -232,8 +232,8 @@ func (t *StatusTimelines) trim() {
 	}
 
 	// Within the main load / CAS loop, clone current map and drop all stale keys from it.
-	t.ptr.loadAndCAS(func(m map[string]*_StatusTimeline) (map[string]*_StatusTimeline, bool) {
-		clone := make(map[string]*_StatusTimeline, len(m)-len(stale))
+	t.ptr.loadAndCAS(func(m map[string]*_NotificationTimeline) (map[string]*_NotificationTimeline, bool) {
+		clone := make(map[string]*_NotificationTimeline, len(m)-len(stale))
 		for key, tt := range m {
 
 			// Check if marked as stale.
@@ -260,8 +260,8 @@ func (t *StatusTimelines) trim() {
 	})
 }
 
-// Clear attempts to call Clear() for StatusTimeline{} under key.
-func (t *StatusTimelines) Clear(key string) {
+// Clear attempts to call Clear() for NotificationTimeline{} under key.
+func (t *NotificationTimelines) Clear(key string) {
 	if p := t.ptr.Load(); p != nil {
 		if tt := (*p)[key]; tt != nil {
 			tt.Clear()
@@ -269,8 +269,8 @@ func (t *StatusTimelines) Clear(key string) {
 	}
 }
 
-// ClearAll calls Clear() for each of the stored StatusTimeline{}s.
-func (t *StatusTimelines) ClearAll() {
+// ClearAll calls Clear() for each of the stored NotificationTimeline{}s.
+func (t *NotificationTimelines) ClearAll() {
 	if p := t.ptr.Load(); p != nil {
 		for _, tt := range *p {
 			tt.Clear()

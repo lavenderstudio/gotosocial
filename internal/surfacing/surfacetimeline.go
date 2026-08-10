@@ -753,6 +753,7 @@ func (s *Surfacer) DeleteStatusFromTimelines(ctx context.Context, statusID strin
 	s.state.Caches.Timelines.Home.RemoveByStatusIDs(statusID)
 	s.state.Caches.Timelines.List.RemoveByStatusIDs(statusID)
 	s.state.Caches.Timelines.Tag.RemoveByStatusIDs(statusID)
+	s.state.Caches.Timelines.Notifications.RemoveByStatusOrEditIDs(statusID)
 	s.stream.Delete(ctx, statusID)
 }
 
@@ -763,6 +764,7 @@ func (s *Surfacer) RemoveTimelineEntriesByAccount(accountID string) {
 	s.state.Caches.Timelines.Home.RemoveByAccountIDs(accountID)
 	s.state.Caches.Timelines.List.RemoveByAccountIDs(accountID)
 	s.state.Caches.Timelines.Tag.RemoveByAccountIDs(accountID)
+	s.state.Caches.Timelines.Notifications.RemoveByOriginAccountIDs(accountID)
 }
 
 // RemoveRelationshipFromTimelines removes all cached entries on account ID's timeline by given target account ID.
@@ -773,6 +775,12 @@ func (s *Surfacer) RemoveRelationshipFromTimelines(ctx context.Context, timeline
 	s.state.Caches.Timelines.Home.
 		MustGet(timelineAccountID).
 		RemoveByAccountIDs(targetAccountID)
+
+	// Remove all notifications by target account
+	// from given account's notification timeline.
+	s.state.Caches.Timelines.Notifications.
+		MustGet(timelineAccountID).
+		RemoveByOriginAccountIDs(targetAccountID)
 
 	// Get the IDs of all the lists owned by the given account ID.
 	listIDs, err := s.state.DB.GetListIDsByAccountID(ctx, timelineAccountID)

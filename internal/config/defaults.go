@@ -186,14 +186,16 @@ var Defaults = Configuration{
 		S3ObjectInfo: 0,
 
 		// Timeline lengths.
-		HomeTimelineSize: 800,
-		ListTimelineSize: 800,
-		TagTimelineSize:  400,
+		HomeTimelineSize:         800,
+		ListTimelineSize:         800,
+		TagTimelineSize:          400,
+		NotificationTimelineSize: 200,
 
 		// Timeline trim eviction timeouts.
-		HomeTimelineTimeout: 6 * time.Hour,
-		ListTimelineTimeout: 2 * time.Hour,
-		TagTimelineTimeout:  10 * time.Minute,
+		HomeTimelineTimeout:         6 * time.Hour,
+		ListTimelineTimeout:         2 * time.Hour,
+		TagTimelineTimeout:          10 * time.Minute,
+		NotificationTimelineTimeout: 6 * time.Hour,
 
 		// Rough memory target that the total
 		// size of all State.Caches will attempt

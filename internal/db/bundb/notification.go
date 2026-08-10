@@ -212,19 +212,15 @@ func (n *notificationDB) GetAccountNotifications(
 	ctx context.Context,
 	accountID string,
 	page *paging.Page,
-	types []gtsmodel.NotificationType,
-	excludeTypes []gtsmodel.NotificationType,
 ) ([]*gtsmodel.Notification, error) {
-	var (
-		// Get paging params.
-		minID = page.GetMin()
-		maxID = page.GetMax()
-		limit = page.GetLimit()
-		order = page.GetOrder()
+	// Get paging params.
+	minID := page.GetMin()
+	maxID := page.GetMax()
+	limit := page.GetLimit()
+	order := page.GetOrder()
 
-		// Make educated guess for slice size
-		notifIDs = make([]string, 0, limit)
-	)
+	// Make educated guess for slice size
+	notifIDs := make([]string, 0, limit)
 
 	q := n.db.
 		NewSelect().
@@ -239,16 +235,6 @@ func (n *notificationDB) GetAccountNotifications(
 	if minID != "" {
 		// Return only notifs HIGHER (ie., newer) than minID.
 		q = q.Where("? > ?", bun.Ident("notification.id"), minID)
-	}
-
-	if len(types) > 0 {
-		// Include only requested notification types.
-		q = q.Where("? IN (?)", bun.Ident("notification.notification_type"), bun.List(types))
-	}
-
-	if len(excludeTypes) > 0 {
-		// Filter out unwanted notif types.
-		q = q.Where("? NOT IN (?)", bun.Ident("notification.notification_type"), bun.List(excludeTypes))
 	}
 
 	// Return only notifs for this account.

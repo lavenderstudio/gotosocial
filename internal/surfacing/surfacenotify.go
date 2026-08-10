@@ -612,8 +612,8 @@ func (s *Surfacer) Notify(
 		statusOrEditID = status.ID
 	}
 
-	// We're doing state-y stuff so get a
-	// lock on this combo of notif params.
+	// Prevent notification-related race conditions by
+	// acquiring a lock on this combination of parameters.
 	unlock := s.state.ProcessingLocks.Lock(getNotifyLockURI(
 		notificationType,
 		targetAccount,
@@ -639,12 +639,10 @@ func (s *Surfacer) Notify(
 		// nothing to do.
 		return nil
 	} else if !errors.Is(err, db.ErrNoEntries) {
-		// Real error.
 		return gtserror.Newf("error checking existence of notification: %w", err)
 	}
 
-	// Notification doesn't yet exist, so
-	// we need to create + store one.
+	// Notification doesn't yet exist.
 	notif := &gtsmodel.Notification{
 		ID:               id.NewULID(),
 		NotificationType: notificationType,
@@ -655,12 +653,13 @@ func (s *Surfacer) Notify(
 		StatusOrEditID:   statusOrEditID,
 	}
 
+	// Insert the new prepared notification into the database.
 	if err := s.state.DB.PutNotification(ctx, notif); err != nil {
 		return gtserror.Newf("error putting notification in database: %w", err)
 	}
 
-	// Unlock already, we're done
-	// with the state-y stuff.
+	// Unlock previously
+	// acquired lock.
 	unlock()
 
 	// Check whether origin account is muted by target account.
@@ -725,10 +724,17 @@ func (s *Surfacer) Notify(
 	}
 
 	// Stream notification to the user.
-	s.stream.Notify(ctx, targetAccount, apiNotif)
+	s.stream.Notify(ctx, targetAccount,
+		apiNotif)
 
-	// Send Web Push notification to the user.
-	if err = s.webPushSender.Send(ctx, notif, apiNotif); err != nil {
+	// Insert notif into user's timeline cache.
+	s.state.Caches.Timelines.Notifications.
+		MustGet(notif.TargetAccountID).
+		InsertOne(notif)
+
+	// Send Web Push notif to the user.
+	if err = s.webPushSender.Send(ctx,
+		notif, apiNotif); err != nil {
 		return gtserror.Newf("error sending Web Push notifications: %w", err)
 	}
 

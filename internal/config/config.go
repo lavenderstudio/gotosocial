@@ -285,9 +285,11 @@ type CacheConfiguration struct {
 	HomeTimelineSize                     uint32        `name:"home-timeline-size" usage:"Per-user home timeline cache length, in number of posts. (minimum = 100)"`
 	ListTimelineSize                     uint32        `name:"list-timeline-size" usage:"Per-list timeline cache length, in number of posts. (minimum = 100)"`
 	TagTimelineSize                      uint32        `name:"tag-timeline-size" usage:"Per-tag timeline cache length, in number of posts. (minimum = 50)"`
+	NotificationTimelineSize             uint32        `name:"notification-timeline-size" usage:"Per-user notification timeline cache length, in number of notifications. (minimum = 50)"`
 	HomeTimelineTimeout                  time.Duration `name:"home-timeline-timeout" usage:"Duration before any one home timeline cache is unloaded from memory. Values <= 0 disable unloading."`
 	ListTimelineTimeout                  time.Duration `name:"list-timeline-timeout" usage:"Duration before any one list timeline cache is unloaded from memory. Values <= 0 disable unloading."`
 	TagTimelineTimeout                   time.Duration `name:"tag-timeline-timeout" usage:"Duration before any one tag timeline cache is unloaded from memory. Values <= 0 disable unloading."`
+	NotificationTimelineTimeout          time.Duration `name:"notification-timeline-timeout" usage:"Duration before any one notification timeline cache is unloaded from memory. Values <= disable unloading."`
 	MemoryTarget                         bytesize.Size `name:"memory-target"`
 	AccountMemRatio                      float64       `name:"account-mem-ratio"`
 	AccountNoteMemRatio                  float64       `name:"account-note-mem-ratio"`

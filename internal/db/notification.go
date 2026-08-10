@@ -24,13 +24,22 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 )
 
-// Notification contains functions for creating and getting notifications.
+// Notification contains functions for
+// creating and getting notifications.
 type Notification interface {
+
 	// GetAccountNotifications returns a slice of notifications that pertain to the given accountID.
 	//
 	// Returned notifications will be ordered ID descending (ie., highest/newest to lowest/oldest).
 	// If types is empty, *all* notification types will be included.
-	GetAccountNotifications(ctx context.Context, accountID string, page *paging.Page, types []gtsmodel.NotificationType, excludeTypes []gtsmodel.NotificationType) ([]*gtsmodel.Notification, error)
+	GetAccountNotifications(
+		ctx context.Context,
+		accountID string,
+		page *paging.Page,
+	) (
+		[]*gtsmodel.Notification,
+		error,
+	)
 
 	// GetNotificationByID returns one notification according to its id.
 	GetNotificationByID(ctx context.Context, id string) (*gtsmodel.Notification, error)
@@ -46,7 +55,10 @@ type Notification interface {
 		targetAcctID string,
 		originAcctID string,
 		statusOrEditID string,
-	) (*gtsmodel.Notification, error)
+	) (
+		*gtsmodel.Notification,
+		error,
+	)
 
 	// PopulateNotification ensures that the notification's struct fields are populated.
 	PopulateNotification(ctx context.Context, notif *gtsmodel.Notification) error

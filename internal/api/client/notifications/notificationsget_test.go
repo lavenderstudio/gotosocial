@@ -179,7 +179,7 @@ func (suite *NotificationsTestSuite) TestGetNotificationsExcludeOneType() {
 
 	maxID := ""
 	minID := ""
-	limit := 10
+	limit := 20
 	types := []string(nil)
 	excludeTypes := []string{"follow_request"}
 	expectedHTTPStatus := http.StatusOK

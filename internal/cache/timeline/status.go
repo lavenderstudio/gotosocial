@@ -68,8 +68,7 @@ type StatusMeta struct {
 // StatusTimeline provides a concurrency-safe sliding-window
 // cache of the freshest statuses in a timeline. Internally,
 // only StatusMeta{} objects themselves are stored, loading
-// the actual statuses when necessary, but caching prepared
-// frontend API models where possible.
+// the actual statuses when necessary.
 //
 // Notes on design:
 //
@@ -163,7 +162,7 @@ func (t *StatusTimeline) Init(cap int) {
 	t.max = cap
 }
 
-// Preload will fill with StatusTimeline{} cache with
+// Preload will fill the StatusTimeline{} cache with
 // the latest sliding window of status metadata for the
 // timeline type returned by database 'loadPage' function.
 //
@@ -193,15 +192,12 @@ func (t *StatusTimeline) Preload(
 // preload contains the core logic of
 // Preload(), without t.preloader checks.
 func (t *StatusTimeline) preload(
-
-	// loadPage should load the timeline of given page for cache hydration.
 	loadPage func(page *paging.Page) (statuses []*gtsmodel.Status, err error),
-
-	// filter can be used to perform filtering of returned
-	// statuses BEFORE insert into cache. i.e. this will effect
-	// what actually gets stored in the timeline cache.
 	filter func(each *gtsmodel.Status) (delete bool),
-) (int, error) {
+) (
+	int,
+	error,
+) {
 	if loadPage == nil {
 		panic("nil load page func")
 	}
@@ -241,7 +237,7 @@ func (t *StatusTimeline) preload(
 		page.Max.Value = statuses[len(statuses)-1].ID
 
 		// Perform any filtering on newly loaded statuses.
-		statuses = doStatusFilter(statuses, filter)
+		statuses = doFilterStatuses(statuses, filter)
 
 		// After filtering no more
 		// statuses remain, retry.
@@ -249,7 +245,8 @@ func (t *StatusTimeline) preload(
 			continue
 		}
 
-		// Convert statuses to meta and insert.
+		// Convert statuses to meta and insert,
+		// setting 'n' to current timeline length.
 		metas = toStatusMeta(metas[:0], statuses)
 		n = t.cache.Insert(metas...)
 	}
@@ -299,7 +296,8 @@ func (t *StatusTimeline) Load(
 	// to load status models of already cached entries in the timeline.
 	loadIDs func(ids []string) (statuses []*gtsmodel.Status, err error),
 
-	// filter performs filtering of returned statuses.
+	// filter performs filtering of returned
+	// statuses BEFORE they are inserted into the cache.
 	filter func(each *gtsmodel.Status) (delete bool),
 
 	// prepareAPI should prepare internal status model to frontend API model.
@@ -327,6 +325,12 @@ func (t *StatusTimeline) Load(
 		panic("invalid page limit")
 	}
 
+	// Ensure timeline has been preloaded.
+	_, err = t.Preload(loadPage, filter)
+	if err != nil {
+		return nil, "", "", err
+	}
+
 	// Use a copy of current page so
 	// we can repeatedly update it.
 	nextPg := new(paging.Page)
@@ -334,59 +338,46 @@ func (t *StatusTimeline) Load(
 	nextPg.Min.Value = lo
 	nextPg.Max.Value = hi
 
+	// Load a little more than limit to
+	// reduce chance of db calls below.
+	limitPtr := util.Ptr(limit + 10)
+
+	// First we attempt to load status
+	// metadata entries from the timeline
+	// cache, up to given limit.
+	metas := t.cache.Select(
+		util.PtrIf(lo),
+		util.PtrIf(hi),
+		limitPtr,
+		dir,
+	)
+
 	// Preallocate slice of interstitial models.
-	metas := make([]*StatusMeta, 0, limit)
+	metas = slices.Grow(metas, *limitPtr-len(metas))
 
 	// Preallocate slice of required status API models.
 	apiStatuses := make([]*apimodel.Status, 0, limit)
 
-	// TODO: we can remove this nil
-	// check when we've updated all
-	// our timeline endpoints to have
-	// streamed timeline caches.
-	if t != nil {
-
-		// Ensure timeline has been preloaded.
-		_, err = t.Preload(loadPage, filter)
+	if len(metas) > 0 {
+		// Before we can do any filtering, we need
+		// to load status models for cached entries.
+		err = loadStatuses(metas, loadIDs)
 		if err != nil {
-			return nil, "", "", err
+			return nil, "", "", gtserror.Newf("error loading statuses: %w", err)
 		}
 
-		// Load a little more than limit to
-		// reduce chance of db calls below.
-		limitPtr := util.Ptr(limit + 10)
+		// Update nextPg cursor parameter for database query.
+		nextPageParams(nextPg, metas[len(metas)-1].ID, order)
 
-		// First we attempt to load status
-		// metadata entries from the timeline
-		// cache, up to given limit.
-		metas = t.cache.Select(
-			util.PtrIf(lo),
-			util.PtrIf(hi),
-			limitPtr,
-			dir,
+		// Prepare frontend API models for
+		// the cached statuses. For now this
+		// also does its own extra filtering.
+		apiStatuses = prepareStatuses(ctx,
+			metas,
+			prepareAPI,
+			apiStatuses,
+			limit,
 		)
-
-		if len(metas) > 0 {
-			// Before we can do any filtering, we need
-			// to load status models for cached entries.
-			err = loadStatuses(metas, loadIDs)
-			if err != nil {
-				return nil, "", "", gtserror.Newf("error loading statuses: %w", err)
-			}
-
-			// Update nextPg cursor parameter for database query.
-			nextPageParams(nextPg, metas[len(metas)-1].ID, order)
-
-			// Prepare frontend API models for
-			// the cached statuses. For now this
-			// also does its own extra filtering.
-			apiStatuses = prepareStatuses(ctx,
-				metas,
-				prepareAPI,
-				apiStatuses,
-				limit,
-			)
-		}
 	}
 
 	// If not enough cached timeline
@@ -490,8 +481,8 @@ func loadStatusTimeline(
 		// Update nextPg cursor parameter for next database query.
 		nextPageParams(nextPg, statuses[len(statuses)-1].ID, order)
 
-		// Perform any filtering on newly loaded statuses.
-		statuses = doStatusFilter(statuses, filter)
+		// Perform filtering on newly loaded statuses.
+		statuses = doFilterStatuses(statuses, filter)
 
 		// After filtering no more
 		// statuses remain, retry.
@@ -666,15 +657,16 @@ func prepareStatuses(
 			continue
 		}
 
-		// Prepare provided status for frontend.
+		// Prepare provided status for frontend,
+		// (note can return nil from late filtering).
 		prepared, err := prepareAPI(meta.loaded)
 		if err != nil {
 			log.Errorf(ctx, "error preparing status %s: %v", meta.loaded.URI, err)
 			continue
 		}
 
-		// Append return slice.
 		if prepared != nil {
+			// Append prepared status to return slice.
 			apiStatuses = append(apiStatuses, prepared)
 		}
 	}
@@ -734,8 +726,8 @@ func toStatusMeta(in []*StatusMeta, statuses []*gtsmodel.Status) []*StatusMeta {
 	})
 }
 
-// doStatusFilter performs given filter function on provided statuses,
-func doStatusFilter(statuses []*gtsmodel.Status, filter func(*gtsmodel.Status) bool) []*gtsmodel.Status {
+// doFilterStatuses performs given filter function on provided statuses,
+func doFilterStatuses(statuses []*gtsmodel.Status, filter func(*gtsmodel.Status) bool) []*gtsmodel.Status {
 
 	// Check for provided
 	// filter function.

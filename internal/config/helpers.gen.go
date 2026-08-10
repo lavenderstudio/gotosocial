@@ -102,9 +102,11 @@ const (
 	CacheHomeTimelineSizeFlag                     = "cache-home-timeline-size"
 	CacheListTimelineSizeFlag                     = "cache-list-timeline-size"
 	CacheTagTimelineSizeFlag                      = "cache-tag-timeline-size"
+	CacheNotificationTimelineSizeFlag             = "cache-notification-timeline-size"
 	CacheHomeTimelineTimeoutFlag                  = "cache-home-timeline-timeout"
 	CacheListTimelineTimeoutFlag                  = "cache-list-timeline-timeout"
 	CacheTagTimelineTimeoutFlag                   = "cache-tag-timeline-timeout"
+	CacheNotificationTimelineTimeoutFlag          = "cache-notification-timeline-timeout"
 	CacheMemoryTargetFlag                         = "cache-memory-target"
 	CacheAccountMemRatioFlag                      = "cache-account-mem-ratio"
 	CacheAccountNoteMemRatioFlag                  = "cache-account-note-mem-ratio"
@@ -380,9 +382,11 @@ func (cfg *CacheConfiguration) RegisterFlags(prefix string, flags *pflag.FlagSet
 	flags.Uint32(joinFlag(prefix, "home-timeline-size"), cfg.HomeTimelineSize, "Per-user home timeline cache length, in number of posts. (minimum = 100)")
 	flags.Uint32(joinFlag(prefix, "list-timeline-size"), cfg.ListTimelineSize, "Per-list timeline cache length, in number of posts. (minimum = 100)")
 	flags.Uint32(joinFlag(prefix, "tag-timeline-size"), cfg.TagTimelineSize, "Per-tag timeline cache length, in number of posts. (minimum = 50)")
+	flags.Uint32(joinFlag(prefix, "notification-timeline-size"), cfg.NotificationTimelineSize, "Per-user notification timeline cache length, in number of notifications. (minimum = 50)")
 	flags.Duration(joinFlag(prefix, "home-timeline-timeout"), cfg.HomeTimelineTimeout, "Duration before any one home timeline cache is unloaded from memory. Values <= 0 disable unloading.")
 	flags.Duration(joinFlag(prefix, "list-timeline-timeout"), cfg.ListTimelineTimeout, "Duration before any one list timeline cache is unloaded from memory. Values <= 0 disable unloading.")
 	flags.Duration(joinFlag(prefix, "tag-timeline-timeout"), cfg.TagTimelineTimeout, "Duration before any one tag timeline cache is unloaded from memory. Values <= 0 disable unloading.")
+	flags.Duration(joinFlag(prefix, "notification-timeline-timeout"), cfg.NotificationTimelineTimeout, "Duration before any one notification timeline cache is unloaded from memory. Values <= disable unloading.")
 	flags.String(joinFlag(prefix, "memory-target"), cfg.MemoryTarget.String(), "")
 	flags.Float64(joinFlag(prefix, "account-mem-ratio"), cfg.AccountMemRatio, "")
 	flags.Float64(joinFlag(prefix, "account-note-mem-ratio"), cfg.AccountNoteMemRatio, "")
@@ -656,9 +660,11 @@ func (cfg *CacheConfiguration) MarshalIntoMap(prefix string, cfgmap map[string]a
 	cfgmap[joinFlag(prefix, "home-timeline-size")] = cfg.HomeTimelineSize
 	cfgmap[joinFlag(prefix, "list-timeline-size")] = cfg.ListTimelineSize
 	cfgmap[joinFlag(prefix, "tag-timeline-size")] = cfg.TagTimelineSize
+	cfgmap[joinFlag(prefix, "notification-timeline-size")] = cfg.NotificationTimelineSize
 	cfgmap[joinFlag(prefix, "home-timeline-timeout")] = cfg.HomeTimelineTimeout
 	cfgmap[joinFlag(prefix, "list-timeline-timeout")] = cfg.ListTimelineTimeout
 	cfgmap[joinFlag(prefix, "tag-timeline-timeout")] = cfg.TagTimelineTimeout
+	cfgmap[joinFlag(prefix, "notification-timeline-timeout")] = cfg.NotificationTimelineTimeout
 	cfgmap[joinFlag(prefix, "memory-target")] = cfg.MemoryTarget.String()
 	cfgmap[joinFlag(prefix, "account-mem-ratio")] = cfg.AccountMemRatio
 	cfgmap[joinFlag(prefix, "account-note-mem-ratio")] = cfg.AccountNoteMemRatio
@@ -732,7 +738,7 @@ func (cfg *CacheConfiguration) MarshalIntoMap(prefix string, cfgmap map[string]a
 }
 
 func (cfg *Configuration) MarshalMap() map[string]any {
-	cfgmap := make(map[string]any, 247)
+	cfgmap := make(map[string]any, 249)
 	cfg.MarshalIntoMap(cfgmap)
 	return cfgmap
 }
@@ -1525,6 +1531,14 @@ func (cfg *CacheConfiguration) UnmarshalMap(prefix string, cfgmap map[string]any
 		}
 	}
 
+	if ival, ok := cfgmap[joinFlag(prefix, "notification-timeline-size")]; ok {
+		var err error
+		cfg.NotificationTimelineSize, err = cast.ToUint32E(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "uint32", joinFlag(prefix, "notification-timeline-size"), err)
+		}
+	}
+
 	if ival, ok := cfgmap[joinFlag(prefix, "home-timeline-timeout")]; ok {
 		var err error
 		cfg.HomeTimelineTimeout, err = cast.ToDurationE(ival)
@@ -1546,6 +1560,14 @@ func (cfg *CacheConfiguration) UnmarshalMap(prefix string, cfgmap map[string]any
 		cfg.TagTimelineTimeout, err = cast.ToDurationE(ival)
 		if err != nil {
 			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "tag-timeline-timeout"), err)
+		}
+	}
+
+	if ival, ok := cfgmap[joinFlag(prefix, "notification-timeline-timeout")]; ok {
+		var err error
+		cfg.NotificationTimelineTimeout, err = cast.ToDurationE(ival)
+		if err != nil {
+			return fmt.Errorf("error casting %#v -> %s for '%s': %w", ival, "time.Duration", joinFlag(prefix, "notification-timeline-timeout"), err)
 		}
 	}
 
@@ -4212,6 +4234,23 @@ func GetCacheTagTimelineSize() uint32 { return global.GetCacheTagTimelineSize() 
 // SetCacheTagTimelineSize safely sets the value for global configuration 'Cache.TagTimelineSize' field
 func SetCacheTagTimelineSize(v uint32) { global.SetCacheTagTimelineSize(v) }
 
+// GetCacheNotificationTimelineSize safely fetches the Configuration value for state's 'Cache.NotificationTimelineSize' field
+func (st *ConfigState) GetCacheNotificationTimelineSize() (v uint32) {
+	return st.config.Cache.NotificationTimelineSize
+}
+
+// SetCacheNotificationTimelineSize safely sets the Configuration value for state's 'Cache.NotificationTimelineSize' field
+func (st *ConfigState) SetCacheNotificationTimelineSize(v uint32) {
+	st.config.Cache.NotificationTimelineSize = v
+	st.reloadToViper()
+}
+
+// GetCacheNotificationTimelineSize safely fetches the value for global configuration 'Cache.NotificationTimelineSize' field
+func GetCacheNotificationTimelineSize() uint32 { return global.GetCacheNotificationTimelineSize() }
+
+// SetCacheNotificationTimelineSize safely sets the value for global configuration 'Cache.NotificationTimelineSize' field
+func SetCacheNotificationTimelineSize(v uint32) { global.SetCacheNotificationTimelineSize(v) }
+
 // GetCacheHomeTimelineTimeout safely fetches the Configuration value for state's 'Cache.HomeTimelineTimeout' field
 func (st *ConfigState) GetCacheHomeTimelineTimeout() (v time.Duration) {
 	return st.config.Cache.HomeTimelineTimeout
@@ -4262,6 +4301,27 @@ func GetCacheTagTimelineTimeout() time.Duration { return global.GetCacheTagTimel
 
 // SetCacheTagTimelineTimeout safely sets the value for global configuration 'Cache.TagTimelineTimeout' field
 func SetCacheTagTimelineTimeout(v time.Duration) { global.SetCacheTagTimelineTimeout(v) }
+
+// GetCacheNotificationTimelineTimeout safely fetches the Configuration value for state's 'Cache.NotificationTimelineTimeout' field
+func (st *ConfigState) GetCacheNotificationTimelineTimeout() (v time.Duration) {
+	return st.config.Cache.NotificationTimelineTimeout
+}
+
+// SetCacheNotificationTimelineTimeout safely sets the Configuration value for state's 'Cache.NotificationTimelineTimeout' field
+func (st *ConfigState) SetCacheNotificationTimelineTimeout(v time.Duration) {
+	st.config.Cache.NotificationTimelineTimeout = v
+	st.reloadToViper()
+}
+
+// GetCacheNotificationTimelineTimeout safely fetches the value for global configuration 'Cache.NotificationTimelineTimeout' field
+func GetCacheNotificationTimelineTimeout() time.Duration {
+	return global.GetCacheNotificationTimelineTimeout()
+}
+
+// SetCacheNotificationTimelineTimeout safely sets the value for global configuration 'Cache.NotificationTimelineTimeout' field
+func SetCacheNotificationTimelineTimeout(v time.Duration) {
+	global.SetCacheNotificationTimelineTimeout(v)
+}
 
 // GetCacheMemoryTarget safely fetches the Configuration value for state's 'Cache.MemoryTarget' field
 func (st *ConfigState) GetCacheMemoryTarget() (v bytesize.Size) {

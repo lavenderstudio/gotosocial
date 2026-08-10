@@ -84,8 +84,8 @@ func (p *Processor) getStatusTimeline(
 	pageQuery url.Values,
 	filterCtx gtsmodel.FilterContext,
 	loadPage func(*paging.Page) (statuses []*gtsmodel.Status, err error),
-	filter func(*gtsmodel.Status) (delete bool),
-	postFilter func(*gtsmodel.Status) (remove bool),
+	preFilter func(*gtsmodel.Status) (delete bool),
+	postFilter func(*gtsmodel.Status) (delete bool),
 ) (
 	*apimodel.PageableResponse,
 	gtserror.WithCode,
@@ -116,16 +116,18 @@ func (p *Processor) getStatusTimeline(
 			return p.state.DB.GetStatusesByIDs(ctx, ids)
 		},
 
-		// Call provided status
-		// filtering function.
-		filter,
+		// Pre cache insert
+		// status filtering.
+		preFilter,
 
 		// Frontend API model preparation function.
 		func(status *gtsmodel.Status) (*apimodel.Status, error) {
 
 			// Check if status needs filtering OUTSIDE of caching stage.
-			// TODO: this will be moved to separate postFilter hook when
-			// all filtering has been removed from the type converter.
+			//
+			// TODO: this should perhaps be moved to a separate postFilter
+			// function in the cache, but it's difficult when status filtering
+			// (as below) also returns results used in API model preparation.
 			if postFilter != nil && postFilter(status) {
 				return nil, nil
 			}

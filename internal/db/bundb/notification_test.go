@@ -83,8 +83,6 @@ func (suite *NotificationTestSuite) TestGetAccountNotificationsWithSpam() {
 			Max:   paging.MaxID(id.Highest),
 			Limit: 20,
 		},
-		nil,
-		nil,
 	)
 	suite.NoError(err)
 	timeTaken := time.Since(before)
@@ -107,8 +105,6 @@ func (suite *NotificationTestSuite) TestGetAccountNotificationsWithoutSpam() {
 			Max:   paging.MaxID(id.Highest),
 			Limit: 20,
 		},
-		nil,
-		nil,
 	)
 	suite.NoError(err)
 	timeTaken := time.Since(before)
@@ -133,8 +129,6 @@ func (suite *NotificationTestSuite) TestDeleteNotificationsWithSpam() {
 			Max:   paging.MaxID(id.Highest),
 			Limit: 20,
 		},
-		nil,
-		nil,
 	)
 	if err != nil {
 		suite.FailNow(err.Error())
@@ -155,8 +149,6 @@ func (suite *NotificationTestSuite) TestDeleteNotificationsWithSpam() {
 			Max:   paging.MaxID(id.Highest),
 			Limit: 20,
 		},
-		nil,
-		nil,
 	)
 	if err != nil {
 		suite.FailNow(err.Error())
@@ -178,8 +170,6 @@ func (suite *NotificationTestSuite) TestDeleteNotificationsWithTwoAccounts() {
 			Max:   paging.MaxID(id.Highest),
 			Limit: 20,
 		},
-		nil,
-		nil,
 	)
 	suite.NoError(err)
 	suite.Nil(notifications)

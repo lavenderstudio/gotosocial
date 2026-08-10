@@ -43,6 +43,10 @@ type TimelineCaches struct {
 	// Tag provides a concurrency-safe map of status
 	// timeline caches for tags, keyed by tag ID.
 	Tag timeline.StatusTimelines
+
+	// Notifications provides a concurrency-safe map of user
+	// notification timeline caches, keyed by user's account ID.
+	Notifications timeline.NotificationTimelines
 }
 
 func (c *Caches) initPublicTimeline() {
@@ -91,4 +95,14 @@ func (c *Caches) initTagTimelines() {
 	log.Infof(nil, "cache size = %d, timeout = %s", cap, timeout)
 
 	c.Timelines.Tag.Init(int(cap), timeout)
+}
+
+func (c *Caches) initNotificationTimelines() {
+	cap := config.GetCacheNotificationTimelineSize()
+	cap = max(50, cap) // clamp to min=50
+
+	timeout := config.GetCacheNotificationTimelineTimeout()
+	log.Infof(nil, "cache size = %d, timeout = %s", cap, timeout)
+
+	c.Timelines.Notifications.Init(int(cap), timeout)
 }

@@ -20,18 +20,19 @@ package timeline
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 
 	"code.superseriousbusiness.org/gopkg/log"
+	"code.superseriousbusiness.org/gopkg/xslices"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/id"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
 // NotificationsGet ...
@@ -39,119 +40,179 @@ func (p *Processor) NotificationsGet(
 	ctx context.Context,
 	requester *gtsmodel.Account,
 	page *paging.Page,
-	types []gtsmodel.NotificationType,
+	includeTypes []gtsmodel.NotificationType,
 	excludeTypes []gtsmodel.NotificationType,
-) (*apimodel.PageableResponse, gtserror.WithCode) {
-	notifs, err := p.state.DB.GetAccountNotifications(ctx,
-		requester.ID,
+) (
+	*apimodel.PageableResponse,
+	gtserror.WithCode,
+) {
+	var err error
+
+	// Ensure we have valid
+	// input paging cursor.
+	id.ValidatePage(page)
+
+	// Get notification timeline for requesting account.
+	timeline := p.state.Caches.Timelines.Notifications.
+		MustGet(requester.ID)
+
+	// Load status page via timeline cache, also
+	// getting lo, hi values for next, prev pages.
+	//
+	// NOTE: this safely handles the case of a nil
+	// input timeline, i.e. uncached timeline type.
+	apiNotifs, lo, hi, err := timeline.Load(ctx,
+
+		// Notif page
+		// to load.
 		page,
-		types,
-		excludeTypes,
-	)
-	if err != nil && !errors.Is(err, db.ErrNoEntries) {
-		err = fmt.Errorf("NotificationsGet: db error getting notifications: %w", err)
-		return nil, gtserror.NewErrorInternalError(err)
-	}
 
-	count := len(notifs)
-	if count == 0 {
-		return util.EmptyPageableResponse(), nil
-	}
+		// Database notification page loading function.
+		func(page *paging.Page) ([]*gtsmodel.Notification, error) {
+			return p.state.DB.GetAccountNotifications(ctx, requester.ID, page)
+		},
 
-	var (
-		items = make([]interface{}, 0, count)
+		// Notification load function for cached timeline entries.
+		func(ids []string) ([]*gtsmodel.Notification, error) {
+			return p.state.DB.GetNotificationsByIDs(ctx, ids)
+		},
 
-		// Get the lowest and highest
-		// ID values, used for paging.
-		lo = notifs[count-1].ID
-		hi = notifs[0].ID
-	)
+		// Pre cache insert notification filtering.
+		func(notif *gtsmodel.Notification) (delete bool) {
+			if notif.OriginAccount != nil {
 
-	for _, n := range notifs {
-		visible, err := p.notifVisible(ctx, n, requester)
-		if err != nil {
-			log.Debugf(ctx, "skipping notification %s because of an error checking notification visibility: %v", n.ID, err)
-			continue
-		}
+				// If new local account sign-up, skip normal filtering
+				// because origin account won't be confirmed yet in DB.
+				if notif.NotificationType == gtsmodel.NotificationAdminSignup {
+					return false
+				}
 
-		if !visible {
-			continue
-		}
+				// Check if notif origin account visible to requester.
+				visible, err := p.visFilter.AccountVisible(ctx,
+					requester,
+					notif.OriginAccount,
+				)
+				if err != nil {
+					log.Errorf(ctx, "error checking account visibility: %v", err)
+					return true
+				}
 
-		// Check whether notification origin account is muted.
-		muted, err := p.muteFilter.AccountNotificationsMuted(ctx,
-			requester.ID,
-			n.OriginAccountID,
-		)
-		if err != nil {
-			log.Errorf(ctx, "error checking account mute: %v", err)
-			continue
-		}
+				if !visible {
+					return true
+				}
 
-		if muted {
-			continue
-		}
+				// Check if notification origin account muted by requester.
+				muted, err := p.muteFilter.AccountNotificationsMuted(ctx,
+					requester.ID,
+					notif.OriginAccountID,
+				)
+				if err != nil {
+					log.Errorf(ctx, "error checking account mute: %v", err)
+					return true
+				}
 
-		var filtered []apimodel.FilterResult
+				if muted {
+					return true
+				}
+			}
 
-		if n.Status != nil {
-			var hide bool
+			if notif.Status != nil {
+				// Check if notif status visible to requester.
+				visible, err := p.visFilter.StatusVisible(ctx,
+					requester,
+					notif.Status,
+				)
+				if err != nil {
+					log.Errorf(ctx, "error checking status visibility: %v", err)
+					return true
+				}
 
-			// Check whether notification status is muted by requester.
-			muted, err = p.muteFilter.StatusNotificationsMuted(ctx,
-				requester,
-				n.Status,
-			)
+				if !visible {
+					return true
+				}
+
+				// Check if notification status is muted to requester.
+				muted, err := p.muteFilter.StatusNotificationsMuted(ctx,
+					requester,
+					notif.Status,
+				)
+				if err != nil {
+					log.Errorf(ctx, "error checking status mute: %v", err)
+					return true
+				}
+
+				if muted {
+					return true
+				}
+			}
+
+			return false
+		},
+
+		// Frontend API model preparation function.
+		func(notif *gtsmodel.Notification) (*apimodel.Notification, error) {
+			var filters []apimodel.FilterResult
+
+			// If include types were provided, check notification *is* part of
+			// the included list. Or if exclude types were provided, check
+			// notification *isn't* part of the excluded list. Else, return nil.
+			//
+			// TODO: this should perhaps be moved to a separate postFilter
+			// function in the cache, but it's difficult when status filtering
+			// (as below) also returns results used in API model preparation.
+			if (len(includeTypes) > 0 && !slices.Contains(includeTypes, notif.NotificationType)) ||
+				(len(excludeTypes) > 0 && slices.Contains(excludeTypes, notif.NotificationType)) {
+				return nil, nil
+			}
+
+			if notif.Status != nil {
+				var hide bool
+
+				// Check whether this status is filtered by requester in this context.
+				filters, hide, err = p.statusFilter.StatusFilterResultsInContext(ctx,
+					requester,
+					notif.Status,
+					gtsmodel.FilterContextNotifications,
+				)
+				if err != nil {
+					return nil, err
+				} else if hide {
+					return nil, nil
+				}
+			}
+
+			// Finally, pass notification to get converted to frontend API model.
+			apiNotif, err := p.converter.NotificationToAPINotification(ctx, notif)
 			if err != nil {
-				log.Errorf(ctx, "error checking status mute: %v", err)
-				continue
+				return nil, err
 			}
 
-			if muted {
-				continue
+			if apiNotif.Status != nil {
+				// Set any filters on notif status.
+				apiNotif.Status.Filtered = filters
 			}
 
-			// Check whether notification status is filtered by requester in notifs.
-			filtered, hide, err = p.statusFilter.StatusFilterResultsInContext(ctx,
-				requester,
-				n.Status,
-				gtsmodel.FilterContextNotifications,
-			)
-			if err != nil {
-				log.Errorf(ctx, "error checking status filtering: %v", err)
-				continue
-			}
+			return apiNotif, nil
+		},
+	)
 
-			if hide {
-				continue
-			}
-		}
-
-		item, err := p.converter.NotificationToAPINotification(ctx, n)
-		if err != nil {
-			continue
-		}
-
-		if item.Status != nil {
-			// Set filter results on status,
-			// in case any were set above.
-			item.Status.Filtered = filtered
-		}
-
-		items = append(items, item)
+	if err != nil {
+		err := gtserror.Newf("error loading timeline: %w", err)
+		return nil, gtserror.WrapWithCode(http.StatusInternalServerError, err)
 	}
 
-	// Build type query string.
-	query := make(url.Values)
-	for _, typ := range types {
-		query.Add("types[]", typ.String())
+	// Prepare timeline query.
+	query := make(url.Values, 2)
+	if len(includeTypes) > 0 {
+		query["types[]"] = notificationTypes(includeTypes)
 	}
-	for _, typ := range excludeTypes {
-		query.Add("exclude_types[]", typ.String())
+	if len(excludeTypes) > 0 {
+		query["exclude_types[]"] = notificationTypes(excludeTypes)
 	}
 
+	// Package returned API statuses as pageable response.
 	return paging.PackageResponse(paging.ResponseParams{
-		Items: items,
+		Items: xslices.ToAny(apiNotifs),
 		Path:  "/api/v1/notifications",
 		Next:  page.Next(lo, hi),
 		Prev:  page.Prev(lo, hi),
@@ -201,43 +262,14 @@ func (p *Processor) NotificationsClear(ctx context.Context, authed *apiutil.Auth
 	return nil
 }
 
-func (p *Processor) notifVisible(
-	ctx context.Context,
-	n *gtsmodel.Notification,
-	acct *gtsmodel.Account,
-) (bool, error) {
-	// If account is set, ensure it's
-	// visible to notif target.
-	if n.OriginAccount != nil {
-		// If this is a new local account sign-up,
-		// skip normal visibility checking because
-		// origin account won't be confirmed yet.
-		if n.NotificationType == gtsmodel.NotificationAdminSignup {
-			return true, nil
-		}
-
-		visible, err := p.visFilter.AccountVisible(ctx, acct, n.OriginAccount)
-		if err != nil {
-			return false, err
-		}
-
-		if !visible {
-			return false, nil
-		}
+// notificationTypes returns given notification types as string values.
+func notificationTypes(types []gtsmodel.NotificationType) []string {
+	typestrs := make([]string, len(types))
+	if len(typestrs) != len(types) {
+		panic(gtserror.New("BCE"))
 	}
-
-	// If status is set, ensure it's
-	// visible to notif target.
-	if n.Status != nil {
-		visible, err := p.visFilter.StatusVisible(ctx, acct, n.Status)
-		if err != nil {
-			return false, err
-		}
-
-		if !visible {
-			return false, nil
-		}
+	for i, typ := range types {
+		typestrs[i] = typ.String()
 	}
-
-	return true, nil
+	return typestrs
 }
