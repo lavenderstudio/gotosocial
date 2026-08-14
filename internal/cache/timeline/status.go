@@ -619,7 +619,13 @@ func (t *StatusTimeline) Trim() { t.cache.Trim(t.cut, structr.Asc) }
 
 // Clear will mark the entire timeline as requiring preload,
 // which will trigger a clear and reload of the entire thing.
-func (t *StatusTimeline) Clear() { t.preloader.Clear() }
+func (t *StatusTimeline) Clear() {
+
+	// we clear the cache within the protection of
+	// the "preloader" mechanism to ensure we don't
+	// drop the cache while a preload is in progress.
+	t.preloader.Clear(t.cache.Clear)
+}
 
 // prepareStatuses takes a slice of cached (or, freshly loaded!) StatusMeta{}
 // models, and use given function to return prepared frontend API models.

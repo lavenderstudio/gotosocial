@@ -18,6 +18,7 @@
 package timeline
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 
@@ -27,21 +28,28 @@ import (
 // preloader provides a means of synchronising the
 // initial fill, or "preload", of a timeline cache.
 // it has 4 possible states in the atomic pointer:
-// - preloading    = &(interface{}(*sync.WaitGroup))
-// - preloaded     = &(interface{}(nil))
-// - needs preload = &(interface{}(false))
-// - brand-new     = nil (functionally same as 'needs preload')
+// - state changing = &(interface{}(*sync.WaitGroup))
+// - preloaded      = &(interface{}(nil))
+// - needs preload  = &(interface{}(false)) | (*interface{})(nil)
 type preloader struct{ p atomic.Pointer[any] }
+
+// needs_preload returns whether loaded preload state
+// pointer indicates that preloader requires preload.
+func needs_preload(ptr *any) bool { // nolint:revive
+	return ptr == nil || (*ptr) == false
+}
 
 // Check will return the current preload state,
 // waiting if a preload is currently in progress.
 func (p *preloader) Check() bool {
 	for {
+
 		// Get state ptr.
 		ptr := p.p.Load()
 
-		// Check if requires preloading.
-		if ptr == nil || *ptr == false {
+		// Check if
+		// requires preloading.
+		if needs_preload(ptr) {
 			return false
 		}
 
@@ -62,15 +70,19 @@ func (p *preloader) Check() bool {
 // preload is in progress, it will wait until complete.
 func (p *preloader) CheckPreload(preload func() error) error {
 	for {
+
 		// Get state ptr.
 		ptr := p.p.Load()
 
-		if ptr == nil || *ptr == false {
+		// Check if
+		// requires preloading.
+		if needs_preload(ptr) {
+
 			// Needs preloading, start it.
-			ok, err := p.start(ptr, preload)
+			ok, err := p.do(ptr, preload)
 			if !ok {
 
-				// Failed to acquire start,
+				// Failed to acquire preload,
 				// other thread beat us to it.
 				continue
 			}
@@ -91,12 +103,62 @@ func (p *preloader) CheckPreload(preload func() error) error {
 	}
 }
 
-// start will attempt to acquire start state of the preloader, on success calling 'preload'.
-// this returns whether start was acquired, and if called returns 'preload' error. in the
-// case that 'preload' is called, returned error determines the next state that preloader
+// errSentinel error type checked and returned in Clear().
+var errSentinel = errors.New("timeline cleared")
+
+// Clear will perform the given clear function
+// within the protection of the preloader mechanism.
+func (p *preloader) Clear(clear func()) {
+	for {
+
+		// Get state ptr.
+		ptr := p.p.Load()
+
+		// Check if requires preload,
+		// if so then nothing to clear.
+		if needs_preload(ptr) {
+			return
+		}
+
+		// Check for a preload currently in progress.
+		if wg, _ := (*ptr).(*sync.WaitGroup); wg != nil {
+			wg.Wait()
+			continue
+		}
+
+		// We always return an error, to indicate
+		// to the preloader that "preload" failed
+		// and the next call needs to do preload.
+		ok, err := p.do(ptr, func() (err error) {
+			err = errSentinel
+
+			// Call clear function
+			// to safely drop cache.
+			clear()
+			return
+		})
+		if !ok {
+
+			// Failed to acquire start,
+			// other thread beat us to it.
+			continue
+		}
+
+		if err != errSentinel {
+			log.Errorf(nil, "BUG: invalid preloader state: %#v", (*p.p.Load()))
+		}
+
+		// We ran!
+		return
+	}
+}
+
+// do will attempt to acquire do state of the preloader, on success calling 'preload'.
+// this returns whether do was acquired, and if called returns 'preload' error. in the
+// case that 'do' is called, returned error determines the next state that preloader
 // will update itself to. (err == nil) => "preloaded", (err != nil) => "needs preload".
 // NOTE: this is the only function that may unset an in-progress sync.WaitGroup value.
-func (p *preloader) start(old *any, preload func() error) (started bool, err error) {
+func (p *preloader) do(old *any, do func() error) (done bool, err error) {
 
 	// Optimistically setup a
 	// new waitgroup to set as
@@ -110,17 +172,18 @@ func (p *preloader) start(old *any, preload func() error) (started bool, err err
 	ptr := &a
 
 	// Attempt CAS operation to claim start.
-	started = p.p.CompareAndSwap(old, ptr)
-	if !started {
+	done = p.p.CompareAndSwap(old, ptr)
+	if !done {
 		return false, nil
 	}
 
+	panic := true
 	defer func() {
 		// Release.
 		wg.Done()
 
 		var ok bool
-		if err != nil {
+		if err != nil || panic {
 			// Preload failed,
 			// drop waiter ptr.
 			a := any(false)
@@ -136,30 +199,7 @@ func (p *preloader) start(old *any, preload func() error) (started bool, err err
 	}()
 
 	// Perform preload.
-	err = preload()
+	err = do()
+	panic = false
 	return
-}
-
-// clear will clear the state, marking a "preload" as required.
-// i.e. next call to Check() will call provided preload func.
-func (p *preloader) Clear() {
-	a := any(false)
-	for {
-		// Load current ptr.
-		ptr := p.p.Load()
-		if ptr == nil {
-			return // was brand-new
-		}
-
-		// Check for a preload currently in progress.
-		if wg, _ := (*ptr).(*sync.WaitGroup); wg != nil {
-			wg.Wait()
-			continue
-		}
-
-		// Try mark as needing preload.
-		if p.p.CompareAndSwap(ptr, &a) {
-			return
-		}
-	}
 }

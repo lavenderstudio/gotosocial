@@ -99,16 +99,17 @@ func TestStatusTimelinePreloader(t *testing.T) {
 	// our hook funcs are called.
 	var called bool
 	reset := func() { called = false }
+	setCalled := func() { called = true }
 
 	// "no error" preloader hook.
 	preloadNoErr := func() error {
-		called = true
+		setCalled()
 		return nil
 	}
 
 	// "error return" preloader hook.
 	preloadErr := func() error {
-		called = true
+		setCalled()
 		return errors.New("oh no")
 	}
 
@@ -134,11 +135,11 @@ func TestStatusTimelinePreloader(t *testing.T) {
 	assert.False(t, called)
 	reset()
 
-	// Ensure that a clear operation
-	// successfully unsets preloader.
-	tt.preloader.Clear()
+	// Check that a clear operation
+	// marks it as *not* preloaded.
+	tt.preloader.Clear(setCalled)
 	assert.False(t, tt.preloader.Check())
-	assert.False(t, called)
+	assert.True(t, called)
 	reset()
 
 	// Ensure that it can be marked as preloaded again.

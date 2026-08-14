@@ -531,7 +531,13 @@ func (t *NotificationTimeline) Trim() { t.cache.Trim(t.cut, structr.Asc) }
 
 // Clear will mark the entire timeline as requiring preload,
 // which will trigger a clear and reload of the entire thing.
-func (t *NotificationTimeline) Clear() { t.preloader.Clear() }
+func (t *NotificationTimeline) Clear() {
+
+	// we clear the cache within the protection of
+	// the "preloader" mechanism to ensure we don't
+	// drop the cache while a preload is in progress.
+	t.preloader.Clear(t.cache.Clear)
+}
 
 // prepareNotifications takes a slice of cached (or, freshly loaded!) NotificationMeta{}
 // models, and uses given functions to return prepared frontend models of them.
