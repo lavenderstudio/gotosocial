@@ -342,7 +342,7 @@ Mostly works, just [a few things to keep in mind](https://github.com/ncruces/go-
 
 GtS doesn't work well on 32-bit systems like i386, or Armv6/v7, mainly due to performance of media decoding.
 
-We don't recommend running GtS on 32-bit, but you may have some success either turning off remote media processing altogether, or building a binary yourself with the totally **unsupported, experimental** [nowasm](https://docs.gotosocial.org/en/latest/advanced/builds/nowasm/) tag. There are still [a few things to keep in mind](https://github.com/ncruces/go-sqlite3/wiki/Support-matrix) with SQLite on non-Linux platforms, or alternatively you can build with the `moderncsqlite3` build-tag to build with https://gitlab.com/cznic/sqlite instead.
+We don't recommend running GtS on 32-bit, but you may have some success either turning off remote media processing altogether, or building a binary yourself with the totally **unsupported, experimental** [nowasm](https://docs.gotosocial.org/en/latest/advanced/builds/nowasm/) tag.
 
 For more guidance, check release notes when trying to install on 32-bit.
 
@@ -350,7 +350,7 @@ For more guidance, check release notes when trying to install on 32-bit.
 
 Marked as unsupported due to performance issues (no WASM compiler, high memory usage when idle, crashes while processing media).
 
-While we don't support running GtS on OpenBSD, you may have some success building a binary yourself with the totally **unsupported, experimental** [nowasm](https://docs.gotosocial.org/en/latest/advanced/builds/nowasm/) tag. There are still [a few things to keep in mind](https://github.com/ncruces/go-sqlite3/wiki/Support-matrix) with SQLite, or alternatively you can build with the `moderncsqlite3` build-tag to build with https://gitlab.com/cznic/sqlite instead.
+While we don't support running GtS on OpenBSD, you may have some success building a binary yourself with the totally **unsupported, experimental** [nowasm](https://docs.gotosocial.org/en/latest/advanced/builds/nowasm/) tag.
 
 ### Stable Releases
 
