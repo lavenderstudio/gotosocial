@@ -17,6 +17,7 @@ const CoreFeatures = api.CoreFeatureSIMD |
 	api.CoreFeatureMutableGlobal |
 	api.CoreFeatureReferenceTypes |
 	api.CoreFeatureSignExtensionOps |
+	experimental.CoreFeaturesExceptionHandling |
 	experimental.CoreFeaturesExtendedConst |
 	experimental.CoreFeaturesTailCall
 

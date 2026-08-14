@@ -87,10 +87,6 @@ func (r *sqliteREPL) Eval(buffer string) string {
 		// Exit REPL,
 		// calls os.Exit().
 		r.rpl.Quit()
-		panic("unreachable")
-
-	case "vacuum;":
-		return "vacuum is unfortunately not reliable with ncruces/go-sqlite3"
 	}
 
 	// Prepare statement provided in buffer.
