@@ -831,7 +831,14 @@ func (c *Converter) MentionToAPIMention(ctx context.Context, mention *gtsmodel.M
 
 // EmojiToAPIEmoji converts a gts model emoji into its api (frontend) representation for serialization on the API.
 func (c *Converter) EmojiToAPIEmoji(ctx context.Context, emoji *gtsmodel.Emoji) (apimodel.Emoji, error) {
+	var errstr *string
 	var category string
+
+	if emoji.Error != 0 {
+		// Set error string.
+		errstr = new(string)
+		(*errstr) = emoji.Error.String()
+	}
 
 	if emoji.CategoryID != "" {
 		var err error
@@ -850,6 +857,7 @@ func (c *Converter) EmojiToAPIEmoji(ctx context.Context, emoji *gtsmodel.Emoji) 
 		StaticURL:       emoji.ImageStaticURL,
 		VisibleInPicker: *emoji.VisibleInPicker,
 		Category:        category,
+		Error:           errstr,
 	}, nil
 }
 
@@ -1523,13 +1531,15 @@ func (c *Converter) StatusToEditHistory(
 				continue
 			}
 
+			if attachment.Error != 0 {
+				// Only include attachment if
+				// it's loadable and usable.
+				continue
+			}
+
 			// Convert and append each media attachment to slice.
 			apiAttachment := AttachmentToAPIAttachment(attachment)
-			if apiAttachment.Error != nil {
-
-				// Only include attachment if it's loadable and usable.
-				apiAttachments = append(apiAttachments, &apiAttachment)
-			}
+			apiAttachments = append(apiAttachments, &apiAttachment)
 		}
 
 		// If media descriptions are set, update API model descriptions.
@@ -3199,6 +3209,11 @@ func (c *Converter) emojisToAPI(
 	// Preallocate a biggest-case slice of frontend emojis.
 	apiModels := make([]apimodel.Emoji, 0, len(emojis))
 	for _, emoji := range emojis {
+		if emoji.Error != 0 {
+			// Skip emojis with media
+			// not been processed.
+			continue
+		}
 
 		// Convert each database emoji to API model.
 		apiModel, err := c.EmojiToAPIEmoji(ctx, emoji)

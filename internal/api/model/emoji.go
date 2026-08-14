@@ -23,32 +23,44 @@ import "mime/multipart"
 //
 // swagger:model emoji
 type Emoji struct {
+
 	// The name of the custom emoji.
 	// example: blobcat_uwu
 	Shortcode string `json:"shortcode"`
+
 	// Web URL of the custom emoji.
 	// example: https://example.org/fileserver/emojis/blogcat_uwu.gif
 	URL string `json:"url"`
+
 	// A link to a static copy of the custom emoji.
 	// example: https://example.org/fileserver/emojis/blogcat_uwu.png
 	StaticURL string `json:"static_url"`
+
 	// Emoji is visible in the emoji picker of the instance.
 	// example: true
 	VisibleInPicker bool `json:"visible_in_picker"`
+
 	// Used for sorting custom emoji in the picker.
 	// example: blobcats
 	Category string `json:"category,omitempty"`
+
+	// Error encountered while fetching remote media, if any.
+	// example: network timeout
+	Error *string `json:"error,omitempty"`
 }
 
 // EmojiCreateRequest represents a request to create a custom emoji made through the admin API.
 //
 // swagger:ignore
 type EmojiCreateRequest struct {
+
 	// Desired shortcode for the emoji, without surrounding colons. This must be unique for the domain.
 	// example: blobcat_uwu
 	Shortcode string `form:"shortcode" validation:"required"`
+
 	// Image file to use for the emoji. Must be png or gif and no larger than 50kb.
 	Image *multipart.FileHeader `form:"image" validation:"required"`
+
 	// Category in which to place the new emoji. Will be uncategorized by default.
 	// CategoryName length should not exceed 64 characters.
 	CategoryName string `form:"category"`
@@ -58,14 +70,18 @@ type EmojiCreateRequest struct {
 //
 // swagger:ignore
 type EmojiUpdateRequest struct {
+
 	// Type of action. One of disable, modify, copy.
 	Type EmojiUpdateType `form:"type" json:"type" xml:"type"`
+
 	// Desired shortcode for the emoji, without surrounding colons. This must be unique for the domain.
 	// example: blobcat_uwu
 	Shortcode *string `form:"shortcode"`
+
 	// Image file to use for the emoji.
 	// Must be png or gif and no larger than 50kb.
 	Image *multipart.FileHeader `form:"image"`
+
 	// Category in which to place the emoji.
 	CategoryName *string `form:"category"`
 }

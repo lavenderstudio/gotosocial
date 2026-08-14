@@ -3668,21 +3668,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToAPIEdits() {
       "group": false
     },
     "poll": null,
-    "media_attachments": [
-      {
-        "id": "01JDQ164HM08SGJ7ZEK9003Z4B",
-        "type": "unknown",
-        "url": null,
-        "text_url": null,
-        "preview_url": null,
-        "remote_url": "http://example.org/fileserver/01HE7Y659ZWZ02JM4AWYJZ176Q/attachment/original/01HE892Y8ZS68TQCNPX7J888P3.mp3",
-        "preview_remote_url": null,
-        "meta": null,
-        "description": "Jolly salsa song, public domain.",
-        "blurhash": null,
-        "error": "unsupported media type"
-      }
-    ],
+    "media_attachments": [],
     "emojis": []
   },
   {
@@ -3776,21 +3762,7 @@ func (suite *InternalToFrontendTestSuite) TestStatusToAPIEdits() {
       "group": false
     },
     "poll": null,
-    "media_attachments": [
-      {
-        "id": "01JDQ164HM08SGJ7ZEK9003Z4B",
-        "type": "unknown",
-        "url": null,
-        "text_url": null,
-        "preview_url": null,
-        "remote_url": "http://example.org/fileserver/01HE7Y659ZWZ02JM4AWYJZ176Q/attachment/original/01HE892Y8ZS68TQCNPX7J888P3.mp3",
-        "preview_remote_url": null,
-        "meta": null,
-        "description": "Jolly salsa song, public domain.",
-        "blurhash": null,
-        "error": "unsupported media type"
-      }
-    ],
+    "media_attachments": [],
     "emojis": []
   }
 ]`, out)

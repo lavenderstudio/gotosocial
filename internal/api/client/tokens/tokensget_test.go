@@ -36,7 +36,7 @@ func (suite *TokensGetTestSuite) TestTokensGet() {
 
 	out, code := suite.req(
 		http.MethodGet,
-		testPath,
+		testPath+"?order=created",
 		suite.tokens.TokensInfoGETHandler,
 		nil,
 	)
@@ -48,18 +48,18 @@ func (suite *TokensGetTestSuite) TestTokensGet() {
       "name": "really cool gts application",
       "website": "https://reallycool.app"
     },
-    "created_at": "2021-06-20T10:53:00.164Z",
-    "id": "01F8MGTQW4DKTDF8SW5CT9HYGA",
-    "scope": "read write push"
+    "created_at": "2025-02-26T10:33:04.560Z",
+    "id": "01JN0X2D9GJTZQ5KYPYFWN16QW",
+    "scope": "push"
   },
   {
     "application": {
       "name": "really cool gts application",
       "website": "https://reallycool.app"
     },
-    "created_at": "2025-02-26T10:33:04.560Z",
-    "id": "01JN0X2D9GJTZQ5KYPYFWN16QW",
-    "scope": "push"
+    "created_at": "2021-06-20T10:53:00.164Z",
+    "id": "01F8MGTQW4DKTDF8SW5CT9HYGA",
+    "scope": "read write push"
   }
 ]`, out)
 }

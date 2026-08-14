@@ -907,6 +907,11 @@ definitions:
                 example: example.org
                 type: string
                 x-go-name: Domain
+            error:
+                description: Error encountered while fetching remote media, if any.
+                example: network timeout
+                type: string
+                x-go-name: Error
             id:
                 description: The ID of the emoji.
                 example: 01GEM7SFDZ7GZNRXFVZ3X4E4N1
@@ -1652,6 +1657,11 @@ definitions:
                 example: blobcats
                 type: string
                 x-go-name: Category
+            error:
+                description: Error encountered while fetching remote media, if any.
+                example: network timeout
+                type: string
+                x-go-name: Error
             shortcode:
                 description: The name of the custom emoji.
                 example: blobcat_uwu
