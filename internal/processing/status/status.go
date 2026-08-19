@@ -51,7 +51,8 @@ type Processor struct {
 	intReqs *interactionrequests.Processor
 }
 
-// New returns a new status processor.
+// New returns a new
+// status processor.
 func New(
 	state *state.State,
 	common *common.Processor,

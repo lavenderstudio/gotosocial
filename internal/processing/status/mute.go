@@ -38,21 +38,21 @@ import (
 //   - Status has a thread ID.
 func (p *Processor) getMuteableStatus(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
-	targetStatusID string,
+	requester *gtsmodel.Account,
+	statusID string,
 ) (*gtsmodel.Status, gtserror.WithCode) {
 	targetStatus, errWithCode := p.c.GetVisibleTargetStatus(ctx,
-		requestingAccount,
-		targetStatusID,
+		requester,
+		statusID,
 		nil, // default freshness
 	)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
-	if !targetStatus.BelongsToAccount(requestingAccount.ID) &&
-		!targetStatus.MentionsAccount(requestingAccount.ID) {
-		err := gtserror.Newf("status %s does not belong to or mention account %s", targetStatusID, requestingAccount.ID)
+	if !targetStatus.BelongsToAccount(requester.ID) &&
+		!targetStatus.MentionsAccount(requester.ID) {
+		err := gtserror.Newf("status %s does not belong to or mention account %s", statusID, requester.ID)
 		return nil, gtserror.NewErrorNotFound(err)
 	}
 
@@ -71,17 +71,17 @@ func (p *Processor) getMuteableStatus(
 
 func (p *Processor) MuteCreate(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
-	targetStatusID string,
+	requester *gtsmodel.Account,
+	statusID string,
 ) (*apimodel.Status, gtserror.WithCode) {
-	targetStatus, errWithCode := p.getMuteableStatus(ctx, requestingAccount, targetStatusID)
+	targetStatus, errWithCode := p.getMuteableStatus(ctx, requester, statusID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
 	var (
 		threadID  = targetStatus.ThreadID
-		accountID = requestingAccount.ID
+		accountID = requester.ID
 	)
 
 	// Check if mute already exists for this thread ID.
@@ -95,7 +95,7 @@ func (p *Processor) MuteCreate(
 	if threadMute != nil {
 		// Thread mute already exists.
 		// Our job here is done ("but you didn't do anything!").
-		return p.c.GetAPIStatus(ctx, requestingAccount, targetStatus)
+		return p.c.GetAPIStatus(ctx, requester, targetStatus)
 	}
 
 	// Gotta create a mute.
@@ -108,22 +108,22 @@ func (p *Processor) MuteCreate(
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	return p.c.GetAPIStatus(ctx, requestingAccount, targetStatus)
+	return p.c.GetAPIStatus(ctx, requester, targetStatus)
 }
 
 func (p *Processor) MuteRemove(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
-	targetStatusID string,
+	requester *gtsmodel.Account,
+	statusID string,
 ) (*apimodel.Status, gtserror.WithCode) {
-	targetStatus, errWithCode := p.getMuteableStatus(ctx, requestingAccount, targetStatusID)
+	targetStatus, errWithCode := p.getMuteableStatus(ctx, requester, statusID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
 	var (
 		threadID  = targetStatus.ThreadID
-		accountID = requestingAccount.ID
+		accountID = requester.ID
 	)
 
 	// Check if mute exists for this thread ID.
@@ -137,7 +137,7 @@ func (p *Processor) MuteRemove(
 	if threadMute == nil {
 		// Thread mute doesn't exist.
 		// Our job here is done ("but you didn't do anything!").
-		return p.c.GetAPIStatus(ctx, requestingAccount, targetStatus)
+		return p.c.GetAPIStatus(ctx, requester, targetStatus)
 	}
 
 	// Gotta remove the mute.
@@ -146,5 +146,5 @@ func (p *Processor) MuteRemove(
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	return p.c.GetAPIStatus(ctx, requestingAccount, targetStatus)
+	return p.c.GetAPIStatus(ctx, requester, targetStatus)
 }

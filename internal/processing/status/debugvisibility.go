@@ -31,7 +31,14 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
-func (p *Processor) DebugVisibilityGet(ctx context.Context, requester *gtsmodel.Account, statusURI string) (*apimodel.StatusVisibilityDebugResponse, gtserror.WithCode) {
+func (p *Processor) DebugVisibilityGet(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	statusURI string,
+) (
+	*apimodel.StatusVisibilityDebugResponse,
+	gtserror.WithCode,
+) {
 	// Don't leak to no-auth, also check empty.
 	if requester == nil || statusURI == "" {
 		const text = "target status not found"

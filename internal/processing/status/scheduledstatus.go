@@ -91,9 +91,9 @@ func (p *Processor) ScheduledStatusesGetPage(
 func (p *Processor) ScheduledStatusesGetOne(
 	ctx context.Context,
 	requester *gtsmodel.Account,
-	id string,
+	statusID string,
 ) (*apimodel.ScheduledStatus, gtserror.WithCode) {
-	scheduledStatus, err := p.state.DB.GetScheduledStatusByID(ctx, id)
+	scheduledStatus, err := p.state.DB.GetScheduledStatusByID(ctx, statusID)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		err := gtserror.Newf("db error getting scheduled status: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
@@ -190,7 +190,7 @@ func (p *Processor) onPublish(statusID string) func(context.Context, time.Time) 
 			Language:    status.Language,
 		}
 
-		if status.Poll.Options != nil && len(status.Poll.Options) > 1 {
+		if len(status.Poll.Options) > 1 {
 			request.Poll = &apimodel.PollRequest{
 				Options:    status.Poll.Options,
 				ExpiresIn:  status.Poll.ExpiresIn,
@@ -200,16 +200,17 @@ func (p *Processor) onPublish(statusID string) func(context.Context, time.Time) 
 		}
 
 		_, errWithCode := p.Create(ctx, status.Account, status.Application, request, &statusID)
-
 		if errWithCode != nil {
+
 			log.Errorf(ctx, "could not publish scheduled status: %v", errWithCode.Unwrap())
 			return
 		}
 
 		err = p.state.DB.DeleteScheduledStatusByID(ctx, statusID)
-
 		if err != nil {
-			log.Error(ctx, err)
+
+			log.Error(ctx, "error deleting scheduled status: %v", err)
+			return
 		}
 	}
 }

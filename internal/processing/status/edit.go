@@ -365,11 +365,19 @@ func (p *Processor) Edit(
 	return p.c.GetAPIStatus(ctx, requester, status)
 }
 
-// HistoryGet gets edit history for the target status, taking account of privacy settings and blocks etc.
-func (p *Processor) HistoryGet(ctx context.Context, requester *gtsmodel.Account, targetStatusID string) ([]*apimodel.StatusEdit, gtserror.WithCode) {
+// HistoryGet gets edit history for the target status,
+// taking account of privacy settings and blocks etc.
+func (p *Processor) HistoryGet(
+	ctx context.Context,
+	requester *gtsmodel.Account,
+	statusID string,
+) (
+	[]*apimodel.StatusEdit,
+	gtserror.WithCode,
+) {
 	target, errWithCode := p.c.GetVisibleTargetStatus(ctx,
 		requester,
-		targetStatusID,
+		statusID,
 		nil, // default freshness
 	)
 	if errWithCode != nil {

@@ -154,8 +154,8 @@ func GroupArray(db bun.IDB, col string) (string, bun.Ident) {
 	return GroupArrayExpr(db), bun.Ident(col)
 }
 
-// WhereArrayIsNullOrEmpty returns a BunExpr checking whether value contained in
-// 'col' is NULL or is an empty JSON array, depending on current database type.
+// WhereArrayIsNullOrEmpty returns bun expr arguments checking whether value contained
+// in 'col' is NULL or is an empty JSON array, depending on current database type.
 func WhereArrayIsNullOrEmpty(db bun.IDB, col string) (string, bun.Ident, bun.Ident) {
 	var query string
 	switch db.Dialect().Name() {
@@ -169,18 +169,28 @@ func WhereArrayIsNullOrEmpty(db bun.IDB, col string) (string, bun.Ident, bun.Ide
 	return query, bun.Ident(col), bun.Ident(col)
 }
 
-// WhereArrayIsNullOrEmpty returns a BunExpr checking whether value contained in
+// WhereNotArrayIsNullOrEmpty returns bun expr arguments checking whether value contained
+// in 'col' is NOT (NULL or is an empty JSON array), depending on current database type.
+func WhereNotArrayIsNullOrEmpty(db bun.IDB, col string) (string, bun.Ident, bun.Ident) {
+	query, col1, col2 := WhereArrayIsNullOrEmpty(db, col)
+	return "NOT (" + query + ")", col1, col2
+}
+
+// WhereArrayIsNullOrEmptyExpr returns a BunExpr checking whether value contained in
 // 'col' is NULL or is an empty JSON array, depending on current database type.
 func WhereArrayIsNullOrEmptyExpr(db bun.IDB, col string) (expr BunExpr) {
-	switch db.Dialect().Name() {
-	case dialect.SQLite:
-		expr.Fmt = "(? IS NULL) OR (json_array_length(?) = 0)"
-	case dialect.PG:
-		expr.Fmt = "(? IS NULL) OR (CARDINALITY(?) = 0)"
-	default:
-		panic("unreachable")
-	}
-	expr.Arg = []any{bun.Ident(col), bun.Ident(col)}
+	query, col1, col2 := WhereArrayIsNullOrEmpty(db, col)
+	expr.Fmt = query
+	expr.Arg = []any{col1, col2}
+	return
+}
+
+// WhereNotArrayIsNullOrEmptyExpr returns a BunExpr checking whether value contained in
+// 'col' is NOT (NULL or is an empty JSON array), depending on current database type.
+func WhereNotArrayIsNullOrEmptyExpr(db bun.IDB, col string) (expr BunExpr) {
+	query, col1, col2 := WhereNotArrayIsNullOrEmpty(db, col)
+	expr.Fmt = query
+	expr.Arg = []any{col1, col2}
 	return
 }
 

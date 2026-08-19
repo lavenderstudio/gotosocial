@@ -233,6 +233,7 @@ func (p *Processor) getTargetStatusBy(
 	// Return error on deleted status unless
 	// specifically requested and authenticated.
 	if (requester == nil || !allowDeleted) && target.Flags.Deleted() {
+
 		// Wrap generic error in Deleted so intermediate
 		// functions can know this error was returned as
 		// a result of status being deleted/stubbed, not

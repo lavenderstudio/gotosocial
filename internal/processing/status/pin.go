@@ -37,18 +37,18 @@ const allowedPinnedCount = 10
 //   - Status belongs to requesting account.
 //   - Status is public, unlisted, or followers-only.
 //   - Status is not a boost.
-func (p *Processor) getPinnableStatus(ctx context.Context, requestingAccount *gtsmodel.Account, targetStatusID string) (*gtsmodel.Status, gtserror.WithCode) {
+func (p *Processor) getPinnableStatus(ctx context.Context, requester *gtsmodel.Account, statusID string) (*gtsmodel.Status, gtserror.WithCode) {
 	targetStatus, errWithCode := p.c.GetVisibleTargetStatus(ctx,
-		requestingAccount,
-		targetStatusID,
+		requester,
+		statusID,
 		nil, // default freshness
 	)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
-	if targetStatus.AccountID != requestingAccount.ID {
-		err := fmt.Errorf("status %s does not belong to account %s", targetStatusID, requestingAccount.ID)
+	if targetStatus.AccountID != requester.ID {
+		err := fmt.Errorf("status %s does not belong to account %s", statusID, requester.ID)
 		return nil, gtserror.NewErrorUnprocessableEntity(err, err.Error())
 	}
 
@@ -75,13 +75,13 @@ func (p *Processor) getPinnableStatus(ctx context.Context, requestingAccount *gt
 //   - Limit of pinned statuses not yet met or exceeded.
 //
 // If the conditions can't be met, then code 422 Unprocessable Entity will be returned.
-func (p *Processor) PinCreate(ctx context.Context, requester *gtsmodel.Account, targetStatusID string) (*apimodel.Status, gtserror.WithCode) {
-	targetStatus, errWithCode := p.getPinnableStatus(ctx, requester, targetStatusID)
+func (p *Processor) PinCreate(ctx context.Context, requester *gtsmodel.Account, statusID string) (*apimodel.Status, gtserror.WithCode) {
+	targetStatus, errWithCode := p.getPinnableStatus(ctx, requester, statusID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
-	pinned, err := p.state.DB.IsStatusPinned(ctx, requester.ID, targetStatusID)
+	pinned, err := p.state.DB.IsStatusPinned(ctx, requester.ID, statusID)
 	if err != nil {
 		err = gtserror.Newf("db error checking status pin: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
@@ -109,7 +109,7 @@ func (p *Processor) PinCreate(ctx context.Context, requester *gtsmodel.Account, 
 
 	// Add a new pin in the database for this status.
 	if err := p.state.DB.PutStatusPin(ctx, &gtsmodel.StatusPin{
-		StatusID:  targetStatusID,
+		StatusID:  statusID,
 		AccountID: requester.ID,
 	}); err != nil {
 		err = gtserror.Newf("db error pinning status: %w", err)
@@ -134,13 +134,13 @@ func (p *Processor) PinCreate(ctx context.Context, requester *gtsmodel.Account, 
 //
 // Unlike with PinCreate, statuses that are already unpinned will not return 422, but just do
 // nothing and return the api model representation of the status, to conform to the masto API.
-func (p *Processor) PinRemove(ctx context.Context, requester *gtsmodel.Account, targetStatusID string) (*apimodel.Status, gtserror.WithCode) {
-	targetStatus, errWithCode := p.getPinnableStatus(ctx, requester, targetStatusID)
+func (p *Processor) PinRemove(ctx context.Context, requester *gtsmodel.Account, statusID string) (*apimodel.Status, gtserror.WithCode) {
+	targetStatus, errWithCode := p.getPinnableStatus(ctx, requester, statusID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
-	pinned, err := p.state.DB.IsStatusPinned(ctx, requester.ID, targetStatusID)
+	pinned, err := p.state.DB.IsStatusPinned(ctx, requester.ID, statusID)
 	if err != nil {
 		err = gtserror.Newf("db error checking status pin: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
@@ -159,7 +159,7 @@ func (p *Processor) PinRemove(ctx context.Context, requester *gtsmodel.Account, 
 
 	// Add a new pin in the database for this status.
 	// Delete the existing pin status model in the database.
-	if err := p.state.DB.DeleteStatusPin(ctx, targetStatusID); err != nil {
+	if err := p.state.DB.DeleteStatusPin(ctx, statusID); err != nil {
 		err = gtserror.Newf("db error unpinning status: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
 	}

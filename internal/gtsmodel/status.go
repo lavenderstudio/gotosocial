@@ -407,6 +407,10 @@ func (s *Status) ToOrCcPublic() bool {
 // maintaining only those necessary for it to be
 // dealt with as a placeholder status in a thread.
 func (s *Status) Stub() (stub Status) {
+	//
+	// IMPORTANT NOTE: the below code is copying
+	// fields to a new struct instance that is the
+	// named return value "stub".
 
 	// Maintain base
 	// status ID-ables.
@@ -431,12 +435,9 @@ func (s *Status) Stub() (stub Status) {
 	stub.AccountURI = s.AccountURI
 	stub.Account = s.Account
 
-	// Maintain mentions and visibility for
-	// proper visibility calculations, though
-	// we won't expect mentions anymore.
-	stub.MentionIDs = s.MentionIDs
+	// Maintain visibility for
+	// thread visibility calculations.
 	stub.Visibility = s.Visibility
-	stub.Mentions = s.Mentions
 
 	// Maintain the approved by URI for proper
 	// handling of existing interaction approvals.

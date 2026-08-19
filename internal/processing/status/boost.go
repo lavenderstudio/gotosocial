@@ -37,13 +37,13 @@ func (p *Processor) BoostCreate(
 	ctx context.Context,
 	requester *gtsmodel.Account,
 	application *gtsmodel.Application,
-	targetID string,
+	statusID string,
 ) (*apimodel.Status, gtserror.WithCode) {
 	// Get target status and ensure it's not a boost.
 	target, errWithCode := p.c.GetVisibleTargetStatus(
 		ctx,
 		requester,
-		targetID,
+		statusID,
 		nil, // default freshness
 	)
 	if errWithCode != nil {
@@ -179,12 +179,12 @@ func (p *Processor) BoostRemove(
 	ctx context.Context,
 	requester *gtsmodel.Account,
 	application *gtsmodel.Application,
-	targetID string,
+	statusID string,
 ) (*apimodel.Status, gtserror.WithCode) {
 	// Get target status and ensure it's not a boost.
 	target, errWithCode := p.c.GetVisibleTargetStatus(ctx,
 		requester,
-		targetID,
+		statusID,
 		nil, // default freshness
 	)
 	if errWithCode != nil {
@@ -248,10 +248,10 @@ func (p *Processor) BoostRemove(
 }
 
 // StatusBoostedBy returns a slice of accounts that have boosted the given status, filtered according to privacy settings.
-func (p *Processor) StatusBoostedBy(ctx context.Context, requestingAccount *gtsmodel.Account, targetStatusID string) ([]*apimodel.Account, gtserror.WithCode) {
-	targetStatus, err := p.state.DB.GetStatusByID(ctx, targetStatusID)
+func (p *Processor) StatusBoostedBy(ctx context.Context, requester *gtsmodel.Account, statusID string) ([]*apimodel.Account, gtserror.WithCode) {
+	targetStatus, err := p.state.DB.GetStatusByID(ctx, statusID)
 	if err != nil {
-		wrapped := fmt.Errorf("BoostedBy: error fetching status %s: %s", targetStatusID, err)
+		wrapped := fmt.Errorf("BoostedBy: error fetching status %s: %s", statusID, err)
 		if !errors.Is(err, db.ErrNoEntries) {
 			return nil, gtserror.NewErrorInternalError(wrapped)
 		}
@@ -271,7 +271,7 @@ func (p *Processor) StatusBoostedBy(ctx context.Context, requestingAccount *gtsm
 		targetStatus = boostedStatus
 	}
 
-	visible, err := p.visFilter.StatusVisible(ctx, requestingAccount, targetStatus)
+	visible, err := p.visFilter.StatusVisible(ctx, requester, targetStatus)
 	if err != nil {
 		err = fmt.Errorf("BoostedBy: error seeing if status %s is visible: %s", targetStatus.ID, err)
 		return nil, gtserror.NewErrorNotFound(err)
@@ -294,7 +294,7 @@ func (p *Processor) StatusBoostedBy(ctx context.Context, requestingAccount *gtsm
 	// filter account IDs so the user doesn't see accounts they blocked or which blocked them
 	accountIDs := make([]string, 0, len(boosts))
 	for _, s := range boosts {
-		blocked, err := p.state.DB.IsEitherBlocked(ctx, requestingAccount.ID, s.AccountID)
+		blocked, err := p.state.DB.IsEitherBlocked(ctx, requester.ID, s.AccountID)
 		if err != nil {
 			err = fmt.Errorf("BoostedBy: error checking blocks: %s", err)
 			return nil, gtserror.NewErrorNotFound(err)

@@ -33,7 +33,7 @@ import (
 func (p *Processor) ContextGet(
 	ctx context.Context,
 	requester *gtsmodel.Account,
-	targetStatusID string,
+	statusID string,
 ) (*apimodel.ThreadContext, gtserror.WithCode) {
 	// Retrieve the full thread context.
 	//
@@ -42,7 +42,7 @@ func (p *Processor) ContextGet(
 	// wrapped in a 404 if it's not visible on the web.
 	threadContext, errWithCode := p.contextGet(ctx,
 		requester,
-		targetStatusID,
+		statusID,
 	)
 	if errWithCode != nil {
 		return nil, errWithCode
@@ -75,7 +75,7 @@ func (p *Processor) ContextGet(
 // positioning the status in a web view of a thread.
 func (p *Processor) WebContextGet(
 	ctx context.Context,
-	targetStatusID string,
+	statusID string,
 ) (*apimodel.WebThreadContext, gtserror.WithCode) {
 	// Retrieve the internal thread context.
 	//
@@ -85,7 +85,7 @@ func (p *Processor) WebContextGet(
 	iCtx, errWithCode := p.contextGet(ctx,
 
 		nil, // No authed requester.
-		targetStatusID,
+		statusID,
 	)
 	if errWithCode != nil {
 		return nil, errWithCode
@@ -178,7 +178,7 @@ func (p *Processor) WebContextGet(
 			// not visible for whatever reason, we
 			// should just return a 401 here, as we
 			// can't meaningfully render the thread.
-			if status.ID == targetStatusID {
+			if status.ID == statusID {
 				var thisErr error
 				switch {
 				case err != nil:
@@ -264,7 +264,7 @@ func (p *Processor) WebContextGet(
 			statusIndents[status.ID] = webStatus.Indent
 		}
 
-		if webStatus.ID == targetStatusID {
+		if webStatus.ID == statusID {
 			// This is the og
 			// thread context status.
 			webStatus.ThreadContextStatus = true
@@ -330,7 +330,7 @@ type internalThreadContext struct {
 func (p *Processor) contextGet(
 	ctx context.Context,
 	requester *gtsmodel.Account,
-	targetStatusID string,
+	statusID string,
 ) (
 	*internalThreadContext,
 	gtserror.WithCode,
@@ -339,7 +339,7 @@ func (p *Processor) contextGet(
 	// returning us status stubs that maintain threading with placeholders.
 	targetStatus, errWithCode := p.c.GetVisibleTargetStatusInThread(ctx,
 		requester,
-		targetStatusID,
+		statusID,
 		nil, // default freshness
 	)
 	if errWithCode != nil {

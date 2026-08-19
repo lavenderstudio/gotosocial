@@ -20,7 +20,6 @@ package status
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
@@ -30,22 +29,25 @@ import (
 )
 
 // Delete processes the delete of a given status, returning the deleted status if the delete goes through.
-func (p *Processor) Delete(ctx context.Context, requestingAccount *gtsmodel.Account, targetStatusID string) (*apimodel.Status, gtserror.WithCode) {
-	targetStatus, err := p.state.DB.GetStatusByID(ctx, targetStatusID)
-	if err != nil {
-		return nil, gtserror.NewErrorNotFound(fmt.Errorf("error fetching status %s: %s", targetStatusID, err))
+func (p *Processor) Delete(ctx context.Context, requester *gtsmodel.Account, statusID string) (*apimodel.Status, gtserror.WithCode) {
+
+	// Fetch status with given ID, ensuring it is requester's status.
+	status, errWithCode := p.c.GetOwnStatus(ctx, requester, statusID)
+	if errWithCode != nil {
+		return nil, errWithCode
 	}
 
-	if targetStatus.Account == nil {
-		return nil, gtserror.NewErrorNotFound(fmt.Errorf("no status owner for status %s", targetStatusID))
+	// Check if it is deleted.
+	if status.Flags.Deleted() {
+		const text = "target status not found"
+		return nil, gtserror.NewErrorNotFound(
+			errors.New(text),
+			text,
+		)
 	}
 
-	if targetStatus.AccountID != requestingAccount.ID {
-		return nil, gtserror.NewErrorForbidden(errors.New("status doesn't belong to requesting account"))
-	}
-
-	// Parse the status to API model BEFORE deleting it.
-	apiStatus, errWithCode := p.c.GetAPIStatus(ctx, requestingAccount, targetStatus)
+	// Convert the status to API model BEFORE deleting it.
+	apiStatus, errWithCode := p.c.GetAPIStatus(ctx, requester, status)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
@@ -53,17 +55,17 @@ func (p *Processor) Delete(ctx context.Context, requestingAccount *gtsmodel.Acco
 	// Replace content warning with raw
 	// version if it's available, to make
 	// delete + redraft work nicer.
-	if targetStatus.ContentWarningText != "" {
-		apiStatus.SpoilerText = targetStatus.ContentWarningText
+	if status.ContentWarningText != "" {
+		apiStatus.SpoilerText = status.ContentWarningText
 	}
 
 	// Process delete side effects.
 	p.state.Workers.Client.Queue.Push(&messages.FromClientAPI{
 		APObjectType:   ap.ObjectNote,
 		APActivityType: ap.ActivityDelete,
-		GTSModel:       targetStatus,
-		Origin:         requestingAccount,
-		Target:         requestingAccount,
+		GTSModel:       status,
+		Origin:         requester,
+		Target:         requester,
 	})
 
 	return apiStatus, nil
