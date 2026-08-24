@@ -133,7 +133,7 @@ func (t *Templates) RenderNotVisiblePage(
 		},
 	}
 	data["requestID"] = gtscontext.RequestID(c)
-	t.renderPage(c, 404, "item_not_visible.tmpl", data)
+	t.renderPage(c, statusCode, "item_not_visible.tmpl", data)
 }
 
 // RenderDeletedPage renders a page
@@ -145,7 +145,7 @@ func (t *Templates) RenderDeletedPage(
 ) {
 	data := make(map[string]any, 4)
 	data["requestID"] = gtscontext.RequestID(c)
-	t.renderPage(c, 404, "item_deleted.tmpl", data)
+	t.renderPage(c, statusCode, "item_deleted.tmpl", data)
 }
 
 func (t *Templates) renderPage(
