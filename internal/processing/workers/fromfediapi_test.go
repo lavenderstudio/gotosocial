@@ -349,12 +349,9 @@ func (suite *FromFediAPITestSuite) TestProcessAccountDelete() {
 	zorkFollowSatan := &gtsmodel.Follow{
 		ID:              "01FGRY72ASHBSET64353DPHK9T",
 		CreatedAt:       time.Now().Add(-1 * time.Hour),
-		UpdatedAt:       time.Now().Add(-1 * time.Hour),
 		AccountID:       deletedAccount.ID,
 		TargetAccountID: receivingAccount.ID,
-		ShowReblogs:     util.Ptr(true),
 		URI:             fmt.Sprintf("%s/follows/01FGRY72ASHBSET64353DPHK9T", deletedAccount.URI),
-		Notify:          util.Ptr(false),
 	}
 	err := testStructs.State.DB.Put(ctx, zorkFollowSatan)
 	suite.NoError(err)
@@ -362,12 +359,9 @@ func (suite *FromFediAPITestSuite) TestProcessAccountDelete() {
 	satanFollowZork := &gtsmodel.Follow{
 		ID:              "01FGRYAVAWWPP926J175QGM0WV",
 		CreatedAt:       time.Now().Add(-1 * time.Hour),
-		UpdatedAt:       time.Now().Add(-1 * time.Hour),
 		AccountID:       receivingAccount.ID,
 		TargetAccountID: deletedAccount.ID,
-		ShowReblogs:     util.Ptr(true),
 		URI:             fmt.Sprintf("%s/follows/01FGRYAVAWWPP926J175QGM0WV", receivingAccount.URI),
-		Notify:          util.Ptr(false),
 	}
 	err = testStructs.State.DB.Put(ctx, satanFollowZork)
 	suite.NoError(err)
@@ -458,9 +452,7 @@ func (suite *FromFediAPITestSuite) TestProcessFollowRequestLocked() {
 		Account:         originAccount,
 		TargetAccountID: targetAccount.ID,
 		TargetAccount:   targetAccount,
-		ShowReblogs:     util.Ptr(true),
 		URI:             originAccount.URI + "/follows/01FGRYAVAWWPP926J175QGM0WV",
-		Notify:          util.Ptr(false),
 	}
 	if err := testStructs.State.DB.Put(ctx, followReq); err != nil {
 		suite.FailNow(err.Error())
@@ -527,9 +519,7 @@ func (suite *FromFediAPITestSuite) TestProcessFollowRequestReject() {
 		Account:         originAccount,
 		TargetAccountID: targetAccount.ID,
 		TargetAccount:   targetAccount,
-		ShowReblogs:     util.Ptr(true),
 		URI:             originAccount.URI + "/follows/01FGRYAVAWWPP926J175QGM0WV",
-		Notify:          util.Ptr(false),
 	}
 	if err := testStructs.State.DB.Put(ctx, followReq); err != nil {
 		suite.FailNow(err.Error())
@@ -611,9 +601,7 @@ func (suite *FromFediAPITestSuite) TestProcessFollowRequestManuallyApprove() {
 		Account:         originAccount,
 		TargetAccountID: targetAccount.ID,
 		TargetAccount:   targetAccount,
-		ShowReblogs:     util.Ptr(true),
 		URI:             originAccount.URI + "/follows/01FGRYAVAWWPP926J175QGM0WV",
-		Notify:          util.Ptr(false),
 	}
 	if err := testStructs.State.DB.Put(ctx, followReq); err != nil {
 		suite.FailNow(err.Error())
@@ -686,9 +674,7 @@ func (suite *FromFediAPITestSuite) TestProcessFollowRequestUnlocked() {
 		Account:         originAccount,
 		TargetAccountID: targetAccount.ID,
 		TargetAccount:   targetAccount,
-		ShowReblogs:     util.Ptr(true),
 		URI:             originAccount.URI + "/follows/01FGRYAVAWWPP926J175QGM0WV",
-		Notify:          util.Ptr(false),
 	}
 	if err := testStructs.State.DB.Put(ctx, followReq); err != nil {
 		suite.FailNow(err.Error())
@@ -943,14 +929,11 @@ func (suite *FromFediAPITestSuite) TestUndoFollow() {
 	follow := &gtsmodel.Follow{
 		ID:              "01F8PY8RHWRQZV038T4E8T9YK8",
 		CreatedAt:       testrig.TimeMustParse("2022-05-14T16:21:09+02:00"),
-		UpdatedAt:       testrig.TimeMustParse("2022-05-14T16:21:09+02:00"),
 		AccountID:       "01F8MH5ZK5VRH73AKHQM6Y9VNX",
 		Account:         requestingAcct,
 		TargetAccountID: "01F8MH1H7YV1Z7D2C8K2730QBF",
 		TargetAccount:   receivingAcct,
-		ShowReblogs:     util.Ptr(true),
 		URI:             "https://fossbros-anonymous.io/users/foss_satan/follows/01F8PY8RHWRQZV038T4E8T9YK8",
-		Notify:          util.Ptr(false),
 	}
 
 	// Process the undo message, passing the follow.

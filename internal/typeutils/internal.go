@@ -38,12 +38,10 @@ func FollowRequestToFollow(fr *gtsmodel.FollowRequest) *gtsmodel.Follow {
 	return &gtsmodel.Follow{
 		ID:              fr.ID,
 		CreatedAt:       fr.CreatedAt,
-		UpdatedAt:       fr.UpdatedAt,
 		AccountID:       fr.AccountID,
 		TargetAccountID: fr.TargetAccountID,
-		ShowReblogs:     util.Ptr(*fr.ShowReblogs),
 		URI:             fr.URI,
-		Notify:          util.Ptr(*fr.Notify),
+		Flags:           fr.Flags,
 	}
 }
 

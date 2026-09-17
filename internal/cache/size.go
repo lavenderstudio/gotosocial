@@ -400,12 +400,9 @@ func sizeofFollow() uintptr {
 	return uintptr(size.Of(&gtsmodel.Follow{
 		ID:              exampleID,
 		CreatedAt:       exampleTime,
-		UpdatedAt:       exampleTime,
 		AccountID:       exampleID,
 		TargetAccountID: exampleID,
-		ShowReblogs:     func() *bool { ok := true; return &ok }(),
 		URI:             exampleURI,
-		Notify:          func() *bool { ok := false; return &ok }(),
 	}))
 }
 
@@ -413,12 +410,9 @@ func sizeofFollowRequest() uintptr {
 	return uintptr(size.Of(&gtsmodel.FollowRequest{
 		ID:              exampleID,
 		CreatedAt:       exampleTime,
-		UpdatedAt:       exampleTime,
 		AccountID:       exampleID,
 		TargetAccountID: exampleID,
-		ShowReblogs:     func() *bool { ok := true; return &ok }(),
 		URI:             exampleURI,
-		Notify:          func() *bool { ok := false; return &ok }(),
 	}))
 }
 
