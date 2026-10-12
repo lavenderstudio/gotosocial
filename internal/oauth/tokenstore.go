@@ -36,7 +36,7 @@ import (
 type tokenStore struct {
 	oauth2.TokenStore
 	state         *state.State
-	lastUsedLocks mutexes.MutexMap
+	lastUsedLocks mutexes.MutexMap[string]
 }
 
 // newTokenStore returns a token store that satisfies the oauth2.TokenStore interface.

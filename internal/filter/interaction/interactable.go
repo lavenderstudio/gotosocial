@@ -20,7 +20,6 @@ package interaction
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
@@ -177,52 +176,63 @@ func (f *Filter) StatusReplyable(
 		}, nil
 	}
 
+	var mentioned bool
+
+loop:
 	// Check if requester mentioned by this status.
 	//
 	// Prefer checking by ID, fall back to URI, URL,
 	// or NameString for not-yet enriched statuses.
-	mentioned := slices.ContainsFunc(
-		status.Mentions,
-		func(m *gtsmodel.Mention) bool {
-			switch {
+	for _, mention := range status.Mentions {
+		switch {
 
-			// Check by ID - most accurate.
-			case m.TargetAccountID != "":
-				return m.TargetAccountID == requester.ID
-
-			// Check by URI - also accurate.
-			case m.TargetAccountURI != "":
-				return m.TargetAccountURI == requester.URI
-
-			// Check by URL - probably accurate.
-			case m.TargetAccountURL != "":
-				return m.TargetAccountURL == requester.URL
-
-			// Fall back to checking by namestring.
-			case m.NameString != "":
-				username, host, err := util.ExtractNamestringParts(m.NameString)
-				if err != nil {
-					log.Debugf(ctx, "error checking if mentioned: %v", err)
-					return false
-				}
-
-				if requester.IsLocal() {
-					// Local requester has empty string
-					// domain so check using config.
-					return username == requester.Username &&
-						(host == config.GetHost() || host == config.GetAccountDomain())
-				}
-
-				// Remote requester has domain set.
-				return username == requester.Username &&
-					host == requester.Domain
-
-			default:
-				// Not mentioned.
-				return false
+		// Check by ID - most accurate.
+		case mention.TargetAccountID != "":
+			if mention.TargetAccountID == requester.ID {
+				mentioned = true
+				break loop
 			}
-		},
-	)
+
+		// Check by URI - also accurate.
+		case mention.TargetAccountURI != "":
+			if mention.TargetAccountURI == requester.URI {
+				mentioned = true
+				break loop
+			}
+
+		// Check by URL - probably accurate.
+		case mention.TargetAccountURL != "":
+			if mention.TargetAccountURL == requester.URL {
+				mentioned = true
+				break loop
+			}
+
+		// Fall back to checking by namestring.
+		case mention.NameString != "":
+			username, host, err := util.ExtractNamestringParts(mention.NameString)
+			if err != nil {
+				log.Warnf(ctx, "invalid mention namestring: %v", err)
+				continue
+			}
+
+			switch {
+			case requester.IsLocal():
+				// Local requester has empty
+				// string domain so check manually.
+				if username == requester.Username &&
+					(host == config.GetHost() || host == config.GetAccountDomain()) {
+					mentioned = true
+					break loop
+				}
+
+			// Remote requester must have domain set.
+			case username == requester.Username &&
+				host == requester.Domain:
+				mentioned = true
+				break loop
+			}
+		}
+	}
 
 	if mentioned {
 		// A mentioned account can always
@@ -278,7 +288,6 @@ func (f *Filter) StatusBoostable(
 	status *gtsmodel.Status,
 ) (*gtsmodel.PolicyCheckResult, error) {
 	if status.Visibility == gtsmodel.VisibilityDirect {
-		log.Trace(ctx, "direct statuses are not boostable")
 		return &gtsmodel.PolicyCheckResult{
 			Permission: gtsmodel.PolicyPermissionForbidden,
 		}, nil

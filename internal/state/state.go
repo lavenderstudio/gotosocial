@@ -47,7 +47,7 @@ type State struct {
 	//
 	// Used during account and status dereferencing,
 	// and by the go-fed/activity library.
-	FedLocks mutexes.MutexMap
+	FedLocks mutexes.MutexMap[string]
 
 	// ProcessingLocks provides access to this state's
 	// mutex map of per URI locks, intended for use
@@ -55,7 +55,7 @@ type State struct {
 	// when updating accounts, migrating, approving
 	// or rejecting an account, changing stats or
 	// pinned statuses, creating notifs, etc.
-	ProcessingLocks mutexes.MutexMap
+	ProcessingLocks mutexes.MutexMap[string]
 
 	// Storage provides access
 	// to the storage driver.

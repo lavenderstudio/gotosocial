@@ -1,29 +1,29 @@
 package mutexes
 
-type hashmap struct {
-	m map[string]*rwmutex
+type hashmap[K comparable] struct {
+	m map[K]*rwmutex
 	n int
 }
 
-func (m *hashmap) init(cap int) {
-	m.m = make(map[string]*rwmutex, cap)
+func (m *hashmap[K]) init(cap int) {
+	m.m = make(map[K]*rwmutex, cap)
 	m.n = cap
 }
 
-func (m *hashmap) Get(key string) *rwmutex { return m.m[key] }
+func (m *hashmap[K]) Get(key K) *rwmutex { return m.m[key] }
 
-func (m *hashmap) Put(key string, mu *rwmutex) {
+func (m *hashmap[K]) Put(key K, mu *rwmutex) {
 	m.m[key] = mu
 	if n := len(m.m); n > m.n {
 		m.n = n
 	}
 }
 
-func (m *hashmap) Delete(key string) {
+func (m *hashmap[K]) Delete(key K) {
 	delete(m.m, key)
 }
 
-func (m *hashmap) Compact() {
+func (m *hashmap[K]) Compact() {
 	// Noop when hashmap size
 	// is too small to matter.
 	if m.n < 2048 {
@@ -43,8 +43,8 @@ func (m *hashmap) Compact() {
 	// compact the map to drop buckets.
 	if 2*16*diff > m.n*13 {
 
-		// Create new map only as big as required.
-		m2 := make(map[string]*rwmutex, len(m.m))
+		// Create new only as big as required.
+		m2 := make(map[K]*rwmutex, len(m.m))
 		for k, v := range m.m {
 			m2[k] = v
 		}

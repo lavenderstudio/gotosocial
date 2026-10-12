@@ -14,7 +14,7 @@ const (
 )
 
 // MutexMap is a structure that allows read / write locking
-// per key, performing as you'd expect a map[string]*RWMutex
+// per key, performing as you'd expect a map[K]*RWMutex
 // to perform, without you needing to worry about deadlocks
 // between competing read / write locks and the map's own mutex.
 // It uses memory pooling for the internal "mutex" (ish) types
@@ -23,40 +23,40 @@ const (
 // Under the hood this is achieved using a single mutex for the
 // map, state tracking for individual keys, and some sync.Cond{}
 // like structures for sleeping / awaking awaiting goroutines.
-type MutexMap struct {
+type MutexMap[K comparable] struct {
 	mapmu  sync.Mutex
-	mumap  hashmap
+	mumap  hashmap[K]
 	mupool mempool.UnsafeSimplePool
 }
 
 // checkInit ensures MutexMap is initialized (UNSAFE).
-func (mm *MutexMap) checkInit() {
+func (mm *MutexMap[K]) checkInit() {
 	if mm.mumap.m == nil {
 		mm.mumap.init(0)
 	}
 }
 
 // Lock acquires a write lock on key in map, returning unlock function.
-func (mm *MutexMap) Lock(key string) func() {
+func (mm *MutexMap[K]) Lock(key K) func() {
 	return mm.lock(key, lockTypeWrite)
 }
 
 // RLock acquires a read lock on key in map, returning runlock function.
-func (mm *MutexMap) RLock(key string) func() {
+func (mm *MutexMap[K]) RLock(key K) func() {
 	return mm.lock(key, lockTypeRead)
 }
 
 // TryLock attempts to acquire a write lock on key in map, returning unlock function on success.
-func (mm *MutexMap) TryLock(key string) func() {
+func (mm *MutexMap[K]) TryLock(key K) func() {
 	return mm.tryLock(key, lockTypeWrite)
 }
 
 // TryRLock attempts to acquire a read lock on key in map, returning unlock function on success.
-func (mm *MutexMap) TryRLock(key string) func() {
+func (mm *MutexMap[K]) TryRLock(key K) func() {
 	return mm.tryLock(key, lockTypeRead)
 }
 
-func (mm *MutexMap) tryLock(key string, lt uint8) func() {
+func (mm *MutexMap[K]) tryLock(key K, lt uint8) func() {
 	// Lock outer map
 	// and check init.
 	mm.mapmu.Lock()
@@ -83,7 +83,7 @@ func (mm *MutexMap) tryLock(key string, lt uint8) func() {
 	return unlock
 }
 
-func (mm *MutexMap) lock(key string, lt uint8) func() {
+func (mm *MutexMap[K]) lock(key K, lt uint8) func() {
 	// Perform first map lock
 	// and check initialization
 	// OUTSIDE the main loop.
@@ -115,7 +115,7 @@ func (mm *MutexMap) lock(key string, lt uint8) func() {
 	}
 }
 
-func (mm *MutexMap) unlock(key string, mu *rwmutex) {
+func (mm *MutexMap[K]) unlock(key K, mu *rwmutex) {
 	// Get map lock.
 	mm.mapmu.Lock()
 
@@ -142,7 +142,7 @@ func (mm *MutexMap) unlock(key string, mu *rwmutex) {
 }
 
 // acquire will acquire mutex from memory pool, or alloc new.
-func (mm *MutexMap) acquire() *rwmutex {
+func (mm *MutexMap[K]) acquire() *rwmutex {
 	if ptr := mm.mupool.Get(); ptr != nil {
 		return (*rwmutex)(ptr)
 	}
@@ -152,7 +152,7 @@ func (mm *MutexMap) acquire() *rwmutex {
 }
 
 // release will release given mutex to memory pool.
-func (mm *MutexMap) release(mu *rwmutex) {
+func (mm *MutexMap[K]) release(mu *rwmutex) {
 	ptr := unsafe.Pointer(mu)
 	mm.mupool.Put(ptr)
 }

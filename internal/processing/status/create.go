@@ -396,7 +396,7 @@ func (p *Processor) processInReplyTo(
 		return errWithCode
 	}
 
-	// If this is a boost, unwrap it to get source status.
+	// If this is boost, unwrap to get source status.
 	inReplyTo, errWithCode = p.c.UnwrapIfBoost(ctx,
 		requester,
 		inReplyTo,
@@ -405,30 +405,28 @@ func (p *Processor) processInReplyTo(
 		return errWithCode
 	}
 
-	// Ensure valid reply target for requester.
+	// Ensure status is valid reply target for requester.
 	policyResult, err := p.intFilter.StatusReplyable(ctx,
 		requester,
 		inReplyTo,
 	)
 	if err != nil {
-		err := gtserror.Newf("error seeing if status %s is replyable: %w", status.ID, err)
+		err := gtserror.Newf("error checking status replyability: %w", err)
 		return gtserror.NewErrorInternalError(err)
 	}
 
 	if policyResult.Forbidden() {
-		const errText = "you do not have permission to reply to this status"
-		err := gtserror.New(errText)
-		return gtserror.NewErrorForbidden(err, errText)
+		const text = "you do not have permission to reply to this status"
+		return gtserror.NewErrorForbidden(errors.New(text), text)
 	}
 
 	// When backfilling, only self-replies are allowed.
 	if backfill && requester.ID != inReplyTo.AccountID {
-		const errText = "replies to others can't be backfilled"
-		err := gtserror.New(errText)
-		return gtserror.NewErrorForbidden(err, errText)
+		const text = "replies to others can't be backfilled"
+		return gtserror.NewErrorForbidden(errors.New(text), text)
 	}
 
-	// Derive pendingApproval status.
+	// Derive pendingApproval.
 	var pendingApproval bool
 	switch {
 	case policyResult.ManualApproval():

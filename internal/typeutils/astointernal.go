@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"code.superseriousbusiness.org/gopkg/log"
+	"code.superseriousbusiness.org/gopkg/xslices"
 	"code.superseriousbusiness.org/gotosocial/internal/ap"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
@@ -207,7 +208,8 @@ func (c *Converter) ASRepresentationToAccount(
 		acct.FollowersURI = followersURI.String()
 	}
 
-	// Extract a FeaturedURI, but only trust if equal to / subdomain of account's domain.
+	// Extract a FeaturedURI, but only trust
+	// if equal to / subdomain of account's domain.
 	if featuredURI := ap.GetFeatured(accountable); // nocollapse
 	featuredURI != nil && dns.CompareDomainName(acct.Domain, featuredURI.Host) >= 2 {
 		acct.FeaturedCollectionURI = featuredURI.String()
@@ -222,18 +224,15 @@ func (c *Converter) ASRepresentationToAccount(
 		acct.MovedToURI = movedToURI.String()
 	}
 
+	// Convert also-known-as URIs to slice of strings.
 	alsoKnownAsURIs := ap.GetAlsoKnownAs(accountable)
-	for i, uri := range alsoKnownAsURIs {
-		// Don't store more than
-		// 20 AKA URIs for remotes,
-		// to prevent people playing
-		// silly buggers.
-		if i >= 20 {
-			break
-		}
+	if len(alsoKnownAsURIs) > 20 {
 
-		acct.AlsoKnownAsURIs = append(acct.AlsoKnownAsURIs, uri.String())
+		// Limit URI len to 20 to prevent abuse.
+		alsoKnownAsURIs = alsoKnownAsURIs[:20]
 	}
+	acct.AlsoKnownAsURIs = xslices.Gather(nil,
+		alsoKnownAsURIs, (*url.URL).String)
 
 	// Extract account public key and verify ownership to account.
 	pkey, pkeyURL, pkeyOwnerID, err := ap.ExtractPubKeyFromActor(accountable)

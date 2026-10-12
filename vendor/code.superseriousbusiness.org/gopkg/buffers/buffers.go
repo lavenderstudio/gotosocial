@@ -109,3 +109,32 @@ func (p *MemoryPool) Put(buf *byteutil.Buffer) {
 	}
 	p.p.Put(unsafe.Pointer(buf))
 }
+
+// buf1k is a pre-prepared memory pool
+// of 1k kibibyte size byte buffers.
+//
+// this is a common-size so we provide
+// an instance of it out-of-the-box.
+var buf1k = Pool(1024)
+
+// Get returns a byteutil.Buffer{} instance from the 1k
+// pool, it will have a capacity of at-least 1024 bytes.
+//
+// NOTE: this is useful for the semi-frequent scratch
+// buffer, but if you are making heavy usage of this
+// function you should probably get your own package
+// local pool instance with Pools($size).
+func Get1k() *byteutil.Buffer {
+	return buf1k.Get()
+}
+
+// Put replaces byteutil.Buffer{} instance in the 1k
+// pool, it will be dropped if capacity < 1024 || > 2048.
+//
+// NOTE: this is useful for the semi-frequent scratch
+// buffer, but if you are making heavy usage of this
+// function you should probably get your own package
+// local pool instance with Pools($size).
+func Put1k(buf *byteutil.Buffer) {
+	buf1k.Put(buf)
+}
