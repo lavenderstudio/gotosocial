@@ -92,7 +92,7 @@ func (suite *TokenTestSuite) TestRetrieveClientCredentialsOK() {
 
 	// there should be a token in the database now too
 	dbToken := &gtsmodel.Token{}
-	err = suite.db.GetWhere(suite.T().Context(), []db.Where{{Key: "access", Value: t.AccessToken}}, dbToken)
+	err = suite.db.GetWhere(suite.T().Context(), []db.BunExpr{db.Where("access = ?", t.AccessToken)}, dbToken)
 	suite.NoError(err)
 	suite.NotNil(dbToken)
 }
@@ -203,7 +203,7 @@ func (suite *TokenTestSuite) TestRetrieveAuthorizationCodeOK() {
 	suite.WithinDuration(time.Now(), time.Unix(t.CreatedAt, 0), 1*time.Minute)
 
 	dbToken := &gtsmodel.Token{}
-	err = suite.db.GetWhere(suite.T().Context(), []db.Where{{Key: "access", Value: t.AccessToken}}, dbToken)
+	err = suite.db.GetWhere(suite.T().Context(), []db.BunExpr{db.Where("access = ?", t.AccessToken)}, dbToken)
 	suite.NoError(err)
 	suite.NotNil(dbToken)
 }

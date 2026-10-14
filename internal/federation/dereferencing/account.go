@@ -125,7 +125,6 @@ func (d *Dereferencer) GetAccountByURI(
 			if err := d.dereferenceAccountFeatured(ctx, requestUser, account); err != nil {
 				log.Errorf(ctx, "error fetching account featured collection: %v", err)
 			}
-
 			if err := d.dereferenceAccountStats(ctx, requestUser, account); err != nil {
 				log.Errorf(ctx, "error fetching account stats: %v", err)
 			}
@@ -165,8 +164,7 @@ func (d *Dereferencer) getAccountByURI(
 			gtscontext.SetBarebones(ctx),
 			uriStr,
 		)
-		if err != nil && !errorsv2.IsV2(
-			err,
+		if err != nil && !errorsv2.IsV2(err,
 			db.ErrNoEntries,
 			db.ErrMultipleEntries,
 		) {
@@ -272,10 +270,12 @@ func (d *Dereferencer) getAccountByUsernameDomain(
 
 	// Search the database for existing account with USERNAME@DOMAIN.
 	account, err := d.state.DB.GetAccountByUsernameDomain(
+
 		// request a barebones object, it may be in the
 		// db but with related models not yet dereferenced.
 		gtscontext.SetBarebones(ctx),
-		username, domain,
+		username,
+		domain,
 	)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		return nil, nil, gtserror.Newf("error checking database for account %s@%s: %w", username, domain, err)
@@ -559,12 +559,9 @@ func (d *Dereferencer) enrichAccount(
 			return nil, nil, gtserror.SetUnretrievable(err)
 
 		case err != nil:
-			// Simply log this error and move on,
-			// we already have an account URI.
-			log.Errorf(ctx,
-				"error webfingering[1] remote account %s@%s: %v",
-				account.Username, account.Domain, err,
-			)
+			// Simply log this and move on, we already have an account URI.
+			log.Errorf(ctx, "error webfingering[1] remote account %s@%s: %v",
+				account.Username, account.Domain, err)
 
 		case account.Domain != accDomain:
 			// After webfinger, we now have correct account domain from which we can do a final DB check.

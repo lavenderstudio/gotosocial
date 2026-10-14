@@ -56,8 +56,8 @@ type Relationship interface {
 	// DeleteAccountBlocks will delete all database blocks to / from the given account ID.
 	DeleteAccountBlocks(ctx context.Context, accountID string) error
 
-	// GetRelationship retrieves the relationship of the targetAccount to the requestingAccount.
-	GetRelationship(ctx context.Context, requestingAccount string, targetAccount string) (*gtsmodel.Relationship, error)
+	// GetRelationship retrieves the relationship of the targetAccount to the requester.
+	GetRelationship(ctx context.Context, requester string, targetAccount string) (*gtsmodel.Relationship, error)
 
 	// GetFollowByID fetches follow with given ID from the database.
 	GetFollowByID(ctx context.Context, id string) (*gtsmodel.Follow, error)
@@ -140,13 +140,13 @@ type Relationship interface {
 	// RejectFollowRequest fetches a follow request from the database, and then deletes it.
 	RejectFollowRequest(ctx context.Context, originAccountID string, targetAccountID string) error
 
-	// CountAccountFollows ...
+	// CountAccountFollows returns the number of follows originating from account.
 	CountAccountFollows(ctx context.Context, accountID string) (int, error)
 
-	// CountAccountFollowers ...
+	// CountAccountFollowers returns the number of follows targeting the account.
 	CountAccountFollowers(ctx context.Context, accountID string) (int, error)
 
-	// CountAccountFollowRequests ...
+	// CountAccountFollowRequests returns the number of pending follow requests targeting the account.
 	CountAccountFollowRequests(ctx context.Context, accountID string) (int, error)
 
 	// GetAccountFollows returns a slice of follows owned by the given accountID.

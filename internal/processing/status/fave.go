@@ -33,7 +33,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/uris"
 )
 
-// FaveCreate adds a fave for the requestingAccount, targeting the given status (no-op if fave already exists).
+// FaveCreate adds a fave for the requester, targeting the given status (no-op if fave already exists).
 func (p *Processor) FaveCreate(
 	ctx context.Context,
 	requester *gtsmodel.Account,

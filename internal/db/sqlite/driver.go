@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-//go:build !moderncsqlite3 && !nowasm
+//go:build !moderncsqlite3
 
 package sqlite
 
@@ -25,9 +25,25 @@ import (
 
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 
+	"github.com/ncruces/go-sqlite3"
 	sqlite3driver "github.com/ncruces/go-sqlite3/driver"
+	"github.com/ncruces/go-sqlite3/ext/fts5"
 	_ "github.com/ncruces/go-sqlite3/vfs/memdb" // include memdb vfs
 )
+
+// WordTokenizer defines the word tokenizer
+// to use for this SQLite implementation.
+const WordTokenizer = "uax29"
+
+func init() {
+	sqlite3.AutoExtension(func(c *sqlite3.Conn) error {
+		return fts5.RegisterCustom(c, func(a *fts5.API) error {
+			return a.CreateTokenizer("uax29", func(_ []string) (fts5.Tokenizer, error) {
+				return Uax29Tokenizer{}, nil
+			})
+		})
+	})
+}
 
 // Driver is our own wrapper around the
 // driver.SQLite{} type in order to wrap

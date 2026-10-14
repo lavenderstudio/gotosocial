@@ -39,9 +39,9 @@ func (suite *GetFileTestSuite) TestGetRemoteFileCached() {
 
 	testAttachment := suite.testAttachments["remote_account_1_status_1_attachment_1"]
 	fileName := path.Base(testAttachment.File.Path)
-	requestingAccount := suite.testAccounts["local_account_1"]
+	requester := suite.testAccounts["local_account_1"]
 
-	content, errWithCode := suite.mediaProcessor.GetFile(ctx, requestingAccount, &apimodel.GetContentRequestForm{
+	content, errWithCode := suite.mediaProcessor.GetFile(ctx, requester, &apimodel.GetContentRequestForm{
 		AccountID: testAttachment.AccountID,
 		MediaType: string(media.TypeAttachment),
 		MediaSize: string(media.SizeOriginal),
@@ -81,8 +81,8 @@ func (suite *GetFileTestSuite) TestGetRemoteFileUncached() {
 	suite.NoError(err)
 
 	// now fetch it
-	requestingAccount := suite.testAccounts["local_account_1"]
-	content, errWithCode := suite.mediaProcessor.GetFile(ctx, requestingAccount, &apimodel.GetContentRequestForm{
+	requester := suite.testAccounts["local_account_1"]
+	content, errWithCode := suite.mediaProcessor.GetFile(ctx, requester, &apimodel.GetContentRequestForm{
 		AccountID: testAttachment.AccountID,
 		MediaType: string(media.TypeAttachment),
 		MediaSize: string(media.SizeOriginal),
@@ -136,8 +136,8 @@ func (suite *GetFileTestSuite) TestGetRemoteFileUncachedInterrupted() {
 	suite.NoError(err)
 
 	// now fetch it
-	requestingAccount := suite.testAccounts["local_account_1"]
-	content, errWithCode := suite.mediaProcessor.GetFile(ctx, requestingAccount, &apimodel.GetContentRequestForm{
+	requester := suite.testAccounts["local_account_1"]
+	content, errWithCode := suite.mediaProcessor.GetFile(ctx, requester, &apimodel.GetContentRequestForm{
 		AccountID: testAttachment.AccountID,
 		MediaType: string(media.TypeAttachment),
 		MediaSize: string(media.SizeOriginal),
@@ -189,8 +189,8 @@ func (suite *GetFileTestSuite) TestGetRemoteFileThumbnailUncached() {
 	suite.NoError(err)
 
 	// now fetch the thumbnail
-	requestingAccount := suite.testAccounts["local_account_1"]
-	content, errWithCode := suite.mediaProcessor.GetFile(ctx, requestingAccount, &apimodel.GetContentRequestForm{
+	requester := suite.testAccounts["local_account_1"]
+	content, errWithCode := suite.mediaProcessor.GetFile(ctx, requester, &apimodel.GetContentRequestForm{
 		AccountID: testAttachment.AccountID,
 		MediaType: string(media.TypeAttachment),
 		MediaSize: string(media.SizeSmall),

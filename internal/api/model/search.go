@@ -17,20 +17,14 @@
 
 package model
 
-// SearchRequest models a search request.
-type SearchRequest struct {
-	MaxID             string
-	MinID             string
-	Limit             int
-	Offset            int
-	Query             string
-	QueryType         string
-	Resolve           bool
-	Following         bool
-	ExcludeUnreviewed bool
-	AccountID         string
-	APIv1             bool // Set to 'true' if using version 1 of the search API.
-}
+type SearchQueryType = string
+
+const (
+	SearchQueryTypeNone     SearchQueryType = ""
+	SearchQueryTypeAccounts SearchQueryType = "accounts"
+	SearchQueryTypeStatuses SearchQueryType = "statuses"
+	SearchQueryTypeHashTags SearchQueryType = "hashtags"
+)
 
 // SearchResult models a search result.
 //

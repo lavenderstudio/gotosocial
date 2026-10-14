@@ -29,7 +29,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/id"
 )
 
-// BookmarkCreate adds a bookmark for the requestingAccount, targeting the given status (no-op if bookmark already exists).
+// BookmarkCreate adds a bookmark for the requester, targeting the given status (no-op if bookmark already exists).
 func (p *Processor) BookmarkCreate(ctx context.Context, requester *gtsmodel.Account, statusID string) (*apimodel.Status, gtserror.WithCode) {
 	targetStatus, existing, errWithCode := p.getBookmarkableStatus(ctx, requester, statusID)
 	if errWithCode != nil {

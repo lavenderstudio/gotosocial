@@ -31,7 +31,10 @@ func (p *Processor) Update(
 	ctx context.Context,
 	account *gtsmodel.Account,
 	form *apimodel.UpdateAccountRequest,
-) (*apimodel.Account, gtserror.WithCode) {
+) (
+	*apimodel.Account,
+	gtserror.WithCode,
+) {
 	// Need settings set
 	// for StatusContentType.
 	if account.Settings == nil {

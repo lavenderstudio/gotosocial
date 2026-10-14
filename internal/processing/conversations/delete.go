@@ -27,11 +27,11 @@ import (
 
 func (p *Processor) Delete(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	id string,
 ) gtserror.WithCode {
 	// Get the conversation so that we can check its owning account ID.
-	conversation, errWithCode := p.getConversationOwnedBy(gtscontext.SetBarebones(ctx), id, requestingAccount)
+	conversation, errWithCode := p.getConversationOwnedBy(gtscontext.SetBarebones(ctx), id, requester)
 	if errWithCode != nil {
 		return errWithCode
 	}

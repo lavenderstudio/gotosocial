@@ -248,7 +248,7 @@ func cutUpper(in []string, bound string) []string {
 // random reader according to current-time source seed.
 var randRd = rand.New(rand.NewSource(time.Now().Unix()))
 
-// generateParams ...
+// generateParams generates random minimum, maximum indices and page limit, up-to maximum 'n'.
 func generateParams(n int) (minIdx int, maxIdx int, limit int) {
 	maxIdx = max(1, randRd.Intn(n))
 	minIdx = randRd.Intn(maxIdx)

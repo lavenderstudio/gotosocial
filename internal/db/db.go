@@ -17,12 +17,8 @@
 
 package db
 
-const (
-	// DBTypePostgres represents an underlying POSTGRES database type.
-	DBTypePostgres string = "POSTGRES"
-)
-
-// DB provides methods for interacting with an underlying database or other storage mechanism.
+// DB provides methods for interacting with an
+// underlying database or other storage mechanism.
 type DB interface {
 	Account
 	Admin

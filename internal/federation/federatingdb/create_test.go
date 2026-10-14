@@ -36,9 +36,9 @@ type CreateTestSuite struct {
 
 func (suite *CreateTestSuite) TestCreateNote() {
 	receivingAccount := suite.testAccounts["local_account_1"]
-	requestingAccount := suite.testAccounts["remote_account_1"]
+	requester := suite.testAccounts["remote_account_1"]
 
-	ctx := createTestContext(suite.T(), receivingAccount, requestingAccount)
+	ctx := createTestContext(suite.T(), receivingAccount, requester)
 
 	create := suite.testActivities["dm_for_zork"].Activity
 	objProp := create.GetActivityStreamsObject()
@@ -56,9 +56,9 @@ func (suite *CreateTestSuite) TestCreateNote() {
 
 func (suite *CreateTestSuite) TestCreateNoteForward() {
 	receivingAccount := suite.testAccounts["local_account_1"]
-	requestingAccount := suite.testAccounts["remote_account_1"]
+	requester := suite.testAccounts["remote_account_1"]
 
-	ctx := createTestContext(suite.T(), receivingAccount, requestingAccount)
+	ctx := createTestContext(suite.T(), receivingAccount, requester)
 
 	create := suite.testActivities["forwarded_message"].Activity
 
@@ -69,7 +69,7 @@ func (suite *CreateTestSuite) TestCreateNoteForward() {
 		ID:              id.NewULID(),
 		URI:             "https://this.is.a.url",
 		AccountID:       receivingAccount.ID,
-		TargetAccountID: requestingAccount.ID,
+		TargetAccountID: requester.ID,
 	})
 	suite.NoError(err)
 

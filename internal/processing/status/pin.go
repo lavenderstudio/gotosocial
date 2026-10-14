@@ -29,7 +29,7 @@ import (
 
 const allowedPinnedCount = 10
 
-// getPinnableStatus fetches targetStatusID status and ensures that requestingAccountID
+// getPinnableStatus fetches targetStatusID status and ensures that requesterID
 // can pin or unpin it.
 //
 // It checks:
@@ -65,7 +65,7 @@ func (p *Processor) getPinnableStatus(ctx context.Context, requester *gtsmodel.A
 	return targetStatus, nil
 }
 
-// PinCreate pins the target status to the top of requestingAccount's profile, if possible.
+// PinCreate pins the target status to the top of requester's profile, if possible.
 //
 // Conditions for a pin to work:
 //   - Status belongs to requesting account.
@@ -123,7 +123,7 @@ func (p *Processor) PinCreate(ctx context.Context, requester *gtsmodel.Account, 
 	return p.c.GetAPIStatus(ctx, requester, targetStatus)
 }
 
-// PinRemove unpins the target status from the top of requestingAccount's profile, if possible.
+// PinRemove unpins the target status from the top of requester's profile, if possible.
 //
 // Conditions for an unpin to work:
 //   - Status belongs to requesting account.

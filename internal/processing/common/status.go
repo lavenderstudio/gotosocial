@@ -319,7 +319,7 @@ func (p *Processor) GetVisibleAPIStatuses(
 	requester *gtsmodel.Account,
 	statuses []*gtsmodel.Status,
 	filterCtx gtsmodel.FilterContext,
-) []apimodel.Status {
+) []*apimodel.Status {
 
 	// Start new log entry with
 	// the calling function name
@@ -328,7 +328,7 @@ func (p *Processor) GetVisibleAPIStatuses(
 		WithField("caller", log.Caller(3))
 
 	// Iterate filtered statuses for conversion to API model.
-	apiStatuses := make([]apimodel.Status, 0, len(statuses))
+	apiStatuses := make([]*apimodel.Status, 0, len(statuses))
 	for _, status := range statuses {
 
 		// Check whether status is visible to requester.
@@ -390,7 +390,7 @@ func (p *Processor) GetVisibleAPIStatuses(
 		apiStatus.Filtered = filtered
 
 		// Append converted status to return slice.
-		apiStatuses = append(apiStatuses, *apiStatus)
+		apiStatuses = append(apiStatuses, apiStatus)
 	}
 
 	return apiStatuses

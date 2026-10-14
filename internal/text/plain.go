@@ -231,6 +231,7 @@ func ParseHTMLToPlain(html string) string {
 // This is useful in cases where the input was not allowed
 // to contain HTML at all, and the output isn't either.
 func StripHTMLFromText(text string) string {
+
 	// Unescape first to catch any tricky critters.
 	content := gohtml.UnescapeString(text)
 

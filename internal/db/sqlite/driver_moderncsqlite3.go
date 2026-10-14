@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-//go:build moderncsqlite3 || nowasm
+//go:build moderncsqlite3
 
 package sqlite
 
@@ -27,6 +27,10 @@ import (
 
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 )
+
+// WordTokenizer defines the word tokenizer
+// to use for this SQLite implementation.
+const WordTokenizer = "unicode61"
 
 // Driver is our own wrapper around the
 // sqlite.Driver{} type in order to wrap

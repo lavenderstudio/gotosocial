@@ -24,7 +24,8 @@ import (
 	"github.com/klauspost/compress/gzhttp"
 )
 
-// WithCompression ...
+// WithCompression returns a wrapping http.MiddlewareFunc that
+// wraps a passed handler with klauspost/gzhttp provided compression.
 func WithCompression() httputil.MiddlewareFunc {
 	return func(h func(*httputil.Context)) func(*httputil.Context) {
 		if h == nil {

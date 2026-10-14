@@ -166,9 +166,8 @@ func (p *Processor) GetFilterKeyword(
 	return keyword, filter, nil
 }
 
-// OnFilterChanged ...
+// OnFilterChanged performs any events required on an account filter being changed, i.e. streaming filter changed events.
 func (p *Processor) OnFilterChanged(ctx context.Context, requester *gtsmodel.Account) {
-	// Send filter changed event for account.
 	p.stream.FiltersChanged(ctx, requester)
 }
 

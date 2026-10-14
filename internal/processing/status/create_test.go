@@ -65,7 +65,7 @@ func (suite *StatusCreateTestSuite) TestProcessStatusMarkdownWithUnderscoreEmoji
 	ctx := suite.T().Context()
 
 	// update the shortcode of the rainbow emoji to surround it in underscores
-	if err := suite.db.UpdateWhere(ctx, []db.Where{{Key: "shortcode", Value: "rainbow"}}, "shortcode", "_rainbow_", &gtsmodel.Emoji{}); err != nil {
+	if err := suite.db.UpdateWhere(ctx, []db.BunExpr{{Fmt: "shortcode = ?", Arg: []any{"rainbow"}}}, "shortcode", "_rainbow_", &gtsmodel.Emoji{}); err != nil {
 		suite.FailNow(err.Error())
 	}
 

@@ -22,6 +22,8 @@ import (
 	"database/sql"
 	"database/sql/driver"
 
+	"code.superseriousbusiness.org/gopkg/buffers"
+	"code.superseriousbusiness.org/gopkg/xslices"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect"
 	"github.com/uptrace/bun/dialect/pgdialect"
@@ -62,6 +64,20 @@ type BunQueryBuilder[QueryType any] interface {
 	Scan(ctx context.Context, args ...any) error
 }
 
+// Placeholders returns bun argument
+// placeholders up to a maximum of 40.
+//
+// any more than this will panic but
+// god i cannot think of any queries
+// we write by hand that get this large.
+func Placeholders(n int) string {
+	const placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
+		"?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
+		"?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
+		"?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+	return placeholders[:(3*n)-2]
+}
+
 // ToNamedValues converts older driver.Value types to driver.NamedValue types.
 func ToNamedValues(args []driver.Value) []driver.NamedValue {
 	if args == nil {
@@ -75,6 +91,70 @@ func ToNamedValues(args []driver.Value) []driver.NamedValue {
 		}
 	}
 	return args2
+}
+
+// Where is syntactic sugar for returning a
+// BunExpr{} with format string and arguments.
+func Where(fmt string, arg ...any) BunExpr {
+	return BunExpr{Fmt: fmt, Arg: arg}
+}
+
+// WhereGroup returns a BunExpr{} WHERE clause that is
+// a combination of the given BunExpr{} joined by 'sep'.
+func WhereGroup(sep string, wheres ...BunExpr) (expr BunExpr) {
+	if len(wheres) == 0 {
+		panic("no wheres")
+	}
+
+	// Pre-allocate a slice of arguments of length of all combined arguments.
+	expr.Arg = make([]any, 0, xslices.Count(wheres, func(where BunExpr) int {
+		return len(where.Arg)
+	}))
+
+	// Acquire a byte buffer.
+	buf := buffers.Get1k()
+	buf.B = buf.B[:0]
+
+	// Append each where expression
+	// to buffer, separated by 'sep'.
+	for _, where := range wheres {
+		buf.B = append(buf.B, '(')
+		buf.B = append(buf.B, where.Fmt...)
+		buf.B = append(buf.B, ')')
+		buf.B = append(buf.B, sep...)
+		expr.Arg = append(expr.Arg, where.Arg...)
+	}
+
+	// Truncate trailing separator,
+	// obtain buffered string copy,
+	// return buffer to pool.
+	buf.Truncate(len(sep))
+	expr.Fmt = string(buf.B)
+	buffers.Put1k(buf)
+
+	return
+}
+
+// WhereGroupQuery calls WhereGroup() and appends
+// the resulting BunExpr{} to given query builder.
+func WhereGroupQuery[
+
+	// this is some very confusing generic parameter-
+	// -isation here, but you can check the type info
+	// shown by the linter for uses of this function
+	// and you'll see it collapses without interfaces
+	//
+	// e.g.
+	// WhereGroup(*bun.SelectQuery, ...) *bun.SelectQuery
+	QueryType any,
+	Builder BunQueryBuilder[QueryType],
+](
+	q Builder,
+	sep string,
+	wheres ...BunExpr,
+) QueryType {
+	expr := WhereGroup(sep, wheres...)
+	return q.Where(expr.Fmt, expr.Arg...)
 }
 
 // BitNotSet returns a set of arguments for a bun

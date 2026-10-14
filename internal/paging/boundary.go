@@ -71,7 +71,8 @@ func EitherMinID(minID, sinceID string) Boundary {
 	}
 }
 
-// SinceID ...
+// SinceID returns an ID boundary with given
+// min ID value, and the "since_id" query key set.
 func SinceID(sinceID string) Boundary {
 	return Boundary{
 		// even when a since_id query is
@@ -85,7 +86,8 @@ func SinceID(sinceID string) Boundary {
 	}
 }
 
-// MinID ...
+// MinID returns an ID boundary with given min
+// ID value, and the "min_id" query key set.
 func MinID(minID string) Boundary {
 	return Boundary{
 		Name:  "min_id",

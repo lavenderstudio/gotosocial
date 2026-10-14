@@ -34,10 +34,12 @@ import (
 // travels from the client API into the processor.
 type FromClientAPI struct {
 
-	// APObjectType ...
+	// APObjectType is the AP object type
+	// string this worker message represents.
 	APObjectType string
 
-	// APActivityType ...
+	// APActivityType is the AP activity type
+	// string this worker message represents.
 	APActivityType string
 
 	// Optional GTS database model
@@ -169,10 +171,12 @@ func ClientMsgIndices() []structr.IndexConfig {
 // travels from the federating API into the processor.
 type FromFediAPI struct {
 
-	// APObjectType ...
+	// APObjectType is the AP object type
+	// string this worker message represents.
 	APObjectType string
 
-	// APActivityType ...
+	// APActivityType is the AP activity type
+	// string this worker message represents.
 	APActivityType string
 
 	// Optional ActivityPub ID (IRI)

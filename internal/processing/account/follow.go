@@ -37,10 +37,10 @@ import (
 // to an account, either remote or local.
 func (p *Processor) FollowCreate(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	form *apimodel.AccountFollowRequest,
 ) (*apimodel.Relationship, gtserror.WithCode) {
-	targetAccount, errWithCode := p.getFollowTarget(ctx, requestingAccount, form.ID)
+	targetAccount, errWithCode := p.getFollowTarget(ctx, requester, form.ID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
@@ -48,7 +48,7 @@ func (p *Processor) FollowCreate(
 	// Check if a follow exists already.
 	if follow, err := p.state.DB.GetFollow(
 		gtscontext.SetBarebones(ctx),
-		requestingAccount.ID,
+		requester.ID,
 		targetAccount.ID,
 	); err != nil && !errors.Is(err, db.ErrNoEntries) {
 		err = gtserror.Newf("db error checking existing follow: %w", err)
@@ -57,7 +57,7 @@ func (p *Processor) FollowCreate(
 		// Already follows, update if necessary + return relationship.
 		return p.updateFollow(
 			ctx,
-			requestingAccount,
+			requester,
 			form,
 			&follow.Flags,
 			func() error { return p.state.DB.UpdateFollow(ctx, follow, "flags") },
@@ -67,7 +67,7 @@ func (p *Processor) FollowCreate(
 	// Check if a follow request exists already.
 	if followRequest, err := p.state.DB.GetFollowRequest(
 		gtscontext.SetBarebones(ctx),
-		requestingAccount.ID,
+		requester.ID,
 		targetAccount.ID,
 	); err != nil && !errors.Is(err, db.ErrNoEntries) {
 		err = gtserror.Newf("db error checking existing follow request: %w", err)
@@ -76,7 +76,7 @@ func (p *Processor) FollowCreate(
 		// Already requested, update if necessary + return relationship.
 		return p.updateFollow(
 			ctx,
-			requestingAccount,
+			requester,
 			form,
 			&followRequest.Flags,
 			func() error { return p.state.DB.UpdateFollowRequest(ctx, followRequest, "flags") },
@@ -87,16 +87,16 @@ func (p *Processor) FollowCreate(
 	// create and store a new follow request.
 	followID := id.NewRandomULID()
 	followURI := uris.GenerateURIForFollow(
-		requestingAccount.PathPrefix(),
-		requestingAccount.Username,
+		requester.PathPrefix(),
+		requester.Username,
 		followID,
 	)
 
 	fr := &gtsmodel.FollowRequest{
 		ID:              followID,
 		URI:             followURI,
-		AccountID:       requestingAccount.ID,
-		Account:         requestingAccount,
+		AccountID:       requester.ID,
+		Account:         requester,
 		TargetAccountID: form.ID,
 		TargetAccount:   targetAccount,
 		Flags: func() (flags gtsmodel.FollowFlags) {
@@ -113,7 +113,7 @@ func (p *Processor) FollowCreate(
 	}
 
 	// And get the new relationship state.
-	rel, errWithCode := p.c.APIRelationship(ctx, requestingAccount, form.ID)
+	rel, errWithCode := p.c.APIRelationship(ctx, requester, form.ID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
@@ -133,7 +133,7 @@ func (p *Processor) FollowCreate(
 		APObjectType:   ap.ActivityFollow,
 		APActivityType: ap.ActivityCreate,
 		GTSModel:       fr,
-		Origin:         requestingAccount,
+		Origin:         requester,
 		Target:         targetAccount,
 	})
 
@@ -144,10 +144,10 @@ func (p *Processor) FollowCreate(
 // request to an account, either remote or local.
 func (p *Processor) FollowRemove(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	targetAccountID string,
 ) (*apimodel.Relationship, gtserror.WithCode) {
-	targetAccount, errWithCode := p.getFollowTarget(ctx, requestingAccount, targetAccountID)
+	targetAccount, errWithCode := p.getFollowTarget(ctx, requester, targetAccountID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
@@ -155,7 +155,7 @@ func (p *Processor) FollowRemove(
 	// Unfollow and deal
 	// with side effects.
 	if err := p.c.Unfollow(ctx,
-		requestingAccount,
+		requester,
 		targetAccount,
 		true, // sideEffects
 	); err != nil {
@@ -163,7 +163,7 @@ func (p *Processor) FollowRemove(
 		return nil, gtserror.NewErrorNotFound(err)
 	}
 
-	return p.c.APIRelationship(ctx, requestingAccount, targetAccountID)
+	return p.c.APIRelationship(ctx, requester, targetAccountID)
 }
 
 /*
@@ -177,14 +177,14 @@ func (p *Processor) FollowRemove(
 // origin and follow target account.
 func (p *Processor) updateFollow(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	form *apimodel.AccountFollowRequest,
 	flags *gtsmodel.FollowFlags,
 	update func() error,
 ) (*apimodel.Relationship, gtserror.WithCode) {
 	if form.Reblogs == nil && form.Notify == nil {
 		// There's nothing to update.
-		return p.c.APIRelationship(ctx, requestingAccount, form.ID)
+		return p.c.APIRelationship(ctx, requester, form.ID)
 	}
 
 	// Check what we need to
@@ -203,7 +203,7 @@ func (p *Processor) updateFollow(
 
 	if !updatingFlags {
 		// Nothing actually changed.
-		return p.c.APIRelationship(ctx, requestingAccount, form.ID)
+		return p.c.APIRelationship(ctx, requester, form.ID)
 	}
 
 	if err := update(); err != nil {
@@ -211,7 +211,7 @@ func (p *Processor) updateFollow(
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	return p.c.APIRelationship(ctx, requestingAccount, form.ID)
+	return p.c.APIRelationship(ctx, requester, form.ID)
 }
 
 // getFollowTarget is a convenience function which:

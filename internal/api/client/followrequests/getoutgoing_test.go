@@ -40,15 +40,15 @@ type GetOutgoingTestSuite struct {
 }
 
 func (suite *GetOutgoingTestSuite) TestGetOutgoing() {
-	requestingAccount := suite.testAccounts["local_account_1"]
+	requester := suite.testAccounts["local_account_1"]
 	targetAccount := suite.testAccounts["remote_account_2"]
 
 	// put a follow request in the database
 	fr := &gtsmodel.FollowRequest{
 		ID:              "01JWKX18JFKWXKXK5FSKVM4HDP",
 		CreatedAt:       time.Now(),
-		URI:             fmt.Sprintf("%s/follow/01JWKX18JFKWXKXK5FSKVM4HDP", requestingAccount.URI),
-		AccountID:       requestingAccount.ID,
+		URI:             fmt.Sprintf("%s/follow/01JWKX18JFKWXKXK5FSKVM4HDP", requester.URI),
+		AccountID:       requester.ID,
 		TargetAccountID: targetAccount.ID,
 	}
 
@@ -133,8 +133,8 @@ func (suite *GetOutgoingTestSuite) testGetOutgoingPage(limit int, direction stri
 	ctx := suite.T().Context()
 
 	// The authed local account we are going to use for HTTP requests
-	requestingAccount := suite.testAccounts["local_account_1"]
-	suite.clearAccountRelations(requestingAccount.ID)
+	requester := suite.testAccounts["local_account_1"]
+	suite.clearAccountRelations(requester.ID)
 
 	// Get current time.
 	now := time.Now()
@@ -144,7 +144,7 @@ func (suite *GetOutgoingTestSuite) testGetOutgoingPage(limit int, direction stri
 	// Have each account in the testrig follow req the
 	// account requesting their followers from the API.
 	for _, targetAccount := range suite.testAccounts {
-		if requestingAccount.ID == targetAccount.ID {
+		if requester.ID == targetAccount.ID {
 			// we cannot be our own target...
 			continue
 		}
@@ -157,8 +157,8 @@ func (suite *GetOutgoingTestSuite) testGetOutgoingPage(limit int, direction stri
 		err := suite.db.PutFollowRequest(ctx, &gtsmodel.FollowRequest{
 			ID:              id,
 			CreatedAt:       now,
-			URI:             fmt.Sprintf("%s/follow/%s", requestingAccount.URI, id),
-			AccountID:       requestingAccount.ID,
+			URI:             fmt.Sprintf("%s/follow/%s", requester.URI, id),
+			AccountID:       requester.ID,
 			TargetAccountID: targetAccount.ID,
 		})
 		suite.NoError(err)
@@ -168,7 +168,7 @@ func (suite *GetOutgoingTestSuite) testGetOutgoingPage(limit int, direction stri
 	}
 
 	// Get _ALL_ follow requests we expect to see without any paging (this filters invisible).
-	apiRsp, err := suite.processor.Account().OutgoingFollowRequestsGet(ctx, requestingAccount, nil, "")
+	apiRsp, err := suite.processor.Account().OutgoingFollowRequestsGet(ctx, requester, nil, "")
 	suite.NoError(err)
 	expectAccounts := apiRsp.Items // interfaced{} account slice
 
@@ -181,7 +181,7 @@ func (suite *GetOutgoingTestSuite) testGetOutgoingPage(limit int, direction stri
 		// Set the starting query to page from
 		// newest (ie., first entry in slice).
 		acc := expectAccounts[0].(*model.Account)
-		newest, _ := suite.db.GetFollowRequest(ctx, requestingAccount.ID, acc.ID)
+		newest, _ := suite.db.GetFollowRequest(ctx, requester.ID, acc.ID)
 		expectAccounts = expectAccounts[1:]
 		query = fmt.Sprintf("limit=%d&max_id=%s", limit, newest.ID)
 
@@ -189,7 +189,7 @@ func (suite *GetOutgoingTestSuite) testGetOutgoingPage(limit int, direction stri
 		// Set the starting query to page from
 		// oldest (ie., last entry in slice).
 		acc := expectAccounts[len(expectAccounts)-1].(*model.Account)
-		oldest, _ := suite.db.GetFollowRequest(ctx, requestingAccount.ID, acc.ID)
+		oldest, _ := suite.db.GetFollowRequest(ctx, requester.ID, acc.ID)
 		expectAccounts = expectAccounts[:len(expectAccounts)-1]
 		query = fmt.Sprintf("limit=%d&min_id=%s", limit, oldest.ID)
 	}

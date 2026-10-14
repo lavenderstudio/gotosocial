@@ -23,15 +23,10 @@ import (
 	"context"
 	"errors"
 
-	"code.superseriousbusiness.org/gotosocial/cmd/gotosocial/action"
+	"code.superseriousbusiness.org/gotosocial/internal/db/sqlite"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect"
 )
-
-// check function conformance.
-var _ action.GTSAction = SQLiteAnalyze
-
-// var _ action.GTSAction = SQLiteVacuum
 
 func SQLiteAnalyze(ctx context.Context) error {
 	return do(ctx, true, func(db *bun.DB) error {
@@ -43,12 +38,28 @@ func SQLiteAnalyze(ctx context.Context) error {
 	})
 }
 
-// func SQLiteVacuum(ctx context.Context) error {
-// 	return do(ctx, func(db *bun.DB) error {
-// 		if db.Dialect().Name() != dialect.SQLite {
-// 			return errors.New("cannot perform sqlite vacuum on non-sqlite db")
-// 		}
-// 		_, err := db.ExecContext(ctx, "vacuum;")
-// 		return err
-// 	})
-// }
+func SQLiteVacuum(ctx context.Context) error {
+	return do(ctx, true, func(db *bun.DB) error {
+		if db.Dialect().Name() != dialect.SQLite {
+			return errors.New("cannot perform sqlite vacuum on non-sqlite db")
+		}
+		_, err := db.ExecContext(ctx, "vacuum;")
+		return err
+	})
+}
+
+func SQLiteRebuildFTS5(ctx context.Context, recreate bool) error {
+	return do(ctx, true, func(db *bun.DB) error {
+		if recreate {
+			if err := sqlite.DropFts5Tables(ctx, db); err != nil {
+				return err
+			}
+			if err := sqlite.CreateFts5Tables(ctx, db); err != nil {
+				return err // nolint: revive
+			}
+			return nil
+		} else { // nolint: revive
+			return sqlite.RebuildFts5Tables(ctx, db)
+		}
+	})
+}

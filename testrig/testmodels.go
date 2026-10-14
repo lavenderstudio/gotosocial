@@ -2640,7 +2640,7 @@ func NewTestStatuses() map[string]*gtsmodel.Status {
 			InReplyToURI:             "http://localhost:8080/users/1happyturtle/statuses/01KDW3W8Z84SJ4F6RFEAJG96ZF",
 			InReplyToAccountID:       "01F8MH5NBDF2MV7CTC4Q5128HF",
 			ThreadID:                 "01KDW3W8Z8P2XKT92EFEM15VRM",
-			Content:                  "<p> here i'm replying to an original status i deleted </p",
+			Content:                  "<p> here i'm replying to an original status i deleted </p>",
 			Text:                     "here i'm replying to an original status i deleted",
 			Visibility:               gtsmodel.VisibilityPublic,
 			ActivityStreamsType:      ap.ObjectNote,

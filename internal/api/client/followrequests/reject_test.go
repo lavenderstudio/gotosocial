@@ -36,15 +36,15 @@ type RejectTestSuite struct {
 }
 
 func (suite *RejectTestSuite) TestReject() {
-	requestingAccount := suite.testAccounts["remote_account_2"]
+	requester := suite.testAccounts["remote_account_2"]
 	targetAccount := suite.testAccounts["local_account_1"]
 
 	// put a follow request in the database
 	fr := &gtsmodel.FollowRequest{
 		ID:              "01FJ1S8DX3STJJ6CEYPMZ1M0R3",
 		CreatedAt:       time.Now(),
-		URI:             fmt.Sprintf("%s/follow/01FJ1S8DX3STJJ6CEYPMZ1M0R3", requestingAccount.URI),
-		AccountID:       requestingAccount.ID,
+		URI:             fmt.Sprintf("%s/follow/01FJ1S8DX3STJJ6CEYPMZ1M0R3", requester.URI),
+		AccountID:       requester.ID,
 		TargetAccountID: targetAccount.ID,
 	}
 
@@ -52,8 +52,8 @@ func (suite *RejectTestSuite) TestReject() {
 	suite.NoError(err)
 
 	recorder := httptest.NewRecorder()
-	c := suite.newContext(recorder, http.MethodPost, []byte{}, fmt.Sprintf("/api/v1/follow_requests/%s/reject", requestingAccount.ID), "")
-	c.SetPathValue(apiutil.IDKey, requestingAccount.ID)
+	c := suite.newContext(recorder, http.MethodPost, []byte{}, fmt.Sprintf("/api/v1/follow_requests/%s/reject", requester.ID), "")
+	c.SetPathValue(apiutil.IDKey, requester.ID)
 
 	// call the handler
 	suite.followRequestModule.FollowRequestRejectPOSTHandler(c)

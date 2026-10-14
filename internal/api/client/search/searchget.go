@@ -18,11 +18,16 @@
 package search
 
 import (
+	"errors"
 	"net/http"
+	"strings"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
+	"code.superseriousbusiness.org/gotosocial/internal/paging"
+	"code.superseriousbusiness.org/gotosocial/internal/processing/search"
 )
 
 // SearchGETHandler swagger:operation GET /api/{api_version}/search searchGet
@@ -200,29 +205,12 @@ func (m *Module) SearchGETHandler(c *httputil.Context) {
 
 	if authed.Account.IsMoving() {
 		// For moving/moved accounts, just return
-		// empty to avoid breaking client apps.
-		results := &apimodel.SearchResult{
-			Accounts: make([]*apimodel.Account, 0),
-			Statuses: make([]*apimodel.Status, 0),
-			Hashtags: make([]any, 0),
-		}
-		httputil.JSON(c, http.StatusOK, results)
+		// empty to avoid breaking client applications.
+		httputil.JSON(c, http.StatusOK, search.EmptyResult)
 		return
 	}
 
 	if _, errWithCode := apiutil.NegotiateAccept(c, apiutil.JSONAcceptHeaders...); errWithCode != nil {
-		apiutil.ErrorHandler(c, m.templates, errWithCode)
-		return
-	}
-
-	limit, errWithCode := apiutil.ParseLimit(c.Query(apiutil.LimitKey), 20, 40, 1)
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, m.templates, errWithCode)
-		return
-	}
-
-	offset, errWithCode := apiutil.ParseOffset(c.Query(apiutil.OffsetKey), 0, 10, 0)
-	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
@@ -239,36 +227,105 @@ func (m *Module) SearchGETHandler(c *httputil.Context) {
 		return
 	}
 
-	following, errWithCode := apiutil.ParseSearchFollowing(c.Query(apiutil.SearchFollowingKey), false)
+	follows, errWithCode := apiutil.ParseSearchFollowing(c.Query(apiutil.SearchFollowingKey), false)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	excludeUnreviewed, errWithCode := apiutil.ParseSearchExcludeUnreviewed(c.Query(apiutil.SearchExcludeUnreviewedKey), false)
+	page, errWithCode := paging.ParseIDPage(c,
+		1,  // min
+		20, // max
+		10, // default
+	)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
 	}
 
-	searchRequest := &apimodel.SearchRequest{
-		MaxID:             c.Query(apiutil.MaxIDKey),
-		MinID:             c.Query(apiutil.MinIDKey),
-		Limit:             limit,
-		Offset:            offset,
-		Query:             query,
-		QueryType:         c.Query(apiutil.SearchTypeKey),
-		Resolve:           resolve,
-		Following:         following,
-		ExcludeUnreviewed: excludeUnreviewed,
-		AccountID:         c.Query(apiutil.AccountIDKey),
-		APIv1:             apiVersion == apiutil.APIv1,
-	}
-
-	results, errWithCode := m.processor.Search().Get(c, authed.Account, searchRequest)
+	offset, errWithCode := apiutil.ParseOffset(c.Query(apiutil.OffsetKey), 0, 10, 0)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
+	} else if offset > 0 {
+
+		// We don't support offset-based searching,
+		// so return empty if an offset is attempted.
+		httputil.JSON(c, http.StatusOK, search.EmptyResult)
+		return
+	}
+
+	var next, prev *paging.Page
+	var results *apimodel.SearchResult
+
+	// Handle search depending on search type.
+	switch t := c.Query(apiutil.SearchTypeKey); //
+	strings.ToLower(t) {
+
+	case apimodel.SearchQueryTypeNone:
+		results, next, prev, errWithCode = m.processor.Search().Get(c,
+			authed.Account,
+			query,
+			resolve,
+			follows,
+			c.Query(apiutil.AccountIDKey),
+			page,
+		)
+
+	case apimodel.SearchQueryTypeAccounts:
+		results, next, prev, errWithCode = m.processor.Search().GetAccounts(c,
+			authed.Account,
+			query,
+			resolve,
+			follows,
+			page,
+		)
+
+	case apimodel.SearchQueryTypeStatuses:
+		results, next, prev, errWithCode = m.processor.Search().GetStatuses(c,
+			authed.Account,
+			query,
+			resolve,
+			follows,
+			c.Query(apiutil.AccountIDKey),
+			page,
+		)
+
+	case apimodel.SearchQueryTypeHashTags:
+		results, next, prev, errWithCode = m.processor.Search().GetTags(c,
+			query,
+			page,
+		)
+
+		// APIv1 expects tag names, so
+		// convert from tag objects if so.
+		if apiVersion == apiutil.APIv1 {
+			for i, v := range results.Hashtags {
+				results.Hashtags[i] = v.(*apimodel.Tag).Name
+			}
+		}
+
+	default:
+		text := "invalid search query type: " + t
+		errWithCode = gtserror.NewErrorBadRequest(
+			errors.New(text),
+			text,
+		)
+	}
+
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	// Parse returned next / prev pages and set link header.
+	if p := paging.PackageResponse(paging.ResponseParams{
+		Path:  c.R.URL.Path,
+		Next:  next,
+		Prev:  prev,
+		Query: c.R.Form,
+	}); p.LinkHeader != "" {
+		c.W.Header().Set("Link", p.LinkHeader)
 	}
 
 	httputil.JSON(c, http.StatusOK, results)

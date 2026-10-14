@@ -29,10 +29,10 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
-// BookmarksGet returns a pageable response of statuses that are bookmarked by requestingAccount.
+// BookmarksGet returns a pageable response of statuses that are bookmarked by requester.
 // Paging for this response is done based on bookmark ID rather than status ID.
-func (p *Processor) BookmarksGet(ctx context.Context, requestingAccount *gtsmodel.Account, limit int, maxID string, minID string) (*apimodel.PageableResponse, gtserror.WithCode) {
-	bookmarks, err := p.state.DB.GetStatusBookmarks(ctx, requestingAccount.ID, limit, maxID, minID)
+func (p *Processor) BookmarksGet(ctx context.Context, requester *gtsmodel.Account, limit int, maxID string, minID string) (*apimodel.PageableResponse, gtserror.WithCode) {
+	bookmarks, err := p.state.DB.GetStatusBookmarks(ctx, requester.ID, limit, maxID, minID)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		return nil, gtserror.NewErrorInternalError(err)
 	}
@@ -63,7 +63,7 @@ func (p *Processor) BookmarksGet(ctx context.Context, requestingAccount *gtsmode
 			return nil, gtserror.NewErrorInternalError(err) // A real error has occurred.
 		}
 
-		visible, err := p.visFilter.StatusVisible(ctx, requestingAccount, status)
+		visible, err := p.visFilter.StatusVisible(ctx, requester, status)
 		if err != nil {
 			log.Errorf(ctx, "error checking bookmarked status visibility: %s", err)
 			continue
@@ -74,7 +74,7 @@ func (p *Processor) BookmarksGet(ctx context.Context, requestingAccount *gtsmode
 		}
 
 		// Convert the status.
-		item, err := p.converter.StatusToAPIStatus(ctx, status, requestingAccount)
+		item, err := p.converter.StatusToAPIStatus(ctx, status, requester)
 		if err != nil {
 			log.Errorf(ctx, "error converting bookmarked status to api: %s", err)
 			continue

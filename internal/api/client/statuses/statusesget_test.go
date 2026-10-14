@@ -39,7 +39,7 @@ type StatusesGetTestSuite struct {
 }
 
 func (suite *StatusesGetTestSuite) getStatuses(
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	token *gtsmodel.Token,
 	user *gtsmodel.User,
 	statusIDs []string,
@@ -63,8 +63,8 @@ func (suite *StatusesGetTestSuite) getStatuses(
 		c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
 		c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
 	}
-	if requestingAccount != nil {
-		c.V.Set(oauth.SessionAuthorizedAccount, requestingAccount)
+	if requester != nil {
+		c.V.Set(oauth.SessionAuthorizedAccount, requester)
 	}
 	if user != nil {
 		c.V.Set(oauth.SessionAuthorizedUser, user)

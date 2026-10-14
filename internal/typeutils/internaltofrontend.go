@@ -925,12 +925,12 @@ func TagToAPITag(tag *gtsmodel.Tag, stubHistory bool, following *bool) apimodel.
 func (c *Converter) StatusToAPIStatus(
 	ctx context.Context,
 	status *gtsmodel.Status,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 ) (*apimodel.Status, error) {
 	return c.statusToAPIStatus(
 		ctx,
 		status,
-		requestingAccount,
+		requester,
 		true, // addPendingNote
 	)
 }
@@ -942,7 +942,7 @@ func (c *Converter) StatusToAPIStatus(
 func (c *Converter) statusToAPIStatus(
 	ctx context.Context,
 	status *gtsmodel.Status,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	addPendingNote bool,
 ) (*apimodel.Status, error) {
 
@@ -953,7 +953,7 @@ func (c *Converter) statusToAPIStatus(
 	// Pass status to core conversion function.
 	apiStatus, err := c.statusToFrontend(ctx,
 		status,
-		requestingAccount, // Can be nil.
+		requester, // Can be nil.
 	)
 	if err != nil {
 		return nil, err
@@ -996,8 +996,8 @@ func (c *Converter) statusToAPIStatus(
 		// replies to the requester, add a note
 		// about how to approve or reject the reply.
 		if status.Flags.PendingApproval() &&
-			requestingAccount != nil &&
-			requestingAccount.ID == status.InReplyToAccountID {
+			requester != nil &&
+			requester.ID == status.InReplyToAccountID {
 			pendingNote, err := c.pendingReplyNote(ctx, status)
 			if err != nil {
 				return nil, gtserror.Newf("error deriving 'pending reply' note: %w", err)
@@ -1201,14 +1201,14 @@ func (c *Converter) StatusToWebStatus(
 func (c *Converter) statusToFrontend(
 	ctx context.Context,
 	status *gtsmodel.Status,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 ) (
 	*apimodel.Status,
 	error,
 ) {
 	apiStatus, err := c.baseStatusToFrontend(ctx,
 		status,
-		requestingAccount,
+		requester,
 	)
 	if err != nil {
 		return nil, err
@@ -1217,7 +1217,7 @@ func (c *Converter) statusToFrontend(
 	if status.BoostOf != nil {
 		reblog, err := c.baseStatusToFrontend(ctx,
 			status.BoostOf,
-			requestingAccount,
+			requester,
 		)
 		if err != nil {
 			return nil, gtserror.Newf("error converting boosted status: %w", err)
@@ -2247,7 +2247,7 @@ func (c *Converter) ReportToAPIReport(ctx context.Context, r *gtsmodel.Report) (
 }
 
 // ReportToAdminAPIReport converts a gts model report into an admin view report, for serving at /api/v1/admin/reports
-func (c *Converter) ReportToAdminAPIReport(ctx context.Context, r *gtsmodel.Report, requestingAccount *gtsmodel.Account) (*apimodel.AdminReport, error) {
+func (c *Converter) ReportToAdminAPIReport(ctx context.Context, r *gtsmodel.Report, requester *gtsmodel.Account) (*apimodel.AdminReport, error) {
 	var (
 		err                  error
 		actionTakenAt        *string
@@ -2306,7 +2306,7 @@ func (c *Converter) ReportToAdminAPIReport(ctx context.Context, r *gtsmodel.Repo
 	for _, s := range r.Statuses {
 		status, err := c.statusToAPIStatus(ctx,
 			s,
-			requestingAccount,
+			requester,
 
 			// Don't add note about
 			// pending, it's not
@@ -2636,7 +2636,7 @@ func (c *Converter) ThemesToAPIThemes(themes []*gtsmodel.Theme) []apimodel.Theme
 // CanLike, CanReply, and CanAnnounce on
 // the given policy must *not* be nil.***
 //
-// RequestingAccount can also be nil for
+// requester can also be nil for
 // unauthorized requests (web, public api etc).
 func (c *Converter) InteractionPolicyToAPIInteractionPolicy(
 	ctx context.Context,

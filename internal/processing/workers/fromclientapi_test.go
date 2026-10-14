@@ -196,12 +196,12 @@ func (suite *FromClientAPITestSuite) statusJSON(
 	ctx context.Context,
 	typeConverter *typeutils.Converter,
 	status *gtsmodel.Status,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 ) string {
 	apiStatus, err := typeConverter.StatusToAPIStatus(
 		ctx,
 		status,
-		requestingAccount,
+		requester,
 	)
 	if err != nil {
 		suite.FailNow(err.Error())
@@ -214,12 +214,12 @@ func (suite *FromClientAPITestSuite) conversationJSON(
 	ctx context.Context,
 	typeConverter *typeutils.Converter,
 	conversation *gtsmodel.Conversation,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 ) string {
 	apiConversation, err := typeConverter.ConversationToAPIConversation(
 		ctx,
 		conversation,
-		requestingAccount,
+		requester,
 	)
 	if err != nil {
 		suite.FailNow(err.Error())

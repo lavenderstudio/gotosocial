@@ -94,10 +94,10 @@ func (suite *FromFediAPITestSuite) TestProcessFederationAnnounce() {
 	}
 
 	// 2. a notification should exist for the announce
-	where := []db.Where{
+	where := []db.BunExpr{
 		{
-			Key:   "status_id",
-			Value: announceStatus.ID,
+			Fmt: "status_id = ?",
+			Arg: []any{announceStatus.ID},
 		},
 	}
 	notif := &gtsmodel.Notification{}
@@ -173,8 +173,11 @@ func (suite *FromFediAPITestSuite) TestProcessReplyMention() {
 
 	// 2. a notification should exist for the mention
 	var notif gtsmodel.Notification
-	err = testStructs.State.DB.GetWhere(suite.T().Context(), []db.Where{
-		{Key: "status_id", Value: replyingStatus.ID},
+	err = testStructs.State.DB.GetWhere(suite.T().Context(), []db.BunExpr{
+		{
+			Fmt: "status_id = ?",
+			Arg: []any{replyingStatus.ID},
+		},
 	}, &notif)
 	suite.NoError(err)
 	suite.Equal(gtsmodel.NotificationMention, notif.NotificationType)
@@ -234,14 +237,14 @@ func (suite *FromFediAPITestSuite) TestProcessFave() {
 
 	// side effects should be triggered
 	// 1. a notification should exist for the fave
-	where := []db.Where{
+	where := []db.BunExpr{
 		{
-			Key:   "status_id",
-			Value: favedStatus.ID,
+			Fmt: "status_id = ?",
+			Arg: []any{favedStatus.ID},
 		},
 		{
-			Key:   "origin_account_id",
-			Value: favingAccount.ID,
+			Fmt: "origin_account_id = ?",
+			Arg: []any{favingAccount.ID},
 		},
 	}
 
@@ -306,14 +309,14 @@ func (suite *FromFediAPITestSuite) TestProcessFaveWithDifferentReceivingAccount(
 
 	// side effects should be triggered
 	// 1. a notification should exist for the fave
-	where := []db.Where{
+	where := []db.BunExpr{
 		{
-			Key:   "status_id",
-			Value: favedStatus.ID,
+			Fmt: "status_id = ?",
+			Arg: []any{favedStatus.ID},
 		},
 		{
-			Key:   "origin_account_id",
-			Value: favingAccount.ID,
+			Fmt: "origin_account_id = ?",
+			Arg: []any{favingAccount.ID},
 		},
 	}
 

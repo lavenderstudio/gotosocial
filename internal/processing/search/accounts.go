@@ -19,17 +19,12 @@ package search
 
 import (
 	"context"
-	"errors"
-	"strings"
 
-	"code.superseriousbusiness.org/gopkg/log"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"code.superseriousbusiness.org/gotosocial/internal/id"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"codeberg.org/gruf/go-kv/v2"
+	"code.superseriousbusiness.org/gotosocial/internal/paging"
 )
 
 // Accounts does a partial search for accounts that
@@ -43,116 +38,73 @@ import (
 // See https://docs.joinmastodon.org/methods/accounts/#search.
 func (p *Processor) Accounts(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	query string,
-	limit int,
-	offset int,
 	resolve bool,
-	following bool,
-) ([]*apimodel.Account, gtserror.WithCode) {
-	// Don't include instance accounts in this search.
-	//
-	// We don't want someone to start typing '@mastodon'
-	// and then get a million instance service accounts
-	// in their search results.
-	const includeInstanceAccounts = false
+	follows bool,
+	page *paging.Page,
+) (
+	[]*apimodel.Account,
+	gtserror.WithCode,
+) {
+	// If it looks like a namestring, try to separate it.
+	username, domain, ok := tryParseUsernameDomain(query)
 
-	// We *might* want to include blocked accounts
-	// in this search, but only if it's a search
-	// for a specific account.
-	includeBlockedAccounts := false
+	if !ok {
+		// Else query
+		// for username.
+		username = query
+		domain = ""
+	}
 
-	var (
-		foundAccounts = make([]*gtsmodel.Account, 0, limit)
-		appendAccount = func(foundAccount *gtsmodel.Account) { foundAccounts = append(foundAccounts, foundAccount) }
+	var accounts []*gtsmodel.Account
+
+	// First try a direct match for username@domain.
+	account, err := p.getAccountByUsernameDomain(ctx,
+		requester,
+		username,
+		domain,
+		resolve,
 	)
-
-	// Validate query.
-	query = strings.TrimSpace(query)
-	if query == "" {
-		err := gtserror.New("search query was empty string after trimming space")
-		return nil, gtserror.NewErrorBadRequest(err, err.Error())
+	if err != nil {
+		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	log.
-		WithContext(ctx).
-		WithFields(kv.Fields{
-			{"limit", limit},
-			{"offset", offset},
-			{"query", query},
-			{"resolve", resolve},
-			{"following", following},
-		}...).
-		Debugf("beginning search")
-
-	// todo: Currently we don't support offset for paging;
-	// if caller supplied an offset greater than 0, return
-	// nothing as though there were no additional results.
-	if offset > 0 {
-		return p.packageAccounts(
-			ctx,
-			requestingAccount,
-			foundAccounts,
-			includeInstanceAccounts,
-			includeBlockedAccounts,
-		)
-	}
-
-	// See if we have something that looks like a namestring.
-	username, domain, err := util.ExtractNamestringParts(query)
-	if err == nil {
-		if domain != "" {
-			// Search was an exact namestring;
-			// we can safely assume caller is
-			// searching for a specific account,
-			// and show it to them even if they
-			// have it blocked.
-			includeBlockedAccounts = true
-		}
-
-		// Get all accounts we can find
-		// that match the provided query.
-		if err := p.accountsByUsernameDomain(
-			ctx,
-			requestingAccount,
-			id.Highest,
-			id.Lowest,
-			limit,
-			offset,
-			username,
-			domain,
-			resolve,
-			following,
-			appendAccount,
-		); err != nil && !errors.Is(err, db.ErrNoEntries) {
-			err = gtserror.Newf("error searching by namestring: %w", err)
-			return nil, gtserror.NewErrorInternalError(err)
-		}
+	if account != nil {
+		// Wrap the single result as slice type.
+		accounts = []*gtsmodel.Account{account}
 	} else {
-		// Query Doesn't look like a
-		// namestring, use text search.
-		if err := p.accountsByText(
-			ctx,
-			requestingAccount.ID,
-			id.Highest,
-			id.Lowest,
-			limit,
-			offset,
-			query,
-			following,
-			appendAccount,
-		); err != nil && !errors.Is(err, db.ErrNoEntries) {
-			err = gtserror.Newf("error searching by text: %w", err)
+
+		// Search for accounts ~username && ~domain.
+		accounts, err = p.dbSearchForAccounts(ctx,
+			requester,
+			&searchQuery{
+				CommonSearchParams: db.CommonSearchParams{
+					RequesterID: requester.ID,
+					Relationship: func() db.RelationType {
+						if follows {
+							return db.RelationFollowing
+						} else { //nolint
+							return 0
+						}
+					}(),
+				},
+				UsernameQuery: username,
+				DomainQuery:   domain,
+			},
+			page,
+		)
+		if err != nil {
 			return nil, gtserror.NewErrorInternalError(err)
 		}
 	}
 
-	// Return whatever we got (if anything).
-	return p.packageAccounts(
-		ctx,
-		requestingAccount,
-		foundAccounts,
-		includeInstanceAccounts,
-		includeBlockedAccounts,
+	// Convert fetched accounts to API models.
+	apiAccounts := p.convertAPIAccounts(ctx,
+		requester,
+		accounts,
+		false,
 	)
+
+	return apiAccounts, nil
 }

@@ -481,8 +481,8 @@ func (suite *InternalToFrontendTestSuite) TestLocalInstanceAccountToFrontendBloc
 
 func (suite *InternalToFrontendTestSuite) TestStatusToFrontend() {
 	testStatus := suite.testStatuses["admin_account_status_1"]
-	requestingAccount := suite.testAccounts["local_account_1"]
-	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requestingAccount)
+	requester := suite.testAccounts["local_account_1"]
+	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requester)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -631,8 +631,8 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendHTMLContentWarning
 	*testStatus = *suite.testStatuses["admin_account_status_1"]
 	testStatus.ContentWarning = `<p>First paragraph of content warning</p><h4>Here's the title!</h4><p></p><p>Big boobs<br>Tee hee!<br><br>Some more text<br>And a bunch more<br><br>Hasta la victoria siempre!</p>`
 
-	requestingAccount := suite.testAccounts["local_account_1"]
-	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requestingAccount)
+	requester := suite.testAccounts["local_account_1"]
+	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requester)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -784,8 +784,8 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendApplicationDeleted
 		suite.FailNow(err.Error())
 	}
 
-	requestingAccount := suite.testAccounts["local_account_1"]
-	apiStatus, err := suite.typeconverter.StatusToAPIStatus(ctx, testStatus, requestingAccount)
+	requester := suite.testAccounts["local_account_1"]
+	apiStatus, err := suite.typeconverter.StatusToAPIStatus(ctx, testStatus, requester)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -929,9 +929,9 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendApplicationDeleted
 
 func (suite *InternalToFrontendTestSuite) TestStatusToFrontendUnknownAttachments() {
 	testStatus := suite.testStatuses["remote_account_2_status_1"]
-	requestingAccount := suite.testAccounts["admin_account"]
+	requester := suite.testAccounts["admin_account"]
 
-	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requestingAccount)
+	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requester)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -1236,8 +1236,8 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendUnknownLanguage() 
 	testStatus := &gtsmodel.Status{}
 	*testStatus = *suite.testStatuses["admin_account_status_1"]
 	testStatus.Language = ""
-	requestingAccount := suite.testAccounts["local_account_1"]
-	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requestingAccount)
+	requester := suite.testAccounts["local_account_1"]
+	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requester)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -1384,8 +1384,8 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendPartialInteraction
 	testStatus := &gtsmodel.Status{}
 	*testStatus = *suite.testStatuses["local_account_1_status_3"]
 	testStatus.Language = ""
-	requestingAccount := suite.testAccounts["admin_account"]
-	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requestingAccount)
+	requester := suite.testAccounts["admin_account"]
+	apiStatus, err := suite.typeconverter.StatusToAPIStatus(suite.T().Context(), testStatus, requester)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -1480,14 +1480,14 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendPartialInteraction
 
 func (suite *InternalToFrontendTestSuite) TestStatusToFrontendMarkSensitive() {
 	var (
-		ctx               = suite.T().Context()
-		testStatus        = suite.testStatuses["remote_account_1_status_1"]
-		requestingAccount = suite.testAccounts["admin_account"]
+		ctx        = suite.T().Context()
+		testStatus = suite.testStatuses["remote_account_1_status_1"]
+		requester  = suite.testAccounts["admin_account"]
 	)
 
 	// There's a domain limit in place on fossbros-anonymous.io, so this
 	// status should be marked sensitive when serialized via the API.
-	apiStatus, err := suite.typeconverter.StatusToAPIStatus(ctx, testStatus, requestingAccount)
+	apiStatus, err := suite.typeconverter.StatusToAPIStatus(ctx, testStatus, requester)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -1496,14 +1496,14 @@ func (suite *InternalToFrontendTestSuite) TestStatusToFrontendMarkSensitive() {
 
 func (suite *InternalToFrontendTestSuite) TestStatusToAPIStatusPendingApproval() {
 	var (
-		testStatus        = suite.testStatuses["admin_account_status_5"]
-		requestingAccount = suite.testAccounts["local_account_2"]
+		testStatus = suite.testStatuses["admin_account_status_5"]
+		requester  = suite.testAccounts["local_account_2"]
 	)
 
 	apiStatus, err := suite.typeconverter.StatusToAPIStatus(
 		suite.T().Context(),
 		testStatus,
-		requestingAccount,
+		requester,
 	)
 	if err != nil {
 		suite.FailNow(err.Error())
@@ -2138,8 +2138,8 @@ func (suite *InternalToFrontendTestSuite) TestReportToFrontend2() {
 }
 
 func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontend1() {
-	requestingAccount := suite.testAccounts["admin_account"]
-	adminReport, err := suite.typeconverter.ReportToAdminAPIReport(suite.T().Context(), suite.testReports["remote_account_1_report_local_account_2"], requestingAccount)
+	requester := suite.testAccounts["admin_account"]
+	adminReport, err := suite.typeconverter.ReportToAdminAPIReport(suite.T().Context(), suite.testReports["remote_account_1_report_local_account_2"], requester)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -2388,8 +2388,8 @@ func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontend1() {
 }
 
 func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontend2() {
-	requestingAccount := suite.testAccounts["admin_account"]
-	adminReport, err := suite.typeconverter.ReportToAdminAPIReport(suite.T().Context(), suite.testReports["local_account_2_report_remote_account_1"], requestingAccount)
+	requester := suite.testAccounts["admin_account"]
+	adminReport, err := suite.typeconverter.ReportToAdminAPIReport(suite.T().Context(), suite.testReports["local_account_2_report_remote_account_1"], requester)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -2643,12 +2643,12 @@ func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontend2() {
 
 func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontendSuspendedLocalAccount() {
 	ctx := suite.T().Context()
-	requestingAccount := suite.testAccounts["admin_account"]
+	requester := suite.testAccounts["admin_account"]
 	reportedAccount := &gtsmodel.Account{}
 	*reportedAccount = *suite.testAccounts["local_account_2"]
 
 	// Suspend/delete the reported account.
-	if err := suite.GetProcessor().Account().Delete(ctx, reportedAccount, requestingAccount.ID); err != nil {
+	if err := suite.GetProcessor().Account().Delete(ctx, reportedAccount, requester.ID); err != nil {
 		suite.FailNow(err.Error())
 	}
 
@@ -2665,7 +2665,7 @@ func (suite *InternalToFrontendTestSuite) TestAdminReportToFrontendSuspendedLoca
 		suite.FailNow("timed out waiting for account delete")
 	}
 
-	adminReport, err := suite.typeconverter.ReportToAdminAPIReport(suite.T().Context(), suite.testReports["remote_account_1_report_local_account_2"], requestingAccount)
+	adminReport, err := suite.typeconverter.ReportToAdminAPIReport(suite.T().Context(), suite.testReports["remote_account_1_report_local_account_2"], requester)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -2983,11 +2983,11 @@ func (suite *InternalToFrontendTestSuite) TestRelationshipFollowRequested() {
 }
 
 func (suite *InternalToFrontendTestSuite) TestIntReqToAPI() {
-	requestingAccount := suite.testAccounts["local_account_2"]
+	requester := suite.testAccounts["local_account_2"]
 	adminReport, err := suite.typeconverter.InteractionReqToAPIInteractionReq(
 		suite.T().Context(),
 		suite.testInteractionRequests["admin_account_reply_turtle"],
-		requestingAccount,
+		requester,
 	)
 	if err != nil {
 		suite.FailNow(err.Error())

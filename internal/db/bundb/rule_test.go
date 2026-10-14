@@ -46,7 +46,7 @@ func (suite *RuleTestSuite) TestPutRuleWithExisting() {
 func (suite *RuleTestSuite) TestPutRuleNoExisting() {
 	var (
 		ctx      = suite.T().Context()
-		whereAny = []db.Where{{Key: "id", Value: "", Not: true}}
+		whereAny = []db.BunExpr{{Fmt: "id != ?", Arg: []any{""}}}
 	)
 
 	// Wipe all existing rules from the DB.

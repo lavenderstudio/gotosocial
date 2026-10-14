@@ -34,19 +34,19 @@ import (
 // The additional parameters can be used for paging.
 func (p *Processor) GetAll(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	page *paging.Page,
 ) (*apimodel.PageableResponse, gtserror.WithCode) {
 	conversations, err := p.state.DB.GetConversationsByOwnerAccountID(
 		ctx,
-		requestingAccount.ID,
+		requester.ID,
 		page,
 	)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		return nil, gtserror.NewErrorInternalError(
 			gtserror.Newf(
 				"DB error getting conversations for account %s: %w",
-				requestingAccount.ID,
+				requester.ID,
 				err,
 			),
 		)
@@ -67,7 +67,7 @@ func (p *Processor) GetAll(
 	for _, conversation := range conversations {
 		// Check whether status if filtered by local participant in context.
 		filtered, hide, err := p.statusFilter.StatusFilterResultsInContext(ctx,
-			requestingAccount,
+			requester,
 			conversation.LastStatus,
 			gtsmodel.FilterContextNotifications,
 		)
@@ -83,7 +83,7 @@ func (p *Processor) GetAll(
 		// Convert conversation to frontend API model.
 		apiConversation, err := p.converter.ConversationToAPIConversation(ctx,
 			conversation,
-			requestingAccount,
+			requester,
 		)
 		if err != nil {
 			log.Errorf(ctx,

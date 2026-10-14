@@ -35,7 +35,8 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 )
 
-// NotificationsGet ...
+// NotificationsGet gets a pageable timeline of notifications
+// according to inclusions / exclusions, for requesting account.
 func (p *Processor) NotificationsGet(
 	ctx context.Context,
 	requester *gtsmodel.Account,

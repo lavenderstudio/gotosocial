@@ -22,6 +22,7 @@ import (
 
 	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
+	"code.superseriousbusiness.org/gotosocial/internal/paging"
 )
 
 // AccountSearchGETHandler swagger:operation GET /api/v1/accounts/search accountSearchGet
@@ -139,18 +140,6 @@ func (m *Module) AccountSearchGETHandler(c *httputil.Context) {
 		return
 	}
 
-	limit, errWithCode := apiutil.ParseLimit(c.Query(apiutil.LimitKey), 40, 80, 1)
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, m.templates, errWithCode)
-		return
-	}
-
-	offset, errWithCode := apiutil.ParseOffset(c.Query(apiutil.OffsetKey), 0, 10, 0)
-	if errWithCode != nil {
-		apiutil.ErrorHandler(c, m.templates, errWithCode)
-		return
-	}
-
 	query, errWithCode := apiutil.ParseSearchQuery(c.Query(apiutil.SearchQueryKey))
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
@@ -163,7 +152,17 @@ func (m *Module) AccountSearchGETHandler(c *httputil.Context) {
 		return
 	}
 
-	following, errWithCode := apiutil.ParseSearchFollowing(c.Query(apiutil.SearchFollowingKey), false)
+	follows, errWithCode := apiutil.ParseSearchFollowing(c.Query(apiutil.SearchFollowingKey), false)
+	if errWithCode != nil {
+		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
+	}
+
+	page, errWithCode := paging.ParseIDPage(c,
+		1,  // min
+		20, // max
+		10, // default
+	)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
 		return
@@ -173,10 +172,9 @@ func (m *Module) AccountSearchGETHandler(c *httputil.Context) {
 		c,
 		authed.Account,
 		query,
-		limit,
-		offset,
 		resolve,
-		following,
+		follows,
+		page,
 	)
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)

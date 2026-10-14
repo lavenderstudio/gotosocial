@@ -21,6 +21,7 @@ import "context"
 
 // Basic wraps basic database functionality.
 type Basic interface {
+
 	// CreateTable creates a table for the given interface.
 	// For implementations that don't use tables, this can just return nil.
 	CreateTable(ctx context.Context, i interface{}) error
@@ -46,7 +47,7 @@ type Basic interface {
 	// name of the key to select from.
 	// The given interface i will be set to the result of the query, whatever it is. Use a pointer or a slice.
 	// In case of no entries, a 'no entries' error will be returned
-	GetWhere(ctx context.Context, where []Where, i interface{}) error
+	GetWhere(ctx context.Context, where []BunExpr, i interface{}) error
 
 	// GetAll will try to get all entries of type i.
 	// The given interface i will be set to the result of the query, whatever it is. Use a pointer or a slice.
@@ -64,7 +65,7 @@ type Basic interface {
 	UpdateByID(ctx context.Context, i interface{}, id string, columns ...string) error
 
 	// UpdateWhere updates column key of interface i with the given value, where the given parameters apply.
-	UpdateWhere(ctx context.Context, where []Where, key string, value interface{}, i interface{}) error
+	UpdateWhere(ctx context.Context, where []BunExpr, key string, value interface{}, i interface{}) error
 
 	// DeleteByID removes i with id id.
 	// If i didn't exist anyway, then no error should be returned.
@@ -72,5 +73,5 @@ type Basic interface {
 
 	// DeleteWhere deletes i where key = value
 	// If i didn't exist anyway, then no error should be returned.
-	DeleteWhere(ctx context.Context, where []Where, i interface{}) error
+	DeleteWhere(ctx context.Context, where []BunExpr, i interface{}) error
 }

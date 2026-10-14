@@ -37,8 +37,8 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
-// Create processes the given form to create a new status, returning the api model representation of that status if it's OK.
-// Note this also handles validation of incoming form field data.
+// Create processes the given form to create a new status, returning the api model representation
+// of that status if it's OK. Note this also handles validation of incoming form field data.
 func (p *Processor) Create(
 	ctx context.Context,
 	requester *gtsmodel.Account,

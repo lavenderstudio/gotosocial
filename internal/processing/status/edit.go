@@ -37,7 +37,9 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
-// Edit ...
+// Edit processes the given form to edit given existing status with ID,
+// returning the updated API model representation. Note this also handles
+// validiation of incoming form field data.
 func (p *Processor) Edit(
 	ctx context.Context,
 	requester *gtsmodel.Account,

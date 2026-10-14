@@ -20,6 +20,8 @@
 package main
 
 import (
+	"context"
+
 	"code.superseriousbusiness.org/gotosocial/cmd/gotosocial/action/database"
 	"github.com/spf13/cobra"
 )
@@ -31,17 +33,17 @@ func sqliteCommands() *cobra.Command {
 		Short: "sqlite-specific tasks",
 	}
 
-	// sqliteCmd.AddCommand(&cobra.Command{
-	// 	Use: "vacuum",
-	// 	Short: "performs an sqlite \"vacuum\" operation; " +
-	// 		"please note this requires AT LEAST db size free disk-space",
-	// 	PreRunE: func(cmd *cobra.Command, args []string) error {
-	// 		return preRun(preRunArgs{cmd: cmd})
-	// 	},
-	// 	RunE: func(cmd *cobra.Command, args []string) error {
-	// 		return run(cmd.Context(), database.SQLiteVacuum)
-	// 	},
-	// })
+	sqliteCmd.AddCommand(&cobra.Command{
+		Use: "vacuum",
+		Short: "performs an sqlite \"vacuum\" operation; " +
+			"please note this requires as much as 2x db size free disk-space",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return preRun(preRunArgs{cmd: cmd})
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return run(cmd.Context(), database.SQLiteVacuum)
+		},
+	})
 
 	sqliteCmd.AddCommand(&cobra.Command{
 		Use:   "analyze",
@@ -51,6 +53,19 @@ func sqliteCommands() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), database.SQLiteAnalyze)
+		},
+	})
+
+	sqliteCmd.AddCommand(&cobra.Command{
+		Use:   "rebuild-fts5",
+		Short: "rebuilds sqlite fts5 tables",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return preRun(preRunArgs{cmd: cmd})
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return run(cmd.Context(), func(ctx context.Context) error {
+				return database.SQLiteRebuildFTS5(ctx, true)
+			})
 		},
 	})
 

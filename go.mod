@@ -36,6 +36,7 @@ require (
 	github.com/KimMachineGun/automemlimit v1.0.0
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/buckket/go-blurhash v1.1.0
+	github.com/clipperhouse/uax29 v1.16.0
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/go-playground/form/v4 v4.5.0
 	github.com/go-swagger/go-swagger v0.33.2

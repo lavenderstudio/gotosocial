@@ -29,11 +29,11 @@ import (
 
 func (p *Processor) Read(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	id string,
 ) (*apimodel.Conversation, gtserror.WithCode) {
 	// Get the conversation, including participating accounts and last status.
-	conversation, errWithCode := p.getConversationOwnedBy(ctx, id, requestingAccount)
+	conversation, errWithCode := p.getConversationOwnedBy(ctx, id, requester)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
@@ -47,7 +47,7 @@ func (p *Processor) Read(
 
 	// Check whether status if filtered by local participant in context.
 	filtered, _, err := p.statusFilter.StatusFilterResultsInContext(ctx,
-		requestingAccount,
+		requester,
 		conversation.LastStatus,
 		gtsmodel.FilterContextNotifications,
 	)
@@ -57,7 +57,7 @@ func (p *Processor) Read(
 
 	apiConversation, err := p.converter.ConversationToAPIConversation(ctx,
 		conversation,
-		requestingAccount,
+		requester,
 	)
 	if err != nil {
 		err = gtserror.Newf("error converting conversation %s to API representation: %w", id, err)

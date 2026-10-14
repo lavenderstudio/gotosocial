@@ -37,7 +37,7 @@ type Filter interface {
 	// It uses a transaction to ensure no partial updates.
 	PutFilter(ctx context.Context, filter *gtsmodel.Filter) error
 
-	// UpdateFilter ...
+	// UpdateFilter updates the given filter model in the database, optionally only on given columns.
 	UpdateFilter(ctx context.Context, filter *gtsmodel.Filter, cols ...string) error
 
 	// DeleteFilter deletes the given filter and all associated FilterKeyword{}
@@ -47,7 +47,8 @@ type Filter interface {
 	// GetFilterKeywordByID gets one filter keyword with the given ID.
 	GetFilterKeywordByID(ctx context.Context, id string) (*gtsmodel.FilterKeyword, error)
 
-	// GetFilterKeywordsByIDs ...
+	// GetFilterKeywordsByIDs returns filter keyword models from the database matching IDs,
+	// the returned slice will be in the same order as the input IDs, omitting any not found.
 	GetFilterKeywordsByIDs(ctx context.Context, ids []string) ([]*gtsmodel.FilterKeyword, error)
 
 	// PutFilterKeyword inserts a single filter keyword into the database.
@@ -62,7 +63,8 @@ type Filter interface {
 	// GetFilterStatusByID gets one filter status with the given ID.
 	GetFilterStatusByID(ctx context.Context, id string) (*gtsmodel.FilterStatus, error)
 
-	// GetFilterStatusesByIDs ...
+	// GetFilterStatusesByIDs returns filter status models from the database matching IDs,
+	// the returned slice will be in the same order as the input IDs, omitting any not found.
 	GetFilterStatusesByIDs(ctx context.Context, ids []string) ([]*gtsmodel.FilterStatus, error)
 
 	// PutFilterStatus inserts a single filter status into the database.

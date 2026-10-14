@@ -21,10 +21,8 @@ import (
 	"context"
 	"database/sql"
 	"slices"
-	"strings"
 	"unsafe"
 
-	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/cache"
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
@@ -33,90 +31,6 @@ import (
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect"
 )
-
-// likeEscaper is a thread-safe string replacer which escapes
-// common SQLite + Postgres `LIKE` wildcard chars using the
-// escape character `\`. Initialized as a var in this package
-// so it can be reused.
-var likeEscaper = strings.NewReplacer(
-	`\`, `\\`, // Escape char.
-	`%`, `\%`, // Zero or more char.
-	`_`, `\_`, // Exactly one char.
-)
-
-// likeOperator returns an appropriate LIKE or
-// ILIKE operator for the given query's dialect.
-func likeOperator(query *bun.SelectQuery) string {
-	const (
-		like  = "LIKE"
-		ilike = "ILIKE"
-	)
-
-	d := query.Dialect().Name()
-	if d == dialect.SQLite {
-		return like
-	} else if d == dialect.PG {
-		return ilike
-	}
-
-	log.Panicf(nil, "db conn %s was neither pg nor sqlite", d)
-	return ""
-}
-
-// whereLike appends a WHERE clause to the
-// given SelectQuery, which searches for
-// matches of `search` in the given subQuery
-// using LIKE (SQLite) or ILIKE (Postgres).
-func whereLike(
-	query *bun.SelectQuery,
-	subject interface{},
-	search string,
-) *bun.SelectQuery {
-	// Escape existing wildcard + escape
-	// chars in the search query string.
-	search = likeEscaper.Replace(search)
-
-	// Add our own wildcards back in; search
-	// zero or more chars around the query.
-	search = `%` + search + `%`
-
-	// Get appropriate operator.
-	like := likeOperator(query)
-
-	// Append resulting WHERE
-	// clause to the main query.
-	return query.Where(
-		"(?) ? ? ESCAPE ?",
-		subject, bun.Safe(like), search, `\`,
-	)
-}
-
-// whereStartsLike is like whereLike,
-// but only searches for strings that
-// START WITH `search`.
-func whereStartsLike(
-	query *bun.SelectQuery,
-	subject interface{},
-	search string,
-) *bun.SelectQuery {
-	// Escape existing wildcard + escape
-	// chars in the search query string.
-	search = likeEscaper.Replace(search)
-
-	// Add our own wildcards back in; search
-	// zero or more chars after the query.
-	search += `%`
-
-	// Get appropriate operator.
-	like := likeOperator(query)
-
-	// Append resulting WHERE
-	// clause to the main query.
-	return query.Where(
-		"(?) ? ? ESCAPE ?",
-		subject, bun.Safe(like), search, `\`,
-	)
-}
 
 // exists checks the results of a SelectQuery for the existence of the data in question, masking ErrNoEntries errors.
 func exists(ctx context.Context, query *bun.SelectQuery) (bool, error) {
@@ -161,6 +75,52 @@ func loadPagedIDs(cache *cache.SliceCache[string], key string, page *paging.Page
 	return ids, nil
 }
 
+// selectPageOfIDs performs the given SELECT query, also applying paging ID parameters, acting upon
+// given ID column. NOTE: it expects that you are performing a SELECT that only returns the given ID column.
+func selectPageOfIDs(ctx context.Context, q *bun.SelectQuery, col bun.Ident, page *paging.Page) ([]string, error) {
+
+	// Extract paging params.
+	minID := page.Min.Value
+	maxID := page.Max.Value
+	limit := page.Limit
+	order := page.Order()
+
+	if maxID != "" {
+		// Return only LOWER than maxID.
+		q = q.Where("? < ?", col, maxID)
+	}
+
+	if minID != "" {
+		// Return only HIGHER than minID.
+		q = q.Where("? > ?", col, minID)
+	}
+
+	if limit > 0 {
+		// Apply page limit.
+		q = q.Limit(limit)
+	}
+
+	if order.Ascending() {
+		// Page query ascending.
+		q = q.OrderExpr("? ASC",
+			col)
+	} else {
+		// Page query descending.
+		q = q.OrderExpr("? DESC",
+			col)
+	}
+
+	// Preallocate a slice of length.
+	ids := make([]string, 0, limit)
+
+	// Execute and scan the query into slice.
+	if err := q.Scan(ctx, &ids); err != nil {
+		return nil, gtserror.Newf("error selecting %s page: %w", col, err)
+	}
+
+	return ids, nil
+}
+
 // incrementAccountStats will increment the given column in the `account_stats` table matching `account_id`.
 func incrementAccountStats(ctx context.Context, tx bun.Tx, col bun.Ident, accountID string) error {
 	if _, err := tx.NewUpdate().
@@ -201,53 +161,24 @@ func decrementAccountStats(ctx context.Context, tx bun.Tx, col bun.Ident, accoun
 }
 
 // updateWhere parses []db.Where and adds it to the given update query.
-func updateWhere(q *bun.UpdateQuery, where []db.Where) {
+func updateWhere(q *bun.UpdateQuery, where []db.BunExpr) {
 	for _, w := range where {
-		query, args := parseWhere(w)
-		q = q.Where(query, args...)
+		q = q.Where(w.Fmt, w.Arg...)
 	}
 }
 
 // selectWhere parses []db.Where and adds it to the given select query.
-func selectWhere(q *bun.SelectQuery, where []db.Where) {
+func selectWhere(q *bun.SelectQuery, where []db.BunExpr) {
 	for _, w := range where {
-		query, args := parseWhere(w)
-		q = q.Where(query, args...)
+		q = q.Where(w.Fmt, w.Arg...)
 	}
 }
 
 // deleteWhere parses []db.Where and adds it to the given where query.
-func deleteWhere(q *bun.DeleteQuery, where []db.Where) {
+func deleteWhere(q *bun.DeleteQuery, where []db.BunExpr) {
 	for _, w := range where {
-		query, args := parseWhere(w)
-		q = q.Where(query, args...)
+		q = q.Where(w.Fmt, w.Arg...)
 	}
-}
-
-// parseWhere looks through the options on a single db.Where entry, and
-// returns the appropriate query string and arguments.
-func parseWhere(w db.Where) (query string, args []interface{}) {
-	if w.Not {
-		if w.Value == nil {
-			query = "? IS NOT NULL"
-			args = []interface{}{bun.Ident(w.Key)}
-			return
-		}
-
-		query = "? != ?"
-		args = []interface{}{bun.Ident(w.Key), w.Value}
-		return
-	}
-
-	if w.Value == nil {
-		query = "? IS NULL"
-		args = []interface{}{bun.Ident(w.Key)}
-		return
-	}
-
-	query = "? = ?"
-	args = []interface{}{bun.Ident(w.Key), w.Value}
-	return
 }
 
 // accountIDValue is a convenience struct for using

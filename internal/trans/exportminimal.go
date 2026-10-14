@@ -37,7 +37,7 @@ func (e *exporter) ExportMinimal(ctx context.Context, path string) error {
 	}
 
 	// export all local accounts we have in the database
-	localAccounts, err := e.exportAccounts(ctx, []db.Where{{Key: "domain", Value: nil}}, file)
+	localAccounts, err := e.exportAccounts(ctx, []db.BunExpr{db.Where("domain IS NULL")}, file)
 	if err != nil {
 		return fmt.Errorf("ExportMinimal: error exporting accounts: %s", err)
 	}
@@ -53,7 +53,7 @@ func (e *exporter) ExportMinimal(ctx context.Context, path string) error {
 	for _, b := range blocks {
 		_, alreadyWritten := e.writtenIDs[b.AccountID]
 		if !alreadyWritten {
-			_, err := e.exportAccounts(ctx, []db.Where{{Key: "id", Value: b.AccountID}}, file)
+			_, err := e.exportAccounts(ctx, []db.BunExpr{db.Where("id = ?", b.AccountID)}, file)
 			if err != nil {
 				return fmt.Errorf("ExportMinimal: error exporting block owner account: %s", err)
 			}
@@ -61,7 +61,7 @@ func (e *exporter) ExportMinimal(ctx context.Context, path string) error {
 
 		_, alreadyWritten = e.writtenIDs[b.TargetAccountID]
 		if !alreadyWritten {
-			_, err := e.exportAccounts(ctx, []db.Where{{Key: "id", Value: b.TargetAccountID}}, file)
+			_, err := e.exportAccounts(ctx, []db.BunExpr{db.Where("id = ?", b.TargetAccountID)}, file)
 			if err != nil {
 				return fmt.Errorf("ExportMinimal: error exporting block target account: %s", err)
 			}
@@ -79,7 +79,7 @@ func (e *exporter) ExportMinimal(ctx context.Context, path string) error {
 	for _, follow := range follows {
 		_, alreadyWritten := e.writtenIDs[follow.AccountID]
 		if !alreadyWritten {
-			_, err := e.exportAccounts(ctx, []db.Where{{Key: "id", Value: follow.AccountID}}, file)
+			_, err := e.exportAccounts(ctx, []db.BunExpr{db.Where("id = ?", follow.AccountID)}, file)
 			if err != nil {
 				return fmt.Errorf("ExportMinimal: error exporting follow owner account: %s", err)
 			}
@@ -87,7 +87,7 @@ func (e *exporter) ExportMinimal(ctx context.Context, path string) error {
 
 		_, alreadyWritten = e.writtenIDs[follow.TargetAccountID]
 		if !alreadyWritten {
-			_, err := e.exportAccounts(ctx, []db.Where{{Key: "id", Value: follow.TargetAccountID}}, file)
+			_, err := e.exportAccounts(ctx, []db.BunExpr{db.Where("id = ?", follow.TargetAccountID)}, file)
 			if err != nil {
 				return fmt.Errorf("ExportMinimal: error exporting follow target account: %s", err)
 			}
@@ -105,7 +105,7 @@ func (e *exporter) ExportMinimal(ctx context.Context, path string) error {
 	for _, fr := range followRequests {
 		_, alreadyWritten := e.writtenIDs[fr.AccountID]
 		if !alreadyWritten {
-			_, err := e.exportAccounts(ctx, []db.Where{{Key: "id", Value: fr.AccountID}}, file)
+			_, err := e.exportAccounts(ctx, []db.BunExpr{db.Where("id = ?", fr.AccountID)}, file)
 			if err != nil {
 				return fmt.Errorf("ExportMinimal: error exporting follow request owner account: %s", err)
 			}
@@ -113,7 +113,7 @@ func (e *exporter) ExportMinimal(ctx context.Context, path string) error {
 
 		_, alreadyWritten = e.writtenIDs[fr.TargetAccountID]
 		if !alreadyWritten {
-			_, err := e.exportAccounts(ctx, []db.Where{{Key: "id", Value: fr.TargetAccountID}}, file)
+			_, err := e.exportAccounts(ctx, []db.BunExpr{db.Where("id = ?", fr.TargetAccountID)}, file)
 			if err != nil {
 				return fmt.Errorf("ExportMinimal: error exporting follow request target account: %s", err)
 			}
@@ -136,11 +136,7 @@ func (e *exporter) ExportMinimal(ctx context.Context, path string) error {
 	}
 
 	// export all SUSPENDED accounts to make sure the suspension sticks across db migration etc
-	whereSuspended := []db.Where{{
-		Key:   "suspended_at",
-		Not:   true,
-		Value: nil,
-	}}
+	whereSuspended := []db.BunExpr{db.Where("suspended_at IS NOT NULL")}
 	if _, err := e.exportAccounts(ctx, whereSuspended, file); err != nil {
 		return fmt.Errorf("ExportMinimal: error exporting suspended accounts: %s", err)
 	}

@@ -338,30 +338,30 @@ func (suite *FederatingProtocolTestSuite) TestAuthenticatePostGoneNoTombstone() 
 func (suite *FederatingProtocolTestSuite) blocked(
 	ctx context.Context,
 	receivingAccount *gtsmodel.Account,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	otherIRIs []*url.URL,
 	actorIRIs []*url.URL,
 ) (bool, error) {
 	ctx = gtscontext.SetReceivingAccount(ctx, receivingAccount)
-	ctx = gtscontext.SetRequestingAccount(ctx, requestingAccount)
+	ctx = gtscontext.SetRequestingAccount(ctx, requester)
 	ctx = gtscontext.SetOtherIRIs(ctx, otherIRIs)
 	return suite.federator.Blocked(ctx, actorIRIs)
 }
 
 func (suite *FederatingProtocolTestSuite) TestBlockedNoProblem() {
 	var (
-		receivingAccount  = suite.testAccounts["local_account_1"]
-		requestingAccount = suite.testAccounts["remote_account_1"]
-		otherIRIs         = []*url.URL{}
-		actorIRIs         = []*url.URL{
-			testrig.URLMustParse(requestingAccount.URI),
+		receivingAccount = suite.testAccounts["local_account_1"]
+		requester        = suite.testAccounts["remote_account_1"]
+		otherIRIs        = []*url.URL{}
+		actorIRIs        = []*url.URL{
+			testrig.URLMustParse(requester.URI),
 		}
 	)
 
 	blocked, err := suite.blocked(
 		suite.T().Context(),
 		receivingAccount,
-		requestingAccount,
+		requester,
 		otherIRIs,
 		actorIRIs,
 	)
@@ -372,20 +372,20 @@ func (suite *FederatingProtocolTestSuite) TestBlockedNoProblem() {
 
 func (suite *FederatingProtocolTestSuite) TestBlockedReceiverBlocksRequester() {
 	var (
-		receivingAccount  = suite.testAccounts["local_account_1"]
-		requestingAccount = suite.testAccounts["remote_account_1"]
-		otherIRIs         = []*url.URL{}
-		actorIRIs         = []*url.URL{
-			testrig.URLMustParse(requestingAccount.URI),
+		receivingAccount = suite.testAccounts["local_account_1"]
+		requester        = suite.testAccounts["remote_account_1"]
+		otherIRIs        = []*url.URL{}
+		actorIRIs        = []*url.URL{
+			testrig.URLMustParse(requester.URI),
 		}
 	)
 
-	// Insert a block from receivingAccount targeting requestingAccount.
+	// Insert a block from receivingAccount targeting requester.
 	if err := suite.state.DB.PutBlock(suite.T().Context(), &gtsmodel.Block{
 		ID:              "01G3KBEMJD4VQ2D615MPV7KTRD",
 		URI:             "whatever",
 		AccountID:       receivingAccount.ID,
-		TargetAccountID: requestingAccount.ID,
+		TargetAccountID: requester.ID,
 	}); err != nil {
 		suite.Fail(err.Error())
 	}
@@ -393,7 +393,7 @@ func (suite *FederatingProtocolTestSuite) TestBlockedReceiverBlocksRequester() {
 	blocked, err := suite.blocked(
 		suite.T().Context(),
 		receivingAccount,
-		requestingAccount,
+		requester,
 		otherIRIs,
 		actorIRIs,
 	)
@@ -404,14 +404,14 @@ func (suite *FederatingProtocolTestSuite) TestBlockedReceiverBlocksRequester() {
 
 func (suite *FederatingProtocolTestSuite) TestBlockedCCd() {
 	var (
-		receivingAccount  = suite.testAccounts["local_account_1"]
-		requestingAccount = suite.testAccounts["remote_account_1"]
-		ccedAccount       = suite.testAccounts["remote_account_2"]
-		otherIRIs         = []*url.URL{
+		receivingAccount = suite.testAccounts["local_account_1"]
+		requester        = suite.testAccounts["remote_account_1"]
+		ccedAccount      = suite.testAccounts["remote_account_2"]
+		otherIRIs        = []*url.URL{
 			testrig.URLMustParse(ccedAccount.URI),
 		}
 		actorIRIs = []*url.URL{
-			testrig.URLMustParse(requestingAccount.URI),
+			testrig.URLMustParse(requester.URI),
 		}
 	)
 
@@ -428,7 +428,7 @@ func (suite *FederatingProtocolTestSuite) TestBlockedCCd() {
 	blocked, err := suite.blocked(
 		suite.T().Context(),
 		receivingAccount,
-		requestingAccount,
+		requester,
 		otherIRIs,
 		actorIRIs,
 	)
@@ -439,23 +439,23 @@ func (suite *FederatingProtocolTestSuite) TestBlockedCCd() {
 
 func (suite *FederatingProtocolTestSuite) TestBlockedRepliedStatus() {
 	var (
-		receivingAccount  = suite.testAccounts["local_account_1"]
-		requestingAccount = suite.testAccounts["remote_account_1"]
-		repliedStatus     = suite.testStatuses["local_account_2_status_1"]
-		otherIRIs         = []*url.URL{
+		receivingAccount = suite.testAccounts["local_account_1"]
+		requester        = suite.testAccounts["remote_account_1"]
+		repliedStatus    = suite.testStatuses["local_account_2_status_1"]
+		otherIRIs        = []*url.URL{
 			// This status is involved because the
 			// hypothetical activity replies to it.
 			testrig.URLMustParse(repliedStatus.URI),
 		}
 		actorIRIs = []*url.URL{
-			testrig.URLMustParse(requestingAccount.URI),
+			testrig.URLMustParse(requester.URI),
 		}
 	)
 
 	blocked, err := suite.blocked(
 		suite.T().Context(),
 		receivingAccount,
-		requestingAccount,
+		requester,
 		otherIRIs,
 		actorIRIs,
 	)

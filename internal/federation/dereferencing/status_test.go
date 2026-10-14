@@ -116,7 +116,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithMention() {
 
 	// we should have a mention in the database
 	m := &gtsmodel.Mention{}
-	err = suite.db.GetWhere(suite.T().Context(), []db.Where{{Key: "status_id", Value: status.ID}}, m)
+	err = suite.db.GetWhere(suite.T().Context(), []db.BunExpr{{Fmt: "status_id = ?", Arg: []any{status.ID}}}, m)
 	suite.NoError(err)
 	suite.NotNil(m)
 	suite.Equal(status.ID, m.StatusID)
@@ -169,7 +169,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithTag() {
 
 	// we should have a tag in the database
 	t := &gtsmodel.Tag{}
-	err = suite.db.GetWhere(suite.T().Context(), []db.Where{{Key: "name", Value: "piss"}}, t)
+	err = suite.db.GetWhere(suite.T().Context(), []db.BunExpr{{Fmt: "name = ?", Arg: []any{"piss"}}}, t)
 	suite.NoError(err)
 	suite.NotNil(t)
 }
@@ -213,7 +213,7 @@ func (suite *StatusTestSuite) TestDereferenceStatusWithImageAndNoContent() {
 
 	// we should have an attachment in the database
 	a := &gtsmodel.MediaAttachment{}
-	err = suite.db.GetWhere(suite.T().Context(), []db.Where{{Key: "status_id", Value: status.ID}}, a)
+	err = suite.db.GetWhere(suite.T().Context(), []db.BunExpr{{Fmt: "status_id = ?", Arg: []any{status.ID}}}, a)
 	suite.NoError(err)
 }
 

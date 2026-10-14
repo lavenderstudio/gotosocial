@@ -418,7 +418,7 @@ func insertModels[Type any](ctx context.Context, db *bun.DB, models map[string]T
 	return nil
 }
 
-// gatherData ...
+// gatherData gathers all data from the database under registered dialect types, keyed by their reflected type info.
 func gatherData(ctx context.Context, cfg config.DatabaseConfiguration) (map[reflect.Type]any, error) {
 	m := make(map[reflect.Type]any)
 

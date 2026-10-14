@@ -21,16 +21,150 @@ import (
 	"context"
 
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/paging"
 )
 
+type RelationType int
+
+const (
+	RelationAny RelationType = iota
+	RelationFollowing
+	RelationFollowers
+)
+
+type LocationType int
+
+const (
+	LocationAny LocationType = iota
+	LocationRemote
+	LocationLocal
+	LocationNone
+)
+
+type OnlyBool int
+
+const (
+	AnyValue OnlyBool = iota
+	OnlyFalse
+	OnlyTrue
+)
+
+type CommonSearchParams struct {
+	// Account ID of user
+	// making the request.
+	RequesterID string
+
+	// Relation of returned
+	// results to requester.
+	Relationship RelationType
+
+	// Location of results.
+	Location LocationType
+}
+
+type AccountSearchParams struct {
+	CommonSearchParams
+
+	// Account username OR
+	// domain FTS query string.
+	UsernameOrDomainQuery string
+
+	// Account username
+	// FTS query string.
+	UsernameQuery string
+
+	// Account domain
+	// FTS query string.
+	DomainQuery string
+
+	// Accounte note
+	// FTS query string.
+	NoteQuery string
+}
+
+type StatusSearchParams struct {
+	CommonSearchParams
+
+	// Only return statuses
+	// authored by account.
+	AuthorID string
+
+	// Only return statuses
+	// that are replies.
+	Reply OnlyBool
+
+	// Only return statuses
+	// that are sensitive.
+	Sensitive OnlyBool
+
+	// Only return statuses
+	// that have attachments.
+	Media OnlyBool
+
+	// Only return statuses
+	// that contain polls.
+	Poll OnlyBool
+
+	// Status content OR
+	// warning FTS query string.
+	ContentOrWarningQuery string
+
+	// Status content
+	// FTS query string.
+	ContentQuery string
+
+	// Status content warning
+	// FTS query string.
+	ContentWarningQuery string
+}
+
 type Search interface {
-	// SearchForAccounts uses the given query text to search for accounts that accountID follows.
-	SearchForAccounts(ctx context.Context, accountID string, query string, maxID string, minID string, limit int, following bool, offset int) ([]*gtsmodel.Account, error)
+	// SearchForAccounts performs an
+	// account search using given args,
+	// query strings perform FTS lookup.
+	SearchForAccounts(
+		ctx context.Context,
 
-	// SearchForStatuses uses the given query text to search for statuses created by requestingAccountID, or in reply to requestingAccountID.
-	// If fromAccountID is used, the results are restricted to statuses created by fromAccountID.
-	SearchForStatuses(ctx context.Context, requestingAccountID string, query string, fromAccountID string, maxID string, minID string, limit int, offset int) ([]*gtsmodel.Status, error)
+		// search parameters.
+		params AccountSearchParams,
 
-	// SearchForTags searches for tags that start with the given query text (case insensitive).
-	SearchForTags(ctx context.Context, query string, maxID string, minID string, limit int, offset int) ([]*gtsmodel.Tag, error)
+		// paging params.
+		page *paging.Page,
+	) (
+		[]*gtsmodel.Account,
+		error,
+	)
+
+	// SearchForStatuses performs a
+	// status search using given args,
+	// query strings perform FTS lookup.
+	SearchForStatuses(
+		ctx context.Context,
+
+		// search parameters.
+		params StatusSearchParams,
+
+		// paging params.
+		page *paging.Page,
+	) (
+		[]*gtsmodel.Status,
+		error,
+	)
+
+	// SearchForTags performs a
+	// tag search using given args,
+	// query strings perform FTS lookup.
+	SearchForTags(
+		ctx context.Context,
+
+		// tag name
+		// query string.
+		nameQuery string,
+
+		// paging params.
+		page *paging.Page,
+	) (
+		[]*gtsmodel.Tag,
+		error,
+	)
 }

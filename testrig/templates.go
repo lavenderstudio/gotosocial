@@ -25,7 +25,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/typeutils"
 )
 
-// LoadTemplates ...
+// LoadTemplates returns prepared templates loaded from given directory.
 func LoadTemplates(state *state.State, templateBaseDir string) *templates.Templates {
 	if templateBaseDir != "" {
 		config.Config(func(cfg *config.Configuration) { cfg.WebTemplateBaseDir = templateBaseDir })

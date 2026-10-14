@@ -37,7 +37,7 @@ type FollowRequestTestSuite struct {
 
 func (suite *FollowRequestTestSuite) TestFollowRequestAccept() {
 	// The authed local account we are going to use for HTTP requests
-	requestingAccount := suite.testAccounts["local_account_1"]
+	requester := suite.testAccounts["local_account_1"]
 
 	// The remote account whose follow request we are accepting
 	targetAccount := suite.testAccounts["remote_account_2"]
@@ -48,7 +48,7 @@ func (suite *FollowRequestTestSuite) TestFollowRequestAccept() {
 		CreatedAt:       time.Now(),
 		URI:             fmt.Sprintf("%s/follow/01FJ1S8DX3STJJ6CEYPMZ1M0R3", targetAccount.URI),
 		AccountID:       targetAccount.ID,
-		TargetAccountID: requestingAccount.ID,
+		TargetAccountID: requester.ID,
 	}
 
 	err := suite.db.Put(suite.T().Context(), fr)
@@ -56,7 +56,7 @@ func (suite *FollowRequestTestSuite) TestFollowRequestAccept() {
 
 	relationship, errWithCode := suite.processor.Account().FollowRequestAccept(
 		suite.T().Context(),
-		requestingAccount,
+		requester,
 		targetAccount.ID,
 	)
 	suite.NoError(errWithCode)
@@ -113,18 +113,18 @@ func (suite *FollowRequestTestSuite) TestFollowRequestAccept() {
 		suite.FailNow("timed out waiting for message")
 	}
 
-	suite.Equal(requestingAccount.URI, accept.Actor)
+	suite.Equal(requester.URI, accept.Actor)
 	suite.Equal(targetAccount.URI, accept.Object.Actor)
 	suite.Equal(fr.URI, accept.Object.ID)
-	suite.Equal(requestingAccount.URI, accept.Object.Object)
-	suite.Equal(requestingAccount.URI, accept.Object.To)
+	suite.Equal(requester.URI, accept.Object.Object)
+	suite.Equal(requester.URI, accept.Object.To)
 	suite.Equal("Follow", accept.Object.Type)
 	suite.Equal(targetAccount.URI, accept.To)
 	suite.Equal("Accept", accept.Type)
 }
 
 func (suite *FollowRequestTestSuite) TestFollowRequestReject() {
-	requestingAccount := suite.testAccounts["local_account_1"]
+	requester := suite.testAccounts["local_account_1"]
 	targetAccount := suite.testAccounts["remote_account_2"]
 
 	// put a follow request in the database
@@ -133,7 +133,7 @@ func (suite *FollowRequestTestSuite) TestFollowRequestReject() {
 		CreatedAt:       time.Now(),
 		URI:             fmt.Sprintf("%s/follow/01FJ1S8DX3STJJ6CEYPMZ1M0R3", targetAccount.URI),
 		AccountID:       targetAccount.ID,
-		TargetAccountID: requestingAccount.ID,
+		TargetAccountID: requester.ID,
 	}
 
 	err := suite.db.Put(suite.T().Context(), fr)
@@ -141,7 +141,7 @@ func (suite *FollowRequestTestSuite) TestFollowRequestReject() {
 
 	relationship, errWithCode := suite.processor.Account().FollowRequestReject(
 		suite.T().Context(),
-		requestingAccount,
+		requester,
 		targetAccount.ID,
 	)
 	suite.NoError(errWithCode)
@@ -184,11 +184,11 @@ func (suite *FollowRequestTestSuite) TestFollowRequestReject() {
 		suite.FailNow("timed out waiting for message")
 	}
 
-	suite.Equal(requestingAccount.URI, reject.Actor)
+	suite.Equal(requester.URI, reject.Actor)
 	suite.Equal(targetAccount.URI, reject.Object.Actor)
 	suite.Equal(fr.URI, reject.Object.ID)
-	suite.Equal(requestingAccount.URI, reject.Object.Object)
-	suite.Equal(requestingAccount.URI, reject.Object.To)
+	suite.Equal(requester.URI, reject.Object.Object)
+	suite.Equal(requester.URI, reject.Object.To)
 	suite.Equal("Follow", reject.Object.Type)
 	suite.Equal(targetAccount.URI, reject.To)
 	suite.Equal("Reject", reject.Type)

@@ -72,7 +72,6 @@ func main() {
 
 	// Parse our config type for
 	// usable configuration fields.
-	confStruct.Type = confType
 	confStruct.Load(confType)
 
 	fprintf(output, "// THIS IS A GENERATED FILE, DO NOT EDIT BY HAND\n")
@@ -102,7 +101,9 @@ type ConfigStruct struct {
 	// this provides prefixes.
 	Struct *ConfigStruct
 
-	// ...
+	// The config flag
+	// name of the struct
+	// where its embedded.
 	FlagName string
 
 	// The name of struct's field
@@ -113,10 +114,12 @@ type ConfigStruct struct {
 	// of the config struct.
 	Type reflect.Type
 
-	// ...
+	// Sub configuration fields
+	// attached to this struct.
 	Fields []ConfigField
 
-	// ...
+	// Sub configuration structs
+	// attached to this struct.
 	Structs []ConfigStruct
 }
 
@@ -150,7 +153,8 @@ type ConfigField struct {
 	DeprecatedBy string
 }
 
-// Flag ...
+// Flag builds the full flag name of this configuration
+// field, with all containing struct prefixes included.
 func (f *ConfigField) Flag() string {
 	flag := f.FlagName
 	parent := f.Struct
@@ -161,7 +165,8 @@ func (f *ConfigField) Flag() string {
 	return flag
 }
 
-// Path ...
+// Path builds the full AST struct field member path
+// definition with all containing struct prefixes included.
 func (f *ConfigField) Path() string {
 	path := f.FieldName
 	parent := f.Struct
@@ -172,18 +177,22 @@ func (f *ConfigField) Path() string {
 	return path
 }
 
-// TypeName ...
+// TypeName returns this field's type
+// name, relative to the "config" package.
 func (f *ConfigField) TypeName() string {
 	return strings.TrimPrefix(f.Type.String(), "config.")
 }
 
-// TypeName ...
+// TypeName returns this struct's type
+// name, relative to the "config" package.
 func (s *ConfigStruct) TypeName() string {
 	return strings.TrimPrefix(s.Type.String(), "config.")
 }
 
-// Load ...
+// Load loads all sub-fields associated with struct
+// type, and sets its own reflected type member too.
 func (s *ConfigStruct) Load(t reflect.Type) {
+	s.Type = t
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 
@@ -206,7 +215,6 @@ func (s *ConfigStruct) Load(t reflect.Type) {
 			s.Structs = append(s.Structs, ConfigStruct{})
 			nested := &(s.Structs[len(s.Structs)-1])
 			nested.Struct = s
-			nested.Type = ft
 			nested.FlagName = name // can be empty
 			nested.FieldName = field.Name
 			nested.Load(ft)
@@ -232,7 +240,7 @@ func (s *ConfigStruct) Load(t reflect.Type) {
 	}
 }
 
-// RangeFields ...
+// RangeFields ranges through all nested fields contained in struct, depth-first.
 func (s *ConfigStruct) RangeFields(yield func(*ConfigField) bool) {
 	if yield == nil {
 		panic("nil func")

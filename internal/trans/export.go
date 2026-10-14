@@ -25,7 +25,7 @@ import (
 	transmodel "code.superseriousbusiness.org/gotosocial/internal/trans/model"
 )
 
-func (e *exporter) exportAccounts(ctx context.Context, where []db.Where, file *os.File) ([]*transmodel.Account, error) {
+func (e *exporter) exportAccounts(ctx context.Context, where []db.BunExpr, file *os.File) ([]*transmodel.Account, error) {
 	// select using the 'where' we've been provided
 	accounts := []*transmodel.Account{}
 	if err := e.db.GetWhere(ctx, where, &accounts); err != nil {
@@ -48,7 +48,7 @@ func (e *exporter) exportBlocks(ctx context.Context, accounts []*transmodel.Acco
 	// for each account we want to export both where it's blocking and where it's blocked
 	for _, a := range accounts {
 		// 1. export blocks owned by given account
-		whereBlocking := []db.Where{{Key: "account_id", Value: a.ID}}
+		whereBlocking := []db.BunExpr{db.Where("account_id = ?", a.ID)}
 		blocking := []*transmodel.Block{}
 		if err := e.db.GetWhere(ctx, whereBlocking, &blocking); err != nil {
 			return nil, fmt.Errorf("exportBlocks: error selecting blocks owned by account %s: %s", a.ID, err)
@@ -62,7 +62,7 @@ func (e *exporter) exportBlocks(ctx context.Context, accounts []*transmodel.Acco
 		}
 
 		// 2. export blocks that target given account
-		whereBlocked := []db.Where{{Key: "target_account_id", Value: a.ID}}
+		whereBlocked := []db.BunExpr{db.Where("target_account_id = ?", a.ID)}
 		blocked := []*transmodel.Block{}
 		if err := e.db.GetWhere(ctx, whereBlocked, &blocked); err != nil {
 			return nil, fmt.Errorf("exportBlocks: error selecting blocks targeting account %s: %s", a.ID, err)
@@ -108,7 +108,7 @@ func (e *exporter) exportFollowing(ctx context.Context, accounts []*transmodel.A
 	// for each account we want to export both where it's following and where it's followed
 	for _, a := range accounts {
 		// 1. export follows owned by given account
-		whereFollowing := []db.Where{{Key: "account_id", Value: a.ID}}
+		whereFollowing := []db.BunExpr{db.Where("account_id = ?", a.ID)}
 		following := []*transmodel.Follow{}
 		if err := e.db.GetWhere(ctx, whereFollowing, &following); err != nil {
 			return nil, fmt.Errorf("exportFollowing: error selecting follows owned by account %s: %s", a.ID, err)
@@ -122,7 +122,7 @@ func (e *exporter) exportFollowing(ctx context.Context, accounts []*transmodel.A
 		}
 
 		// 2. export follows that target given account
-		whereFollowed := []db.Where{{Key: "target_account_id", Value: a.ID}}
+		whereFollowed := []db.BunExpr{db.Where("target_account_id = ?", a.ID)}
 		followed := []*transmodel.Follow{}
 		if err := e.db.GetWhere(ctx, whereFollowed, &followed); err != nil {
 			return nil, fmt.Errorf("exportFollowing: error selecting follows targeting account %s: %s", a.ID, err)
@@ -151,7 +151,7 @@ func (e *exporter) exportFollowRequests(ctx context.Context, accounts []*transmo
 	// for each account we want to export both where it's following and where it's followed
 	for _, a := range accounts {
 		// 1. export follow requests owned by given account
-		whereRequesting := []db.Where{{Key: "account_id", Value: a.ID}}
+		whereRequesting := []db.BunExpr{db.Where("account_id = ?", a.ID)}
 		requesting := []*transmodel.FollowRequest{}
 		if err := e.db.GetWhere(ctx, whereRequesting, &requesting); err != nil {
 			return nil, fmt.Errorf("exportFollowRequests: error selecting follow requests owned by account %s: %s", a.ID, err)
@@ -165,7 +165,7 @@ func (e *exporter) exportFollowRequests(ctx context.Context, accounts []*transmo
 		}
 
 		// 2. export follow requests that target given account
-		whereRequested := []db.Where{{Key: "target_account_id", Value: a.ID}}
+		whereRequested := []db.BunExpr{db.Where("target_account_id = ?", a.ID)}
 		requested := []*transmodel.FollowRequest{}
 		if err := e.db.GetWhere(ctx, whereRequested, &requested); err != nil {
 			return nil, fmt.Errorf("exportFollowRequests: error selecting follow requests targeting account %s: %s", a.ID, err)

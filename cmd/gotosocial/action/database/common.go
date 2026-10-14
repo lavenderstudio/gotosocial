@@ -55,7 +55,7 @@ func do(ctx context.Context, logQueries bool, do func(db *bun.DB) error) error {
 		log.Info(ctx, "done! exiting...")
 	}()
 
-	// Initialize caches
+	// Initialize caches.
 	state.Caches.Init()
 	if err := state.Caches.Start(); err != nil {
 		return fmt.Errorf("error starting caches: %w", err)

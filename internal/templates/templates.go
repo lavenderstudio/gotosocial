@@ -42,7 +42,9 @@ import (
 	"codeberg.org/gruf/go-byteutil"
 )
 
-// Templates ...
+// Templates wraps a single base template.Template{}, proxy
+// configuration and other required bits to be to prepare
+// templated responses according to argument parameters.
 type Templates struct {
 	db       db.DB
 	typeConv *typeutils.Converter

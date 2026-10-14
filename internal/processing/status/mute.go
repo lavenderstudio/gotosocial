@@ -29,7 +29,7 @@ import (
 )
 
 // getMuteableStatus fetches targetStatusID status and
-// ensures that requestingAccount can mute or unmute it.
+// ensures that requester can mute or unmute it.
 //
 // It checks:
 //   - Status exists and is visible to requester.

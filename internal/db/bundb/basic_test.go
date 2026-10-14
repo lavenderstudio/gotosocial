@@ -117,10 +117,8 @@ func (suite *BasicTestSuite) TestGetAllStatuses() {
 }
 
 func (suite *BasicTestSuite) TestGetAllNotNull() {
-	where := []db.Where{{
-		Key:   "domain",
-		Value: nil,
-		Not:   true,
+	where := []db.BunExpr{{
+		Fmt: "domain IS NOT NULL",
 	}}
 
 	a := []*gtsmodel.Account{}

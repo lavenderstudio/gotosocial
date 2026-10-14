@@ -30,8 +30,8 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 )
 
-// ListsGet returns all lists owned by requestingAccount, which contain a follow for targetAccountID.
-func (p *Processor) ListsGet(ctx context.Context, requestingAccount *gtsmodel.Account, targetAccountID string) ([]*apimodel.List, gtserror.WithCode) {
+// ListsGet returns all lists owned by requester, which contain a follow for targetAccountID.
+func (p *Processor) ListsGet(ctx context.Context, requester *gtsmodel.Account, targetAccountID string) ([]*apimodel.List, gtserror.WithCode) {
 	targetAccount, err := p.state.DB.GetAccountByID(ctx, targetAccountID)
 	if err != nil {
 		if errors.Is(err, db.ErrNoEntries) {
@@ -40,7 +40,7 @@ func (p *Processor) ListsGet(ctx context.Context, requestingAccount *gtsmodel.Ac
 		return nil, gtserror.NewErrorInternalError(fmt.Errorf("db error: %w", err))
 	}
 
-	visible, err := p.visFilter.AccountVisible(ctx, requestingAccount, targetAccount)
+	visible, err := p.visFilter.AccountVisible(ctx, requester, targetAccount)
 	if err != nil {
 		return nil, gtserror.NewErrorInternalError(fmt.Errorf("db error: %w", err))
 	}
@@ -55,7 +55,7 @@ func (p *Processor) ListsGet(ctx context.Context, requestingAccount *gtsmodel.Ac
 
 		// Don't populate follow.
 		gtscontext.SetBarebones(ctx),
-		requestingAccount.ID,
+		requester.ID,
 		targetAccountID,
 	)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {

@@ -170,7 +170,7 @@ func RequestingAccount(ctx context.Context) *gtsmodel.Account {
 	return acct
 }
 
-// SetRequestingAccount stores the given requesting account value and returns the wrapped
+// Setrequester stores the given requesting account value and returns the wrapped
 // context. See RequestingAccount() for further information on the requesting account value.
 func SetRequestingAccount(ctx context.Context, acct *gtsmodel.Account) context.Context {
 	if c := httputil.UnwrapContext(ctx); c != nil {

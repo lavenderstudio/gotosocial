@@ -61,7 +61,7 @@ func (suite *RejectTestSuite) TestRejectFollowRequest() {
 	suite.NoError(err)
 
 	rejectingAccountURI := testrig.URLMustParse(followedAccount.URI)
-	requestingAccountURI := testrig.URLMustParse(followingAccount.URI)
+	requesterURI := testrig.URLMustParse(followingAccount.URI)
 
 	// create a Reject
 	reject := streams.NewActivityStreamsReject()
@@ -78,7 +78,7 @@ func (suite *RejectTestSuite) TestRejectFollowRequest() {
 	reject.SetActivityStreamsObject(acceptObject)
 
 	// Set the To of the reject as the originator of the follow
-	ap.AppendTo(reject, requestingAccountURI)
+	ap.AppendTo(reject, requesterURI)
 
 	// process the reject in the federating database
 	err = suite.federatingDB.Reject(ctx, reject)

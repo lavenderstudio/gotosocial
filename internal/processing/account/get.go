@@ -31,7 +31,7 @@ import (
 )
 
 // Get processes the given request for account information.
-func (p *Processor) Get(ctx context.Context, requestingAccount *gtsmodel.Account, targetAccountID string) (*apimodel.Account, gtserror.WithCode) {
+func (p *Processor) Get(ctx context.Context, requester *gtsmodel.Account, targetAccountID string) (*apimodel.Account, gtserror.WithCode) {
 	targetAccount, err := p.state.DB.GetAccountByID(ctx, targetAccountID)
 	if err != nil {
 		if errors.Is(err, db.ErrNoEntries) {
@@ -42,7 +42,7 @@ func (p *Processor) Get(ctx context.Context, requestingAccount *gtsmodel.Account
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	blocked, err := p.state.DB.IsEitherBlocked(ctx, requestingAccount.ID, targetAccount.ID)
+	blocked, err := p.state.DB.IsEitherBlocked(ctx, requester.ID, targetAccount.ID)
 	if err != nil {
 		err := gtserror.Newf("db error checking blocks: %w", err)
 		return nil, gtserror.NewErrorInternalError(err)
@@ -70,7 +70,7 @@ func (p *Processor) Get(ctx context.Context, requestingAccount *gtsmodel.Account
 		// Match by URI only.
 		latest, _, err := p.federator.GetAccountByURI(
 			gtscontext.SetFastFail(ctx),
-			requestingAccount.Username,
+			requester.Username,
 			targetAccountURI,
 			false,
 		)
@@ -83,7 +83,7 @@ func (p *Processor) Get(ctx context.Context, requestingAccount *gtsmodel.Account
 	}
 
 	var apiAccount *apimodel.Account
-	if targetAccount.ID == requestingAccount.ID {
+	if targetAccount.ID == requester.ID {
 		// This is requester's own account,
 		// show additional details.
 		apiAccount, err = p.converter.AccountToAPIAccountSensitive(ctx, targetAccount)

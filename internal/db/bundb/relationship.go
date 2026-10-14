@@ -37,14 +37,14 @@ type relationshipDB struct {
 	state *state.State
 }
 
-func (r *relationshipDB) GetRelationship(ctx context.Context, requestingAccount string, targetAccount string) (*gtsmodel.Relationship, error) {
+func (r *relationshipDB) GetRelationship(ctx context.Context, requester string, targetAccount string) (*gtsmodel.Relationship, error) {
 	var rel gtsmodel.Relationship
 	rel.ID = targetAccount
 
 	// check if the requesting follows the target
 	follow, err := r.GetFollow(
 		gtscontext.SetBarebones(ctx),
-		requestingAccount,
+		requester,
 		targetAccount,
 	)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
@@ -62,7 +62,7 @@ func (r *relationshipDB) GetRelationship(ctx context.Context, requestingAccount 
 		// see if follow request does.
 		followReq, err := r.GetFollowRequest(
 			gtscontext.SetBarebones(ctx),
-			requestingAccount,
+			requester,
 			targetAccount,
 		)
 		if err != nil && !errors.Is(err, db.ErrNoEntries) {
@@ -81,7 +81,7 @@ func (r *relationshipDB) GetRelationship(ctx context.Context, requestingAccount 
 	// check if the target follows the requesting
 	rel.FollowedBy, err = r.IsFollowing(ctx,
 		targetAccount,
-		requestingAccount,
+		requester,
 	)
 	if err != nil {
 		return nil, gtserror.Newf("error checking followedBy: %w", err)
@@ -90,20 +90,20 @@ func (r *relationshipDB) GetRelationship(ctx context.Context, requestingAccount 
 	// check if target has follow requested requesting
 	rel.RequestedBy, err = r.IsFollowRequested(ctx,
 		targetAccount,
-		requestingAccount,
+		requester,
 	)
 	if err != nil {
 		return nil, gtserror.Newf("error checking requestedBy: %w", err)
 	}
 
 	// check if the requesting account is blocking the target account
-	rel.Blocking, err = r.IsBlocked(ctx, requestingAccount, targetAccount)
+	rel.Blocking, err = r.IsBlocked(ctx, requester, targetAccount)
 	if err != nil {
 		return nil, gtserror.Newf("error checking blocking: %w", err)
 	}
 
 	// check if the requesting account is blocked by the target account
-	rel.BlockedBy, err = r.IsBlocked(ctx, targetAccount, requestingAccount)
+	rel.BlockedBy, err = r.IsBlocked(ctx, targetAccount, requester)
 	if err != nil {
 		return nil, gtserror.Newf("error checking blockedBy: %w", err)
 	}
@@ -111,7 +111,7 @@ func (r *relationshipDB) GetRelationship(ctx context.Context, requestingAccount 
 	// retrieve a note by the requesting account on the target account, if there is one
 	note, err := r.GetNote(
 		gtscontext.SetBarebones(ctx),
-		requestingAccount,
+		requester,
 		targetAccount,
 	)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
@@ -122,7 +122,7 @@ func (r *relationshipDB) GetRelationship(ctx context.Context, requestingAccount 
 	}
 
 	// check if the requesting account is muting the target account
-	mute, err := r.GetMute(ctx, requestingAccount, targetAccount)
+	mute, err := r.GetMute(ctx, requester, targetAccount)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		return nil, gtserror.Newf("error checking muting: %w", err)
 	}

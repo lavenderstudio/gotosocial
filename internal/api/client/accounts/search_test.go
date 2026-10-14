@@ -28,6 +28,7 @@ import (
 	"testing"
 
 	"code.superseriousbusiness.org/gopkg/httputil"
+	"code.superseriousbusiness.org/gopkg/xslices"
 	"code.superseriousbusiness.org/gotosocial/internal/api/client/accounts"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
@@ -43,7 +44,7 @@ type AccountSearchTestSuite struct {
 }
 
 func (suite *AccountSearchTestSuite) getSearch(
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	token *gtsmodel.Token,
 	user *gtsmodel.User,
 	limit *int,
@@ -83,7 +84,7 @@ func (suite *AccountSearchTestSuite) getSearch(
 	recorder := httptest.NewRecorder()
 	c := httputil.ToContext(recorder, req)
 
-	c.V.Set(oauth.SessionAuthorizedAccount, requestingAccount)
+	c.V.Set(oauth.SessionAuthorizedAccount, requester)
 	c.V.Set(oauth.SessionAuthorizedToken, oauth.DBTokenToToken(token))
 	c.V.Set(oauth.SessionAuthorizedApplication, suite.testApplications["application_1"])
 	c.V.Set(oauth.SessionAuthorizedUser, user)
@@ -126,7 +127,7 @@ func (suite *AccountSearchTestSuite) getSearch(
 
 func (suite *AccountSearchTestSuite) TestSearchZorkOK() {
 	var (
-		requestingAccount        = suite.testAccounts["local_account_1"]
+		requester                = suite.testAccounts["local_account_1"]
 		token                    = suite.testTokens["local_account_1"]
 		user                     = suite.testUsers["local_account_1"]
 		limit              *int  = nil
@@ -139,7 +140,7 @@ func (suite *AccountSearchTestSuite) TestSearchZorkOK() {
 	)
 
 	accounts, err := suite.getSearch(
-		requestingAccount,
+		requester,
 		token,
 		user,
 		limit,
@@ -162,7 +163,7 @@ func (suite *AccountSearchTestSuite) TestSearchZorkOK() {
 
 func (suite *AccountSearchTestSuite) TestSearchZorkExactOK() {
 	var (
-		requestingAccount        = suite.testAccounts["local_account_1"]
+		requester                = suite.testAccounts["local_account_1"]
 		token                    = suite.testTokens["local_account_1"]
 		user                     = suite.testUsers["local_account_1"]
 		limit              *int  = nil
@@ -175,7 +176,7 @@ func (suite *AccountSearchTestSuite) TestSearchZorkExactOK() {
 	)
 
 	accounts, err := suite.getSearch(
-		requestingAccount,
+		requester,
 		token,
 		user,
 		limit,
@@ -198,7 +199,7 @@ func (suite *AccountSearchTestSuite) TestSearchZorkExactOK() {
 
 func (suite *AccountSearchTestSuite) TestSearchZorkWithDomainOK() {
 	var (
-		requestingAccount        = suite.testAccounts["local_account_1"]
+		requester                = suite.testAccounts["local_account_1"]
 		token                    = suite.testTokens["local_account_1"]
 		user                     = suite.testUsers["local_account_1"]
 		limit              *int  = nil
@@ -211,7 +212,7 @@ func (suite *AccountSearchTestSuite) TestSearchZorkWithDomainOK() {
 	)
 
 	accounts, err := suite.getSearch(
-		requestingAccount,
+		requester,
 		token,
 		user,
 		limit,
@@ -234,7 +235,7 @@ func (suite *AccountSearchTestSuite) TestSearchZorkWithDomainOK() {
 
 func (suite *AccountSearchTestSuite) TestSearchFossSatanNotFollowing() {
 	var (
-		requestingAccount        = suite.testAccounts["local_account_1"]
+		requester                = suite.testAccounts["local_account_1"]
 		token                    = suite.testTokens["local_account_1"]
 		user                     = suite.testUsers["local_account_1"]
 		limit              *int  = nil
@@ -247,7 +248,7 @@ func (suite *AccountSearchTestSuite) TestSearchFossSatanNotFollowing() {
 	)
 
 	accounts, err := suite.getSearch(
-		requestingAccount,
+		requester,
 		token,
 		user,
 		limit,
@@ -270,7 +271,7 @@ func (suite *AccountSearchTestSuite) TestSearchFossSatanNotFollowing() {
 
 func (suite *AccountSearchTestSuite) TestSearchFossSatanFollowing() {
 	var (
-		requestingAccount        = suite.testAccounts["local_account_1"]
+		requester                = suite.testAccounts["local_account_1"]
 		token                    = suite.testTokens["local_account_1"]
 		user                     = suite.testUsers["local_account_1"]
 		limit              *int  = nil
@@ -283,7 +284,7 @@ func (suite *AccountSearchTestSuite) TestSearchFossSatanFollowing() {
 	)
 
 	accounts, err := suite.getSearch(
-		requestingAccount,
+		requester,
 		token,
 		user,
 		limit,
@@ -306,7 +307,7 @@ func (suite *AccountSearchTestSuite) TestSearchFossSatanFollowing() {
 
 func (suite *AccountSearchTestSuite) TestSearchBonkersQuery() {
 	var (
-		requestingAccount        = suite.testAccounts["local_account_1"]
+		requester                = suite.testAccounts["local_account_1"]
 		token                    = suite.testTokens["local_account_1"]
 		user                     = suite.testUsers["local_account_1"]
 		limit              *int  = nil
@@ -319,7 +320,7 @@ func (suite *AccountSearchTestSuite) TestSearchBonkersQuery() {
 	)
 
 	accounts, err := suite.getSearch(
-		requestingAccount,
+		requester,
 		token,
 		user,
 		limit,
@@ -340,22 +341,22 @@ func (suite *AccountSearchTestSuite) TestSearchBonkersQuery() {
 	}
 }
 
-func (suite *AccountSearchTestSuite) TestSearchAFollowing() {
+func (suite *AccountSearchTestSuite) TestSearchSatanNotFollowing() {
 	var (
-		requestingAccount        = suite.testAccounts["local_account_1"]
+		requester                = suite.testAccounts["local_account_1"]
 		token                    = suite.testTokens["local_account_1"]
 		user                     = suite.testUsers["local_account_1"]
 		limit              *int  = nil
 		offset             *int  = nil
 		resolve            *bool = nil
-		query                    = "a"
+		query                    = "satan"
 		following          *bool = nil
 		expectedHTTPStatus       = http.StatusOK
 		expectedBody             = ""
 	)
 
 	accounts, err := suite.getSearch(
-		requestingAccount,
+		requester,
 		token,
 		user,
 		limit,
@@ -366,39 +367,34 @@ func (suite *AccountSearchTestSuite) TestSearchAFollowing() {
 		expectedHTTPStatus,
 		expectedBody,
 	)
-
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
 
-	if l := len(accounts); l != 6 {
-		suite.FailNow("", "expected length %d got %d", 6, l)
-	}
-
-	usernames := make([]string, 0, 6)
-	for _, account := range accounts {
-		usernames = append(usernames, account.Username)
-	}
-
-	suite.EqualValues([]string{"her_fuckin_maj", "media_mogul", "foss_satan", "1happyturtle", "the_mighty_zork", "admin"}, usernames)
+	suite.EqualValues(
+		[]string{"foss_satan"},
+		xslices.Gather(nil, accounts, func(a *apimodel.Account) string {
+			return a.Username
+		}),
+	)
 }
 
-func (suite *AccountSearchTestSuite) TestSearchANotFollowing() {
+func (suite *AccountSearchTestSuite) TestSearchSatanFollowing() {
 	var (
-		requestingAccount        = suite.testAccounts["local_account_1"]
+		requester                = suite.testAccounts["local_account_1"]
 		token                    = suite.testTokens["local_account_1"]
 		user                     = suite.testUsers["local_account_1"]
 		limit              *int  = nil
 		offset             *int  = nil
 		resolve            *bool = nil
-		query                    = "a"
+		query                    = "satan"
 		following          *bool = func() *bool { i := true; return &i }()
 		expectedHTTPStatus       = http.StatusOK
 		expectedBody             = ""
 	)
 
 	accounts, err := suite.getSearch(
-		requestingAccount,
+		requester,
 		token,
 		user,
 		limit,
@@ -409,21 +405,16 @@ func (suite *AccountSearchTestSuite) TestSearchANotFollowing() {
 		expectedHTTPStatus,
 		expectedBody,
 	)
-
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
 
-	if l := len(accounts); l != 2 {
-		suite.FailNow("", "expected length %d got %d", 2, l)
-	}
-
-	usernames := make([]string, 0, 2)
-	for _, account := range accounts {
-		usernames = append(usernames, account.Username)
-	}
-
-	suite.EqualValues([]string{"1happyturtle", "admin"}, usernames)
+	suite.EqualValues(
+		[]string(nil),
+		xslices.Gather(nil, accounts, func(a *apimodel.Account) string {
+			return a.Username
+		}),
+	)
 }
 
 func TestAccountSearchTestSuite(t *testing.T) {

@@ -22,10 +22,12 @@ package model
 //
 // swagger:model threadContext
 type ThreadContext struct {
+
 	// Parents in the thread.
-	Ancestors []Status `json:"ancestors"`
+	Ancestors []*Status `json:"ancestors"`
+
 	// Children in the thread.
-	Descendants []Status `json:"descendants"`
+	Descendants []*Status `json:"descendants"`
 }
 
 type WebThreadContext struct {

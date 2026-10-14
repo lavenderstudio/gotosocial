@@ -61,7 +61,7 @@ const conversationNotFoundHelpText = "conversation not found"
 func (p *Processor) getConversationOwnedBy(
 	ctx context.Context,
 	id string,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 ) (*gtsmodel.Conversation, gtserror.WithCode) {
 	// Get the conversation so that we can check its owning account ID.
 	conversation, err := p.state.DB.GetConversationByID(ctx, id)
@@ -70,7 +70,7 @@ func (p *Processor) getConversationOwnedBy(
 			gtserror.Newf(
 				"DB error getting conversation %s for account %s: %w",
 				id,
-				requestingAccount.ID,
+				requester.ID,
 				err,
 			),
 		)
@@ -85,12 +85,12 @@ func (p *Processor) getConversationOwnedBy(
 			conversationNotFoundHelpText,
 		)
 	}
-	if conversation.AccountID != requestingAccount.ID {
+	if conversation.AccountID != requester.ID {
 		return nil, gtserror.NewErrorNotFound(
 			gtserror.Newf(
 				"conversation %s not owned by account %s: %w",
 				id,
-				requestingAccount.ID,
+				requester.ID,
 				err,
 			),
 			conversationNotFoundHelpText,

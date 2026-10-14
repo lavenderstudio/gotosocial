@@ -32,15 +32,15 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
-// MuteCreate handles the creation or updating of a mute from requestingAccount to targetAccountID.
+// MuteCreate handles the creation or updating of a mute from requester to targetAccountID.
 // The form params should have already been normalized by the time they reach this function.
 func (p *Processor) MuteCreate(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	targetAccountID string,
 	form *apimodel.UserMuteCreateUpdateRequest,
 ) (*apimodel.Relationship, gtserror.WithCode) {
-	targetAccount, existingMute, errWithCode := p.getMuteTarget(ctx, requestingAccount, targetAccountID)
+	targetAccount, existingMute, errWithCode := p.getMuteTarget(ctx, requester, targetAccountID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
@@ -49,13 +49,13 @@ func (p *Processor) MuteCreate(
 		*existingMute.Notifications == *form.Notifications &&
 		existingMute.ExpiresAt.IsZero() && form.Duration == nil {
 		// Mute already exists and doesn't require updating, nothing to do.
-		return p.c.APIRelationship(ctx, requestingAccount, targetAccountID)
+		return p.c.APIRelationship(ctx, requester, targetAccountID)
 	}
 
 	// Create a new mute or update an existing one.
 	mute := &gtsmodel.UserMute{
-		AccountID:       requestingAccount.ID,
-		Account:         requestingAccount,
+		AccountID:       requester.ID,
+		Account:         requester,
 		TargetAccountID: targetAccountID,
 		TargetAccount:   targetAccount,
 		Notifications:   form.Notifications,
@@ -74,23 +74,23 @@ func (p *Processor) MuteCreate(
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	return p.c.APIRelationship(ctx, requestingAccount, targetAccountID)
+	return p.c.APIRelationship(ctx, requester, targetAccountID)
 }
 
-// MuteRemove handles the removal of a mute from requestingAccount to targetAccountID.
+// MuteRemove handles the removal of a mute from requester to targetAccountID.
 func (p *Processor) MuteRemove(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	targetAccountID string,
 ) (*apimodel.Relationship, gtserror.WithCode) {
-	_, existingMute, errWithCode := p.getMuteTarget(ctx, requestingAccount, targetAccountID)
+	_, existingMute, errWithCode := p.getMuteTarget(ctx, requester, targetAccountID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
 	if existingMute == nil {
 		// Already not muted, nothing to do.
-		return p.c.APIRelationship(ctx, requestingAccount, targetAccountID)
+		return p.c.APIRelationship(ctx, requester, targetAccountID)
 	}
 
 	// We got a mute, remove it from the db.
@@ -99,17 +99,17 @@ func (p *Processor) MuteRemove(
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	return p.c.APIRelationship(ctx, requestingAccount, targetAccountID)
+	return p.c.APIRelationship(ctx, requester, targetAccountID)
 }
 
 // MutesGet retrieves the user's list of muted accounts, with an extra field for mute expiration (if applicable).
 func (p *Processor) MutesGet(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	page *paging.Page,
 ) (*apimodel.PageableResponse, gtserror.WithCode) {
 	mutes, err := p.state.DB.GetAccountMutes(ctx,
-		requestingAccount.ID,
+		requester.ID,
 		page,
 	)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
@@ -165,12 +165,12 @@ func (p *Processor) MutesGet(
 
 func (p *Processor) getMuteTarget(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	targetAccountID string,
 ) (*gtsmodel.Account, *gtsmodel.UserMute, gtserror.WithCode) {
 	// Account should not mute or unmute itself.
-	if requestingAccount.ID == targetAccountID {
-		err := gtserror.Newf("account %s cannot mute or unmute itself", requestingAccount.ID)
+	if requester.ID == targetAccountID {
+		err := gtserror.Newf("account %s cannot mute or unmute itself", requester.ID)
 		return nil, nil, gtserror.NewErrorNotAcceptable(err, err.Error())
 	}
 
@@ -188,7 +188,7 @@ func (p *Processor) getMuteTarget(
 	}
 
 	// Check if currently muted.
-	mute, err := p.state.DB.GetMute(ctx, requestingAccount.ID, targetAccountID)
+	mute, err := p.state.DB.GetMute(ctx, requester.ID, targetAccountID)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		err = gtserror.Newf("db error checking existing mute: %w", err)
 		return nil, nil, gtserror.NewErrorInternalError(err)

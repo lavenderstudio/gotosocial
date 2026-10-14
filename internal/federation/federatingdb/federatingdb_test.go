@@ -92,8 +92,8 @@ func (suite *FederatingDBTestSuite) TearDownTest() {
 	testrig.StopWorkers(suite.state)
 }
 
-func createTestContext(t *testing.T, receivingAccount *gtsmodel.Account, requestingAccount *gtsmodel.Account) context.Context {
+func createTestContext(t *testing.T, receivingAccount *gtsmodel.Account, requester *gtsmodel.Account) context.Context {
 	ctx := gtscontext.SetReceivingAccount(t.Context(), receivingAccount)
-	ctx = gtscontext.SetRequestingAccount(ctx, requestingAccount)
+	ctx = gtscontext.SetRequestingAccount(ctx, requester)
 	return ctx
 }

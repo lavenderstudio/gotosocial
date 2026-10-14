@@ -40,6 +40,7 @@ const (
 //
 // If all this passes, returned bool will be true.
 func NormalizeHashtag(text string) (string, bool) {
+
 	// This normalization is specifically to avoid cases
 	// where visually-identical hashtags are stored with
 	// different unicode representations (e.g. with combining

@@ -206,12 +206,12 @@ func (suite *DomainBlockTestSuite) awaitAction(actionID string) {
 // using the Search processor.
 func (suite *DomainBlockTestSuite) lookupAccount(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	targetAccount *gtsmodel.Account,
 ) (*apimodel.Account, gtserror.WithCode) {
 	return suite.processor.Search().Lookup(
 		ctx,
-		requestingAccount,
+		requester,
 		"@"+targetAccount.Username+"@"+targetAccount.Domain,
 	)
 }
@@ -220,12 +220,12 @@ func (suite *DomainBlockTestSuite) lookupAccount(
 // statuses using the Account processor.
 func (suite *DomainBlockTestSuite) getStatuses(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	targetAccount *gtsmodel.Account,
 ) (*apimodel.PageableResponse, gtserror.WithCode) {
 	return suite.processor.Account().StatusesGet(
 		ctx,
-		requestingAccount,
+		requester,
 		targetAccount.ID,
 		0,          // unlimited
 		false,      // include replies

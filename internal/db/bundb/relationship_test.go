@@ -543,10 +543,10 @@ func (suite *RelationshipTestSuite) TestDeleteAccountMutes() {
 }
 
 func (suite *RelationshipTestSuite) TestGetRelationship() {
-	requestingAccount := suite.testAccounts["local_account_1"]
+	requester := suite.testAccounts["local_account_1"]
 	targetAccount := suite.testAccounts["admin_account"]
 
-	relationship, err := suite.db.GetRelationship(suite.T().Context(), requestingAccount.ID, targetAccount.ID)
+	relationship, err := suite.db.GetRelationship(suite.T().Context(), requester.ID, targetAccount.ID)
 	suite.NoError(err)
 	suite.NotNil(relationship)
 
@@ -565,33 +565,33 @@ func (suite *RelationshipTestSuite) TestGetRelationship() {
 }
 
 func (suite *RelationshipTestSuite) TestIsFollowingYes() {
-	requestingAccount := suite.testAccounts["local_account_1"]
+	requester := suite.testAccounts["local_account_1"]
 	targetAccount := suite.testAccounts["admin_account"]
-	isFollowing, err := suite.db.IsFollowing(suite.T().Context(), requestingAccount.ID, targetAccount.ID)
+	isFollowing, err := suite.db.IsFollowing(suite.T().Context(), requester.ID, targetAccount.ID)
 	suite.NoError(err)
 	suite.True(isFollowing)
 }
 
 func (suite *RelationshipTestSuite) TestIsFollowingNo() {
-	requestingAccount := suite.testAccounts["admin_account"]
+	requester := suite.testAccounts["admin_account"]
 	targetAccount := suite.testAccounts["local_account_2"]
-	isFollowing, err := suite.db.IsFollowing(suite.T().Context(), requestingAccount.ID, targetAccount.ID)
+	isFollowing, err := suite.db.IsFollowing(suite.T().Context(), requester.ID, targetAccount.ID)
 	suite.NoError(err)
 	suite.False(isFollowing)
 }
 
 func (suite *RelationshipTestSuite) TestIsMutualFollowing() {
-	requestingAccount := suite.testAccounts["local_account_1"]
+	requester := suite.testAccounts["local_account_1"]
 	targetAccount := suite.testAccounts["admin_account"]
-	isMutualFollowing, err := suite.db.IsMutualFollowing(suite.T().Context(), requestingAccount.ID, targetAccount.ID)
+	isMutualFollowing, err := suite.db.IsMutualFollowing(suite.T().Context(), requester.ID, targetAccount.ID)
 	suite.NoError(err)
 	suite.True(isMutualFollowing)
 }
 
 func (suite *RelationshipTestSuite) TestIsMutualFollowingNo() {
-	requestingAccount := suite.testAccounts["local_account_1"]
+	requester := suite.testAccounts["local_account_1"]
 	targetAccount := suite.testAccounts["local_account_2"]
-	isMutualFollowing, err := suite.db.IsMutualFollowing(suite.T().Context(), requestingAccount.ID, targetAccount.ID)
+	isMutualFollowing, err := suite.db.IsMutualFollowing(suite.T().Context(), requester.ID, targetAccount.ID)
 	suite.NoError(err)
 	suite.True(isMutualFollowing)
 }

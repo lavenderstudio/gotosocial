@@ -251,8 +251,8 @@ func (f *Federator) Blocked(ctx context.Context, actorIRIs []*url.URL) (bool, er
 		return false, err
 	}
 
-	requestingAccount := gtscontext.RequestingAccount(ctx)
-	if requestingAccount == nil {
+	requester := gtscontext.RequestingAccount(ctx)
+	if requester == nil {
 		err := gtserror.New("couldn't determine blocks (requesting account not set on request context)")
 		return false, err
 	}
@@ -263,7 +263,7 @@ func (f *Federator) Blocked(ctx context.Context, actorIRIs []*url.URL) (bool, er
 	forwarded := !slices.ContainsFunc(
 		actorIRIs,
 		func(actorIRI *url.URL) bool {
-			return actorIRI.String() == requestingAccount.URI
+			return actorIRI.String() == requester.URI
 		},
 	)
 
@@ -272,7 +272,7 @@ func (f *Federator) Blocked(ctx context.Context, actorIRIs []*url.URL) (bool, er
 		WithFields(kv.Fields{
 			{"actorIRIs", actorIRIs},
 			{"receivingAccount", receivingAccount.URI},
-			{"requestingAccount", requestingAccount.URI},
+			{"requester", requester.URI},
 			{"forwarded", forwarded},
 		}...)
 	l.Trace("checking blocks")
@@ -281,7 +281,7 @@ func (f *Federator) Blocked(ctx context.Context, actorIRIs []*url.URL) (bool, er
 	// not user-level block requester.
 	if blocked, err := f.db.IsBlocked(ctx,
 		receivingAccount.ID,
-		requestingAccount.ID,
+		requester.ID,
 	); err != nil {
 		err := gtserror.Newf("db error checking block between receiver and requester: %w", err)
 		return false, err
@@ -428,7 +428,7 @@ func (f *Federator) Blocked(ctx context.Context, actorIRIs []*url.URL) (bool, er
 		// accounts are gossiping about + trying to tag a third account
 		// who has one or the other of them blocked.
 		if iriHost == ourHost {
-			if blocked, err := f.db.IsBlocked(ctx, accountID, requestingAccount.ID); err != nil {
+			if blocked, err := f.db.IsBlocked(ctx, accountID, requester.ID); err != nil {
 				err := gtserror.Newf("db error checking block: %w", err)
 				return false, err
 			} else if blocked {

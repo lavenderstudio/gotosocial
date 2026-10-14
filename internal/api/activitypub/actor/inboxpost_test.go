@@ -47,7 +47,7 @@ type InboxPostTestSuite struct {
 
 func (suite *InboxPostTestSuite) inboxPost(
 	activity pub.Activity,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	targetAccount *gtsmodel.Account,
 	expectedHTTPStatus int,
 	expectedBody string,
@@ -69,8 +69,8 @@ func (suite *InboxPostTestSuite) inboxPost(
 	// Prepare signature headers for this Activity.
 	signature, digestHeader, dateHeader := testrig.GetSignatureForActivity(
 		activity,
-		requestingAccount.PublicKeyURI,
-		requestingAccount.PrivateKey,
+		requester.PublicKeyURI,
+		requester.PrivateKey,
 		testrig.URLMustParse(targetAccount.InboxURI),
 	)
 
@@ -206,17 +206,17 @@ func (suite *InboxPostTestSuite) newDelete(actorIRI string, objectIRI string, de
 // our instance users.
 func (suite *InboxPostTestSuite) TestPostBlock() {
 	var (
-		requestingAccount = suite.testAccounts["remote_account_1"]
-		targetAccount     = suite.testAccounts["local_account_1"]
-		activityID        = requestingAccount.URI + "/some-new-activity/01FG9C441MCTW3R2W117V2PQK3"
+		requester     = suite.testAccounts["remote_account_1"]
+		targetAccount = suite.testAccounts["local_account_1"]
+		activityID    = requester.URI + "/some-new-activity/01FG9C441MCTW3R2W117V2PQK3"
 	)
 
-	block := suite.newBlock(activityID, requestingAccount, targetAccount)
+	block := suite.newBlock(activityID, requester, targetAccount)
 
 	// Block.
 	suite.inboxPost(
 		block,
-		requestingAccount,
+		requester,
 		targetAccount,
 		http.StatusAccepted,
 		`{"status":"Accepted"}`,
@@ -230,7 +230,7 @@ func (suite *InboxPostTestSuite) TestPostBlock() {
 	)
 
 	if !testrig.WaitFor(func() bool {
-		dbBlock, err = suite.db.GetBlock(suite.T().Context(), requestingAccount.ID, targetAccount.ID)
+		dbBlock, err = suite.db.GetBlock(suite.T().Context(), requester.ID, targetAccount.ID)
 		return err == nil && dbBlock != nil
 	}) {
 		suite.FailNow("timed out waiting for block to be created")
@@ -241,18 +241,18 @@ func (suite *InboxPostTestSuite) TestPostBlock() {
 // one of our instance users should be able to undo that block.
 func (suite *InboxPostTestSuite) TestPostUnblock() {
 	var (
-		ctx               = suite.T().Context()
-		requestingAccount = suite.testAccounts["remote_account_1"]
-		targetAccount     = suite.testAccounts["local_account_1"]
-		blockID           = "http://fossbros-anonymous.io/blocks/01H1462TPRTVG2RTQCTSQ7N6Q0"
-		undoID            = "http://fossbros-anonymous.io/some-activity/01H1463RDQNG5H98F29BXYHW6B"
+		ctx           = suite.T().Context()
+		requester     = suite.testAccounts["remote_account_1"]
+		targetAccount = suite.testAccounts["local_account_1"]
+		blockID       = "http://fossbros-anonymous.io/blocks/01H1462TPRTVG2RTQCTSQ7N6Q0"
+		undoID        = "http://fossbros-anonymous.io/some-activity/01H1463RDQNG5H98F29BXYHW6B"
 	)
 
 	// Put a block in the database so we have something to undo.
 	block := &gtsmodel.Block{
 		ID:              id.NewULID(),
 		URI:             blockID,
-		AccountID:       requestingAccount.ID,
+		AccountID:       requester.ID,
 		TargetAccountID: targetAccount.ID,
 	}
 	if err := suite.db.PutBlock(ctx, block); err != nil {
@@ -275,7 +275,7 @@ func (suite *InboxPostTestSuite) TestPostUnblock() {
 	// Undo.
 	suite.inboxPost(
 		undo,
-		requestingAccount,
+		requester,
 		targetAccount,
 		http.StatusAccepted,
 		`{"status":"Accepted"}`,
@@ -293,16 +293,16 @@ func (suite *InboxPostTestSuite) TestPostUnblock() {
 
 func (suite *InboxPostTestSuite) TestPostUpdate() {
 	var (
-		requestingAccount  = new(gtsmodel.Account)
+		requester          = new(gtsmodel.Account)
 		targetAccount      = suite.testAccounts["local_account_1"]
 		updatedDisplayName = "updated display name!"
 	)
 
 	// Copy the requesting account, since we'll be changing it.
-	*requestingAccount = *suite.testAccounts["remote_account_1"]
+	*requester = *suite.testAccounts["remote_account_1"]
 
 	// Update the account's display name.
-	requestingAccount.DisplayName = updatedDisplayName
+	requester.DisplayName = updatedDisplayName
 
 	// Add an emoji to the account; because we're serializing this
 	// remote account from our own instance, we need to cheat a bit
@@ -310,10 +310,10 @@ func (suite *InboxPostTestSuite) TestPostUpdate() {
 	testEmoji := &gtsmodel.Emoji{}
 	*testEmoji = *testrig.NewTestEmojis()["yell"]
 	testEmoji.ImageURL = testEmoji.ImageRemoteURL // <- here's the cheat
-	requestingAccount.Emojis = []*gtsmodel.Emoji{testEmoji}
+	requester.Emojis = []*gtsmodel.Emoji{testEmoji}
 
 	// Create an update from the account.
-	accountable, err := suite.tc.AccountToAS(suite.T().Context(), requestingAccount)
+	accountable, err := suite.tc.AccountToAS(suite.T().Context(), requester)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -333,7 +333,7 @@ func (suite *InboxPostTestSuite) TestPostUpdate() {
 	// Update.
 	suite.inboxPost(
 		update,
-		requestingAccount,
+		requester,
 		targetAccount,
 		http.StatusAccepted,
 		`{"status":"Accepted"}`,
@@ -345,7 +345,7 @@ func (suite *InboxPostTestSuite) TestPostUpdate() {
 
 	if !testrig.WaitFor(func() bool {
 		// displayName should be updated
-		dbUpdatedAccount, _ = suite.db.GetAccountByID(suite.T().Context(), requestingAccount.ID)
+		dbUpdatedAccount, _ = suite.db.GetAccountByID(suite.T().Context(), requester.ID)
 		return dbUpdatedAccount.DisplayName == updatedDisplayName
 	}) {
 		suite.FailNow("timed out waiting for account update")
@@ -368,51 +368,51 @@ func (suite *InboxPostTestSuite) TestPostUpdate() {
 	suite.WithinDuration(time.Now(), dbUpdatedAccount.FetchedAt, 10*time.Second)
 
 	// everything else should be the same as it was before
-	suite.EqualValues(requestingAccount.Username, dbUpdatedAccount.Username)
-	suite.EqualValues(requestingAccount.Domain, dbUpdatedAccount.Domain)
-	suite.EqualValues(requestingAccount.AvatarMediaAttachmentID, dbUpdatedAccount.AvatarMediaAttachmentID)
-	suite.EqualValues(requestingAccount.AvatarMediaAttachment, dbUpdatedAccount.AvatarMediaAttachment)
-	suite.EqualValues(requestingAccount.AvatarRemoteURL, dbUpdatedAccount.AvatarRemoteURL)
-	suite.EqualValues(requestingAccount.HeaderMediaAttachmentID, dbUpdatedAccount.HeaderMediaAttachmentID)
-	suite.EqualValues(requestingAccount.HeaderMediaAttachment, dbUpdatedAccount.HeaderMediaAttachment)
-	suite.EqualValues(requestingAccount.HeaderRemoteURL, dbUpdatedAccount.HeaderRemoteURL)
-	suite.EqualValues(requestingAccount.Note, dbUpdatedAccount.Note)
-	suite.EqualValues(requestingAccount.MemorializedAt, dbUpdatedAccount.MemorializedAt)
-	suite.EqualValues(requestingAccount.AlsoKnownAsURIs, dbUpdatedAccount.AlsoKnownAsURIs)
-	suite.EqualValues(requestingAccount.MovedToURI, dbUpdatedAccount.MovedToURI)
-	suite.EqualValues(requestingAccount.Locked, dbUpdatedAccount.Locked)
-	suite.EqualValues(requestingAccount.Discoverable, dbUpdatedAccount.Discoverable)
-	suite.EqualValues(requestingAccount.Indexable, dbUpdatedAccount.Indexable)
-	suite.EqualValues(requestingAccount.URI, dbUpdatedAccount.URI)
-	suite.EqualValues(requestingAccount.URL, dbUpdatedAccount.URL)
-	suite.EqualValues(requestingAccount.InboxURI, dbUpdatedAccount.InboxURI)
-	suite.EqualValues(requestingAccount.OutboxURI, dbUpdatedAccount.OutboxURI)
-	suite.EqualValues(requestingAccount.FollowingURI, dbUpdatedAccount.FollowingURI)
-	suite.EqualValues(requestingAccount.FollowersURI, dbUpdatedAccount.FollowersURI)
-	suite.EqualValues(requestingAccount.FeaturedCollectionURI, dbUpdatedAccount.FeaturedCollectionURI)
-	suite.EqualValues(requestingAccount.ActorType, dbUpdatedAccount.ActorType)
-	suite.EqualValues(requestingAccount.PublicKey, dbUpdatedAccount.PublicKey)
-	suite.EqualValues(requestingAccount.PublicKeyURI, dbUpdatedAccount.PublicKeyURI)
-	suite.EqualValues(requestingAccount.SensitizedAt, dbUpdatedAccount.SensitizedAt)
-	suite.EqualValues(requestingAccount.SilencedAt, dbUpdatedAccount.SilencedAt)
-	suite.EqualValues(requestingAccount.SuspendedAt, dbUpdatedAccount.SuspendedAt)
-	suite.EqualValues(requestingAccount.SuspensionOrigin, dbUpdatedAccount.SuspensionOrigin)
+	suite.EqualValues(requester.Username, dbUpdatedAccount.Username)
+	suite.EqualValues(requester.Domain, dbUpdatedAccount.Domain)
+	suite.EqualValues(requester.AvatarMediaAttachmentID, dbUpdatedAccount.AvatarMediaAttachmentID)
+	suite.EqualValues(requester.AvatarMediaAttachment, dbUpdatedAccount.AvatarMediaAttachment)
+	suite.EqualValues(requester.AvatarRemoteURL, dbUpdatedAccount.AvatarRemoteURL)
+	suite.EqualValues(requester.HeaderMediaAttachmentID, dbUpdatedAccount.HeaderMediaAttachmentID)
+	suite.EqualValues(requester.HeaderMediaAttachment, dbUpdatedAccount.HeaderMediaAttachment)
+	suite.EqualValues(requester.HeaderRemoteURL, dbUpdatedAccount.HeaderRemoteURL)
+	suite.EqualValues(requester.Note, dbUpdatedAccount.Note)
+	suite.EqualValues(requester.MemorializedAt, dbUpdatedAccount.MemorializedAt)
+	suite.EqualValues(requester.AlsoKnownAsURIs, dbUpdatedAccount.AlsoKnownAsURIs)
+	suite.EqualValues(requester.MovedToURI, dbUpdatedAccount.MovedToURI)
+	suite.EqualValues(requester.Locked, dbUpdatedAccount.Locked)
+	suite.EqualValues(requester.Discoverable, dbUpdatedAccount.Discoverable)
+	suite.EqualValues(requester.Indexable, dbUpdatedAccount.Indexable)
+	suite.EqualValues(requester.URI, dbUpdatedAccount.URI)
+	suite.EqualValues(requester.URL, dbUpdatedAccount.URL)
+	suite.EqualValues(requester.InboxURI, dbUpdatedAccount.InboxURI)
+	suite.EqualValues(requester.OutboxURI, dbUpdatedAccount.OutboxURI)
+	suite.EqualValues(requester.FollowingURI, dbUpdatedAccount.FollowingURI)
+	suite.EqualValues(requester.FollowersURI, dbUpdatedAccount.FollowersURI)
+	suite.EqualValues(requester.FeaturedCollectionURI, dbUpdatedAccount.FeaturedCollectionURI)
+	suite.EqualValues(requester.ActorType, dbUpdatedAccount.ActorType)
+	suite.EqualValues(requester.PublicKey, dbUpdatedAccount.PublicKey)
+	suite.EqualValues(requester.PublicKeyURI, dbUpdatedAccount.PublicKeyURI)
+	suite.EqualValues(requester.SensitizedAt, dbUpdatedAccount.SensitizedAt)
+	suite.EqualValues(requester.SilencedAt, dbUpdatedAccount.SilencedAt)
+	suite.EqualValues(requester.SuspendedAt, dbUpdatedAccount.SuspendedAt)
+	suite.EqualValues(requester.SuspensionOrigin, dbUpdatedAccount.SuspensionOrigin)
 }
 
 func (suite *InboxPostTestSuite) TestPostDelete() {
 	var (
-		ctx               = suite.T().Context()
-		requestingAccount = suite.testAccounts["remote_account_1"]
-		targetAccount     = suite.testAccounts["local_account_1"]
-		activityID        = requestingAccount.URI + "/some-new-activity/01FG9C441MCTW3R2W117V2PQK3"
+		ctx           = suite.T().Context()
+		requester     = suite.testAccounts["remote_account_1"]
+		targetAccount = suite.testAccounts["local_account_1"]
+		activityID    = requester.URI + "/some-new-activity/01FG9C441MCTW3R2W117V2PQK3"
 	)
 
-	delete := suite.newDelete(requestingAccount.URI, requestingAccount.URI, activityID)
+	delete := suite.newDelete(requester.URI, requester.URI, activityID)
 
 	// Delete.
 	suite.inboxPost(
 		delete,
-		requestingAccount,
+		requester,
 		targetAccount,
 		http.StatusAccepted,
 		`{"status":"Accepted"}`,
@@ -433,14 +433,14 @@ func (suite *InboxPostTestSuite) TestPostDelete() {
 
 	if !testrig.WaitFor(func() bool {
 		// no statuses from foss satan should be left in the database
-		dbStatuses, loopErr = suite.db.GetAccountStatuses(ctx, requestingAccount.ID, 0, false, false, "", "", false, false)
+		dbStatuses, loopErr = suite.db.GetAccountStatuses(ctx, requester.ID, 0, false, false, "", "", false, false)
 		return len(dbStatuses) == 0 && errors.Is(loopErr, db.ErrNoEntries)
 	}) {
 		suite.FailNowf("timed out waiting for statuses to be removed: %s", testrig.Dump(dbStatuses))
 	}
 
 	// Account should be stubbified.
-	dbAccount, err := suite.db.GetAccountByID(ctx, requestingAccount.ID)
+	dbAccount, err := suite.db.GetAccountByID(ctx, requester.ID)
 	suite.NoError(err)
 	suite.Empty(dbAccount.Note)
 	suite.Empty(dbAccount.DisplayName)
@@ -457,8 +457,8 @@ func (suite *InboxPostTestSuite) TestPostDelete() {
 
 func (suite *InboxPostTestSuite) TestPostEmptyCreate() {
 	var (
-		requestingAccount = suite.testAccounts["remote_account_1"]
-		targetAccount     = suite.testAccounts["local_account_1"]
+		requester     = suite.testAccounts["remote_account_1"]
+		targetAccount = suite.testAccounts["local_account_1"]
 	)
 
 	// Post a create with no object, this
@@ -468,7 +468,7 @@ func (suite *InboxPostTestSuite) TestPostEmptyCreate() {
 
 	suite.inboxPost(
 		create,
-		requestingAccount,
+		requester,
 		targetAccount,
 		http.StatusAccepted,
 		`{"status":"Accepted"}`,
@@ -518,12 +518,12 @@ func (suite *InboxPostTestSuite) TestPostCreateMalformedBlock() {
 
 func (suite *InboxPostTestSuite) TestPostFromBlockedAccount() {
 	var (
-		requestingAccount = suite.testAccounts["remote_account_1"]
-		targetAccount     = suite.testAccounts["local_account_2"]
+		requester     = suite.testAccounts["remote_account_1"]
+		targetAccount = suite.testAccounts["local_account_2"]
 	)
 
 	// Create an update from the account.
-	accountable, err := suite.tc.AccountToAS(suite.T().Context(), requestingAccount)
+	accountable, err := suite.tc.AccountToAS(suite.T().Context(), requester)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -539,7 +539,7 @@ func (suite *InboxPostTestSuite) TestPostFromBlockedAccount() {
 	// to turtle, who blocks him.
 	suite.inboxPost(
 		update,
-		requestingAccount,
+		requester,
 		targetAccount,
 		http.StatusForbidden,
 		`{"error":"Forbidden"}`,
@@ -549,10 +549,10 @@ func (suite *InboxPostTestSuite) TestPostFromBlockedAccount() {
 
 func (suite *InboxPostTestSuite) TestPostFromBlockedAccountToOtherAccount() {
 	var (
-		requestingAccount = suite.testAccounts["remote_account_1"]
-		targetAccount     = suite.testAccounts["local_account_1"]
-		activity          = suite.testActivities["reply_to_turtle_for_turtle"]
-		statusURI         = "http://fossbros-anonymous.io/users/foss_satan/statuses/2f1195a6-5cb0-4475-adf5-92ab9a0147fe"
+		requester     = suite.testAccounts["remote_account_1"]
+		targetAccount = suite.testAccounts["local_account_1"]
+		activity      = suite.testActivities["reply_to_turtle_for_turtle"]
+		statusURI     = "http://fossbros-anonymous.io/users/foss_satan/statuses/2f1195a6-5cb0-4475-adf5-92ab9a0147fe"
 	)
 
 	// Post an reply to turtle to ZORK from remote account.
@@ -561,7 +561,7 @@ func (suite *InboxPostTestSuite) TestPostFromBlockedAccountToOtherAccount() {
 	// accepted but the post won't actually be processed.
 	suite.inboxPost(
 		activity.Activity,
-		requestingAccount,
+		requester,
 		targetAccount,
 		http.StatusAccepted,
 		`{"status":"Accepted"}`,
@@ -574,8 +574,8 @@ func (suite *InboxPostTestSuite) TestPostFromBlockedAccountToOtherAccount() {
 
 func (suite *InboxPostTestSuite) TestPostUnauthorized() {
 	var (
-		requestingAccount = suite.testAccounts["remote_account_1"]
-		targetAccount     = suite.testAccounts["local_account_1"]
+		requester     = suite.testAccounts["remote_account_1"]
+		targetAccount = suite.testAccounts["local_account_1"]
 	)
 
 	// Post an empty create.
@@ -583,7 +583,7 @@ func (suite *InboxPostTestSuite) TestPostUnauthorized() {
 
 	suite.inboxPost(
 		create,
-		requestingAccount,
+		requester,
 		targetAccount,
 		http.StatusUnauthorized,
 		`{"error":"Unauthorized: http request wasn't signed or http signature was invalid: (verifier)"}`,

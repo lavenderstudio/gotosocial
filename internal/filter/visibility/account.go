@@ -62,6 +62,7 @@ func (f *Filter) AccountVisible(ctx context.Context, requester *gtsmodel.Account
 
 // isAccountVisibleTo will check if account is visible to requester. It is the "meat" of the logic to Filter{}.AccountVisible() which is called within cache loader callback.
 func (f *Filter) isAccountVisibleTo(ctx context.Context, requester *gtsmodel.Account, account *gtsmodel.Account) (bool, error) {
+
 	// Check whether target account is visible to anyone.
 	visible, err := f.isAccountVisible(ctx, account)
 	if err != nil {
@@ -118,7 +119,8 @@ func (f *Filter) isAccountVisible(ctx context.Context, account *gtsmodel.Account
 		}
 
 		// Fetch the local user model for this account.
-		user, err := f.state.DB.GetUserByAccountID(ctx, account.ID)
+		user, err := f.state.DB.GetUserByAccountID(ctx,
+			account.ID)
 		if err != nil {
 			err := gtserror.Newf("db error getting user for account %s: %w", account.ID, err)
 			return false, err

@@ -58,7 +58,8 @@ func toStringSlice(a any) ([]string, error) {
 	}
 }
 
-// flattenConfigMap ...
+// flattenConfigMap recursively flattens given configuration map such that any
+// nested maps are inserted into the top-level map, with keys combined using joinFlag().
 func flattenConfigMap(m map[string]any) {
 	var flatten func(src map[string]any, prefix string)
 	flatten = func(src map[string]any, prefix string) {

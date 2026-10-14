@@ -23,12 +23,24 @@ import (
 	"slices"
 	"strings"
 
+	"code.superseriousbusiness.org/gotosocial/internal/db/sqlite"
 	"codeberg.org/gruf/go-byteutil"
 	"codeberg.org/gruf/go-kv/v2"
 	"codeberg.org/gruf/go-kv/v2/format"
 	"github.com/ncruces/go-sqlite3"
+	"github.com/ncruces/go-sqlite3/ext/fts5"
 	"github.com/openengineer/go-repl"
 )
+
+func init() {
+	sqlite3.AutoExtension(func(c *sqlite3.Conn) error {
+		return fts5.RegisterCustom(c, func(a *fts5.API) error {
+			return a.CreateTokenizer("uax29", func(_ []string) (fts5.Tokenizer, error) {
+				return sqlite.Uax29Tokenizer{}, nil
+			})
+		})
+	})
+}
 
 func main() {
 	fmt.Print("please note this is a utility for gotosocial developers\n" +

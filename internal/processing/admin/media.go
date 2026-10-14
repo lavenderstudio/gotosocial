@@ -30,10 +30,10 @@ import (
 )
 
 // MediaRefetch forces a refetch of remote emojis.
-func (p *Processor) MediaRefetch(ctx context.Context, requestingAccount *gtsmodel.Account, domain string) gtserror.WithCode {
-	transport, err := p.transport.NewTransportForUsername(ctx, requestingAccount.Username)
+func (p *Processor) MediaRefetch(ctx context.Context, requester *gtsmodel.Account, domain string) gtserror.WithCode {
+	transport, err := p.transport.NewTransportForUsername(ctx, requester.Username)
 	if err != nil {
-		err = fmt.Errorf("error getting transport for user %s during media refetch request: %w", requestingAccount.Username, err)
+		err = fmt.Errorf("error getting transport for user %s during media refetch request: %w", requester.Username, err)
 		return gtserror.NewErrorInternalError(err)
 	}
 

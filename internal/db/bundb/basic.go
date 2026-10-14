@@ -45,7 +45,7 @@ func (b *basicDB) GetByID(ctx context.Context, id string, i interface{}) error {
 	return err
 }
 
-func (b *basicDB) GetWhere(ctx context.Context, where []db.Where, i interface{}) error {
+func (b *basicDB) GetWhere(ctx context.Context, where []db.BunExpr, i interface{}) error {
 	if len(where) == 0 {
 		return errors.New("no queries provided")
 	}
@@ -77,7 +77,7 @@ func (b *basicDB) DeleteByID(ctx context.Context, id string, i interface{}) erro
 	return err
 }
 
-func (b *basicDB) DeleteWhere(ctx context.Context, where []db.Where, i interface{}) error {
+func (b *basicDB) DeleteWhere(ctx context.Context, where []db.BunExpr, i interface{}) error {
 	if len(where) == 0 {
 		return errors.New("no queries provided")
 	}
@@ -103,7 +103,7 @@ func (b *basicDB) UpdateByID(ctx context.Context, i interface{}, id string, colu
 	return err
 }
 
-func (b *basicDB) UpdateWhere(ctx context.Context, where []db.Where, key string, value interface{}, i interface{}) error {
+func (b *basicDB) UpdateWhere(ctx context.Context, where []db.BunExpr, key string, value interface{}, i interface{}) error {
 	q := b.db.NewUpdate().Model(i)
 
 	updateWhere(q, where)

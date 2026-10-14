@@ -42,7 +42,7 @@ func (p *Processor) Get(ctx context.Context, requester *gtsmodel.Account, status
 }
 
 // GetMultiple gets the given statuses with the same semantics as Get. Missing or invisible statuses are omitted.
-func (p *Processor) GetMultiple(ctx context.Context, requester *gtsmodel.Account, statusIDs []string) ([]apimodel.Status, gtserror.WithCode) {
+func (p *Processor) GetMultiple(ctx context.Context, requester *gtsmodel.Account, statusIDs []string) ([]*apimodel.Status, gtserror.WithCode) {
 
 	// Without auth, just
 	// return equivalent of

@@ -20,15 +20,12 @@ package search
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 
-	"code.superseriousbusiness.org/gopkg/log"
 	apimodel "code.superseriousbusiness.org/gotosocial/internal/api/model"
+	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
-	"codeberg.org/gruf/go-kv/v2"
 )
 
 // Lookup does a quick, non-resolving search for accounts that
@@ -41,90 +38,70 @@ import (
 // See https://docs.joinmastodon.org/methods/accounts/#lookup
 func (p *Processor) Lookup(
 	ctx context.Context,
-	requestingAccount *gtsmodel.Account,
+	requester *gtsmodel.Account,
 	query string,
-) (*apimodel.Account, gtserror.WithCode) {
-	// Include instance accounts in this search.
-	//
-	// Lookup is for one specific account so we
-	// can't return loads of instance accounts by
-	// accident.
-	const includeInstanceAccounts = true
+) (
+	*apimodel.Account,
+	gtserror.WithCode,
+) {
+	var ok bool
+	var username, domain string
 
-	// Since lookup is always for a specific
-	// account, it's fine to include a blocked
-	// account in the results.
-	const includeBlockedAccounts = true
-
-	// Validate query.
-	query = strings.TrimSpace(query)
-	if query == "" {
-		err := errors.New("search query was empty string after trimming space")
-		return nil, gtserror.NewErrorBadRequest(err, err.Error())
+	// If this looks like a namestring,
+	// attempt to separate into parts.
+	if strings.Contains(query, "@") {
+		username, domain, ok = tryParseUsernameDomain(query)
 	}
 
-	// Be nice and normalize query by prepending '@'.
-	// This will make it easier for accountsByNamestring
-	// to pick this up as a valid namestring.
-	if query[0] != '@' {
-		query = "@" + query
+	if !ok {
+		// Else query for
+		// local username.
+		username = query
+		domain = ""
 	}
 
-	log.
-		WithContext(ctx).
-		WithFields(kv.Fields{
-			{"query", query},
-		}...).
-		Debugf("beginning search")
-
-	// See if we have something that looks like a namestring.
-	username, domain, err := util.ExtractNamestringParts(query)
-	if err != nil {
-		err := errors.New("bad search query, must in the form '[username]' or '[username]@[domain]")
-		return nil, gtserror.NewErrorBadRequest(err, err.Error())
-	}
-
-	account, err := p.accountByUsernameDomain(
-		ctx,
-		requestingAccount,
+	// Try lookup the queried account by its username @ domain.
+	account, err := p.state.DB.GetAccountByUsernameDomain(ctx,
 		username,
 		domain,
-		false, // never resolve!
 	)
-	if err != nil {
-		if gtserror.IsUnretrievable(err) {
-			// ErrNotRetrievable is fine, just wrap it in
-			// a 404 to indicate we couldn't find anything.
-			err := fmt.Errorf("%s not found", query)
-			return nil, gtserror.NewErrorNotFound(err, err.Error())
-		}
-
-		// Real error has occurred.
-		err = gtserror.Newf("error looking up %s as account: %w", query, err)
+	if err != nil && !errors.Is(err, db.ErrNoEntries) {
+		err := gtserror.Newf("db error getting account %s: %w", query, err)
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	// If we reach this point, we found an account. Shortcut
-	// using the packageAccounts function to return it. This
-	// may cause the account to be filtered out if it's not
-	// visible to the caller, so anticipate this.
-	accounts, errWithCode := p.packageAccounts(
-		ctx,
-		requestingAccount,
-		[]*gtsmodel.Account{account},
-		includeInstanceAccounts,
-		includeBlockedAccounts,
+	if account == nil {
+		const text = "target account not found"
+		return nil, gtserror.NewErrorNotFound(
+			errors.New(text),
+			text,
+		)
+	}
+
+	// Convert to frontend API account model.
+	apiAccount, err := p.convertAPIAccount(ctx,
+		requester,
+		account,
+
+		// not direct, don't
+		// show blocked etc.
+		false,
 	)
-	if errWithCode != nil {
-		return nil, errWithCode
+	if err != nil {
+		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	if len(accounts) == 0 {
-		// Account was not visible to the requesting account.
-		err := fmt.Errorf("%s not found", query)
-		return nil, gtserror.NewErrorNotFound(err, err.Error())
+	// Specifically check
+	// for an unreturnable
+	// account, i.e. deleted
+	// or suspended etc.
+	if apiAccount == nil {
+		const text = "target account not found"
+		return nil, gtserror.NewErrorNotFound(
+			errors.New(text),
+			text,
+		)
 	}
 
-	// We got a hit!
-	return accounts[0], nil
+	return apiAccount, nil
 }

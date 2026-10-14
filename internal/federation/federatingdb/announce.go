@@ -51,7 +51,7 @@ func (f *DB) Announce(ctx context.Context, announce vocab.ActivityStreamsAnnounc
 		return nil
 	}
 
-	// Ensure requestingAccount is among
+	// Ensure requester is among
 	// the Actors doing the Announce.
 	//
 	// We don't support Announce forwards.
@@ -63,7 +63,7 @@ func (f *DB) Announce(ctx context.Context, announce vocab.ActivityStreamsAnnounc
 		// not error, as it's not really an error
 		// per se, just something we don't support.
 		log.Debugf(ctx,
-			"requestingAccount %s was not among Announce Actors, dropping Announce forward",
+			"requester %s was not among Announce Actors, dropping Announce forward",
 			requesting.URI,
 		)
 		return nil

@@ -25,7 +25,7 @@ import (
 
 // bufpool is a memory pool
 // of buffers for conversions.
-var bufpool = buffers.Pool(1024)
+var bufpool = buffers.Pool(2048)
 
 // isPermittedInHashtag is true for characters that
 // may be permitted anywhere in hashtag, entirety or not.

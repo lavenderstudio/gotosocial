@@ -460,7 +460,7 @@ func (t *NotificationTimeline) InsertOne(notif *gtsmodel.Notification) {
 	})
 }
 
-// RemoveByNotificationIDs ...
+// RemoveByNotificationIDs removes all cached timeline entries with given IDs.
 func (t *NotificationTimeline) RemoveByNotificationIDs(notifIDs ...string) {
 	keys := make([]structr.Key, len(notifIDs))
 	if len(keys) != len(notifIDs) {

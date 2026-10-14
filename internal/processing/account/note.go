@@ -27,15 +27,15 @@ import (
 )
 
 // PutNote updates the requesting account's private note on the target account.
-func (p *Processor) PutNote(ctx context.Context, requestingAccount *gtsmodel.Account, targetAccountID string, comment string) (*apimodel.Relationship, gtserror.WithCode) {
-	targetAccount, errWithCode := p.Get(ctx, requestingAccount, targetAccountID)
+func (p *Processor) PutNote(ctx context.Context, requester *gtsmodel.Account, targetAccountID string, comment string) (*apimodel.Relationship, gtserror.WithCode) {
+	targetAccount, errWithCode := p.Get(ctx, requester, targetAccountID)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
 	note := &gtsmodel.AccountNote{
 		ID:              id.NewULID(),
-		AccountID:       requestingAccount.ID,
+		AccountID:       requester.ID,
 		TargetAccountID: targetAccount.ID,
 		Comment:         comment,
 	}
@@ -44,5 +44,5 @@ func (p *Processor) PutNote(ctx context.Context, requestingAccount *gtsmodel.Acc
 		return nil, gtserror.NewErrorInternalError(err)
 	}
 
-	return p.c.APIRelationship(ctx, requestingAccount, targetAccount.ID)
+	return p.c.APIRelationship(ctx, requester, targetAccount.ID)
 }

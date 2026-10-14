@@ -28,115 +28,103 @@ type SearchTestSuite struct {
 	BunDBStandardTestSuite
 }
 
-func (suite *SearchTestSuite) TestSearchAccountsTurtleAny() {
-	testAccount := suite.testAccounts["local_account_1"]
-
-	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), testAccount.ID, "turtle", "", "", 10, false, 0)
+func (suite *SearchTestSuite) TestSearchAccountsTurtle() {
+	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), db.AccountSearchParams{
+		UsernameQuery: "turtle",
+	}, toPage("", "", "", 10))
 	suite.NoError(err)
 	suite.Len(accounts, 1)
 }
 
-func (suite *SearchTestSuite) TestSearchAccounts1HappyWithPrefix() {
-	testAccount := suite.testAccounts["local_account_1"]
-
-	// Query will just look for usernames that start with "1happy".
-	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), testAccount.ID, "@1happy", "", "", 10, false, 0)
-	suite.NoError(err)
-	suite.Len(accounts, 1)
-}
-
-func (suite *SearchTestSuite) TestSearchAccounts1HappyWithPrefixUpper() {
-	testAccount := suite.testAccounts["local_account_1"]
-
-	// Query will just look for usernames that start with "1HAPPY".
-	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), testAccount.ID, "@1HAPPY", "", "", 10, false, 0)
-	suite.NoError(err)
-	suite.Len(accounts, 1)
-}
-
-func (suite *SearchTestSuite) TestSearchAccounts1HappyNoPrefix() {
-	testAccount := suite.testAccounts["local_account_1"]
-
-	// Query will do the full coalesce.
-	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), testAccount.ID, "1happy", "", "", 10, false, 0)
+func (suite *SearchTestSuite) TestSearchAccounts1Happy() {
+	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), db.AccountSearchParams{
+		UsernameQuery: "1happy",
+	}, toPage("", "", "", 10))
 	suite.NoError(err)
 	suite.Len(accounts, 1)
 }
 
 func (suite *SearchTestSuite) TestSearchAccountsTurtleFollowing() {
 	testAccount := suite.testAccounts["local_account_1"]
-
-	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), testAccount.ID, "turtle", "", "", 10, true, 0)
+	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), db.AccountSearchParams{
+		CommonSearchParams: db.CommonSearchParams{
+			RequesterID:  testAccount.ID,
+			Relationship: db.RelationFollowing,
+		},
+		UsernameQuery: "turtle",
+	}, toPage("", "", "", 10))
 	suite.NoError(err)
 	suite.Len(accounts, 1)
 }
 
 func (suite *SearchTestSuite) TestSearchAccountsTurtleFollowingUpper() {
 	testAccount := suite.testAccounts["local_account_1"]
-
-	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), testAccount.ID, "TURTLE", "", "", 10, true, 0)
+	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), db.AccountSearchParams{
+		CommonSearchParams: db.CommonSearchParams{
+			RequesterID:  testAccount.ID,
+			Relationship: db.RelationFollowing,
+		},
+		UsernameQuery: "TURTLE",
+	}, toPage("", "", "", 10))
 	suite.NoError(err)
 	suite.Len(accounts, 1)
 }
 
-func (suite *SearchTestSuite) TestSearchAccountsPostFollowing() {
-	testAccount := suite.testAccounts["local_account_1"]
-
-	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), testAccount.ID, "post", "", "", 10, true, 0)
+func (suite *SearchTestSuite) TestSearchAccountsPost() {
+	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), db.AccountSearchParams{
+		NoteQuery: "post",
+	}, toPage("", "", "", 10))
 	suite.NoError(err)
-	suite.Len(accounts, 1)
+	suite.Len(accounts, 2)
 }
 
-func (suite *SearchTestSuite) TestSearchAccountsPostAny() {
-	testAccount := suite.testAccounts["local_account_1"]
-
-	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), testAccount.ID, "post", "", "", 10, false, 0)
-	suite.NoError(err, db.ErrNoEntries)
-	suite.Empty(accounts)
-}
-
-func (suite *SearchTestSuite) TestSearchAccountsFossAny() {
-	testAccount := suite.testAccounts["local_account_1"]
-
-	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), testAccount.ID, "foss", "", "", 10, false, 0)
+func (suite *SearchTestSuite) TestSearchAccountsFoss() {
+	accounts, err := suite.db.SearchForAccounts(suite.T().Context(), db.AccountSearchParams{
+		UsernameQuery: "foss",
+	}, toPage("", "", "", 10))
 	suite.NoError(err)
 	suite.Len(accounts, 1)
 }
 
 func (suite *SearchTestSuite) TestSearchStatuses() {
 	testAccount := suite.testAccounts["local_account_1"]
-
-	statuses, err := suite.db.SearchForStatuses(suite.T().Context(), testAccount.ID, "hello", "", "", "", 10, 0)
+	statuses, err := suite.db.SearchForStatuses(suite.T().Context(), db.StatusSearchParams{
+		CommonSearchParams: db.CommonSearchParams{RequesterID: testAccount.ID},
+		ContentQuery:       "hello",
+	}, toPage("", "", "", 10))
 	suite.NoError(err)
-	suite.Len(statuses, 1)
+	suite.Len(statuses, 2)
 }
 
 func (suite *SearchTestSuite) TestSearchStatusesFromAccount() {
 	testAccount := suite.testAccounts["local_account_1"]
 	fromAccount := suite.testAccounts["local_account_2"]
-
-	statuses, err := suite.db.SearchForStatuses(suite.T().Context(), testAccount.ID, "hi", fromAccount.ID, "", "", 10, 0)
+	fromAccountID := fromAccount.ID
+	statuses, err := suite.db.SearchForStatuses(suite.T().Context(), db.StatusSearchParams{
+		CommonSearchParams: db.CommonSearchParams{RequesterID: testAccount.ID},
+		AuthorID:           fromAccountID,
+		ContentQuery:       "hi",
+	}, toPage("", "", "", 10))
 	suite.NoError(err)
-	if suite.Len(statuses, 1) {
-		suite.Equal(fromAccount.ID, statuses[0].AccountID)
-	}
+	suite.Len(statuses, 4)
+	suite.Equal(fromAccount.ID, statuses[0].AccountID)
 }
 
 func (suite *SearchTestSuite) TestSearchTags() {
 	// Search with full tag string.
-	tags, err := suite.db.SearchForTags(suite.T().Context(), "welcome", "", "", 10, 0)
+	tags, err := suite.db.SearchForTags(suite.T().Context(), "welcome", toPage("", "", "", 10))
 	suite.NoError(err)
 	suite.Len(tags, 1)
 
 	// Search with partial tag string.
-	tags, err = suite.db.SearchForTags(suite.T().Context(), "wel", "", "", 10, 0)
+	tags, err = suite.db.SearchForTags(suite.T().Context(), "wel", toPage("", "", "", 10))
 	suite.NoError(err)
 	suite.Len(tags, 1)
 
 	// Search with end of tag string.
-	tags, err = suite.db.SearchForTags(suite.T().Context(), "come", "", "", 10, 0)
+	tags, err = suite.db.SearchForTags(suite.T().Context(), "come", toPage("", "", "", 10))
 	suite.NoError(err)
-	suite.Len(tags, 0)
+	suite.Len(tags, 1)
 }
 
 func TestSearchTestSuite(t *testing.T) {

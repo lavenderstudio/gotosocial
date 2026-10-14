@@ -253,7 +253,7 @@ func NewProcessor(
 	processor.report = report.New(state, converter)
 	processor.tags = tags.New(state, converter)
 	processor.timeline = timeline.New(state, &processor.common, converter, visFilter, muteFilter, statusFilter)
-	processor.search = search.New(state, federator, converter, visFilter, surfacer)
+	processor.search = search.New(&processor.common, state, federator, converter, visFilter, surfacer)
 	processor.status = status.New(state, &processor.common, &processor.polls, &processor.interactionRequests, federator, converter, visFilter, muteFilter, statusFilter, intFilter, parseMentionFunc)
 	processor.user = user.New(state, converter, oauthServer, emailSender)
 

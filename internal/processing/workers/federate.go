@@ -688,7 +688,7 @@ func (f *federate) AcceptFollow(ctx context.Context, follow *gtsmodel.Follow) er
 		return err
 	}
 
-	requestingAccountIRI, err := parseURI(follow.Account.URI)
+	requesterIRI, err := parseURI(follow.Account.URI)
 	if err != nil {
 		return err
 	}
@@ -719,7 +719,7 @@ func (f *federate) AcceptFollow(ctx context.Context, follow *gtsmodel.Follow) er
 
 	// Address the Accept To the Follow requester.
 	acceptTo := streams.NewActivityStreamsToProperty()
-	acceptTo.AppendIRI(requestingAccountIRI)
+	acceptTo.AppendIRI(requesterIRI)
 	accept.SetActivityStreamsTo(acceptTo)
 
 	// Send the Accept via the Actor's outbox.
@@ -766,7 +766,7 @@ func (f *federate) RejectFollow(ctx context.Context, follow *gtsmodel.Follow) er
 		return err
 	}
 
-	requestingAccountIRI, err := parseURI(follow.Account.URI)
+	requesterIRI, err := parseURI(follow.Account.URI)
 	if err != nil {
 		return err
 	}
@@ -797,7 +797,7 @@ func (f *federate) RejectFollow(ctx context.Context, follow *gtsmodel.Follow) er
 
 	// Address the Reject To the Follow requester.
 	rejectTo := streams.NewActivityStreamsToProperty()
-	rejectTo.AppendIRI(requestingAccountIRI)
+	rejectTo.AppendIRI(requesterIRI)
 	reject.SetActivityStreamsTo(rejectTo)
 
 	// Send the Reject via the Actor's outbox.

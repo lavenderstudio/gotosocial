@@ -99,8 +99,8 @@ func (suite *FollowTestSuite) testGetFollowersPage(limit int, direction string) 
 	ctx := suite.T().Context()
 
 	// The authed local account we are going to use for HTTP requests
-	requestingAccount := suite.testAccounts["local_account_1"]
-	suite.clearAccountRelations(requestingAccount.ID)
+	requester := suite.testAccounts["local_account_1"]
+	suite.clearAccountRelations(requester.ID)
 
 	// Get current time.
 	now := time.Now()
@@ -110,7 +110,7 @@ func (suite *FollowTestSuite) testGetFollowersPage(limit int, direction string) 
 	// Have each account in the testrig follow the account
 	// that is requesting their followers from the API.
 	for _, account := range suite.testAccounts {
-		targetAccount := requestingAccount
+		targetAccount := requester
 		if account.ID == targetAccount.ID {
 			// we cannot be our own target...
 			continue
@@ -135,7 +135,7 @@ func (suite *FollowTestSuite) testGetFollowersPage(limit int, direction string) 
 	}
 
 	// Get _ALL_ follows we expect to see without any paging (this filters invisible).
-	apiRsp, err := suite.processor.Account().FollowersGet(ctx, requestingAccount, requestingAccount.ID, nil)
+	apiRsp, err := suite.processor.Account().FollowersGet(ctx, requester, requester.ID, nil)
 	suite.NoError(err)
 	expectAccounts := apiRsp.Items // interfaced{} account slice
 
@@ -148,7 +148,7 @@ func (suite *FollowTestSuite) testGetFollowersPage(limit int, direction string) 
 		// Set the starting query to page from
 		// newest (ie., first entry in slice).
 		acc := expectAccounts[0].(*model.Account)
-		newest, _ := suite.db.GetFollow(ctx, acc.ID, requestingAccount.ID)
+		newest, _ := suite.db.GetFollow(ctx, acc.ID, requester.ID)
 		expectAccounts = expectAccounts[1:]
 		query = fmt.Sprintf("limit=%d&max_id=%s", limit, newest.ID)
 
@@ -156,7 +156,7 @@ func (suite *FollowTestSuite) testGetFollowersPage(limit int, direction string) 
 		// Set the starting query to page from
 		// oldest (ie., last entry in slice).
 		acc := expectAccounts[len(expectAccounts)-1].(*model.Account)
-		oldest, _ := suite.db.GetFollow(ctx, acc.ID, requestingAccount.ID)
+		oldest, _ := suite.db.GetFollow(ctx, acc.ID, requester.ID)
 		expectAccounts = expectAccounts[:len(expectAccounts)-1]
 		query = fmt.Sprintf("limit=%d&min_id=%s", limit, oldest.ID)
 	}
@@ -164,9 +164,9 @@ func (suite *FollowTestSuite) testGetFollowersPage(limit int, direction string) 
 	for p := 0; ; p++ {
 		// Prepare new request for endpoint
 		recorder := httptest.NewRecorder()
-		endpoint := fmt.Sprintf("/api/v1/accounts/%s/followers", requestingAccount.ID)
+		endpoint := fmt.Sprintf("/api/v1/accounts/%s/followers", requester.ID)
 		c := suite.newContext(recorder, http.MethodGet, []byte{}, endpoint, "")
-		c.SetPathValue("id", requestingAccount.ID)
+		c.SetPathValue("id", requester.ID)
 		c.R.URL.RawQuery = query // setting provided next query value
 
 		// call the handler and check for valid response code.
@@ -300,8 +300,8 @@ func (suite *FollowTestSuite) testGetFollowingPage(limit int, direction string) 
 	ctx := suite.T().Context()
 
 	// The authed local account we are going to use for HTTP requests
-	requestingAccount := suite.testAccounts["local_account_1"]
-	suite.clearAccountRelations(requestingAccount.ID)
+	requester := suite.testAccounts["local_account_1"]
+	suite.clearAccountRelations(requester.ID)
 
 	// Get current time.
 	now := time.Now()
@@ -311,7 +311,7 @@ func (suite *FollowTestSuite) testGetFollowingPage(limit int, direction string) 
 	// Have the account that is requesting their following
 	// list from the API follow each account in the testrig.
 	for _, targetAccount := range suite.testAccounts {
-		account := requestingAccount
+		account := requester
 		if targetAccount.ID == account.ID {
 			// we cannot be our own target...
 			continue
@@ -336,7 +336,7 @@ func (suite *FollowTestSuite) testGetFollowingPage(limit int, direction string) 
 	}
 
 	// Get _ALL_ follows we expect to see without any paging (this filters invisible).
-	apiRsp, err := suite.processor.Account().FollowingGet(ctx, requestingAccount, requestingAccount.ID, nil)
+	apiRsp, err := suite.processor.Account().FollowingGet(ctx, requester, requester.ID, nil)
 	suite.NoError(err)
 	expectAccounts := apiRsp.Items // interfaced{} account slice
 
@@ -349,7 +349,7 @@ func (suite *FollowTestSuite) testGetFollowingPage(limit int, direction string) 
 		// Set the starting query to page from
 		// newest (ie., first entry in slice).
 		acc := expectAccounts[0].(*model.Account)
-		newest, _ := suite.db.GetFollow(ctx, requestingAccount.ID, acc.ID)
+		newest, _ := suite.db.GetFollow(ctx, requester.ID, acc.ID)
 		expectAccounts = expectAccounts[1:]
 		query = fmt.Sprintf("limit=%d&max_id=%s", limit, newest.ID)
 
@@ -357,7 +357,7 @@ func (suite *FollowTestSuite) testGetFollowingPage(limit int, direction string) 
 		// Set the starting query to page from
 		// oldest (ie., last entry in slice).
 		acc := expectAccounts[len(expectAccounts)-1].(*model.Account)
-		oldest, _ := suite.db.GetFollow(ctx, requestingAccount.ID, acc.ID)
+		oldest, _ := suite.db.GetFollow(ctx, requester.ID, acc.ID)
 		expectAccounts = expectAccounts[:len(expectAccounts)-1]
 		query = fmt.Sprintf("limit=%d&min_id=%s", limit, oldest.ID)
 	}
@@ -365,9 +365,9 @@ func (suite *FollowTestSuite) testGetFollowingPage(limit int, direction string) 
 	for p := 0; ; p++ {
 		// Prepare new request for endpoint
 		recorder := httptest.NewRecorder()
-		endpoint := fmt.Sprintf("/api/v1/accounts/%s/following", requestingAccount.ID)
+		endpoint := fmt.Sprintf("/api/v1/accounts/%s/following", requester.ID)
 		c := suite.newContext(recorder, http.MethodGet, []byte{}, endpoint, "")
-		c.SetPathValue("id", requestingAccount.ID)
+		c.SetPathValue("id", requester.ID)
 		c.R.URL.RawQuery = query // setting provided next query value
 
 		// call the handler and check for valid response code.
