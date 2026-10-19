@@ -319,9 +319,10 @@ func (r *Router) letsEncryptTLS() (func() error, error) {
 	r.lesrv = new(http.Server) //nolint:gosec
 	*r.lesrv = (*r.srv)        //nolint:govet
 	r.lesrv.Handler = acm.HTTPHandler(fallback)
-	r.lesrv.Addr = fmt.Sprintf("%s:%d",
+	r.lesrv.Addr = net.JoinHostPort(
 		config.GetBindAddress(),
-		config.GetLetsEncryptPort())
+		strconv.Itoa(config.GetLetsEncryptPort()),
+	)
 
 	go func() {
 		// Start the LetsEncrypt autocert manager HTTP server.

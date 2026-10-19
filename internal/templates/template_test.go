@@ -269,7 +269,7 @@ func TestOutdentAsciiSpacebar(t *testing.T) {
 		t.Fatalf("unexpected output:\n`%s`\n", out)
 	}
 
-    noescape(string(out))
+	noescape(string(out))
 }
 
 func TestOutdentOGMeta(t *testing.T) {
