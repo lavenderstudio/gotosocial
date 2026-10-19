@@ -20,6 +20,7 @@ package migrations
 import (
 	"context"
 
+	"code.superseriousbusiness.org/gopkg/log"
 	dbpkg "code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"github.com/uptrace/bun"
@@ -32,6 +33,8 @@ import (
 
 func init() {
 	up := func(ctx context.Context, db *bun.DB) error {
+		log.Info(ctx, "emptying mentions column from stubbed statuses, this might take a few minutes...")
+
 		var model *gtsmodel.Status
 		if _, err := db.NewUpdate().
 			Model(model).

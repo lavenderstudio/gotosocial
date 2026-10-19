@@ -94,9 +94,22 @@ function ApURLResult({
 		return "No data";
 	}
 
+	// If response body was provided from remote
+	// endpoint, try to format it nicely as JSON
+	// to make it readable for GtS admin end user.
+	let response_body = data.response_body;
+	if (response_body.length > 0) {
+		try {
+			response_body = JSON.parse(response_body);
+		} catch {
+			// Response body wasn't valid JSON
+			// (probably HTML), leave it alone.
+		}
+	}
+
 	const jsonObj = {
 		...data,
-		response_body: data.response_body.length > 0 ? JSON.parse(data.response_body) : "",
+		response_body,
 	};
 
 	const jsonStr = JSON.stringify(jsonObj, null, 2);
