@@ -229,23 +229,18 @@ func (p *Processor) processContent(
 	status.Emojis = append(status.Emojis, cwRes.Emojis...)
 
 	if poll != nil {
-		// Pre-allocate slice of poll options of expected length.
-		status.PollOptions = make([]string, len(poll.Options))
-		for i, option := range poll.Options {
-
-			// Strip each poll option and format.
-			//
-			// For polls just use basic formatting.
-			option = text.StripHTMLFromText(option)
-			optionRes := formatInput(p.formatter.FromPlainBasic, option)
-
-			// Gather results of the formatted.
-			status.PollOptions[i] = optionRes.HTML
-			status.Emojis = append(status.Emojis, optionRes.Emojis...)
+		// Purely for the sake of gathering emojis,
+		// format each poll option using basic formatting.
+		for _, option := range poll.Options {
+			res := formatInput(p.formatter.FromPlainBasic, option)
+			status.Emojis = append(status.Emojis, res.Emojis...)
 		}
 
-		// Also update options on the form.
-		poll.Options = status.PollOptions
+		// Set provided poll options on status *without* parsing
+		// them to HTML as 'name' property MUST NOT contain HTML.
+		//
+		// https://www.w3.org/TR/activitystreams-vocabulary/#dfn-name
+		status.PollOptions = poll.Options
 	}
 
 	// We may have received multiple copies of the same emoji, deduplicate these first.

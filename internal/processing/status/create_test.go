@@ -272,6 +272,45 @@ func (suite *StatusCreateTestSuite) TestProcessInvalidVisibility() {
 	suite.Equal("Unprocessable Entity: processVisibility: invalid visibility", errWithCode.Safe())
 }
 
+func (suite *StatusCreateTestSuite) TestProcessPollOptions() {
+	ctx := suite.T().Context()
+	creatingAccount := suite.testAccounts["local_account_1"]
+	creatingApplication := suite.testApplications["application_1"]
+
+	statusCreateForm := &apimodel.StatusCreateRequest{
+		Status: "**poopoo peepee**",
+		Poll: &apimodel.PollRequest{
+			Options: []string{
+				"<", ">", "&", "<strong>whatever</strong>", "boobs <",
+			},
+		},
+		Visibility:  apimodel.VisibilityPublic,
+		ContentType: apimodel.StatusContentTypeMarkdown,
+	}
+
+	apiStatusAny, errWithCode := suite.status.Create(ctx, creatingAccount, creatingApplication, statusCreateForm, nil)
+	if errWithCode != nil {
+		suite.FailNow(errWithCode.Error())
+	}
+
+	apiStatus := apiStatusAny.(*apimodel.Status)
+	suite.Equal("<p><strong>poopoo peepee</strong></p>", apiStatus.Content)
+
+	pollID := apiStatus.Poll.ID
+	dbPoll, err := suite.state.DB.GetPollByID(ctx, pollID)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	// Poll options MUST NOT be HTML formatted.
+	// https://www.w3.org/TR/activitystreams-vocabulary/#dfn-name
+	suite.Equal("<", dbPoll.Options[0])
+	suite.Equal(">", dbPoll.Options[1])
+	suite.Equal("&", dbPoll.Options[2])
+	suite.Equal("<strong>whatever</strong>", dbPoll.Options[3])
+	suite.Equal("boobs <", dbPoll.Options[4])
+}
+
 func TestStatusCreateTestSuite(t *testing.T) {
 	suite.Run(t, new(StatusCreateTestSuite))
 }
