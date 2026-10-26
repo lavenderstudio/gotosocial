@@ -123,7 +123,6 @@ func (d *Dereferencer) retrieveStatusable(
 	finalURI := rsp.Request.URL
 	finalURIStr := finalURI.String()
 	redirected := finalURIStr != initialURIStr
-
 	if redirected {
 		var err error
 
@@ -193,7 +192,7 @@ func (d *Dereferencer) retrieveStatusable(
 // The URI is used to check that the status's AP ID/URI matches expectations.
 func (d *Dereferencer) convertStatusable(
 	ctx context.Context,
-	requestUser string,
+	requester *gtsmodel.Account,
 	statusURI *url.URL,
 	statusable ap.Statusable,
 ) (*gtsmodel.Status, error) {
@@ -218,7 +217,8 @@ func (d *Dereferencer) convertStatusable(
 
 	// Ensure we have the author account of the status dereferenced
 	// (and up-to-date); this is needed to convert to our GTS model.
-	if _, _, err := d.getAccountByURI(ctx, requestUser, attributedTo, false); err != nil {
+	if _, _, err := d.getAccountByURI(ctx, requester, attributedTo,
+		false); err != nil {
 
 		// Note that we specifically DO NOT wrap the error, instead collapsing it as string.
 		// Errors fetching an account do not necessarily relate to dereferencing the status.
