@@ -231,7 +231,7 @@ func (d *Dereferencer) WaitOnMedia(ctx context.Context, medias []*gtsmodel.Media
 	// medias slice lock.
 	d.derefMediaMu.Lock()
 
-	for i, entry := range medias {
+	for i, entry := range uncached {
 		// Check for processing media by remote URL.
 		processing := d.derefMedia.get(entry.URL)
 		uncached[i].Ptr = processing
