@@ -283,6 +283,7 @@ type Statusable interface {
 	WithAttributedTo
 	WithTo
 	WithCc
+	WithAudience
 	WithSensitive
 	WithContent
 	WithAttachment
@@ -647,6 +648,12 @@ type WithCc interface {
 type WithBcc interface {
 	GetActivityStreamsBcc() vocab.ActivityStreamsBccProperty
 	SetActivityStreamsBcc(vocab.ActivityStreamsBccProperty)
+}
+
+// WithAudience represents an object with ActivityStreamsAudienceProperty
+type WithAudience interface {
+	GetActivityStreamsAudience() vocab.ActivityStreamsAudienceProperty
+	SetActivityStreamsAudience(vocab.ActivityStreamsAudienceProperty)
 }
 
 // WithInReplyTo represents an activity with ActivityStreamsInReplyToProperty
