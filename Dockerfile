@@ -5,7 +5,8 @@
 FROM --platform=${BUILDPLATFORM} node:lts-alpine AS bundler
 
 COPY web web
-RUN yarn --cwd ./web/source install && \
+RUN apk add --no-cache yarn && \
+    yarn --cwd ./web/source install && \
     yarn --cwd ./web/source ts-patch install && \
     yarn --cwd ./web/source build   && \
     rm -rf ./web/source

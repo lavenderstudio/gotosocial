@@ -55,6 +55,7 @@ type Driver struct {
 	// S3-only parameters
 	Proxy          bool
 	Bucket         string
+	KeyPrefix      string
 	PresignedCache *ttl.Cache[string, PresignedURL]
 	RedirectURL    string
 }
@@ -137,7 +138,7 @@ func (d *Driver) URL(ctx context.Context, key string) *PresignedURL {
 			return nil
 		}
 	} else {
-		u, err = s3.Client().PresignedGetObject(ctx, d.Bucket, key, urlCacheTTL, url.Values{
+		u, err = s3.Client().PresignedGetObject(ctx, d.Bucket, d.KeyPrefix+key, urlCacheTTL, url.Values{
 			"response-content-type": []string{mime.TypeByExtension(path.Ext(key))},
 		})
 		if err != nil {
@@ -204,7 +205,7 @@ func (d *Driver) ProbeCSPUri(ctx context.Context) (string, error) {
 	}()
 
 	// Get a presigned URL for that empty file.
-	u, err := s3.Client().PresignedGetObject(ctx, d.Bucket, cspKey, 1*time.Second, nil)
+	u, err := s3.Client().PresignedGetObject(ctx, d.Bucket, d.KeyPrefix+cspKey, 1*time.Second, nil)
 	if err != nil {
 		return "", err
 	}
@@ -226,6 +227,7 @@ func NewS3Storage() (*Driver, error) {
 	secret := config.GetStorageS3SecretKey()
 	secure := config.GetStorageS3UseSSL()
 	bucket := config.GetStorageS3BucketName()
+	keyPrefix := config.GetStorageS3KeyPrefix()
 	redirectURL := config.GetStorageS3RedirectURL()
 	region := config.GetStorageS3Region()
 
@@ -251,7 +253,7 @@ func NewS3Storage() (*Driver, error) {
 
 	// Open the s3 storage backend with configuration.
 	s3, err := s3.Open(endpoint, bucket, &s3.Config{
-		KeyPrefix: config.GetStorageS3KeyPrefix(),
+		KeyPrefix: keyPrefix,
 		CoreOpts: minio.Options{
 			Creds:        credentials.NewStaticV4(access, secret, ""),
 			Secure:       secure,
@@ -273,6 +275,7 @@ func NewS3Storage() (*Driver, error) {
 	return &Driver{
 		Proxy:          config.GetStorageS3Proxy(),
 		Bucket:         config.GetStorageS3BucketName(),
+		KeyPrefix:      keyPrefix,
 		Storage:        s3,
 		PresignedCache: presignedCache,
 		RedirectURL:    redirectURL,
