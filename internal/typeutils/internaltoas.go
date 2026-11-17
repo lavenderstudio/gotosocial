@@ -178,13 +178,12 @@ func (c *Converter) AccountToAS(
 
 	// url
 	// Used as profile link.
+	// Always set for local accounts.
 	profileURL, err := url.Parse(a.URL)
 	if err != nil {
 		return nil, err
 	}
-	urlProp := streams.NewActivityStreamsUrlProperty()
-	urlProp.AppendIRI(profileURL)
-	accountable.SetActivityStreamsUrl(urlProp)
+	ap.AppendURL(accountable, profileURL)
 
 	// manuallyApprovesFollowers
 	// Will be shown as a locked account.
