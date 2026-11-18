@@ -44,7 +44,7 @@ var appenders = []AppenderFunc{
 	reflect.Func:          nil,
 	reflect.Interface:     nil,
 	reflect.Map:           AppendJSONValue,
-	reflect.Ptr:           nil,
+	reflect.Pointer:       nil,
 	reflect.Slice:         AppendJSONValue,
 	reflect.String:        AppendStringValue,
 	reflect.Struct:        AppendJSONValue,
@@ -66,7 +66,7 @@ func FieldAppender(dialect Dialect, field *Field) AppenderFunc {
 			return appendDriverValue
 		}
 
-		if fieldType.Kind() != reflect.Ptr {
+		if fieldType.Kind() != reflect.Pointer {
 			if reflect.PointerTo(fieldType).Implements(driverValuerType) {
 				return addrAppender(appendDriverValue)
 			}
@@ -110,19 +110,19 @@ func appender(dialect Dialect, typ reflect.Type) AppenderFunc {
 	kind := typ.Kind()
 
 	if typ.Implements(queryAppenderType) {
-		if kind == reflect.Ptr {
+		if kind == reflect.Pointer {
 			return nilAwareAppender(appendQueryAppenderValue)
 		}
 		return appendQueryAppenderValue
 	}
 	if typ.Implements(driverValuerType) {
-		if kind == reflect.Ptr {
+		if kind == reflect.Pointer {
 			return nilAwareAppender(appendDriverValue)
 		}
 		return appendDriverValue
 	}
 
-	if kind != reflect.Ptr {
+	if kind != reflect.Pointer {
 		ptr := reflect.PointerTo(typ)
 		if ptr.Implements(queryAppenderType) {
 			return addrAppender(appendQueryAppenderValue)
@@ -132,10 +132,18 @@ func appender(dialect Dialect, typ reflect.Type) AppenderFunc {
 		}
 	}
 
+	// The standard library uuid.UUID is detected by its exact type, after the
+	// custom appender interfaces above so that they keep taking precedence.
+	// *uuid.UUID is handled by the reflect.Pointer case below, which wraps
+	// this appender with PtrAppender.
+	if typ == internal.TypeUUID {
+		return appendUUIDText
+	}
+
 	switch kind {
 	case reflect.Interface:
 		return ifaceAppenderFunc
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if typ.Implements(jsonMarshalerType) {
 			return nilAwareAppender(AppendJSONValue)
 		}
@@ -187,7 +195,7 @@ func AppendBoolValue(gen QueryGen, b []byte, v reflect.Value) []byte {
 }
 
 func AppendIntValue(gen QueryGen, b []byte, v reflect.Value) []byte {
-	return strconv.AppendInt(b, v.Int(), 10)
+	return strconv.AppendInt(guardLineComment(b, v.Int() < 0), v.Int(), 10)
 }
 
 func AppendUintValue(gen QueryGen, b []byte, v reflect.Value) []byte {
@@ -203,11 +211,11 @@ func appendUint64Value(gen QueryGen, b []byte, v reflect.Value) []byte {
 }
 
 func AppendFloat32Value(gen QueryGen, b []byte, v reflect.Value) []byte {
-	return dialect.AppendFloat32(b, float32(v.Float()))
+	return dialect.AppendFloat32(guardLineComment(b, v.Float() < 0), float32(v.Float()))
 }
 
 func AppendFloat64Value(gen QueryGen, b []byte, v reflect.Value) []byte {
-	return dialect.AppendFloat64(b, float64(v.Float()))
+	return dialect.AppendFloat64(guardLineComment(b, v.Float() < 0), float64(v.Float()))
 }
 
 func appendBytesValue(gen QueryGen, b []byte, v reflect.Value) []byte {

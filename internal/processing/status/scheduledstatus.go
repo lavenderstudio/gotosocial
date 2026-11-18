@@ -327,31 +327,32 @@ func (p *Processor) validateScheduledStatusLimits(ctx context.Context, acctID st
 		}
 	}
 
-	scheduledDaily, err := p.state.DB.GetScheduledStatusesCountForAcct(ctx, acctID, scheduledAt)
+	scheduledDaily, err := p.state.DB.CountScheduledStatusesForAccount(ctx, acctID, scheduledAt)
 
 	if err != nil {
 		err := gtserror.Newf("error getting scheduled statuses count for day: %w", err)
 		return gtserror.NewErrorInternalError(err)
 	}
 
-	if max := config.GetScheduledStatusesMaxDaily(); scheduledDaily >= max {
+	if max := config.GetScheduledStatusesMaxDaily(); scheduledDaily >= int64(max) {
 		err := gtserror.Newf("scheduled statuses count for day is at the limit (%d)", max)
 		return gtserror.NewErrorUnprocessableEntity(err)
 	}
 
-	// Skip total check when editing an existing scheduled status
+	// Skip total check when editing
+	// an existing scheduled status
 	if prevScheduledAt != nil {
 		return nil
 	}
 
-	scheduledTotal, err := p.state.DB.GetScheduledStatusesCountForAcct(ctx, acctID, nil)
+	scheduledTotal, err := p.state.DB.CountScheduledStatusesForAccount(ctx, acctID, nil)
 
 	if err != nil {
 		err := gtserror.Newf("error getting total scheduled statuses count: %w", err)
 		return gtserror.NewErrorInternalError(err)
 	}
 
-	if max := config.GetScheduledStatusesMaxTotal(); scheduledTotal >= max {
+	if max := config.GetScheduledStatusesMaxTotal(); scheduledTotal >= int64(max) {
 		err := gtserror.Newf("total scheduled statuses count is at the limit (%d)", max)
 		return gtserror.NewErrorUnprocessableEntity(err)
 	}

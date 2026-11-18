@@ -164,9 +164,9 @@ type DBCaches struct {
 	// LocalInstance provides caching for
 	// simple + common local instance queries.
 	LocalInstance struct {
-		Peers    atomic.Pointer[int]
-		Statuses atomic.Pointer[int]
-		Accounts atomic.Pointer[int]
+		Peers    atomic.Pointer[int64]
+		Statuses atomic.Pointer[int64]
+		Accounts atomic.Pointer[int64]
 		UserIDs  atomic.Pointer[[]string]
 		Settings atomic.Pointer[gtsmodel.InstanceSettings]
 	}

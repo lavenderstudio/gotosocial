@@ -96,7 +96,7 @@ func (a *applicationDB) GetApplicationsManagedByUserID(
 	}
 
 	if limit > 0 {
-		q = q.Limit(limit)
+		q = q.Limit(int64(limit))
 	}
 
 	if order == paging.OrderAscending {
@@ -314,7 +314,7 @@ func (a *applicationDB) GetAccessTokens(
 	}
 
 	if limit > 0 {
-		q = q.Limit(limit)
+		q = q.Limit(int64(limit))
 	}
 
 	switch {

@@ -385,9 +385,9 @@ func (i *interactionDB) GetInteractionsRequestsForAcct(
 		q = q.OrderExpr("? DESC", bun.Ident("id"))
 	}
 
-	// Add paging param limit.
 	if limit > 0 {
-		q = q.Limit(limit)
+		// Add paging param limit.
+		q = q.Limit(int64(limit))
 	}
 
 	// Execute the query and scan into IDs.

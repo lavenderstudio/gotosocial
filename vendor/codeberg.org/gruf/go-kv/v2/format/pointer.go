@@ -10,7 +10,7 @@ import (
 // derefPointerType returns a FormatFunc capable of dereferencing
 // and formatting the given pointer type currently in TypeIter{}.
 // note this will fetch a sub-FormatFunc for resulting value type.
-func (fmt *Formatter) derefPointerType(t xunsafe.TypeIter) FormatFunc {
+func (fmt *Formatter) derefPointerType(t xunsafe.TypeIter) (fn FormatFunc) {
 	var n int
 	vt := t
 
@@ -28,8 +28,8 @@ func (fmt *Formatter) derefPointerType(t xunsafe.TypeIter) FormatFunc {
 	}
 
 	// Get value format func.
-	fn := fmt.loadOrGet(vt)
-	if fn == nil {
+	pfn := fmt.loadOrGet(vt)
+	if pfn == nil {
 		panic("unreachable")
 	}
 
@@ -46,7 +46,7 @@ func (fmt *Formatter) derefPointerType(t xunsafe.TypeIter) FormatFunc {
 				// Format
 				// final
 				// value.
-				fn(s)
+				pfn(s)
 			}
 		}
 
@@ -73,7 +73,7 @@ func (fmt *Formatter) derefPointerType(t xunsafe.TypeIter) FormatFunc {
 			// Format
 			// final
 			// value.
-			fn(s)
+			pfn(s)
 		}
 	}
 
@@ -92,7 +92,7 @@ func (fmt *Formatter) derefPointerType(t xunsafe.TypeIter) FormatFunc {
 			// Format
 			// final
 			// value.
-			fn(s)
+			pfn(s)
 		}
 	}
 
@@ -118,6 +118,6 @@ func (fmt *Formatter) derefPointerType(t xunsafe.TypeIter) FormatFunc {
 		// Format
 		// final
 		// value.
-		fn(s)
+		pfn(s)
 	}
 }

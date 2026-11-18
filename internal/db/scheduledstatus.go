@@ -26,6 +26,7 @@ import (
 )
 
 type ScheduledStatus interface {
+
 	// GetAllScheduledStatuses returns all pending scheduled statuses.
 	GetAllScheduledStatuses(ctx context.Context) ([]*gtsmodel.ScheduledStatus, error)
 
@@ -37,7 +38,10 @@ type ScheduledStatus interface {
 		ctx context.Context,
 		acctID string,
 		page *paging.Page,
-	) ([]*gtsmodel.ScheduledStatus, error)
+	) (
+		[]*gtsmodel.ScheduledStatus,
+		error,
+	)
 
 	// PutScheduledStatus puts the given scheduled status in the database.
 	PutScheduledStatus(ctx context.Context, status *gtsmodel.ScheduledStatus) error
@@ -54,6 +58,6 @@ type ScheduledStatus interface {
 	// UpdateScheduledStatusScheduledDate updates `scheduled_at` param for the given scheduled status in the database.
 	UpdateScheduledStatusScheduledDate(ctx context.Context, scheduledStatus *gtsmodel.ScheduledStatus, scheduledAt *time.Time) error
 
-	// GetScheduledStatusesCountForAcct returns the number of pending statuses scheduled by the given account, optionally for a specific day.
-	GetScheduledStatusesCountForAcct(ctx context.Context, acctID string, scheduledAt *time.Time) (int, error)
+	// CountScheduledStatusesForAccount returns the number of pending statuses scheduled by the given account, optionally for a specific day.
+	CountScheduledStatusesForAccount(ctx context.Context, acctID string, scheduledAt *time.Time) (int64, error)
 }

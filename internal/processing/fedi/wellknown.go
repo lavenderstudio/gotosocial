@@ -74,9 +74,9 @@ func (p *Processor) NodeInfoGet(ctx context.Context, schemaVersion string) (*api
 	const ()
 
 	var (
-		userCount int
-		postCount int
-		mau       int
+		userCount int64
+		postCount int64
+		mau       int64
 		err       error
 	)
 
@@ -85,9 +85,9 @@ func (p *Processor) NodeInfoGet(ctx context.Context, schemaVersion string) (*api
 	case config.InstanceStatsModeBaffle:
 		// Use randomized stats.
 		stats := p.converter.RandomStats()
-		userCount = int(stats.TotalUsers)
-		postCount = int(stats.Statuses)
-		mau = int(stats.MonthlyActiveUsers)
+		userCount = stats.TotalUsers
+		postCount = stats.Statuses
+		mau = stats.MonthlyActiveUsers
 
 	case config.InstanceStatsModeZero:
 		// Use zeroed stats

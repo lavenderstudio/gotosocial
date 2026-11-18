@@ -134,7 +134,7 @@ func convertEnums[OldType ~string, NewType ~int16](
 	highest := id.Highest
 
 	// Total updated rows.
-	var updated int
+	var updated int64
 
 	for {
 		// Limit to batchsz
@@ -173,8 +173,8 @@ func convertEnums[OldType ~string, NewType ~int16](
 			break
 		}
 
-		// Update the overall count.
-		updated += int(thisUpdated)
+		// Update overall count.
+		updated += thisUpdated
 
 		// Log helpful message to admin.
 		log.Infof(ctx, "migrated %d of %d %s (up to %s)",
@@ -191,7 +191,7 @@ func convertEnums[OldType ~string, NewType ~int16](
 		}
 	}
 
-	if total != int(updated) {
+	if total != updated {
 		// Return error here in order to rollback the whole transaction.
 		return fmt.Errorf("total=%d does not match updated=%d", total, updated)
 	}

@@ -184,7 +184,7 @@ func (d *domainDB) GetDomainPermissionDrafts(
 	if limit > 0 {
 		// Limit amount of
 		// items returned.
-		q = q.Limit(limit)
+		q = q.Limit(int64(limit))
 	}
 
 	if order == paging.OrderAscending {

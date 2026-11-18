@@ -233,7 +233,7 @@ func (m *mediaDB) getAttachmentsPagedByID(ctx context.Context, query func(*bun.S
 
 	// A limit should always
 	// be supplied for this.
-	q = q.Limit(limit)
+	q = q.Limit(int64(limit))
 
 	// Finally, perform query into IDs slice.
 	if err := q.Scan(ctx, &ids); err != nil {

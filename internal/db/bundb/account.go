@@ -560,7 +560,7 @@ func (a *accountDB) GetAccounts(
 	if limit > 0 {
 		// Limit amount of
 		// accounts returned.
-		q = q.Limit(limit)
+		q = q.Limit(int64(limit))
 	}
 
 	if order == paging.OrderAscending {
@@ -1068,7 +1068,7 @@ func (a *accountDB) GetAccountStatuses(
 
 	if limit > 0 {
 		// limit amount of statuses returned
-		q = q.Limit(limit)
+		q = q.Limit(int64(limit))
 	}
 
 	if frontToBack {
@@ -1562,10 +1562,10 @@ func (a *accountDB) RegenerateAccountStats(ctx context.Context, account *gtsmode
 		return err
 	}
 
-	stats.FollowRequestsCount = util.Ptr(followRequestCount)
-	stats.FollowingCount = util.Ptr(followCount)
-	stats.FollowersCount = util.Ptr(followerCount)
-	stats.StatusesPinnedCount = util.Ptr(pinnedCount)
+	stats.FollowRequestsCount = util.Ptr(int(followRequestCount))
+	stats.FollowingCount = util.Ptr(int(followCount))
+	stats.FollowersCount = util.Ptr(int(followerCount))
+	stats.StatusesPinnedCount = util.Ptr(int(pinnedCount))
 
 	// Populate remaining stats struct fields.
 	// This can be done inside a transaction.
@@ -1601,7 +1601,7 @@ func (a *accountDB) RegenerateAccountStats(ctx context.Context, account *gtsmode
 		}
 
 		stats.LastStatusAt = lastStatusAt
-		stats.StatusesCount = &statusesCount
+		stats.StatusesCount = util.Ptr(int(statusesCount))
 
 		return nil
 	}); err != nil {

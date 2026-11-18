@@ -139,7 +139,7 @@ func (t *timelineDB) GetFavedTimeline(ctx context.Context, accountID string, max
 	}
 
 	if limit > 0 {
-		fq = fq.Limit(limit)
+		fq = fq.Limit(int64(limit))
 	}
 
 	err := fq.Scan(ctx)
@@ -383,7 +383,7 @@ func (t *timelineDB) timelineForAccountIDs(
 
 		// A limit should always
 		// be supplied for this.
-		q = q.Limit(page.Limit)
+		q = q.Limit(int64(page.Limit))
 
 		return loadStatusTimelineQuery(ctx, t.state, page, q)
 
@@ -445,7 +445,7 @@ func statusTimelineQuery(
 
 	// A limit should always
 	// be supplied for this.
-	q = q.Limit(limit)
+	q = q.Limit(int64(limit))
 
 	return q, nil
 }

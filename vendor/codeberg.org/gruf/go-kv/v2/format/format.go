@@ -91,10 +91,11 @@ type Formatter struct {
 	// Append() and AppendState().
 	Defaults Args
 
-	// internal
-	// format func
-	// cache map.
-	fns cache
+	// prepared format functions cache.
+	fns cache[xunsafe.TypeInfo, FormatFunc]
+
+	// iface-containing types cache.
+	ifaces cache[reflect.Type, bool]
 }
 
 // Append calls AppendState() with a newly allocated State{}, returning byte buffer.
@@ -129,7 +130,7 @@ func (fmt *Formatter) AppendState(s *State, value any) {
 func (fmt *Formatter) loadOrGet(t xunsafe.TypeIter) FormatFunc {
 	// Look for existing stored
 	// func under this type key.
-	fn := fmt.fns.Get(t.TypeInfo)
+	fn, _ := fmt.fns.Get(t.TypeInfo)
 
 	if fn == nil {
 		// Load format func
@@ -149,7 +150,7 @@ func (fmt *Formatter) loadOrStore(t xunsafe.TypeIter) FormatFunc {
 
 	// Look for existing stored
 	// func under this type key.
-	fn := fmt.fns.Get(key)
+	fn, _ := fmt.fns.Get(key)
 
 	if fn == nil {
 		// Load format func
@@ -289,6 +290,11 @@ func (fmt *Formatter) get(t xunsafe.TypeIter) (fn FormatFunc) {
 }
 
 func (fmt *Formatter) getInterfaceType(t xunsafe.TypeIter) FormatFunc {
+	// TODO: our interface checks below can still return
+	// true indicating recursion for two structs that may
+	// contain interfaces but are currently the zero value,
+	// (as they may share the same zero value address).
+
 	// Get interface
 	// type flags.
 	flags := t.Flag
@@ -314,7 +320,7 @@ func (fmt *Formatter) getInterfaceType(t xunsafe.TypeIter) FormatFunc {
 					return
 				}
 
-				if s.P != nil {
+				if fmt.hasInterface(rtype) {
 					// Check for ptr recursion.
 					if s.ifaces.contains(s.P) {
 						pfn(s)
@@ -348,7 +354,7 @@ func (fmt *Formatter) getInterfaceType(t xunsafe.TypeIter) FormatFunc {
 				return
 			}
 
-			if s.P != nil {
+			if fmt.hasInterface(rtype) {
 				// Check for ptr recursion.
 				if s.ifaces.contains(s.P) {
 					pfn(s)
@@ -382,7 +388,7 @@ func (fmt *Formatter) getInterfaceType(t xunsafe.TypeIter) FormatFunc {
 				return
 			}
 
-			if s.P != nil {
+			if fmt.hasInterface(rtype) {
 				// Check for ptr recursion.
 				if s.ifaces.contains(s.P) {
 					pfn(s)
@@ -415,7 +421,7 @@ func (fmt *Formatter) getInterfaceType(t xunsafe.TypeIter) FormatFunc {
 			return
 		}
 
-		if s.P != nil {
+		if fmt.hasInterface(rtype) {
 			// Check for ptr recursion.
 			if s.ifaces.contains(s.P) {
 				pfn(s)
@@ -434,6 +440,62 @@ func (fmt *Formatter) getInterfaceType(t xunsafe.TypeIter) FormatFunc {
 		// Load + pass to func.
 		fmt.loadOrStore(t)(s)
 	}
+}
+
+func (fmt *Formatter) hasInterface(t reflect.Type) bool {
+	has, ok := fmt.ifaces.Get(t)
+	if !ok {
+		has = hasInterface(nil, t)
+		fmt.ifaces.Put(t, has)
+	}
+	return has
+}
+
+// hasInterface returns whether given type contains a runtime-dynamic
+// interface{} type. this result is cached by Formatter{}'s hasInterface()
+// function and is used to determine whether recursion checks are necessary.
+func hasInterface(m map[reflect.Type]struct{}, t reflect.Type) (ok bool) {
+	k := t.Kind()
+
+	// Fast-path interface check.
+	if k == reflect.Interface {
+		return true
+	}
+
+	// Check if type has
+	// already been seen.
+	if _, ok := m[t]; ok {
+		return false
+	}
+
+	if m == nil {
+		// Recursion map needs allocating.
+		m = make(map[reflect.Type]struct{})
+	}
+
+	// Add ourself to
+	// recursion map.
+	m[t] = struct{}{}
+
+	switch k {
+	case reflect.Map:
+		// check if either map key /
+		// value type is interface-haver.
+		return hasInterface(m, t.Key()) ||
+			hasInterface(m, t.Elem())
+	case reflect.Pointer:
+		// Dereference pointer element.
+		return hasInterface(m, t.Elem())
+	case reflect.Struct:
+		// Check each struct field type.
+		for i := range t.NumField() {
+			if hasInterface(m, t.Field(i).Type) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func getStringType(t xunsafe.TypeIter) FormatFunc {

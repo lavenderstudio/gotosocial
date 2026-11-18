@@ -183,7 +183,7 @@ func (s *statusFaveDB) IsStatusFavedBy(ctx context.Context, statusID string, acc
 	return (fave != nil), nil
 }
 
-func (s *statusFaveDB) CountStatusFaves(ctx context.Context, statusID string) (int, error) {
+func (s *statusFaveDB) CountStatusFaves(ctx context.Context, statusID string) (int64, error) {
 	return s.state.Caches.DB.StatusFaveIDs.Count(statusID, func() ([]string, error) {
 		return getStatusFaveIDs(ctx, s.db, statusID)
 	})

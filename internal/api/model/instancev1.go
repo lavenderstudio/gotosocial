@@ -21,36 +21,46 @@ package model
 //
 // swagger:model instanceV1
 type InstanceV1 struct {
+
 	// The domain of the instance.
 	// example: gts.example.org
 	URI string `json:"uri,omitempty"`
+
 	// The domain to be used for accounts on this instance.
 	// example: example.org
 	AccountDomain string `json:"account_domain,omitempty"`
+
 	// The title of the instance.
 	// example: GoToSocial Example Instance
 	Title string `json:"title,omitempty"`
+
 	// Description of the instance.
 	//
 	// Should be HTML formatted, but might be plaintext.
 	//
 	// This should be displayed on the 'about' page for an instance.
 	Description string `json:"description"`
+
 	// Custom CSS for the instance.
 	CustomCSS string `json:"custom_css,omitempty"`
+
 	// Raw (unparsed) version of description.
 	DescriptionText string `json:"description_text,omitempty"`
+
 	// A shorter description of the instance.
 	//
 	// Should be HTML formatted, but might be plaintext.
 	//
 	// This should be displayed on the instance splash/landing page.
 	ShortDescription string `json:"short_description"`
+
 	// Raw (unparsed) version of short description.
 	ShortDescriptionText string `json:"short_description_text,omitempty"`
+
 	// An email address that may be used for inquiries.
 	// example: admin@example.org
 	Email string `json:"email"`
+
 	// The version of GoToSocial installed on the instance.
 	//
 	// This will contain at least a semantic version number.
@@ -59,53 +69,71 @@ type InstanceV1 struct {
 	//
 	// example: 0.1.1 cb85f65
 	Version string `json:"version"`
+
 	// Whether or not instance is running in DEBUG mode. Omitted if false.
 	Debug *bool `json:"debug,omitempty"`
+
 	// Primary language of the instance.
 	// example: ["en"]
 	Languages []string `json:"languages"`
+
 	// New account registrations are enabled on this instance.
 	Registrations bool `json:"registrations"`
+
 	// New account registrations require admin approval.
 	ApprovalRequired bool `json:"approval_required"`
+
 	// Invites are enabled on this instance.
 	InvitesEnabled bool `json:"invites_enabled"`
+
 	// Configuration object containing values about status limits etc.
 	// This key/value will be omitted for remote instances.
 	Configuration InstanceV1Configuration `json:"configuration,omitempty"`
+
 	// URLs of interest for client applications.
 	URLs InstanceV1URLs `json:"urls,omitempty"`
+
 	// Statistics about the instance: number of posts, accounts, etc.
 	// Values are pointers because we don't want to skip 0 values when
 	// rendering stats via web templates.
-	Stats map[string]*int `json:"stats,omitempty"`
+	Stats map[string]*int64 `json:"stats,omitempty"`
+
 	// URL of the instance avatar/banner image.
 	// example: https://example.org/files/instance/thumbnail.jpeg
 	Thumbnail string `json:"thumbnail"`
+
 	// MIME type of the instance thumbnail.
 	// example: image/png
 	ThumbnailType string `json:"thumbnail_type,omitempty"`
+
 	// URL of the static instance avatar/banner image.
 	// example: https://example.org/files/instance/static/thumbnail.webp
 	ThumbnailStatic string `json:"thumbnail_static,omitempty"`
+
 	// MIME type of the static instance thumbnail.
 	// example: image/webp
 	ThumbnailStaticType string `json:"thumbnail_static_type,omitempty"`
+
 	// Description of the instance thumbnail.
 	// example: picture of a cute lil' friendly sloth
 	ThumbnailDescription string `json:"thumbnail_description,omitempty"`
+
 	// Contact account for the instance.
 	ContactAccount *Account `json:"contact_account,omitempty"`
+
 	// Maximum allowed length of a post on this instance, in characters.
 	//
 	// This is provided for compatibility with Tusky and other apps.
 	//
 	// example: 5000
 	MaxTootChars uint `json:"max_toot_chars"`
+
 	// An itemized list of rules for this instance.
 	Rules []InstanceRule `json:"rules"`
+
 	// Terms and conditions for accounts on this instance.
 	Terms string `json:"terms,omitempty"`
+
 	// Raw (unparsed) version of terms.
 	TermsRaw string `json:"terms_text,omitempty"`
 

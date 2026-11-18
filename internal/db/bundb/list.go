@@ -225,7 +225,7 @@ func (l *listDB) GetListIDsByAccountID(ctx context.Context, accountID string) ([
 	})
 }
 
-func (l *listDB) CountListsByAccountID(ctx context.Context, accountID string) (int, error) {
+func (l *listDB) CountListsByAccountID(ctx context.Context, accountID string) (int64, error) {
 	return l.state.Caches.DB.ListIDs.Count("a"+accountID, func() ([]string, error) {
 		return getListIDsByAccountID(ctx, l.db, accountID)
 	})

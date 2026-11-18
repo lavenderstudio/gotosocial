@@ -264,7 +264,7 @@ func (e *emojiDB) GetEmojisBy(ctx context.Context, domain string, includeDisable
 	subQuery = subQuery.Order("shortcode_domain " + order)
 
 	if limit > 0 {
-		subQuery = subQuery.Limit(limit)
+		subQuery = subQuery.Limit(int64(limit))
 	}
 
 	// Wrap the subQuery in a query, since we don't need to select the shortcode_domain column.
@@ -363,7 +363,7 @@ func (e *emojiDB) getEmojisPagedByID(ctx context.Context, query func(*bun.Select
 
 	// A limit should always
 	// be supplied for this.
-	q = q.Limit(limit)
+	q = q.Limit(int64(limit))
 
 	// Finally, perform query into IDs slice.
 	if err := q.Scan(ctx, &ids); err != nil {

@@ -24,8 +24,10 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 )
 
-// Admin contains functions related to instance administration (new signups etc).
+// Admin contains functions related to
+// instance administration (new signups etc).
 type Admin interface {
+
 	// IsUsernameAvailable checks whether a given username is available on our domain.
 	// Returns an error if the username is already taken, or something went wrong in the db.
 	IsUsernameAvailable(ctx context.Context, username string) (bool, error)
@@ -66,12 +68,12 @@ type Admin interface {
 
 	// CountApprovedSignupsSince counts the number of new account
 	// sign-ups approved on this instance since the given time.
-	CountApprovedSignupsSince(ctx context.Context, since time.Time) (int, error)
+	CountApprovedSignupsSince(ctx context.Context, since time.Time) (int64, error)
 
 	// CountUnhandledSignups counts the number of account sign-ups
 	// that have not yet been approved or denied. In other words,
 	// the number of pending sign-ups sitting in the backlog.
-	CountUnhandledSignups(ctx context.Context) (int, error)
+	CountUnhandledSignups(ctx context.Context) (int64, error)
 
 	/*
 		ACTION FUNCS

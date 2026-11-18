@@ -58,7 +58,7 @@ type BunQueryBuilder[QueryType any] interface {
 	Column(columns ...string) QueryType
 	ColumnExpr(query string, args ...any) QueryType
 	Where(query string, args ...any) QueryType
-	Limit(n int) QueryType
+	Limit(n int64) QueryType
 	Order(orders ...string) QueryType
 	OrderExpr(query string, args ...any) QueryType
 	Scan(ctx context.Context, args ...any) error

@@ -27,6 +27,7 @@ import (
 
 // Status contains functions for getting statuses, creating statuses, and checking various other fields on statuses.
 type Status interface {
+
 	// GetStatusByID fetches the status from the database with matching id column.
 	GetStatusByID(ctx context.Context, id string) (*gtsmodel.Status, error)
 
@@ -99,13 +100,13 @@ type Status interface {
 	GetStatusReplies(ctx context.Context, statusID string) ([]*gtsmodel.Status, error)
 
 	// CountStatusReplies returns the number of stored *direct* (i.e. in_reply_to_id column) replies to this status ID.
-	CountStatusReplies(ctx context.Context, statusID string) (int, error)
+	CountStatusReplies(ctx context.Context, statusID string) (int64, error)
 
 	// GetStatusBoosts returns all statuses whose boost_of_id column refer to given status ID.
 	GetStatusBoosts(ctx context.Context, statusID string) ([]*gtsmodel.Status, error)
 
 	// CountStatusBoosts returns the number of stored boosts for status ID.
-	CountStatusBoosts(ctx context.Context, statusID string) (int, error)
+	CountStatusBoosts(ctx context.Context, statusID string) (int64, error)
 
 	// IsStatusBoostedBy checks whether the given status ID is boosted by account ID.
 	IsStatusBoostedBy(ctx context.Context, statusID string, accountID string) (bool, error)

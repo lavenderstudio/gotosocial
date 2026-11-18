@@ -220,7 +220,7 @@ func (s *statusBookmarkDB) GetStatusBookmarks(ctx context.Context, accountID str
 	}
 
 	if limit != 0 {
-		q = q.Limit(limit)
+		q = q.Limit(int64(limit))
 	}
 
 	if err := q.Scan(ctx, &ids); err != nil {

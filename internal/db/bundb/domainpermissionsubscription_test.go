@@ -85,12 +85,12 @@ func (suite *DomainPermissionSubscriptionTestSuite) TestCount() {
 	}
 
 	// Count 'em.
-	count, err := suite.state.DB.CountDomainPermissionSubscriptionPerms(ctx, permSub.ID)
+	count, err := suite.state.DB.CountDomainSubscriptionPermissions(ctx, permSub.ID)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
 
-	suite.Equal(4, count)
+	suite.Equal(int64(4), count)
 }
 
 func TestDomainPermissionSubscriptionTestSuite(t *testing.T) {

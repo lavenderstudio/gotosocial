@@ -1040,7 +1040,7 @@ func (s *statusDB) DeleteOldRemoteStatuses(
 	q = q.Where("NOT EXISTS (?)", sub)
 	q = q.Where("? < ?", ID("statuses.thread_id"), maxID)
 	q = q.OrderExpr("? DESC", ID("statuses.thread_id"))
-	q = q.Limit(limit)
+	q = q.Limit(int64(limit))
 
 	// Scan query results into slice.
 	err := q.Scan(ctx, &threadIDs)
@@ -1222,7 +1222,7 @@ func (s *statusDB) deleteStatusPage(
 
 			// A limit should always
 			// be supplied for this.
-			q = q.Limit(limit)
+			q = q.Limit(int64(limit))
 
 			return q
 		})
@@ -1387,7 +1387,7 @@ func (s *statusDB) GetStatusReplies(ctx context.Context, statusID string) ([]*gt
 	return s.GetStatusesByIDs(ctx, statusIDs)
 }
 
-func (s *statusDB) CountStatusReplies(ctx context.Context, statusID string) (int, error) {
+func (s *statusDB) CountStatusReplies(ctx context.Context, statusID string) (int64, error) {
 	return s.state.Caches.DB.InReplyToIDs.Count(statusID, func() ([]string, error) {
 		return getStatusReplyIDs(ctx, s.db, statusID)
 	})
@@ -1433,7 +1433,7 @@ func (s *statusDB) IsStatusBoostedBy(ctx context.Context, statusID string, accou
 	return (boost != nil), nil
 }
 
-func (s *statusDB) CountStatusBoosts(ctx context.Context, statusID string) (int, error) {
+func (s *statusDB) CountStatusBoosts(ctx context.Context, statusID string) (int64, error) {
 	return s.state.Caches.DB.BoostOfIDs.Count(statusID, func() ([]string, error) {
 		return getStatusBoostIDs(ctx, s.db, statusID)
 	})
@@ -1483,7 +1483,7 @@ func (s *statusDB) GetDirectStatusIDsBatch(ctx context.Context, minID string, ma
 		Where("? > ?", bun.Ident("id"), minID).
 		Where("? <= ?", bun.Ident("id"), maxIDInclusive).
 		Order("id ASC").
-		Limit(count).
+		Limit(int64(count)).
 		Scan(ctx, &statusIDs); // nocollapse
 	err != nil {
 		return nil, err

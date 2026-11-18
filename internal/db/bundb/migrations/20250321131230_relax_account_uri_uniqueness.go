@@ -39,6 +39,9 @@ func init() {
 		log.Info(ctx, "converting accounts to new model; this may take a while, please don't interrupt!")
 
 		return bdb.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+			// Batch size for
+			// selecting + updating.
+			const batchsz = 100
 
 			var (
 				// We have to use different
@@ -49,13 +52,9 @@ func init() {
 				// ID for paging.
 				maxID string
 
-				// Batch size for
-				// selecting + updating.
-				batchsz = 100
-
 				// Number of accounts
 				// updated so far.
-				updated int
+				updated int64
 
 				// We need to know our own host
 				// for updating instance account.
@@ -282,7 +281,7 @@ func init() {
 				}
 
 				// Add to updated count.
-				updated += int(rowsAffected)
+				updated += rowsAffected
 				if updated == total {
 					// Done.
 					break
@@ -299,7 +298,7 @@ func init() {
 				)
 			}
 
-			if total != int(updated) {
+			if total != updated {
 				// Return error here in order to rollback the whole transaction.
 				return fmt.Errorf("total=%d does not match updated=%d", total, updated)
 			}

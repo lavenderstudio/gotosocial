@@ -31,10 +31,13 @@ import (
 
 func (p *Processor) AccountAction(
 	ctx context.Context,
-	adminAcct *gtsmodel.Account,
+	admin *gtsmodel.Account,
 	request *apimodel.AdminActionRequest,
-) (string, gtserror.WithCode) {
-	targetAcct, err := p.state.DB.GetAccountByID(ctx, request.TargetID)
+) (
+	string,
+	gtserror.WithCode,
+) {
+	target, err := p.state.DB.GetAccountByID(ctx, request.TargetID)
 	if err != nil {
 		err := gtserror.Newf("db error getting target account: %w", err)
 		return "", gtserror.NewErrorInternalError(err)
@@ -42,7 +45,7 @@ func (p *Processor) AccountAction(
 
 	switch gtsmodel.ParseAdminActionType(request.Type) {
 	case gtsmodel.AdminActionSuspend:
-		return p.accountActionSuspend(ctx, adminAcct, targetAcct, request.Text)
+		return p.accountActionSuspend(ctx, admin, target, request.Text)
 
 	default:
 		// TODO: add more types to this slice when adding
@@ -62,21 +65,23 @@ func (p *Processor) AccountAction(
 
 func (p *Processor) accountActionSuspend(
 	ctx context.Context,
-	adminAcct *gtsmodel.Account,
-	targetAcct *gtsmodel.Account,
+	admin *gtsmodel.Account,
+	target *gtsmodel.Account,
 	text string,
-) (string, gtserror.WithCode) {
+) (
+	string,
+	gtserror.WithCode,
+) {
 	actionID := id.NewULID()
-
 	errWithCode := p.state.AdminActions.Run(
 		ctx,
 		&gtsmodel.AdminAction{
 			ID:             actionID,
 			TargetCategory: gtsmodel.AdminActionCategoryAccount,
-			TargetID:       targetAcct.ID,
-			Target:         targetAcct,
+			TargetID:       target.ID,
+			Target:         target,
 			Type:           gtsmodel.AdminActionSuspend,
-			AccountID:      adminAcct.ID,
+			AccountID:      admin.ID,
 			Text:           text,
 		},
 		func(ctx context.Context) gtserror.MultiError {
@@ -85,18 +90,16 @@ func (p *Processor) accountActionSuspend(
 				&messages.FromClientAPI{
 					APObjectType:   ap.ActorPerson,
 					APActivityType: ap.ActivityDelete,
-					Origin:         adminAcct,
-					Target:         targetAcct,
+					Origin:         admin,
+					Target:         target,
 				},
 			); err != nil {
 				errs := gtserror.NewMultiError(1)
 				errs.Append(err)
 				return errs
 			}
-
 			return nil
 		},
 	)
-
 	return actionID, errWithCode
 }

@@ -265,7 +265,7 @@ func (r *relationshipDB) GetAccountMutes(ctx context.Context, accountID string, 
 	return r.getMutesByIDs(ctx, muteIDs)
 }
 
-func (r *relationshipDB) CountAccountMutes(ctx context.Context, accountID string) (int, error) {
+func (r *relationshipDB) CountAccountMutes(ctx context.Context, accountID string) (int64, error) {
 	return r.state.Caches.DB.UserMuteIDs.Count(accountID, func() ([]string, error) {
 		return getAccountMuteIDs(ctx, r.db, accountID)
 	})

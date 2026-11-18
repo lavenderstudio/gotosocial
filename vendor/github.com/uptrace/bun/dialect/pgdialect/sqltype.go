@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/uptrace/bun/dialect/sqltype"
+	"github.com/uptrace/bun/internal"
 	"github.com/uptrace/bun/migrate/sqlschema"
 	"github.com/uptrace/bun/schema"
 )
@@ -86,7 +87,7 @@ func fieldSQLType(field *schema.Field) string {
 }
 
 func sqlType(typ reflect.Type) string {
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 	}
 
@@ -114,6 +115,11 @@ func sqlType(typ reflect.Type) string {
 		}
 		return sqlType
 	case reflect.Array, reflect.Slice:
+		// The standard library uuid.UUID is discovered as a character type
+		// (and Postgres accepts a UUID literal as an untyped string constant).
+		if typ == internal.TypeUUID {
+			return sqlType
+		}
 		if typ.Elem().Kind() == reflect.Uint8 {
 			return pgTypeBytea
 		}
@@ -155,7 +161,7 @@ func (d *Dialect) CompareType(col1, col2 sqlschema.Column) bool {
 }
 
 // checkVarcharLen returns true if columns have the same VarcharLen, or,
-// if one specifies no VarcharLen and the other one has the default lenght for pgdialect.
+// if one specifies no VarcharLen and the other one has the default length for pgdialect.
 // We assume that the types are otherwise equivalent and that any non-character column
 // would have VarcharLen == 0;
 func checkVarcharLen(col1, col2 sqlschema.Column, defaultLen int) bool {

@@ -36,19 +36,19 @@ type InstanceTestSuite struct {
 func (suite *InstanceTestSuite) TestCountInstanceUsers() {
 	count, err := suite.db.CountInstanceAccounts(suite.T().Context())
 	suite.NoError(err)
-	suite.Equal(6, count)
+	suite.Equal(int64(6), count)
 }
 
 func (suite *InstanceTestSuite) TestCountInstanceStatuses() {
 	count, err := suite.db.CountInstanceStatuses(suite.T().Context())
 	suite.NoError(err)
-	suite.Equal(24, count)
+	suite.Equal(int64(24), count)
 }
 
 func (suite *InstanceTestSuite) TestCountInstancePeers() {
 	count, err := suite.db.CountInstancePeers(suite.T().Context())
 	suite.NoError(err)
-	suite.Equal(4, count)
+	suite.Equal(int64(4), count)
 }
 
 func (suite *InstanceTestSuite) TestGetInstanceNonexistent() {

@@ -38,7 +38,7 @@ func (c *SliceCache[T]) Init(len, cap int) {
 }
 
 // Count will return number of entries in slice from key for key, else calling load function to cache the result (returning count).
-func (c *SliceCache[T]) Count(key string, load func() ([]T, error)) (int, error) {
+func (c *SliceCache[T]) Count(key string, load func() ([]T, error)) (int64, error) {
 
 	// Look for cached values.
 	data, ok := c.Cache.Get(key)
@@ -56,7 +56,7 @@ func (c *SliceCache[T]) Count(key string, load func() ([]T, error)) (int, error)
 		c.Cache.Set(key, data)
 	}
 
-	return len(data), nil
+	return int64(len(data)), nil
 }
 
 // Load will attempt to load an existing slice from cache for key, else calling load function and caching the result.

@@ -10,14 +10,14 @@ import (
 // and formatting the given array type currently in TypeIter{}.
 // note this will fetch a sub-FormatFunc for the array element
 // type, and also handle special cases of [n]byte, [n]rune arrays.
-func (fmt *Formatter) iterArrayType(t xunsafe.TypeIter) FormatFunc {
+func (fmt *Formatter) iterArrayType(t xunsafe.TypeIter) (fn FormatFunc) {
 
 	// Get nested elem.
 	et := t.ArrayElem()
 
 	// Get elem format func.
-	fn := fmt.loadOrGet(et)
-	if fn == nil {
+	efn := fmt.loadOrGet(et)
+	if efn == nil {
 		panic("unreachable")
 	}
 
@@ -26,9 +26,9 @@ func (fmt *Formatter) iterArrayType(t xunsafe.TypeIter) FormatFunc {
 	case 0:
 		return emptyArrayType(t)
 	case 1:
-		return iterSingleArrayType(t, fn)
+		return iterSingleArrayType(t, efn)
 	default:
-		return iterMultiArrayType(t, fn)
+		return iterMultiArrayType(t, efn)
 	}
 }
 

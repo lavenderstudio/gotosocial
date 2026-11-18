@@ -54,7 +54,7 @@ func getMethodType(t xunsafe.TypeIter) FormatFunc {
 
 // getInterfaceStringerType returns a FormatFunc to handle case of an interface{}
 // type that implements Stringer{}, i.e. Stringer{} itself and any superset of.
-func getInterfaceStringerType(t xunsafe.TypeIter) FormatFunc {
+func getInterfaceStringerType(t xunsafe.TypeIter) (fn FormatFunc) {
 	switch t.Indirect() && !t.IfaceIndir() {
 	case true:
 		return with_typestr_ptrs(t, func(s *State) {
@@ -82,7 +82,7 @@ func getInterfaceStringerType(t xunsafe.TypeIter) FormatFunc {
 
 // getConcreteStringerType returns a FormatFunc to handle case of concrete
 // (i.e. non-interface{}) type that has a Stringer{} method receiver.
-func getConcreteStringerType(t xunsafe.TypeIter) FormatFunc {
+func getConcreteStringerType(t xunsafe.TypeIter) (fn FormatFunc) {
 	itab := xunsafe.GetIfaceITab[Stringer](t.Type)
 	switch {
 	case t.Indirect() && !t.IfaceIndir():
@@ -117,7 +117,7 @@ func getConcreteStringerType(t xunsafe.TypeIter) FormatFunc {
 
 // getInterfaceFormattableType returns a FormatFunc to handle case of an interface{}
 // type that implements Formattable{}, i.e. Formattable{} itself and any superset of.
-func getInterfaceFormattableType(t xunsafe.TypeIter) FormatFunc {
+func getInterfaceFormattableType(t xunsafe.TypeIter) (fn FormatFunc) {
 	switch t.Indirect() && !t.IfaceIndir() {
 	case true:
 		return with_typestr_ptrs(t, func(s *State) {
@@ -145,7 +145,7 @@ func getInterfaceFormattableType(t xunsafe.TypeIter) FormatFunc {
 
 // getConcreteFormattableType returns a FormatFunc to handle case of concrete
 // (i.e. non-interface{}) type that has a Formattable{} method receiver.
-func getConcreteFormattableType(t xunsafe.TypeIter) FormatFunc {
+func getConcreteFormattableType(t xunsafe.TypeIter) (fn FormatFunc) {
 	itab := xunsafe.GetIfaceITab[Formattable](t.Type)
 	switch {
 	case t.Indirect() && !t.IfaceIndir():
@@ -180,7 +180,7 @@ func getConcreteFormattableType(t xunsafe.TypeIter) FormatFunc {
 
 // getInterfaceErrorType returns a FormatFunc to handle case of an interface{}
 // type that implements error{}, i.e. error{} itself and any superset of.
-func getInterfaceErrorType(t xunsafe.TypeIter) FormatFunc {
+func getInterfaceErrorType(t xunsafe.TypeIter) (fn FormatFunc) {
 	switch t.Indirect() && !t.IfaceIndir() {
 	case true:
 		return with_typestr_ptrs(t, func(s *State) {
@@ -208,7 +208,7 @@ func getInterfaceErrorType(t xunsafe.TypeIter) FormatFunc {
 
 // getConcreteErrorType returns a FormatFunc to handle case of concrete
 // (i.e. non-interface{}) type that has an error{} method receiver.
-func getConcreteErrorType(t xunsafe.TypeIter) FormatFunc {
+func getConcreteErrorType(t xunsafe.TypeIter) (fn FormatFunc) {
 	itab := xunsafe.GetIfaceITab[error](t.Type)
 	switch {
 	case t.Indirect() && !t.IfaceIndir():

@@ -125,17 +125,17 @@ func init() {
 				}
 			}
 
+			// Batch size for
+			// selecting + updating.
+			const batchsz = 100
+
 			var (
 				// ID for paging.
 				maxID string = id.Highest
 
-				// Batch size for
-				// selecting + updating.
-				batchsz = 100
-
 				// Number of instances
 				// updated so far.
-				updated int
+				updated int64
 			)
 
 			// Create the new instances table.
@@ -209,7 +209,8 @@ func init() {
 				if err != nil {
 					return err
 				}
-				updated += int(rowsAffected)
+
+				updated += rowsAffected
 				if updated == total {
 					// Done.
 					break
@@ -225,7 +226,7 @@ func init() {
 				)
 			}
 
-			if total != int(updated) {
+			if total != updated {
 				// Return error here in order to rollback the whole transaction.
 				return fmt.Errorf("total=%d does not match updated=%d", total, updated)
 			}

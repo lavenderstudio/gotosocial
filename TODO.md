@@ -13,6 +13,7 @@ things noted down by the maintainers that could do with being done!
 - [performance] replace "upsert" queries with more performant alternatives (these do a lot of runtime logic which could be determined ahead of time)
 - [performance] add multi-delete queries for mentions, statuses (+boosts), etc
 - [performance] replacing packaged pageable response with returned pageable response builder, so we can reuse incoming request query instead of allocating a new map
+- [chore] update AccountStatus{} to use *int64 for counts
 
 ## miscellaneous
 - [chore] update our libraries list on the README

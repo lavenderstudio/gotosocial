@@ -67,9 +67,9 @@ func (c *Converter) AccountToExportStats(
 	}
 
 	return &apimodel.AccountExportStats{
-		FollowersCount: *a.Stats.FollowersCount,
-		FollowingCount: *a.Stats.FollowingCount,
-		StatusesCount:  *a.Stats.StatusesCount,
+		FollowersCount: int64(*a.Stats.FollowersCount),
+		FollowingCount: int64(*a.Stats.FollowingCount),
+		StatusesCount:  int64(*a.Stats.StatusesCount),
 		ListsCount:     listsCount,
 		BlocksCount:    blockingCount,
 		MutesCount:     mutingCount,

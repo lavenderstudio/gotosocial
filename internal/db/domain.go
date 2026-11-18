@@ -154,7 +154,10 @@ type Domain interface {
 		ctx context.Context,
 		domain string,
 		page *paging.Page,
-	) ([]*gtsmodel.DomainPermissionExclude, error)
+	) (
+		[]*gtsmodel.DomainPermissionExclude,
+		error,
+	)
 
 	// PutDomainPermissionExclude stores one DomainPermissionExclude.
 	PutDomainPermissionExclude(ctx context.Context, permExclude *gtsmodel.DomainPermissionExclude) error
@@ -178,14 +181,20 @@ type Domain interface {
 		ctx context.Context,
 		permType gtsmodel.DomainPermissionType,
 		page *paging.Page,
-	) ([]*gtsmodel.DomainPermissionSubscription, error)
+	) (
+		[]*gtsmodel.DomainPermissionSubscription,
+		error,
+	)
 
 	// GetDomainPermissionSubscriptionsByPriority returns *all* domain permission
 	// subscriptions of the given permission type, sorted by priority descending.
 	GetDomainPermissionSubscriptionsByPriority(
 		ctx context.Context,
 		permType gtsmodel.DomainPermissionType,
-	) ([]*gtsmodel.DomainPermissionSubscription, error)
+	) (
+		[]*gtsmodel.DomainPermissionSubscription,
+		error,
+	)
 
 	// PutDomainPermissionSubscription stores one DomainPermissionSubscription.
 	PutDomainPermissionSubscription(ctx context.Context, permSub *gtsmodel.DomainPermissionSubscription) error
@@ -201,7 +210,7 @@ type Domain interface {
 	// DeleteDomainPermissionSubscription deletes one DomainPermissionSubscription with the given id.
 	DeleteDomainPermissionSubscription(ctx context.Context, id string) error
 
-	// CountDomainPermissionSubscriptionPerms counts the number of permissions
+	// CountDomainSubscriptionPermissions counts the number of permissions
 	// currently managed by the domain permission subscription of the given ID.
-	CountDomainPermissionSubscriptionPerms(ctx context.Context, id string) (int, error)
+	CountDomainSubscriptionPermissions(ctx context.Context, id string) (int64, error)
 }

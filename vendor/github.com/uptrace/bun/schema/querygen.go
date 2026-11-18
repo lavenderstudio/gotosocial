@@ -43,18 +43,30 @@ func (f QueryGen) IdentQuote() byte {
 	return f.dialect.IdentQuote()
 }
 
+// guardLineComment inserts a space when a negative numeric literal is about to
+// be appended immediately after a '-'. Without it, formatting an expression
+// such as "col - ?" with a negative argument produces "col --1", where the "--"
+// starts a SQL line comment that can be abused for SQL injection. This mirrors
+// the fix applied to driver/pgdriver (CVE-2024-44906).
+func guardLineComment(b []byte, negative bool) []byte {
+	if negative && len(b) > 0 && b[len(b)-1] == '-' {
+		return append(b, ' ')
+	}
+	return b
+}
+
 func (gen QueryGen) Append(b []byte, v any) []byte {
 	switch v := v.(type) {
 	case nil:
 		return dialect.AppendNull(b)
 	case bool:
-		return dialect.AppendBool(b, v)
+		return gen.Dialect().AppendBool(b, v)
 	case int:
-		return strconv.AppendInt(b, int64(v), 10)
+		return strconv.AppendInt(guardLineComment(b, v < 0), int64(v), 10)
 	case int32:
-		return strconv.AppendInt(b, int64(v), 10)
+		return strconv.AppendInt(guardLineComment(b, v < 0), int64(v), 10)
 	case int64:
-		return strconv.AppendInt(b, v, 10)
+		return strconv.AppendInt(guardLineComment(b, v < 0), v, 10)
 	case uint:
 		return strconv.AppendInt(b, int64(v), 10)
 	case uint32:
@@ -62,9 +74,9 @@ func (gen QueryGen) Append(b []byte, v any) []byte {
 	case uint64:
 		return gen.Dialect().AppendUint64(b, v)
 	case float32:
-		return dialect.AppendFloat32(b, v)
+		return dialect.AppendFloat32(guardLineComment(b, v < 0), v)
 	case float64:
-		return dialect.AppendFloat64(b, v)
+		return dialect.AppendFloat64(guardLineComment(b, v < 0), v)
 	case string:
 		return gen.Dialect().AppendString(b, v)
 	case time.Time:
@@ -75,7 +87,7 @@ func (gen QueryGen) Append(b []byte, v any) []byte {
 		return AppendQueryAppender(gen, b, v)
 	default:
 		vv := reflect.ValueOf(v)
-		if vv.Kind() == reflect.Ptr && vv.IsNil() {
+		if vv.Kind() == reflect.Pointer && vv.IsNil() {
 			return dialect.AppendNull(b)
 		}
 		appender := Appender(gen.Dialect(), vv.Type())
@@ -92,7 +104,7 @@ func (f QueryGen) AppendIdent(b []byte, ident string) []byte {
 }
 
 func (f QueryGen) AppendValue(b []byte, v reflect.Value) []byte {
-	if v.Kind() == reflect.Ptr && v.IsNil() {
+	if v.Kind() == reflect.Pointer && v.IsNil() {
 		return dialect.AppendNull(b)
 	}
 	appender := Appender(f.dialect, v.Type())

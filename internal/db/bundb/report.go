@@ -103,7 +103,7 @@ func (r *reportDB) GetReports(ctx context.Context, resolved *bool, accountID str
 	if limit > 0 {
 		// Limit amount of
 		// reports returned.
-		q = q.Limit(limit)
+		q = q.Limit(int64(limit))
 	}
 
 	if order == paging.OrderAscending {

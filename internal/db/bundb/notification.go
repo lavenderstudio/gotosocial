@@ -241,7 +241,7 @@ func (n *notificationDB) GetAccountNotifications(
 	q = q.Where("? = ?", bun.Ident("notification.target_account_id"), accountID)
 
 	if limit > 0 {
-		q = q.Limit(limit)
+		q = q.Limit(int64(limit))
 	}
 
 	if order == paging.OrderAscending {

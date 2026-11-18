@@ -171,7 +171,7 @@ func (c *Converter) AccountToAPIAccountSensitive(ctx context.Context, a *gtsmode
 		StatusContentType:   statusContentType,
 		Note:                a.NoteRaw,
 		Fields:              c.fieldsToAPIFields(a.FieldsRaw),
-		FollowRequestsCount: *a.Stats.FollowRequestsCount,
+		FollowRequestsCount: int64(*a.Stats.FollowRequestsCount),
 		BlocksCount:         blocksCount,
 		AlsoKnownAsURIs:     a.AlsoKnownAsURIs,
 	}
@@ -1757,24 +1757,24 @@ func (c *Converter) InstanceSettingsToAPIV1Instance(
 	instance.URLs.StreamingAPI = "wss://" + host
 
 	// Populate instance statistics.
-	stats := make(map[string]*int, 3)
+	stats := make(map[string]*int64, 3)
 	userCount, err := c.state.DB.CountInstanceAccounts(ctx)
 	if err != nil {
 		return nil, gtserror.Newf("db error getting counting instance users: %w", err)
 	}
-	stats["user_count"] = util.Ptr(userCount)
+	stats["user_count"] = &userCount
 
 	statusCount, err := c.state.DB.CountInstanceStatuses(ctx)
 	if err != nil {
 		return nil, gtserror.Newf("db error getting counting instance statuses: %w", err)
 	}
-	stats["status_count"] = util.Ptr(statusCount)
+	stats["status_count"] = &statusCount
 
 	domainCount, err := c.state.DB.CountInstancePeers(ctx)
 	if err != nil {
 		return nil, gtserror.Newf("db error getting counting instance domains: %w", err)
 	}
-	stats["domain_count"] = util.Ptr(domainCount)
+	stats["domain_count"] = &domainCount
 	instance.Stats = stats
 
 	if config.GetInstanceStatsMode() == config.InstanceStatsModeBaffle {
@@ -2204,7 +2204,7 @@ func (c *Converter) DomainPermSubToAPIDomainPermSub(
 		successfullyFetchedAt = util.FormatISO8601(d.SuccessfullyFetchedAt)
 	}
 
-	count, err := c.state.DB.CountDomainPermissionSubscriptionPerms(ctx, d.ID)
+	count, err := c.state.DB.CountDomainSubscriptionPermissions(ctx, d.ID)
 	if err != nil {
 		return nil, gtserror.Newf("error counting perm sub perms: %w", err)
 	}
@@ -3508,7 +3508,7 @@ func (c *Converter) RelayActorToAPIRelayActor(
 	account.Source = &apimodel.Source{
 		Note:                ra.ActorAccount.NoteRaw,
 		Fields:              c.fieldsToAPIFields(ra.ActorAccount.FieldsRaw),
-		FollowRequestsCount: *ra.ActorAccount.Stats.FollowRequestsCount,
+		FollowRequestsCount: int64(*ra.ActorAccount.Stats.FollowRequestsCount),
 		BlocksCount:         blocksCount,
 	}
 

@@ -46,33 +46,45 @@ type Link struct {
 //
 // swagger:model nodeinfo
 type Nodeinfo struct {
+
 	// The schema version
 	// example: 2.0
 	Version string `json:"version"`
+
 	// Metadata about server software in use.
 	Software NodeInfoSoftware `json:"software"`
+
 	// The protocols supported on this server.
 	Protocols []string `json:"protocols"`
+
 	// The third party sites this server can connect to via their application API.
 	Services NodeInfoServices `json:"services"`
+
 	// Whether this server allows open self-registration.
 	// example: false
 	OpenRegistrations bool `json:"openRegistrations"`
+
 	// Usage statistics for this server.
 	Usage NodeInfoUsage `json:"usage"`
+
 	// Free form key value pairs for software specific values. Clients should not rely on any specific key present.
 	Metadata map[string]interface{} `json:"metadata"`
 }
 
-// NodeInfoSoftware represents the name and version number of the software of this node.
+// NodeInfoSoftware represents the name and
+// version number of the software of this node.
 type NodeInfoSoftware struct {
+
 	// example: gotosocial
 	Name string `json:"name"`
+
 	// example: 0.1.2 1234567
 	Version string `json:"version"`
+
 	// Repository for the software. Omitted in version 2.0.
 	// example: https://codeberg.org/superseriousbusiness/gotosocial
 	Repository string `json:"repository,omitempty"`
+
 	// Homepage for the software. Omitted in version 2.0.
 	// example: https://docs.gotosocial.org
 	Homepage string `json:"homepage,omitempty"`
@@ -87,15 +99,15 @@ type NodeInfoServices struct {
 // NodeInfoUsage represents usage information about this server, such as number of users.
 type NodeInfoUsage struct {
 	Users         NodeInfoUsers `json:"users"`
-	LocalPosts    int           `json:"localPosts,omitempty"`
-	LocalComments int           `json:"localComments,omitempty"`
+	LocalPosts    int64         `json:"localPosts,omitempty"`
+	LocalComments int64         `json:"localComments,omitempty"`
 }
 
 // NodeInfoUsers represents aggregate information about the users on the server.
 type NodeInfoUsers struct {
-	Total          int `json:"total"`
-	ActiveHalfYear int `json:"activeHalfYear,omitempty"`
-	ActiveMonth    int `json:"activeMonth,omitempty"`
+	Total          int64 `json:"total"`
+	ActiveHalfYear int64 `json:"activeHalfYear,omitempty"`
+	ActiveMonth    int64 `json:"activeMonth,omitempty"`
 }
 
 // HostMeta represents a hostmeta document.

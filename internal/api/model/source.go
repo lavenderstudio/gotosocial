@@ -20,37 +20,49 @@ package model
 // Source represents display or publishing preferences of user's own account.
 // Returned as an additional entity when verifying and updated credentials, as an attribute of Account.
 type Source struct {
+
 	// The default post privacy to be used for new statuses.
 	//    public = Public post
 	//    unlisted = Unlisted post
 	//    private = Followers-only post
 	//    direct = Direct post
 	Privacy Visibility `json:"privacy"`
+
 	// Visibility level(s) of posts to show for this account via the web api.
 	//    "public" = default, show only Public visibility posts on the web.
 	//    "unlisted" = show Public *and* Unlisted visibility posts on the web.
 	//    "none" = show no posts on the web, not even Public ones.
 	WebVisibility Visibility `json:"web_visibility"`
+
 	// Layout to use for the web view of the account.
 	//    "microblog": default, classic microblog layout.
 	//    "gallery": gallery layout with media only.
 	WebLayout string `json:"web_layout"`
+
 	// Include boosts created by the account on the web view of the account.
 	WebIncludeBoosts bool `json:"web_include_boosts"`
+
 	// Whether new statuses should be marked sensitive by default.
 	Sensitive bool `json:"sensitive"`
+
 	// The default posting language for new statuses.
 	Language string `json:"language"`
+
 	// The default posting content type for new statuses.
 	StatusContentType string `json:"status_content_type"`
+
 	// Profile bio.
 	Note string `json:"note"`
+
 	// Metadata about the account.
 	Fields []Field `json:"fields"`
+
 	// The number of pending follow requests targeting this account.
-	FollowRequestsCount int `json:"follow_requests_count"`
+	FollowRequestsCount int64 `json:"follow_requests_count"`
+
 	// The number of blocks created by this account.
-	BlocksCount int `json:"blocks_count"`
+	BlocksCount int64 `json:"blocks_count"`
+
 	// This account is aliased to / also known as accounts at the
 	// given ActivityPub URIs. To set this, use `/api/v1/accounts/alias`.
 	//

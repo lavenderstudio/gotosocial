@@ -116,7 +116,7 @@ func (suite *SubscriptionsTestSuite) TestDomainBlocksCSV() {
 	}
 
 	// Should have some perms now.
-	count, err := testStructs.State.DB.CountDomainPermissionSubscriptionPerms(ctx, permSub.ID)
+	count, err := testStructs.State.DB.CountDomainSubscriptionPermissions(ctx, permSub.ID)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -196,7 +196,7 @@ func (suite *SubscriptionsTestSuite) TestDomainBlocksJSON() {
 	}
 
 	// Should have some perms now.
-	count, err := testStructs.State.DB.CountDomainPermissionSubscriptionPerms(ctx, permSub.ID)
+	count, err := testStructs.State.DB.CountDomainSubscriptionPermissions(ctx, permSub.ID)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -276,7 +276,7 @@ func (suite *SubscriptionsTestSuite) TestDomainBlocksPlain() {
 	}
 
 	// Should have some perms now.
-	count, err := testStructs.State.DB.CountDomainPermissionSubscriptionPerms(ctx, permSub.ID)
+	count, err := testStructs.State.DB.CountDomainSubscriptionPermissions(ctx, permSub.ID)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -352,7 +352,7 @@ func (suite *SubscriptionsTestSuite) TestDomainBlocksCSVCaching() {
 	}
 
 	// Should have no perms.
-	count, err := testStructs.State.DB.CountDomainPermissionSubscriptionPerms(ctx, permSub.ID)
+	count, err := testStructs.State.DB.CountDomainSubscriptionPermissions(ctx, permSub.ID)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -555,7 +555,7 @@ func (suite *SubscriptionsTestSuite) TestDomainBlocks404() {
 	}
 
 	// Should have no perms.
-	count, err := testStructs.State.DB.CountDomainPermissionSubscriptionPerms(ctx, permSub.ID)
+	count, err := testStructs.State.DB.CountDomainSubscriptionPermissions(ctx, permSub.ID)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -613,7 +613,7 @@ func (suite *SubscriptionsTestSuite) TestDomainBlocksWrongContentTypeCSV() {
 	}
 
 	// Should have no perms.
-	count, err := testStructs.State.DB.CountDomainPermissionSubscriptionPerms(ctx, permSub.ID)
+	count, err := testStructs.State.DB.CountDomainSubscriptionPermissions(ctx, permSub.ID)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}
@@ -671,7 +671,7 @@ func (suite *SubscriptionsTestSuite) TestDomainBlocksWrongContentTypePlain() {
 	}
 
 	// Should have no perms.
-	count, err := testStructs.State.DB.CountDomainPermissionSubscriptionPerms(ctx, permSub.ID)
+	count, err := testStructs.State.DB.CountDomainSubscriptionPermissions(ctx, permSub.ID)
 	if err != nil {
 		suite.FailNow(err.Error())
 	}

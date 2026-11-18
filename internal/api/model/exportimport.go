@@ -25,6 +25,7 @@ import "mime/multipart"
 //
 // swagger:model accountExportStats
 type AccountExportStats struct {
+
 	// TODO: String representation of media storage size attributed to this account.
 	//
 	// example: 500MB
@@ -33,40 +34,42 @@ type AccountExportStats struct {
 	// Number of accounts following this account.
 	//
 	// example: 50
-	FollowersCount int `json:"followers_count"`
+	FollowersCount int64 `json:"followers_count"`
 
 	// Number of accounts followed by this account.
 	//
 	// example: 50
-	FollowingCount int `json:"following_count"`
+	FollowingCount int64 `json:"following_count"`
 
 	// Number of statuses created by this account.
 	//
 	// example: 81986
-	StatusesCount int `json:"statuses_count"`
+	StatusesCount int64 `json:"statuses_count"`
 
 	// Number of lists created by this account.
 	//
 	// example: 10
-	ListsCount int `json:"lists_count"`
+	ListsCount int64 `json:"lists_count"`
 
 	// Number of accounts blocked by this account.
 	//
 	// example: 15
-	BlocksCount int `json:"blocks_count"`
+	BlocksCount int64 `json:"blocks_count"`
 
 	// Number of accounts muted by this account.
 	//
 	// example: 11
-	MutesCount int `json:"mutes_count"`
+	MutesCount int64 `json:"mutes_count"`
 }
 
 // AttachmentRequest models media attachment creation parameters.
 //
 // swagger: ignore
 type ImportRequest struct {
+
 	// The CSV data to upload.
 	Data *multipart.FileHeader `form:"data" binding:"required"`
+
 	// Type of entries contained in the data file.
 	//
 	//	- `following` - accounts to follow.
@@ -75,6 +78,7 @@ type ImportRequest struct {
 	//	- `mutes` - accounts to mute.
 	//	- `bookmarks` - statuses to bookmark.
 	Type string `form:"type" binding:"required"`
+
 	// Mode to use when creating entries from the data file:
 	//	- `merge` to merge entries in file with existing entries.
 	//	- `overwrite` to replace existing entries with entries in file.

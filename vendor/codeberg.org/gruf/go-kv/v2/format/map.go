@@ -9,7 +9,7 @@ import (
 // iterMapType returns a FormatFunc capable of iterating
 // and formatting the given map type currently in TypeIter{}.
 // note this will fetch sub-FormatFuncs for key / value types.
-func (fmt *Formatter) iterMapType(t xunsafe.TypeIter) FormatFunc {
+func (fmt *Formatter) iterMapType(t xunsafe.TypeIter) (fn FormatFunc) {
 
 	// Get nested k / v.
 	kt := t.MapKey()

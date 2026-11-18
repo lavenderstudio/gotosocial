@@ -27,95 +27,129 @@ import (
 //
 // swagger:model status
 type Status struct {
+
 	// ID of the status.
 	// example: 01FBVD42CQ3ZEEVMW180SBX03B
 	ID string `json:"id"`
+
 	// The date when this status was created (ISO 8601 Datetime).
 	// example: 2021-07-30T09:20:25+00:00
 	CreatedAt string `json:"created_at"`
+
 	// Timestamp of when the status was last edited (ISO 8601 Datetime).
 	// example: 2021-07-30T09:20:25+00:00
 	// nullable: true
 	EditedAt *string `json:"edited_at"`
+
 	// ID of the status being replied to.
 	// example: 01FBVD42CQ3ZEEVMW180SBX03B
 	// nullable: true
 	InReplyToID *string `json:"in_reply_to_id"`
+
 	// ID of the account being replied to.
 	// example: 01FBVD42CQ3ZEEVMW180SBX03B
 	// nullable: true
 	InReplyToAccountID *string `json:"in_reply_to_account_id"`
+
 	// Status contains sensitive content.
 	// example: false
 	Sensitive bool `json:"sensitive"`
+
 	// Subject, summary, or content warning for the status.
 	// example: warning nsfw
 	SpoilerText string `json:"spoiler_text"`
+
 	// Visibility of this status.
 	// example: unlisted
 	Visibility Visibility `json:"visibility"`
+
 	// Set to "true" if status is not federated, ie., a "local only" status; omitted from response otherwise.
 	LocalOnly bool `json:"local_only,omitempty"`
+
 	// Primary language of this status (ISO 639 Part 1 two-letter language code).
 	// Will be null if language is not known.
 	// example: en
 	Language *string `json:"language"`
+
 	// ActivityPub URI of the status. Equivalent to the status's activitypub ID.
 	// example: https://example.org/users/some_user/statuses/01FBVD42CQ3ZEEVMW180SBX03B
 	URI string `json:"uri"`
+
 	// The status's publicly available web URL. This link will only work if the visibility of the status is 'public'.
 	// example: https://example.org/@some_user/statuses/01FBVD42CQ3ZEEVMW180SBX03B
 	URL string `json:"url"`
+
 	// Number of replies to this status, according to our instance.
-	RepliesCount int `json:"replies_count"`
+	RepliesCount int64 `json:"replies_count"`
+
 	// Number of times this status has been boosted/reblogged, according to our instance.
-	ReblogsCount int `json:"reblogs_count"`
+	ReblogsCount int64 `json:"reblogs_count"`
+
 	// Number of favourites/likes this status has received, according to our instance.
-	FavouritesCount int `json:"favourites_count"`
+	FavouritesCount int64 `json:"favourites_count"`
+
 	// This status has been favourited by the account viewing it.
 	Favourited bool `json:"favourited"`
+
 	// This status has been boosted/reblogged by the account viewing it.
 	Reblogged bool `json:"reblogged"`
+
 	// Replies to this status have been muted by the account viewing it.
 	Muted bool `json:"muted"`
+
 	// This status has been bookmarked by the account viewing it.
 	Bookmarked bool `json:"bookmarked"`
+
 	// This status has been pinned by the account viewing it (only relevant for your own statuses).
 	Pinned bool `json:"pinned"`
+
 	// The content of this status. Should be HTML, but might also be plaintext in some cases.
 	// example: <p>Hey this is a status!</p>
 	Content string `json:"content"`
+
 	// The status that this status reblogs/boosts.
 	// nullable: true
 	Reblog *StatusReblogged `json:"reblog"`
+
 	// The application used to post this status, if visible.
 	Application *Application `json:"application,omitempty"`
+
 	// The account that authored this status.
 	Account *Account `json:"account"`
+
 	// Media that is attached to this status.
 	MediaAttachments []*Attachment `json:"media_attachments"`
+
 	// Mentions of users within the status content.
 	Mentions []Mention `json:"mentions"`
+
 	// Hashtags used within the status content.
 	Tags []Tag `json:"tags"`
+
 	// Custom emoji to be used when rendering status content.
 	Emojis []Emoji `json:"emojis"`
+
 	// Preview card for links included within status content.
 	// nullable: true
 	Card *Card `json:"card"`
+
 	// The poll attached to the status.
 	// nullable: true
 	Poll *Poll `json:"poll"`
+
 	// Plain-text source of a status. Returned instead of content when status is deleted,
 	// so the user may redraft from the source text without the client having to reverse-engineer
 	// the original text from the HTML content.
 	Text string `json:"text,omitempty"`
+
 	// Content type that was used to parse the status's text. Returned when
 	// status is deleted, so if the user is redrafting the message the client
 	// can default to the same content type.
 	ContentType StatusContentType `json:"content_type,omitempty"`
+
 	// A list of filters that matched this status and why they matched, if there are any such filters.
 	Filtered []FilterResult `json:"filtered,omitempty"`
+
 	// The interaction policy for this status, as set by the status author.
 	InteractionPolicy InteractionPolicy `json:"interaction_policy"`
 }

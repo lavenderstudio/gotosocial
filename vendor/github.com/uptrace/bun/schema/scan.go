@@ -46,7 +46,7 @@ func init() {
 		reflect.Array:         nil,
 		reflect.Interface:     scanInterface,
 		reflect.Map:           scanJSON,
-		reflect.Ptr:           nil,
+		reflect.Pointer:       nil,
 		reflect.Slice:         scanJSON,
 		reflect.String:        scanString,
 		reflect.Struct:        scanJSON,
@@ -88,7 +88,7 @@ func Scanner(typ reflect.Type) ScannerFunc {
 func scanner(typ reflect.Type) ScannerFunc {
 	kind := typ.Kind()
 
-	if kind == reflect.Ptr {
+	if kind == reflect.Pointer {
 		if fn := Scanner(typ.Elem()); fn != nil {
 			return PtrScanner(fn)
 		}
@@ -115,11 +115,21 @@ func scanner(typ reflect.Type) ScannerFunc {
 		return scanScanner
 	}
 
-	if kind != reflect.Ptr {
+	if kind != reflect.Pointer {
 		ptr := reflect.PointerTo(typ)
 		if ptr.Implements(scannerType) {
 			return addrScanner(scanScanner)
 		}
+	}
+
+	// The standard library uuid.UUID is detected by its exact type so that
+	// unrelated types implementing the encoding text interfaces keep using
+	// the default scanners.
+	switch typ {
+	case internal.TypeUUID:
+		return scanUUID
+	case internal.TypeUUIDPtr:
+		return addrScanner(scanUUID)
 	}
 
 	if typ.Kind() == reflect.Slice && typ.Elem().Kind() == reflect.Uint8 {
@@ -352,6 +362,9 @@ func scanJSON(dest reflect.Value, src any) error {
 	if src == nil {
 		return scanNull(dest)
 	}
+	if !dest.CanAddr() {
+		return fmt.Errorf("bun: Scan(nonaddressable %s)", dest.Type())
+	}
 
 	b, err := toBytes(src)
 	if err != nil {
@@ -364,6 +377,9 @@ func scanJSON(dest reflect.Value, src any) error {
 func scanJSONUseNumber(dest reflect.Value, src any) error {
 	if src == nil {
 		return scanNull(dest)
+	}
+	if !dest.CanAddr() {
+		return fmt.Errorf("bun: Scan(nonaddressable %s)", dest.Type())
 	}
 
 	b, err := toBytes(src)
@@ -512,6 +528,9 @@ func scanNull(dest reflect.Value) error {
 	if nilable(dest.Kind()) && dest.IsNil() {
 		return nil
 	}
+	if !dest.CanAddr() {
+		return fmt.Errorf("bun: Scan(nonaddressable %s)", dest.Type())
+	}
 	dest.Set(reflect.New(dest.Type()).Elem())
 	return nil
 }
@@ -555,7 +574,7 @@ func scanInterface(dest reflect.Value, src any) error {
 
 func nilable(kind reflect.Kind) bool {
 	switch kind {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		return true
 	}
 	return false

@@ -173,13 +173,13 @@ func (q *SelectQuery) WhereOr(query string, args ...any) *SelectQuery {
 
 // WhereGroup groups WHERE conditions with the given separator (AND/OR).
 func (q *SelectQuery) WhereGroup(sep string, fn func(*SelectQuery) *SelectQuery) *SelectQuery {
-	saved := q.where
-	q.where = nil
+	saved, savedHasOr := q.where, q.whereHasOr
+	q.where, q.whereHasOr = nil, false
 
 	q = fn(q)
 
 	where := q.where
-	q.where = saved
+	q.where, q.whereHasOr = saved, savedHasOr
 
 	q.addWhereGroup(sep, where)
 
@@ -337,13 +337,13 @@ func (q *SelectQuery) OrderExpr(query string, args ...any) *SelectQuery {
 }
 
 // Limit sets the maximum number of rows to return.
-func (q *SelectQuery) Limit(n int) *SelectQuery {
+func (q *SelectQuery) Limit(n int64) *SelectQuery {
 	q.setLimit(n)
 	return q
 }
 
 // Offset sets the number of rows to skip before returning results.
-func (q *SelectQuery) Offset(n int) *SelectQuery {
+func (q *SelectQuery) Offset(n int64) *SelectQuery {
 	q.setOffset(n)
 	return q
 }
@@ -591,7 +591,10 @@ func (q *SelectQuery) appendQuery(
 		b = append(b, "WITH _count_wrapper AS ("...)
 	}
 
-	if len(q.union) > 0 {
+	// SQLite requires UNION parts to be emitted without extra parentheses.
+	wrapUnion := len(q.union) > 0 && gen.Dialect().Name() != dialect.SQLite
+
+	if wrapUnion {
 		b = append(b, '(')
 	}
 
@@ -719,16 +722,20 @@ func (q *SelectQuery) appendQuery(
 		}
 	}
 
-	if len(q.union) > 0 {
+	if wrapUnion {
 		b = append(b, ')')
+	}
 
-		for _, u := range q.union {
-			b = append(b, u.expr...)
+	for _, u := range q.union {
+		b = append(b, u.expr...)
+		if wrapUnion {
 			b = append(b, '(')
-			b, err = u.query.AppendQuery(gen, b)
-			if err != nil {
-				return nil, err
-			}
+		}
+		b, err = u.query.AppendQuery(gen, b)
+		if err != nil {
+			return nil, err
+		}
+		if wrapUnion {
 			b = append(b, ')')
 		}
 	}
@@ -996,7 +1003,7 @@ func (q *SelectQuery) afterSelectHook(ctx context.Context) error {
 }
 
 // Count executes the query and returns the number of rows that match.
-func (q *SelectQuery) Count(ctx context.Context) (int, error) {
+func (q *SelectQuery) Count(ctx context.Context) (int64, error) {
 	if q.err != nil {
 		return 0, q.err
 	}
@@ -1014,7 +1021,7 @@ func (q *SelectQuery) Count(ctx context.Context) (int, error) {
 	query := internal.String(queryBytes)
 	ctx, event := q.db.beforeQuery(ctx, qq, query, nil, query, q.model)
 
-	var num int
+	var num int64
 	err = q.resolveConn(ctx, q).QueryRowContext(ctx, query).Scan(&num)
 
 	q.db.afterQuery(ctx, event, nil, err)
@@ -1023,7 +1030,7 @@ func (q *SelectQuery) Count(ctx context.Context) (int, error) {
 }
 
 // ScanAndCount executes the query, scans results into dest, and returns the total count.
-func (q *SelectQuery) ScanAndCount(ctx context.Context, dest ...any) (int, error) {
+func (q *SelectQuery) ScanAndCount(ctx context.Context, dest ...any) (int64, error) {
 	if q.offset == 0 && q.limit == 0 {
 		// If there is no limit and offset, we can use a single query to get the count and scan
 		if res, err := q.scanResult(ctx, dest...); err != nil {
@@ -1031,7 +1038,7 @@ func (q *SelectQuery) ScanAndCount(ctx context.Context, dest ...any) (int, error
 		} else if n, err := res.RowsAffected(); err != nil {
 			return 0, err
 		} else {
-			return int(n), nil
+			return n, nil
 		}
 	}
 	if q.conn == nil {
@@ -1042,8 +1049,8 @@ func (q *SelectQuery) ScanAndCount(ctx context.Context, dest ...any) (int, error
 
 func (q *SelectQuery) scanAndCountConcurrently(
 	ctx context.Context, dest ...any,
-) (int, error) {
-	var count int
+) (int64, error) {
+	var count int64
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var firstErr error
@@ -1087,7 +1094,7 @@ func (q *SelectQuery) scanAndCountConcurrently(
 	return count, firstErr
 }
 
-func (q *SelectQuery) scanAndCountSeq(ctx context.Context, dest ...any) (int, error) {
+func (q *SelectQuery) scanAndCountSeq(ctx context.Context, dest ...any) (int64, error) {
 	var firstErr error
 
 	// Don't scan results if the user explicitly set Limit(-1).
@@ -1186,6 +1193,14 @@ func (q *SelectQuery) Clone() *SelectQuery {
 		copy(clone, args)
 		return clone
 	}
+	cloneWhereFields := func(fields []*schema.Field) []*schema.Field {
+		if fields == nil {
+			return nil
+		}
+		clone := make([]*schema.Field, len(fields))
+		copy(clone, fields)
+		return clone
+	}
 	cloneHints := func(hints *indexHints) *indexHints {
 		if hints == nil {
 			return nil
@@ -1206,15 +1221,20 @@ func (q *SelectQuery) Clone() *SelectQuery {
 		whereBaseQuery: whereBaseQuery{
 			baseQuery: baseQuery{
 				db:             q.db,
+				conn:           q.conn,
 				table:          q.table,
 				model:          q.model,
+				err:            q.err,
 				tableModel:     tableModel,
 				with:           make([]WithQuery, len(q.with)),
 				tables:         cloneArgs(q.tables),
 				columns:        cloneArgs(q.columns),
 				modelTableName: q.modelTableName,
+				flags:          q.flags,
 			},
-			where: make([]schema.QueryWithSep, len(q.where)),
+			where:       make([]schema.QueryWithSep, len(q.where)),
+			whereFields: cloneWhereFields(q.whereFields),
+			whereHasOr:  q.whereHasOr,
 		},
 
 		idxHintsQuery: idxHintsQuery{
@@ -1239,9 +1259,11 @@ func (q *SelectQuery) Clone() *SelectQuery {
 
 	for i, w := range q.with {
 		clone.with[i] = WithQuery{
-			name:      w.name,
-			recursive: w.recursive,
-			query:     w.query, // TODO: maybe clone is need
+			name:            w.name,
+			recursive:       w.recursive,
+			materialized:    w.materialized,
+			notMaterialized: w.notMaterialized,
+			query:           w.query, // TODO: maybe clone is need
 		}
 	}
 

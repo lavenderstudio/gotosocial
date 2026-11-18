@@ -38,7 +38,7 @@ func (s *statusPinDB) GetAccountStatusPins(ctx context.Context, accountID string
 	})
 }
 
-func (s *statusPinDB) CountAccountStatusPins(ctx context.Context, accountID string) (int, error) {
+func (s *statusPinDB) CountAccountStatusPins(ctx context.Context, accountID string) (int64, error) {
 	return s.state.Caches.DB.StatusPinnedIDs.Count(accountID, func() ([]string, error) {
 		return getAccountStatusPins(ctx, s.db, accountID)
 	})

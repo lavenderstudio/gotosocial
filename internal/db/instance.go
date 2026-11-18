@@ -26,14 +26,15 @@ import (
 
 // Instance contains functions for instance-level actions (counting instance users etc.).
 type Instance interface {
+
 	// CountInstanceAccounts returns the number of non-suspended accounts on this instance.
-	CountInstanceAccounts(ctx context.Context) (int, error)
+	CountInstanceAccounts(ctx context.Context) (int64, error)
 
 	// CountInstancePeers returns the number of statuses on this instance.
-	CountInstanceStatuses(ctx context.Context) (int, error)
+	CountInstanceStatuses(ctx context.Context) (int64, error)
 
 	// CountInstancePeers returns the number of instances that this instance peers aka federates with.
-	CountInstancePeers(ctx context.Context) (int, error)
+	CountInstancePeers(ctx context.Context) (int64, error)
 
 	// GetInstance returns the instance entry for the given domain, if it exists.
 	GetInstance(ctx context.Context, domain string) (*gtsmodel.Instance, error)

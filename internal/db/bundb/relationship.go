@@ -190,7 +190,7 @@ func (r *relationshipDB) GetAccountBlocking(ctx context.Context, accountID strin
 	return r.GetBlocksByIDs(ctx, blockIDs)
 }
 
-func (r *relationshipDB) CountAccountBlocking(ctx context.Context, accountID string) (int, error) {
+func (r *relationshipDB) CountAccountBlocking(ctx context.Context, accountID string) (int64, error) {
 	return r.state.Caches.DB.BlockIDs.Count(accountID, func() ([]string, error) {
 		var blockIDs []string
 
@@ -228,7 +228,7 @@ func (r *relationshipDB) GetAccountBlockedBy(ctx context.Context, accountID stri
 	return r.GetBlocksByIDs(ctx, blockIDs)
 }
 
-func (r *relationshipDB) CountAccountFollows(ctx context.Context, accountID string) (int, error) {
+func (r *relationshipDB) CountAccountFollows(ctx context.Context, accountID string) (int64, error) {
 	return r.state.Caches.DB.FollowIDs.Count(">"+accountID, func() ([]string, error) {
 		var followIDs []string
 
@@ -273,7 +273,7 @@ func (r *relationshipDB) GetAccountLocalFollowIDs(ctx context.Context, accountID
 	})
 }
 
-func (r *relationshipDB) CountAccountFollowers(ctx context.Context, accountID string) (int, error) {
+func (r *relationshipDB) CountAccountFollowers(ctx context.Context, accountID string) (int64, error) {
 	return r.state.Caches.DB.FollowIDs.Count("<"+accountID, func() ([]string, error) {
 		var followIDs []string
 
@@ -318,7 +318,7 @@ func (r *relationshipDB) GetAccountLocalFollowerIDs(ctx context.Context, account
 	})
 }
 
-func (r *relationshipDB) CountAccountFollowRequests(ctx context.Context, accountID string) (int, error) {
+func (r *relationshipDB) CountAccountFollowRequests(ctx context.Context, accountID string) (int64, error) {
 	return r.state.Caches.DB.FollowRequestIDs.Count(">"+accountID, func() ([]string, error) {
 		var followReqIDs []string
 

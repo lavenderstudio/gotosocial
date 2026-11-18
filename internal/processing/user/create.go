@@ -59,7 +59,7 @@ func (p *Processor) Create(
 			return nil, gtserror.NewErrorInternalError(err)
 		}
 
-		if newUsersCount >= usersPerDay {
+		if newUsersCount >= int64(usersPerDay) {
 			err := fmt.Errorf("this instance has hit its limit of new sign-ups for today (%d); you can try again tomorrow", usersPerDay)
 			return nil, gtserror.NewErrorUnprocessableEntity(err, err.Error())
 		}
@@ -74,7 +74,7 @@ func (p *Processor) Create(
 			return nil, gtserror.NewErrorInternalError(err)
 		}
 
-		if backlogLen >= regBacklog {
+		if backlogLen >= int64(regBacklog) {
 			err := fmt.Errorf(
 				"this instance's sign-up backlog is currently full (%d sign-ups pending approval); "+
 					"you must wait until some pending sign-ups are handled by the admin(s)", regBacklog,

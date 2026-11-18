@@ -82,7 +82,7 @@ func WithKeepSpaces() Option {
 
 // WithAllowedURLSchemes restricts valid URL schemes (example: []string{"http", "https", "mailto"}).
 // URLs with invalid schemes are ignored.
-// If this option is not used, default allowed schemes are http, https, and mailto.
+// If this option is not used, default allowed schemes are http, https, mailto, tel and sms.
 func WithAllowedURLSchemes(s []string) Option {
 	return func(o *options) {
 		o.allowedSchemes = s
@@ -155,8 +155,7 @@ func htmlEntitiesToText(htmlEntsText string, hrefContext bool) string {
 			continue
 		}
 
-		switch {
-		case r == '&': //possible html entity
+		if r == '&' { //possible html entity
 			m := entityRE.FindStringSubmatch(htmlEntsText[i+1:])
 
 			if len(m) == 2 {
@@ -336,7 +335,7 @@ func HTML2TextWithOptions(html string, reqOpts ...Option) string {
 				}
 			}
 
-		case r == '&' && shouldOutput: // possible html entity
+		case r == '&' && shouldOutput && len(badTagStack) == 0: // possible html entity
 			m := entityRE.FindStringSubmatch(html[i+1:])
 
 			if len(m) == 2 {
@@ -358,18 +357,20 @@ func HTML2TextWithOptions(html string, reqOpts ...Option) string {
 
 		case r == '"': // double-quote in attribute
 			if !shouldOutput {
-				if tagQuoteChar == '"' {
+				switch tagQuoteChar {
+				case '"':
 					tagQuoteChar = 0
-				} else if tagQuoteChar == 0 {
+				case 0:
 					tagQuoteChar = '"'
 				}
 			}
 
 		case r == '\'': // single-quote in attribute
 			if !shouldOutput {
-				if tagQuoteChar == '\'' {
+				switch tagQuoteChar {
+				case '\'':
 					tagQuoteChar = 0
-				} else if tagQuoteChar == 0 {
+				case 0:
 					tagQuoteChar = '\''
 				}
 			}

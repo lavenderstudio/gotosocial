@@ -14,7 +14,7 @@ type field struct {
 // iterStructType returns a FormatFunc capable of iterating
 // and formatting the given struct type currently in TypeIter{}.
 // note this will fetch sub-FormatFuncs for each struct field.
-func (fmt *Formatter) iterStructType(t xunsafe.TypeIter) FormatFunc {
+func (fmt *Formatter) iterStructType(t xunsafe.TypeIter) (fn FormatFunc) {
 
 	// Number of struct fields.
 	n := t.Type.NumField()

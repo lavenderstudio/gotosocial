@@ -42,7 +42,7 @@ type instanceDB struct {
 	state *state.State
 }
 
-func (i *instanceDB) CountInstanceAccounts(ctx context.Context) (int, error) {
+func (i *instanceDB) CountInstanceAccounts(ctx context.Context) (int64, error) {
 	// Check for a cached instance accounts count. If present return this.
 	if n := i.state.Caches.DB.LocalInstance.Accounts.Load(); n != nil {
 		return *n, nil
@@ -69,7 +69,7 @@ func (i *instanceDB) CountInstanceAccounts(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-func (i *instanceDB) CountInstanceStatuses(ctx context.Context) (int, error) {
+func (i *instanceDB) CountInstanceStatuses(ctx context.Context) (int64, error) {
 	// Check for a cached instance statuses count. If present return this.
 	if n := i.state.Caches.DB.LocalInstance.Statuses.Load(); n != nil {
 		return *n, nil
@@ -77,7 +77,7 @@ func (i *instanceDB) CountInstanceStatuses(ctx context.Context) (int, error) {
 
 	// Select from
 	// local count view.
-	var count int
+	var count int64
 	if err := i.db.
 		NewSelect().
 		Table("statuses_local_count_view").
@@ -90,7 +90,7 @@ func (i *instanceDB) CountInstanceStatuses(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-func (i *instanceDB) CountInstancePeers(ctx context.Context) (int, error) {
+func (i *instanceDB) CountInstancePeers(ctx context.Context) (int64, error) {
 	// Check for a cached instance peers count. If present return this.
 	if n := i.state.Caches.DB.LocalInstance.Peers.Load(); n != nil {
 		return *n, nil
@@ -107,7 +107,7 @@ func (i *instanceDB) CountInstancePeers(ctx context.Context) (int, error) {
 		return 0, err
 	}
 
-	var count int
+	var count int64
 	for _, domain := range domains {
 		// For each domain, check if
 		// we're federating with it.
@@ -342,7 +342,7 @@ func (i *instanceDB) GetInstancesPage(
 
 	// Limit amount of
 	// instances returned.
-	q = q.Limit(limit)
+	q = q.Limit(int64(limit))
 
 	// Run the query.
 	if err := q.Scan(ctx, &selectInto); err != nil {
@@ -461,7 +461,7 @@ func (i *instanceDB) GetInstanceAccounts(ctx context.Context, domain string, max
 	q = q.Where("? < ?", bun.Ident("account.id"), maxID)
 
 	if limit > 0 {
-		q = q.Limit(limit)
+		q = q.Limit(int64(limit))
 	}
 
 	if err := q.Scan(ctx, &accountIDs); err != nil {

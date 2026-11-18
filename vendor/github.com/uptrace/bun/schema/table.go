@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jinzhu/inflection"
@@ -39,6 +40,11 @@ func SetTableNameInflector(fn func(string) string) {
 type Table struct {
 	dialect Dialect
 
+	// lookupCache memoizes LookupField results for dotted/prefixed column
+	// names (e.g. "author__name"). Those names miss FieldMap and take the
+	// slow path below, which clones the Field on every call.
+	lookupCache sync.Map // map[string]*Field
+
 	Type      reflect.Type
 	ZeroValue reflect.Value // reflect.Struct
 	ZeroIface any           // struct pointer
@@ -53,13 +59,13 @@ type Table struct {
 	Alias             string
 	SQLAlias          Safe
 
-	allFields  []*Field // all fields including scanonly
+	allFields  []*Field // All fields, including scanonly
 	Fields     []*Field // PKs + DataFields
 	PKs        []*Field
 	DataFields []*Field
 	relFields  []*Field
 
-	FieldMap  map[string]*Field
+	FieldMap  map[string]*Field // Fields keyed by Go field name, excl. rel and m2m fields.
 	StructMap map[string]*structField
 
 	IsM2MTable bool // If true, this table is the "junction table" of an m2m relation.
@@ -69,7 +75,8 @@ type Table struct {
 	SoftDeleteField       *Field
 	UpdateSoftDeleteField func(fv reflect.Value, tm time.Time) error
 
-	flags internal.Flag
+	flags       internal.Flag
+	initStarted bool
 }
 
 type structField struct {
@@ -78,6 +85,10 @@ type structField struct {
 }
 
 func (table *Table) init(dialect Dialect, typ reflect.Type) {
+	if table.initStarted {
+		return
+	}
+	table.initStarted = true
 	table.dialect = dialect
 	table.Type = typ
 	table.ZeroValue = reflect.New(table.Type).Elem()
@@ -147,7 +158,7 @@ func (t *Table) processFields(typ reflect.Type) {
 			}
 
 			sfType := sf.Type
-			if sfType.Kind() == reflect.Ptr {
+			if sfType.Kind() == reflect.Pointer {
 				sfType = sfType.Elem()
 			}
 
@@ -233,10 +244,16 @@ func (t *Table) processFields(typ reflect.Type) {
 			if t.StructMap == nil {
 				t.StructMap = make(map[string]*structField)
 			}
+			// Register the StructMap entry with a placeholder table BEFORE
+			// triggering recursive initialization. This ensures that types in
+			// a circular dependency can find this entry during their own
+			// processFields, even if this table's init hasn't completed yet.
+			placeholder := t.dialect.Tables().Placeholder(field.IndirectType)
 			t.StructMap[field.Name] = &structField{
 				Index: field.Index,
-				Table: t.dialect.Tables().InProgress(field.IndirectType),
+				Table: placeholder,
 			}
+			t.dialect.Tables().InProgress(field.IndirectType)
 		}
 	}
 
@@ -390,11 +407,30 @@ func (t *Table) addField(field *Field) {
 	}
 }
 
+// LookupField returns the field for the given column name. Names may address
+// fields of embedded/joined structs using the "__" separator, for example
+// "author__name".
+//
+// The result is memoized: resolving a prefixed name walks StructMap and clones
+// the field with a rewritten index, and Scan calls this for every column of
+// every row. The returned *Field is treated as read-only by callers, which is
+// already assumed for the FieldMap fast path above, so the value is safe to
+// share.
 func (t *Table) LookupField(name string) *Field {
 	if field, ok := t.FieldMap[name]; ok {
 		return field
 	}
 
+	if v, ok := t.lookupCache.Load(name); ok {
+		return v.(*Field)
+	}
+
+	field := t.lookupFieldSlow(name)
+	t.lookupCache.Store(name, field)
+	return field
+}
+
+func (t *Table) lookupFieldSlow(name string) *Field {
 	table := t
 	var index []int
 	for {
@@ -518,7 +554,7 @@ func (t *Table) newField(sf reflect.StructField, tag tagparser.Tag) *Field {
 	field := &Field{
 		Table:       t,
 		StructField: sf,
-		IsPtr:       sf.Type.Kind() == reflect.Ptr,
+		IsPtr:       sf.Type.Kind() == reflect.Pointer,
 
 		Tag:          tag,
 		IndirectType: indirectType(sf.Type),
@@ -608,6 +644,15 @@ func (t *Table) addRelation(rel *Relation) {
 
 func (t *Table) belongsToRelation(field *Field) *Relation {
 	joinTable := t.dialect.Tables().InProgress(field.IndirectType)
+	return t.belongsToRelationWithTables(field, joinTable, joinTable)
+}
+
+func (t *Table) belongsToRelationWithJoinTable(field *Field, joinPKTable *Table) *Relation {
+	joinTable := t.dialect.Tables().InProgress(field.IndirectType)
+	return t.belongsToRelationWithTables(field, joinTable, joinPKTable)
+}
+
+func (t *Table) belongsToRelationWithTables(field *Field, joinTable, joinPKTable *Table) *Relation {
 	if err := joinTable.CheckPKs(); err != nil {
 		panic(err)
 	}
@@ -615,7 +660,7 @@ func (t *Table) belongsToRelation(field *Field) *Relation {
 	rel := &Relation{
 		Type:      BelongsToRelation,
 		Field:     field,
-		JoinTable: joinTable,
+		JoinTable: joinPKTable,
 	}
 
 	if field.Tag.HasOption("join_on") {
@@ -667,21 +712,36 @@ func (t *Table) belongsToRelation(field *Field) *Relation {
 				))
 			}
 
-			if f := joinTable.FieldMap[joinColumn]; f != nil {
+			if f := joinTable.FieldMap[joinColumn]; f == nil {
+				panic(fmt.Errorf(
+					"bun: %s belongs-to %s: %s must have column %s",
+					t.TypeName, field.GoName, joinTable.TypeName, joinColumn,
+				))
+			}
+
+			if f := joinPKTable.FieldMap[joinColumn]; f != nil {
 				rel.JoinPKs = append(rel.JoinPKs, f)
 			} else {
 				panic(fmt.Errorf(
 					"bun: %s belongs-to %s: %s must have column %s",
-					t.TypeName, field.GoName, joinTable.TypeName, joinColumn,
+					t.TypeName, field.GoName, joinPKTable.TypeName, joinColumn,
 				))
 			}
 		}
 		return rel
 	}
 
-	rel.JoinPKs = joinTable.PKs
 	fkPrefix := internal.Underscore(field.GoName) + "_"
 	for _, joinPK := range joinTable.PKs {
+		if f := joinPKTable.FieldMap[joinPK.Name]; f != nil {
+			rel.JoinPKs = append(rel.JoinPKs, f)
+		} else {
+			panic(fmt.Errorf(
+				"bun: %s belongs-to %s: %s must have column %s",
+				t.TypeName, field.GoName, joinPKTable.TypeName, joinPK.Name,
+			))
+		}
+
 		fkName := fkPrefix + joinPK.Name
 		if fk := t.FieldMap[fkName]; fk != nil {
 			rel.BasePKs = append(rel.BasePKs, fk)
@@ -934,7 +994,7 @@ func (t *Table) m2mRelation(field *Field) *Relation {
 		))
 	}
 
-	leftRel := m2mTable.belongsToRelation(leftField)
+	leftRel := m2mTable.belongsToRelationWithJoinTable(leftField, t)
 	rel.BasePKs = leftRel.JoinPKs
 	rel.M2MBasePKs = leftRel.BasePKs
 
@@ -1090,7 +1150,7 @@ func softDeleteFieldUpdater(field *Field) func(fv reflect.Value, tm time.Time) e
 			*ptr = tm.UnixNano()
 			return nil
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		typ = typ.Elem()
 	default:
 		return softDeleteFieldUpdaterFallback(field)

@@ -37,7 +37,7 @@ type StatusPin interface {
 	DeleteStatusPin(ctx context.Context, statusID string) error
 
 	// CountAccountStatusPins returns the number of statuses that given account ID has pinned.
-	CountAccountStatusPins(ctx context.Context, accountID string) (int, error)
+	CountAccountStatusPins(ctx context.Context, accountID string) (int64, error)
 
 	// GetAccountStatusPins returns the status IDs that given account ID has pinned.
 	GetAccountStatusPins(ctx context.Context, accountID string) ([]string, error)

@@ -6,15 +6,15 @@ import "codeberg.org/gruf/go-xunsafe"
 // and formatting the given slice type currently in TypeIter{}.
 // note this will fetch a sub-FormatFunc for the slice element
 // type, and also handle special cases of []byte, []rune slices.
-func (fmt *Formatter) iterSliceType(t xunsafe.TypeIter) FormatFunc {
+func (fmt *Formatter) iterSliceType(t xunsafe.TypeIter) (fn FormatFunc) {
 
 	// Get nested elem.
 	et := t.SliceElem()
 	esz := et.Type.Size()
 
 	// Get elem format func.
-	fn := fmt.loadOrGet(et)
-	if fn == nil {
+	efn := fmt.loadOrGet(et)
+	if efn == nil {
 		panic("unreachable")
 	}
 
@@ -39,7 +39,7 @@ func (fmt *Formatter) iterSliceType(t xunsafe.TypeIter) FormatFunc {
 					// Format at array index.
 					offset := esz * uintptr(i)
 					s.P = add(hdr.Data, offset)
-					fn(s)
+					efn(s)
 
 					// Append separator.
 					s.B = append(s.B, ',')
@@ -88,7 +88,7 @@ func (fmt *Formatter) iterSliceType(t xunsafe.TypeIter) FormatFunc {
 				// Format at array index.
 				offset := esz * uintptr(i)
 				s.P = add(hdr.Data, offset)
-				fn(s)
+				efn(s)
 
 				// Append separator.
 				s.B = append(s.B, ',')

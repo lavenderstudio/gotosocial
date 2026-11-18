@@ -772,9 +772,13 @@ type whereBaseQuery struct {
 
 	where       []schema.QueryWithSep
 	whereFields []*schema.Field
+	whereHasOr  bool
 }
 
 func (q *whereBaseQuery) addWhere(where schema.QueryWithSep) {
+	if strings.Contains(strings.ToUpper(where.Sep), "OR") {
+		q.whereHasOr = true
+	}
 	q.where = append(q.where, where)
 }
 
@@ -844,10 +848,18 @@ func (q *whereBaseQuery) appendWhere(
 	b = append(b, " WHERE "...)
 	startLen := len(b)
 
+	needsExtraCondition := q.isSoftDelete() || q.whereFields != nil
 	if len(q.where) > 0 {
+		wrapParens := needsExtraCondition && q.whereHasOr
+		if wrapParens {
+			b = append(b, '(')
+		}
 		b, err = appendWhere(gen, b, q.where)
 		if err != nil {
 			return nil, err
+		}
+		if wrapParens {
+			b = append(b, ')')
 		}
 	}
 
@@ -1478,8 +1490,8 @@ func (ih *idxHintsQuery) bufIndexHint(
 type orderLimitOffsetQuery struct {
 	order []schema.QueryWithArgs
 
-	limit  int32
-	offset int32
+	limit  int64
+	offset int64
 }
 
 func (q *orderLimitOffsetQuery) addOrder(orders ...string) {
@@ -1533,12 +1545,12 @@ func (q *orderLimitOffsetQuery) appendOrder(gen schema.QueryGen, b []byte) (_ []
 	return b, nil
 }
 
-func (q *orderLimitOffsetQuery) setLimit(n int) {
-	q.limit = int32(n)
+func (q *orderLimitOffsetQuery) setLimit(n int64) {
+	q.limit = n
 }
 
-func (q *orderLimitOffsetQuery) setOffset(n int) {
-	q.offset = int32(n)
+func (q *orderLimitOffsetQuery) setOffset(n int64) {
+	q.offset = n
 }
 
 func (q *orderLimitOffsetQuery) appendLimitOffset(gen schema.QueryGen, b []byte) (_ []byte, err error) {

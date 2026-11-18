@@ -15,7 +15,7 @@ type InspectorDialect interface {
 
 	// Inspector returns a new instance of Inspector for the dialect.
 	// Dialects MAY set their default InspectorConfig values in constructor
-	// but MUST apply InspectorOptions to ensure they can be overriden.
+	// but MUST apply InspectorOptions to ensure they can be overridden.
 	//
 	// Use ApplyInspectorOptions to reduce boilerplate.
 	NewInspector(db *bun.DB, options ...InspectorOption) Inspector
@@ -141,7 +141,7 @@ func (bmi *BunModelInspector) Inspect(ctx context.Context) (Database, error) {
 		}
 
 		var columns []Column
-		for _, f := range t.Fields {
+		for _, f := range t.FieldMap {
 
 			sqlType, length, err := parseLen(f.CreateTableSQLType)
 			if err != nil {

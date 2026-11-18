@@ -387,7 +387,7 @@ func (a *adminDB) GetInstanceApplication(ctx context.Context) (*gtsmodel.Applica
 	return app, nil
 }
 
-func (a *adminDB) CountApprovedSignupsSince(ctx context.Context, since time.Time) (int, error) {
+func (a *adminDB) CountApprovedSignupsSince(ctx context.Context, since time.Time) (int64, error) {
 	return a.db.
 		NewSelect().
 		TableExpr("? AS ?", bun.Ident("users"), bun.Ident("user")).
@@ -396,7 +396,7 @@ func (a *adminDB) CountApprovedSignupsSince(ctx context.Context, since time.Time
 		Count(ctx)
 }
 
-func (a *adminDB) CountUnhandledSignups(ctx context.Context) (int, error) {
+func (a *adminDB) CountUnhandledSignups(ctx context.Context) (int64, error) {
 	return a.db.
 		NewSelect().
 		TableExpr("? AS ?", bun.Ident("users"), bun.Ident("user")).

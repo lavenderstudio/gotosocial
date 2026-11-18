@@ -113,8 +113,10 @@ func ReflectStructFieldFlags(structFlags Reflect_flag, structType reflect.Type, 
 //
 // see: go/src/reflect/map.go MapIter.Key() and copyVal()
 func ReflectMapKeyFlags(mapFlags Reflect_flag, keyType reflect.Type) Reflect_flag {
-	flags := mapFlags.RO() | Reflect_flag(Abi_Type_Kind(keyType))
-	if Abi_Type_IfaceIndir(keyType) {
+	kind := Abi_Type_Kind(keyType)
+	flags := mapFlags.RO() | Reflect_flag(kind)
+	if Abi_Type_IfaceIndir(keyType) ||
+		reflect.Kind(kind) == reflect.Pointer {
 		flags |= Reflect_flagIndir
 	}
 	return flags
@@ -124,8 +126,10 @@ func ReflectMapKeyFlags(mapFlags Reflect_flag, keyType reflect.Type) Reflect_fla
 //
 // see: go/src/reflect/map.go MapIter.Value() and copyVal()
 func ReflectMapElemFlags(mapFlags Reflect_flag, elemType reflect.Type) Reflect_flag {
-	flags := mapFlags.RO() | Reflect_flag(Abi_Type_Kind(elemType))
-	if Abi_Type_IfaceIndir(elemType) {
+	kind := Abi_Type_Kind(elemType)
+	flags := mapFlags.RO() | Reflect_flag(kind)
+	if Abi_Type_IfaceIndir(elemType) ||
+		reflect.Kind(kind) == reflect.Pointer {
 		flags |= Reflect_flagIndir
 	}
 	return flags

@@ -41,7 +41,7 @@ var sqlTypes = []string{
 	reflect.Array:      "",
 	reflect.Interface:  "",
 	reflect.Map:        sqltype.VarChar,
-	reflect.Ptr:        "",
+	reflect.Pointer:    "",
 	reflect.Slice:      sqltype.VarChar,
 	reflect.String:     sqltype.VarChar,
 	reflect.Struct:     sqltype.VarChar,
@@ -61,6 +61,13 @@ func DiscoverSQLType(typ reflect.Type) string {
 		return sqltype.VarChar
 	case jsonRawMessageType:
 		return sqltype.JSON
+	}
+
+	// The standard library uuid.UUID is discovered as a character type, so it
+	// maps to VARCHAR (or VARCHAR[] with the array tag) instead of falling
+	// through to the byte slice rule below.
+	if indirectType(typ) == internal.TypeUUID {
+		return sqltype.VarChar
 	}
 
 	switch typ.Kind() {

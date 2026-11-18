@@ -91,7 +91,7 @@ func (d *directoryDB) GetDirectoryPage(
 	if limit > 0 {
 		// Limit amount of
 		// accounts returned.
-		q = q.Limit(limit)
+		q = q.Limit(int64(limit))
 	}
 
 	if err := q.Scan(ctx, &accountIDs); err != nil {
@@ -121,8 +121,8 @@ func (d *directoryDB) pageDirectoryQuery(
 	if offset != 0 {
 		// If offset is set, just use
 		// this for paging, ignoring
-		// maxID, minID, etc.
-		q = q.Offset(offset)
+		// maxID, minID paging params.
+		q = q.Offset(int64(offset))
 	} else {
 		// Page using max + min ID.
 		if maxID != "" {

@@ -23,7 +23,6 @@ import (
 	"code.superseriousbusiness.org/gopkg/httputil"
 	apiutil "code.superseriousbusiness.org/gotosocial/internal/api/util"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
-	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
 
 // InstanceInformationV1GETHandlerV1 swagger:operation GET /api/v1/instance instanceGetV1
@@ -66,13 +65,13 @@ func (m *Module) InstanceInformationGETHandlerV1(c *httputil.Context) {
 
 	case config.InstanceStatsModeBaffle:
 		// Replace actual stats with cached randomized ones.
-		instance.Stats["user_count"] = util.Ptr(int(instance.RandomStats.TotalUsers))
-		instance.Stats["status_count"] = util.Ptr(int(instance.RandomStats.Statuses))
+		instance.Stats["user_count"] = &instance.RandomStats.TotalUsers
+		instance.Stats["status_count"] = &instance.RandomStats.Statuses
 
 	case config.InstanceStatsModeZero:
 		// Replace actual stats with zero.
-		instance.Stats["user_count"] = new(int)
-		instance.Stats["status_count"] = new(int)
+		instance.Stats["user_count"] = new(int64)
+		instance.Stats["status_count"] = new(int64)
 
 	default:
 		// serve or default.

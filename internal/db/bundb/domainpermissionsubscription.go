@@ -153,7 +153,7 @@ func (d *domainDB) GetDomainPermissionSubscriptions(
 	if limit > 0 {
 		// Limit amount of
 		// items returned.
-		q = q.Limit(limit)
+		q = q.Limit(int64(limit))
 	}
 
 	if order == paging.OrderAscending {
@@ -319,10 +319,7 @@ func (d *domainDB) DeleteDomainPermissionSubscription(
 	return nil
 }
 
-func (d *domainDB) CountDomainPermissionSubscriptionPerms(
-	ctx context.Context,
-	id string,
-) (int, error) {
+func (d *domainDB) CountDomainSubscriptionPermissions(ctx context.Context, id string) (int64, error) {
 	permSubscription, err := d.GetDomainPermissionSubscriptionByID(
 		gtscontext.SetBarebones(ctx),
 		id,

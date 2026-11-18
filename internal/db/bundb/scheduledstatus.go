@@ -240,9 +240,9 @@ func (s *scheduledStatusDB) GetScheduledStatusesForAcct(
 		q = q.OrderExpr("? DESC", bun.Ident("id"))
 	}
 
-	// Add paging param limit.
 	if limit > 0 {
-		q = q.Limit(limit)
+		// Add paging param limit.
+		q = q.Limit(int64(limit))
 	}
 
 	// Execute the query and scan into IDs.
@@ -374,7 +374,7 @@ func (s *scheduledStatusDB) UpdateScheduledStatusScheduledDate(ctx context.Conte
 	})
 }
 
-func (s *scheduledStatusDB) GetScheduledStatusesCountForAcct(ctx context.Context, acctID string, scheduledAt *time.Time) (int, error) {
+func (s *scheduledStatusDB) CountScheduledStatusesForAccount(ctx context.Context, accountID string, scheduledAt *time.Time) (int64, error) {
 	q := s.db.
 		NewSelect().
 		Column("id").
@@ -383,7 +383,7 @@ func (s *scheduledStatusDB) GetScheduledStatusesCountForAcct(ctx context.Context
 			bun.Ident("scheduled_statuses"),
 			bun.Ident("scheduled_status"),
 		).
-		Where("? = ?", bun.Ident("account_id"), acctID)
+		Where("? = ?", bun.Ident("account_id"), accountID)
 
 	if scheduledAt != nil {
 		startOfDay := time.Date(scheduledAt.Year(), scheduledAt.Month(), scheduledAt.Day(), 0, 0, 0, 0, scheduledAt.Location())
@@ -393,7 +393,6 @@ func (s *scheduledStatusDB) GetScheduledStatusesCountForAcct(ctx context.Context
 	}
 
 	count, err := q.Count(ctx)
-
 	if err != nil {
 		return 0, err
 	}

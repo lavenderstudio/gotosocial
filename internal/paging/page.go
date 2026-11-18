@@ -24,10 +24,12 @@ import (
 )
 
 type Page struct {
-	// Min is the Page's lower limit value.
+	// Min is the Page's
+	// lower limit value.
 	Min Boundary
 
-	// Max is this Page's upper limit value.
+	// Max is this Page's
+	// upper limit value.
 	Max Boundary
 
 	// Limit will limit the returned

@@ -26,6 +26,7 @@ import (
 
 // Relationship contains functions for getting or modifying the relationship between two accounts.
 type Relationship interface {
+
 	// IsBlocked checks whether source account has a block in place against target.
 	IsBlocked(ctx context.Context, sourceAccountID string, targetAccountID string) (bool, error)
 
@@ -141,13 +142,13 @@ type Relationship interface {
 	RejectFollowRequest(ctx context.Context, originAccountID string, targetAccountID string) error
 
 	// CountAccountFollows returns the number of follows originating from account.
-	CountAccountFollows(ctx context.Context, accountID string) (int, error)
+	CountAccountFollows(ctx context.Context, accountID string) (int64, error)
 
 	// CountAccountFollowers returns the number of follows targeting the account.
-	CountAccountFollowers(ctx context.Context, accountID string) (int, error)
+	CountAccountFollowers(ctx context.Context, accountID string) (int64, error)
 
 	// CountAccountFollowRequests returns the number of pending follow requests targeting the account.
-	CountAccountFollowRequests(ctx context.Context, accountID string) (int, error)
+	CountAccountFollowRequests(ctx context.Context, accountID string) (int64, error)
 
 	// GetAccountFollows returns a slice of follows owned by the given accountID.
 	GetAccountFollows(ctx context.Context, accountID string, page *paging.Page) ([]*gtsmodel.Follow, error)
@@ -198,7 +199,7 @@ type Relationship interface {
 	GetAccountBlockedByIDs(ctx context.Context, accountID string, page *paging.Page) ([]string, error)
 
 	// CountAccountBlocking counts the number of blocks owned by the given account.
-	CountAccountBlocking(ctx context.Context, accountID string) (int, error)
+	CountAccountBlocking(ctx context.Context, accountID string) (int64, error)
 
 	// GetNote gets a private note from a source account on a target account, if it exists.
 	GetNote(ctx context.Context, sourceAccountID string, targetAccountID string) (*gtsmodel.AccountNote, error)
@@ -219,7 +220,7 @@ type Relationship interface {
 	GetMute(ctx context.Context, account1 string, account2 string) (*gtsmodel.UserMute, error)
 
 	// CountAccountMutes counts the number of mutes owned by the given account.
-	CountAccountMutes(ctx context.Context, accountID string) (int, error)
+	CountAccountMutes(ctx context.Context, accountID string) (int64, error)
 
 	// PutMute attempts to insert or update the given account mute in the database.
 	PutMute(ctx context.Context, mute *gtsmodel.UserMute) error

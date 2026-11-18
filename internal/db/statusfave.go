@@ -24,6 +24,7 @@ import (
 )
 
 type StatusFave interface {
+
 	// GetStatusFaveByAccountID gets one status fave created by the given accountID, targeting the given statusID.
 	GetStatusFave(ctx context.Context, accountID string, statusID string) (*gtsmodel.StatusFave, error)
 
@@ -69,7 +70,7 @@ type StatusFave interface {
 	DeleteStatusFavesForStatus(ctx context.Context, statusID string) error
 
 	// CountStatusFaves returns the number of status favourites registered for status with ID.
-	CountStatusFaves(ctx context.Context, statusID string) (int, error)
+	CountStatusFaves(ctx context.Context, statusID string) (int64, error)
 
 	// IsStatusFavedBy returns whether the status with ID has been favourited by account with ID.
 	IsStatusFavedBy(ctx context.Context, statusID string, accountID string) (bool, error)

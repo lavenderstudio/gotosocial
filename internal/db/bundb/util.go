@@ -96,8 +96,8 @@ func selectPageOfIDs(ctx context.Context, q *bun.SelectQuery, col bun.Ident, pag
 	}
 
 	if limit > 0 {
-		// Apply page limit.
-		q = q.Limit(limit)
+		// Apply the page limit.
+		q = q.Limit(int64(limit))
 	}
 
 	if order.Ascending() {
