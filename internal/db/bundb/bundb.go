@@ -343,16 +343,16 @@ func bunDB(sqldb *sql.DB, dialect func() schema.Dialect) *bun.DB {
 
 	// Add SQL logging hooks depending on current configuration.
 	if config.GetLogDbQueries() || log.Level() <= log.TRACE {
-		db.AddQueryHook(queryLogger{})
+		db = db.WithQueryHook(queryLogger{})
 	} else {
-		db.AddQueryHook(slowQueryLogger{})
+		db = db.WithQueryHook(slowQueryLogger{})
 	}
 
 	// Add any SQL observability hooks if enabled.
 	metricsEnabled := config.GetMetricsEnabled()
 	tracingEnabled := config.GetTracingEnabled()
 	if metricsEnabled || tracingEnabled {
-		db.AddQueryHook(observability.InstrumentBun(tracingEnabled, metricsEnabled))
+		db = db.WithQueryHook(observability.InstrumentBun(tracingEnabled, metricsEnabled))
 	}
 
 	// Register our models with bun's ORM.

@@ -18,7 +18,7 @@ require (
 	codeberg.org/gruf/go-fastpath/v2 v2.0.1
 	codeberg.org/gruf/go-ffmpreg v0.6.22
 	codeberg.org/gruf/go-iotools v0.0.0-20260526131046-972e2a5bc14c
-	codeberg.org/gruf/go-kv/v2 v2.0.13
+	codeberg.org/gruf/go-kv/v2 v2.0.14
 	codeberg.org/gruf/go-list v0.0.0-20240425093752-494db03d641f
 	codeberg.org/gruf/go-longdur v0.1.5
 	codeberg.org/gruf/go-mempool v0.0.0-20260904112209-3edeee5f281e

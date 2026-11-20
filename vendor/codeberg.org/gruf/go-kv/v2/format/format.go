@@ -476,16 +476,20 @@ func hasInterface(m map[reflect.Type]struct{}, t reflect.Type) (ok bool) {
 	// Add ourself to
 	// recursion map.
 	m[t] = struct{}{}
-
 	switch k {
+
 	case reflect.Map:
 		// check if either map key /
 		// value type is interface-haver.
 		return hasInterface(m, t.Key()) ||
 			hasInterface(m, t.Elem())
-	case reflect.Pointer:
-		// Dereference pointer element.
+
+	case reflect.Pointer,
+		reflect.Slice,
+		reflect.Array:
+		// Follow contained element type.
 		return hasInterface(m, t.Elem())
+
 	case reflect.Struct:
 		// Check each struct field type.
 		for i := range t.NumField() {

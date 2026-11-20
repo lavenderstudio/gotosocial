@@ -80,7 +80,7 @@ func (suite *StatusUnfaveTestSuite) TestPostUnfave() {
 	assert.False(suite.T(), statusReply.Sensitive)
 	assert.Equal(suite.T(), apimodel.VisibilityPublic, statusReply.Visibility)
 	assert.False(suite.T(), statusReply.Favourited)
-	assert.Equal(suite.T(), 0, statusReply.FavouritesCount)
+	assert.Equal(suite.T(), int64(0), statusReply.FavouritesCount)
 }
 
 // try to unfave a status that's already not faved
@@ -123,7 +123,7 @@ func (suite *StatusUnfaveTestSuite) TestPostAlreadyNotFaved() {
 	assert.True(suite.T(), statusReply.Sensitive)
 	assert.Equal(suite.T(), apimodel.VisibilityPublic, statusReply.Visibility)
 	assert.False(suite.T(), statusReply.Favourited)
-	assert.Equal(suite.T(), 0, statusReply.FavouritesCount)
+	assert.Equal(suite.T(), int64(0), statusReply.FavouritesCount)
 }
 
 func TestStatusUnfaveTestSuite(t *testing.T) {

@@ -274,7 +274,7 @@ codeberg.org/gruf/go-iotools
 ## explicit; go 1.20
 codeberg.org/gruf/go-kv
 codeberg.org/gruf/go-kv/format
-# codeberg.org/gruf/go-kv/v2 v2.0.13
+# codeberg.org/gruf/go-kv/v2 v2.0.14
 ## explicit; go 1.25.0
 codeberg.org/gruf/go-kv/v2
 codeberg.org/gruf/go-kv/v2/format

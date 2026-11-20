@@ -94,6 +94,9 @@ definitions:
         type: object
         x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/model
     NodeInfoSoftware:
+        description: |-
+            NodeInfoSoftware represents the name and
+            version number of the software of this node.
         properties:
             homepage:
                 description: Homepage for the software. Omitted in version 2.0.
@@ -113,7 +116,6 @@ definitions:
                 example: 0.1.2 1234567
                 type: string
                 x-go-name: Version
-        title: NodeInfoSoftware represents the name and version number of the software of this node.
         type: object
         x-go-package: code.superseriousbusiness.org/gotosocial/internal/api/model
     NodeInfoUsage:

@@ -34,8 +34,8 @@ codeberg.org/gruf/go-iotools v0.0.0-20260526131046-972e2a5bc14c h1:FogEM9HPZVDEd
 codeberg.org/gruf/go-iotools v0.0.0-20260526131046-972e2a5bc14c/go.mod h1:zZAICsp5rY7+hxnws2V0ePrWxE0Z2Z/KXcN3p/RQCfk=
 codeberg.org/gruf/go-kv v1.6.5 h1:ttPf0NA8F79pDqBttSudPTVCZmGncumeNIxmeM9ztz0=
 codeberg.org/gruf/go-kv v1.6.5/go.mod h1:c4PsGqw05bDScvISpK+d31SiDEpBorweCL50hsiK3dc=
-codeberg.org/gruf/go-kv/v2 v2.0.13 h1:yqUVG1IIiCVi9mKfRQ9p+Q6JUywnYV252iF3QfifHcc=
-codeberg.org/gruf/go-kv/v2 v2.0.13/go.mod h1:W3h6eWWiXDGXXIwCe1CP+tNGkjhSycgt9JbE94Pum0k=
+codeberg.org/gruf/go-kv/v2 v2.0.14 h1:u/ahRnwOPZEy0aXIXSf9XL6onb43Ajbs9J8Im57i2VY=
+codeberg.org/gruf/go-kv/v2 v2.0.14/go.mod h1:W3h6eWWiXDGXXIwCe1CP+tNGkjhSycgt9JbE94Pum0k=
 codeberg.org/gruf/go-list v0.0.0-20240425093752-494db03d641f h1:Ss6Z+vygy+jOGhj96d/GwsYYDd22QmIcH74zM7/nQkw=
 codeberg.org/gruf/go-list v0.0.0-20240425093752-494db03d641f/go.mod h1:F9pl4h34iuVN7kucKam9fLwsItTc+9mmaKt7pNXRd/4=
 codeberg.org/gruf/go-longdur v0.1.5 h1:cEI0HIT8ULwxR5cAZbLYQIdKp4l76QR76IioJrwXWkM=
