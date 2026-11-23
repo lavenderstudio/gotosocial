@@ -17,6 +17,7 @@
     "get-by-dot": "^1.0.2",
     "html-to-text": "^9.0.5",
     "humanize-duration": "^3.32.2",
+    "ipaddr.js": "^2.5.0",
     "is-valid-domain": "^0.1.6",
     "js-file-download": "^0.4.12",
     "langs": "^2.0.0",

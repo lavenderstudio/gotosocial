@@ -27,6 +27,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/netutil"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 	"github.com/uptrace/bun"
@@ -168,11 +169,14 @@ func (d *domainDB) GetDomainPermissionDrafts(
 	if domain != "" {
 		var err error
 
-		// Normalize domain as punycode for lookup.
+		// Normalize as punycode for lookup.
 		domain, err = util.Punify(domain)
 		if err != nil {
 			return nil, gtserror.Newf("error punifying domain %s: %w", domain, err)
 		}
+
+		// Trim port from received domain.
+		domain = netutil.TrimPort(domain)
 
 		q = q.Where(
 			"? = ?",
@@ -232,18 +236,16 @@ func (d *domainDB) GetDomainPermissionDrafts(
 	return permDrafts, nil
 }
 
-func (d *domainDB) PutDomainPermissionDraft(
-	ctx context.Context,
-	draft *gtsmodel.DomainPermissionDraft,
-) error {
-	var err error
-
+func (d *domainDB) PutDomainPermissionDraft(ctx context.Context, draft *gtsmodel.DomainPermissionDraft) (err error) {
 	// Normalize the domain as punycode, note the extra
 	// validation step for domain name write operations.
 	draft.Domain, err = util.PunifySafely(draft.Domain)
 	if err != nil {
 		return gtserror.Newf("error punifying domain %s: %w", draft.Domain, err)
 	}
+
+	// Trim port from received domain before insert.
+	draft.Domain = netutil.TrimPort(draft.Domain)
 
 	return d.state.Caches.DB.DomainPermissionDraft.Store(
 		draft,
@@ -257,10 +259,7 @@ func (d *domainDB) PutDomainPermissionDraft(
 	)
 }
 
-func (d *domainDB) DeleteDomainPermissionDraft(
-	ctx context.Context,
-	id string,
-) error {
+func (d *domainDB) DeleteDomainPermissionDraft(ctx context.Context, id string) error {
 	// Delete the permDraft from DB.
 	q := d.db.NewDelete().
 		TableExpr(

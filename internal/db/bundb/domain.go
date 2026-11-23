@@ -26,6 +26,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/db"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/netutil"
 	"code.superseriousbusiness.org/gotosocial/internal/state"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 	"github.com/uptrace/bun"
@@ -36,35 +37,17 @@ type domainDB struct {
 	state *state.State
 }
 
-func (d *domainDB) PutDomainAllow(ctx context.Context, allow *gtsmodel.DomainAllow) (err error) {
-	// Normalize the domain as punycode, note the extra
-	// validation step for domain name write operations.
-	allow.Domain, err = util.PunifySafely(allow.Domain)
-	if err != nil {
-		return gtserror.Newf("error punifying domain %s: %w", allow.Domain, err)
-	}
-
-	// Attempt to store domain allow in DB
-	if _, err := d.db.NewInsert().
-		Model(allow).
-		Exec(ctx); err != nil {
-		return err
-	}
-
-	// Clear the domain allow cache (for later reload)
-	d.state.Caches.DB.DomainAllow.Clear()
-
-	return nil
-}
-
 func (d *domainDB) GetDomainAllow(ctx context.Context, domain string) (*gtsmodel.DomainAllow, error) {
-	// Normalize domain as punycode for lookup.
+	// Normalize as punycode for lookup.
 	domain, err := util.Punify(domain)
 	if err != nil {
 		return nil, gtserror.Newf("error punifying domain %s: %w", domain, err)
 	}
 
-	// Check for easy case, domain referencing *us*
+	// Trim port from received domain.
+	domain = netutil.TrimPort(domain)
+
+	// Check for easy case, of a domain referencing *us*
 	if domain == "" || domain == config.GetAccountDomain() ||
 		domain == config.GetHost() {
 		return nil, db.ErrNoEntries
@@ -125,6 +108,30 @@ func (d *domainDB) GetDomainAllowByID(ctx context.Context, id string) (*gtsmodel
 	return &allow, nil
 }
 
+func (d *domainDB) PutDomainAllow(ctx context.Context, allow *gtsmodel.DomainAllow) (err error) {
+	// Normalize the domain as punycode, note the extra
+	// validation step for domain name write operations.
+	allow.Domain, err = util.PunifySafely(allow.Domain)
+	if err != nil {
+		return gtserror.Newf("error punifying domain %s: %w", allow.Domain, err)
+	}
+
+	// Trim port from received domain before insert.
+	allow.Domain = netutil.TrimPort(allow.Domain)
+
+	// Attempt to store domain allow in DB
+	if _, err := d.db.NewInsert().
+		Model(allow).
+		Exec(ctx); err != nil {
+		return err
+	}
+
+	// Clear the domain allow cache (for later reload)
+	d.state.Caches.DB.DomainAllow.Clear()
+
+	return nil
+}
+
 func (d *domainDB) UpdateDomainAllow(ctx context.Context, allow *gtsmodel.DomainAllow, columns ...string) (err error) {
 	// Normalize the domain as punycode, note the extra
 	// validation step for domain name write operations.
@@ -132,6 +139,9 @@ func (d *domainDB) UpdateDomainAllow(ctx context.Context, allow *gtsmodel.Domain
 	if err != nil {
 		return gtserror.Newf("error punifying domain %s: %w", allow.Domain, err)
 	}
+
+	// Trim port from received domain before insert.
+	allow.Domain = netutil.TrimPort(allow.Domain)
 
 	// Ensure updated_at is set.
 	allow.UpdatedAt = time.Now()
@@ -156,11 +166,14 @@ func (d *domainDB) UpdateDomainAllow(ctx context.Context, allow *gtsmodel.Domain
 }
 
 func (d *domainDB) DeleteDomainAllow(ctx context.Context, domain string) error {
-	// Normalize domain as punycode for lookup.
+	// Normalize as punycode for lookup.
 	domain, err := util.Punify(domain)
 	if err != nil {
 		return gtserror.Newf("error punifying domain %s: %w", domain, err)
 	}
+
+	// Trim port from received domain.
+	domain = netutil.TrimPort(domain)
 
 	// Attempt to delete domain allow
 	if _, err := d.db.NewDelete().
@@ -176,8 +189,7 @@ func (d *domainDB) DeleteDomainAllow(ctx context.Context, domain string) error {
 	return nil
 }
 
-func (d *domainDB) PutDomainBlock(ctx context.Context, block *gtsmodel.DomainBlock) error {
-	var err error
+func (d *domainDB) PutDomainBlock(ctx context.Context, block *gtsmodel.DomainBlock) (err error) {
 
 	// Normalize the domain as punycode, note the extra
 	// validation step for domain name write operations.
@@ -186,7 +198,10 @@ func (d *domainDB) PutDomainBlock(ctx context.Context, block *gtsmodel.DomainBlo
 		return gtserror.Newf("error punifying domain %s: %w", block.Domain, err)
 	}
 
-	// Attempt to store domain block in DB
+	// Trim port from received domain before insert.
+	block.Domain = netutil.TrimPort(block.Domain)
+
+	// Attempt to store in database.
 	if _, err := d.db.NewInsert().
 		Model(block).
 		Exec(ctx); err != nil {
@@ -200,13 +215,16 @@ func (d *domainDB) PutDomainBlock(ctx context.Context, block *gtsmodel.DomainBlo
 }
 
 func (d *domainDB) GetDomainBlock(ctx context.Context, domain string) (*gtsmodel.DomainBlock, error) {
-	// Normalize domain as punycode for lookup.
+	// Normalize as punycode for lookup.
 	domain, err := util.Punify(domain)
 	if err != nil {
 		return nil, gtserror.Newf("error punifying domain %s: %w", domain, err)
 	}
 
-	// Check for easy case, domain referencing *us*
+	// Trim port from received domain.
+	domain = netutil.TrimPort(domain)
+
+	// Check for easy case, of a domain referencing *us*.
 	if domain == "" || domain == config.GetAccountDomain() ||
 		domain == config.GetHost() {
 		return nil, db.ErrNoEntries
@@ -267,15 +285,16 @@ func (d *domainDB) GetDomainBlockByID(ctx context.Context, id string) (*gtsmodel
 	return &block, nil
 }
 
-func (d *domainDB) UpdateDomainBlock(ctx context.Context, block *gtsmodel.DomainBlock, columns ...string) error {
-	var err error
-
+func (d *domainDB) UpdateDomainBlock(ctx context.Context, block *gtsmodel.DomainBlock, columns ...string) (err error) {
 	// Normalize the domain as punycode, note the extra
 	// validation step for domain name write operations.
 	block.Domain, err = util.PunifySafely(block.Domain)
 	if err != nil {
 		return gtserror.Newf("error punifying domain %s: %w", block.Domain, err)
 	}
+
+	// Trim port from received domain before insert.
+	block.Domain = netutil.TrimPort(block.Domain)
 
 	// Ensure updated_at is set.
 	block.UpdatedAt = time.Now()
@@ -306,6 +325,9 @@ func (d *domainDB) DeleteDomainBlock(ctx context.Context, domain string) error {
 		return gtserror.Newf("error punifying domain %s: %w", domain, err)
 	}
 
+	// Trim port from received domain.
+	domain = netutil.TrimPort(domain)
+
 	// Attempt to delete domain block
 	if _, err := d.db.NewDelete().
 		Model((*gtsmodel.DomainBlock)(nil)).
@@ -327,8 +349,13 @@ func (d *domainDB) IsDomainBlocked(ctx context.Context, domain string) (bool, er
 		return false, gtserror.Newf("error punifying domain %s: %w", domain, err)
 	}
 
-	// Domain referencing *us* cannot be blocked.
-	if domain == "" || domain == config.GetAccountDomain() ||
+	// Trim port from received domain.
+	domain = netutil.TrimPort(domain)
+
+	// Domain referencing
+	// *us* cannot be blocked.
+	if domain == "" ||
+		domain == config.GetAccountDomain() ||
 		domain == config.GetHost() {
 		return false, nil
 	}
@@ -337,7 +364,8 @@ func (d *domainDB) IsDomainBlocked(ctx context.Context, domain string) (bool, er
 	explicitAllow, err := d.state.Caches.DB.DomainAllow.Matches(domain, func() ([]string, error) {
 		var domains []string
 
-		// Scan list of all explicitly allowed domains from DB
+		// Scan all explicitly
+		// allowed domains from DB.
 		q := d.db.NewSelect().
 			Table("domain_allows").
 			Column("domain")
@@ -355,7 +383,8 @@ func (d *domainDB) IsDomainBlocked(ctx context.Context, domain string) (bool, er
 	explicitBlock, err := d.state.Caches.DB.DomainBlock.Matches(domain, func() ([]string, error) {
 		var domains []string
 
-		// Scan list of all blocked domains from DB
+		// Scan all blocked
+		// domains from DB.
 		q := d.db.NewSelect().
 			Table("domain_blocks").
 			Column("domain")
@@ -369,8 +398,7 @@ func (d *domainDB) IsDomainBlocked(ctx context.Context, domain string) (bool, er
 		return false, err
 	}
 
-	// Calculate if blocked
-	// based on federation mode.
+	// Calculate if blocked based on federation mode.
 	switch mode := config.GetInstanceFederationMode(); mode {
 
 	case config.InstanceFederationModeBlocklist:

@@ -101,8 +101,7 @@ func (p *Processor) DomainPermissionUpdate(
 
 	// Explicitly block a domain.
 	case gtsmodel.DomainPermissionBlock:
-		return p.updateDomainBlock(
-			ctx,
+		return p.updateDomainBlock(ctx,
 			permID,
 			obfuscate,
 			publicComment,
@@ -112,8 +111,7 @@ func (p *Processor) DomainPermissionUpdate(
 
 	// Explicitly allow a domain.
 	case gtsmodel.DomainPermissionAllow:
-		return p.updateDomainAllow(
-			ctx,
+		return p.updateDomainAllow(ctx,
 			permID,
 			obfuscate,
 			publicComment,
@@ -197,6 +195,7 @@ func (p *Processor) DomainPermissionsImport(
 		err = gtserror.Newf("error opening attachment: %w", err)
 		return nil, gtserror.NewErrorBadRequest(err, err.Error())
 	}
+
 	defer file.Close()
 
 	// Parse file as slice of domain permissions.
@@ -251,6 +250,7 @@ func (p *Processor) importOrUpdateDomainPerm(
 		domainPerm gtsmodel.DomainPermission
 		err        error
 	)
+
 	if permType == gtsmodel.DomainPermissionBlock {
 		domainPerm, err = p.state.DB.GetDomainBlock(ctx, domain)
 	} else {

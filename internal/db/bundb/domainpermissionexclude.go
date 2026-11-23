@@ -28,23 +28,22 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/netutil"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 	"github.com/uptrace/bun"
 )
 
-func (d *domainDB) PutDomainPermissionExclude(
-	ctx context.Context,
-	exclude *gtsmodel.DomainPermissionExclude,
-) error {
-	var err error
-
+func (d *domainDB) PutDomainPermissionExclude(ctx context.Context, exclude *gtsmodel.DomainPermissionExclude) (err error) {
 	// Normalize the domain as punycode, note the extra
 	// validation step for domain name write operations.
 	exclude.Domain, err = util.PunifySafely(exclude.Domain)
 	if err != nil {
 		return gtserror.Newf("error punifying domain %s: %w", exclude.Domain, err)
 	}
+
+	// Trim port from received domain before insert.
+	exclude.Domain = netutil.TrimPort(exclude.Domain)
 
 	// Attempt to store domain perm exclude in DB
 	if _, err := d.db.NewInsert().
@@ -65,6 +64,9 @@ func (d *domainDB) IsDomainPermissionExcluded(ctx context.Context, domain string
 	if err != nil {
 		return false, gtserror.Newf("error punifying domain %s: %w", domain, err)
 	}
+
+	// Trim port from received domain.
+	domain = netutil.TrimPort(domain)
 
 	// Func to scan list of all
 	// excluded domain perms from DB.
@@ -91,10 +93,7 @@ func (d *domainDB) IsDomainPermissionExcluded(ctx context.Context, domain string
 	return d.state.Caches.DB.DomainPermissionExclude.Matches(domain, loadF)
 }
 
-func (d *domainDB) GetDomainPermissionExcludeByID(
-	ctx context.Context,
-	id string,
-) (*gtsmodel.DomainPermissionExclude, error) {
+func (d *domainDB) GetDomainPermissionExcludeByID(ctx context.Context, id string) (*gtsmodel.DomainPermissionExclude, error) {
 	exclude := new(gtsmodel.DomainPermissionExclude)
 
 	q := d.db.
@@ -179,11 +178,14 @@ func (d *domainDB) GetDomainPermissionExcludes(
 	if domain != "" {
 		var err error
 
-		// Normalize domain as punycode for lookup.
+		// Normalize as punycode for lookup.
 		domain, err = util.Punify(domain)
 		if err != nil {
 			return nil, gtserror.Newf("error punifying domain %s: %w", domain, err)
 		}
+
+		// Trim port from received domain.
+		domain = netutil.TrimPort(domain)
 
 		q = q.Where(
 			"? = ?",
@@ -243,10 +245,7 @@ func (d *domainDB) GetDomainPermissionExcludes(
 	return excludes, nil
 }
 
-func (d *domainDB) DeleteDomainPermissionExclude(
-	ctx context.Context,
-	id string,
-) error {
+func (d *domainDB) DeleteDomainPermissionExclude(ctx context.Context, id string) error {
 	// Delete the permSub from DB.
 	q := d.db.NewDelete().
 		TableExpr(

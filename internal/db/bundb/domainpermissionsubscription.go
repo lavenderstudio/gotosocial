@@ -76,7 +76,10 @@ func (d *domainDB) getDomainPermissionSubscription(
 func (d *domainDB) GetDomainPermissionSubscriptionByID(
 	ctx context.Context,
 	id string,
-) (*gtsmodel.DomainPermissionSubscription, error) {
+) (
+	*gtsmodel.DomainPermissionSubscription,
+	error,
+) {
 	return d.getDomainPermissionSubscription(
 		ctx,
 		"ID",
@@ -186,7 +189,8 @@ func (d *domainDB) GetDomainPermissionSubscriptions(
 	}
 
 	// Allocate return slice (will be at most len permSubIDs).
-	permSubs := make([]*gtsmodel.DomainPermissionSubscription, 0, len(permSubIDs))
+	permSubs := make([]*gtsmodel.DomainPermissionSubscription,
+		0, len(permSubIDs))
 	for _, id := range permSubIDs {
 		permSub, err := d.GetDomainPermissionSubscriptionByID(ctx, id)
 		if err != nil {
@@ -195,7 +199,8 @@ func (d *domainDB) GetDomainPermissionSubscriptions(
 		}
 
 		// Append to return slice
-		permSubs = append(permSubs, permSub)
+		permSubs = append(permSubs,
+			permSub)
 	}
 
 	return permSubs, nil
@@ -241,7 +246,8 @@ func (d *domainDB) GetDomainPermissionSubscriptionsByPriority(
 	}
 
 	// Allocate return slice (will be at most len permSubIDs).
-	permSubs := make([]*gtsmodel.DomainPermissionSubscription, 0, len(permSubIDs))
+	permSubs := make([]*gtsmodel.DomainPermissionSubscription,
+		0, len(permSubIDs))
 	for _, id := range permSubIDs {
 		permSub, err := d.GetDomainPermissionSubscriptionByID(ctx, id)
 		if err != nil {
@@ -250,7 +256,8 @@ func (d *domainDB) GetDomainPermissionSubscriptionsByPriority(
 		}
 
 		// Append to return slice
-		permSubs = append(permSubs, permSub)
+		permSubs = append(permSubs,
+			permSub)
 	}
 
 	return permSubs, nil

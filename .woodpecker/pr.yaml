@@ -110,7 +110,8 @@ steps:
           any(fromJSON(CI_PIPELINE_FILES), { # startsWith "web/source/" }) ||
           len(fromJSON(CI_PIPELINE_FILES)) == 0
 
-    image: node:lts-alpine
+    # Use our woodpecker-build image as yarn is installed in there.
+    image: superseriousbusiness/gotosocial-woodpecker-build:0.15.0
     pull: true
 
     # https://woodpecker-ci.org/docs/administration/configuration/backends/docker#run-user

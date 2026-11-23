@@ -15,20 +15,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package domain_test
+package host_test
 
 import (
 	"errors"
 	"strings"
 	"testing"
 
-	"code.superseriousbusiness.org/gotosocial/internal/cache/domain"
+	"code.superseriousbusiness.org/gotosocial/internal/cache/host"
 )
 
-func domainCache(t *testing.T) (*domain.Cache, func() ([]string, error)) {
-	c := new(domain.Cache)
+func hostCache(t *testing.T) (*host.Cache, func() ([]string, error)) {
+	c := new(host.Cache)
 
-	cachedDomains := []string{
+	cached := []string{
 		"google.com",               //
 		"mail.google.com",          // should be ignored since covered above
 		"dev.mail.google.com",      // same again
@@ -36,23 +36,28 @@ func domainCache(t *testing.T) (*domain.Cache, func() ([]string, error)) {
 		"mail.google.co.uk",        //
 		"pleroma.bad.host",         //
 		"pleroma.still.a.bad.host", //
+		"127.0.0.1",                //
+		"127.0.0.1/32",             // should be ignored since covered above
+		"127.0.1.0/24",             //
+		"127.0.1.1",                // should be ignored since covered above
+		"127.0.1.0/28",             // should be ignored since covered above
+		"127.0.1.16/28",            // should be ignored since covered above
 	}
 
 	loader := func() ([]string, error) {
-		t.Log("load: returning cached domains")
-		return cachedDomains, nil
+		t.Log("load: returning cached hosts")
+		return cached, nil
 	}
 
 	return c, loader
 }
 
-func TestCache(t *testing.T) {
-
+func TestMatch(t *testing.T) {
 	// Create test domain cache.
-	c, loader := domainCache(t)
+	c, loader := hostCache(t)
 
-	// Check a list of known matching domains.
-	for _, domain := range []string{
+	// Check known matching hosts.
+	for _, host := range []string{
 		"google.com",
 		"mail.google.com",
 		"dev.mail.google.com",
@@ -62,15 +67,19 @@ func TestCache(t *testing.T) {
 		"dev.pleroma.bad.host",
 		"pleroma.still.a.bad.host",
 		"dev.pleroma.still.a.bad.host",
+		"127.0.0.1",
+		"127.0.1.0",
+		"127.0.1.1",
+		"127.0.1.255",
 	} {
-		t.Logf("checking domain matches: %s", domain)
-		if b, _ := c.Matches(domain, loader); !b {
-			t.Fatalf("domain should be matched: %s", domain)
+		t.Logf("checking matches: %s", host)
+		if b, _ := c.Matches(host, loader); !b {
+			t.Fatalf("should be matched: %s", host)
 		}
 	}
 
-	// Check a list of known unmatched domains.
-	for _, domain := range []string{
+	// Check known unmatched hosts.
+	for _, host := range []string{
 		"askjeeves.com",
 		"ask-kim.co.uk",
 		"google.ie",
@@ -78,35 +87,22 @@ func TestCache(t *testing.T) {
 		"gts.bad.host",
 		"mastodon.bad.host",
 		"akkoma.still.a.bad.host",
+		"127.0.0.2",
 	} {
-		t.Logf("checking domain isn't matched: %s", domain)
-		if b, _ := c.Matches(domain, loader); b {
-			t.Fatalf("domain should not be matched: %s", domain)
+		t.Logf("checking isn't matched: %s", host)
+		if b, _ := c.Matches(host, loader); b {
+			t.Fatalf("should not be matched: %s", host)
 		}
 	}
 
-	// Clear the cache
-	t.Logf("%+v\n", c)
-	c.Clear()
-	t.Logf("%+v\n", c)
-
-	knownErr := errors.New("known error")
-
-	// Check that reload is actually performed and returns our error
-	if _, err := c.Matches("", func() ([]string, error) {
-		t.Log("load: returning known error")
-		return nil, knownErr
-	}); !errors.Is(err, knownErr) {
-		t.Fatalf("matches did not return expected error: %v", err)
-	}
+	t.Log(c.String())
 }
 
 func TestMatchesOn(t *testing.T) {
-
 	// Create test domain cache.
-	c, loader := domainCache(t)
+	c, loader := hostCache(t)
 
-	// Check a list of known matching domains.
+	// Check known matching domains.
 	for _, domain := range []string{
 		"google.com",
 		"mail.google.com",
@@ -123,5 +119,18 @@ func TestMatchesOn(t *testing.T) {
 		if !strings.HasSuffix(domain, matchedOn) {
 			t.Fatalf("matched domain %s should match on %s", domain, matchedOn)
 		}
+	}
+}
+
+func TestHydrateError(t *testing.T) {
+	var c host.Cache
+	knownErr := errors.New("known error")
+
+	// Check hydrate is actually performed and returns error.
+	if _, err := c.Matches("", func() ([]string, error) {
+		t.Log("load: returning known error")
+		return nil, knownErr
+	}); !errors.Is(err, knownErr) {
+		t.Fatalf("matches did not return expected error: %v", err)
 	}
 }

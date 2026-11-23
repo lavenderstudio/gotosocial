@@ -40,6 +40,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
+	"code.superseriousbusiness.org/gotosocial/internal/netutil"
 	"code.superseriousbusiness.org/gotosocial/internal/transport"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 )
@@ -104,7 +105,8 @@ func (s *Subscriptions) ProcessDomainPermissionSubscriptions(
 	defer log.Info(ctx, "finished")
 
 	// Get permission subscriptions in priority order (highest -> lowest).
-	permSubs, err := s.state.DB.GetDomainPermissionSubscriptionsByPriority(ctx, permType)
+	permSubs, err := s.state.DB.GetDomainPermissionSubscriptionsByPriority(ctx,
+		permType)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {
 		// Real db error.
 		log.Errorf(ctx, "db error getting domain perm subs by priority: %v", err)
@@ -126,8 +128,7 @@ func (s *Subscriptions) ProcessDomainPermissionSubscriptions(
 		// above this permission sub in the slice.
 		higherPrios := permSubs[:i]
 
-		_, retracted, err := s.ProcessDomainPermissionSubscription(
-			ctx,
+		_, retracted, err := s.ProcessDomainPermissionSubscription(ctx,
 			permSub,
 			tsport,
 			higherPrios,
@@ -293,9 +294,7 @@ func (s *Subscriptions) ProcessDomainPermissionSubscription(
 	// Iterate through wantedPerms and
 	// create (or dry create) each one.
 	for _, wantedPerm := range wantedPerms {
-		l := l.WithField("domain", wantedPerm.GetDomain())
-		created, err := s.processDomainPermission(
-			ctx, l,
+		created, err := s.processDomainPermission(ctx,
 			wantedPerm,
 			permSub,
 			higherPrios,
@@ -350,16 +349,26 @@ func (s *Subscriptions) ProcessDomainPermissionSubscription(
 // error, else the error will be logged and nil returned.
 func (s *Subscriptions) processDomainPermission(
 	ctx context.Context,
-	l log.Entry,
 	wantedPerm gtsmodel.DomainPermission,
 	permSub *gtsmodel.DomainPermissionSubscription,
 	higherPrios []*gtsmodel.DomainPermissionSubscription,
 	dry bool,
-) (bool, error) {
+) (
+	bool,
+	error,
+) {
+	// Normalize received domain.
+	domain := wantedPerm.GetDomain()
+	domain = netutil.TrimPort(domain)
+
+	l := log.
+		WithContext(ctx).
+		WithField("domain", domain)
+
 	// If domain is excluded from automatic
 	// permission creation, don't process it.
-	domain := wantedPerm.GetDomain()
-	excluded, err := s.state.DB.IsDomainPermissionExcluded(ctx, domain)
+	excluded, err := s.state.DB.IsDomainPermissionExcluded(ctx,
+		domain)
 	if err != nil {
 		// Proper db error.
 		return false, err
@@ -373,8 +382,10 @@ func (s *Subscriptions) processDomainPermission(
 	// Check if a permission already exists for
 	// this domain, and if it's covered already
 	// by a higher-priority subscription.
-	existingPerm, covered, err := s.existingCovered(
-		ctx, permSub.PermissionType, domain, higherPrios,
+	existingPerm, covered, err := s.existingCovered(ctx,
+		permSub.PermissionType,
+		domain,
+		higherPrios,
 	)
 	if err != nil {
 		// Proper db error.
@@ -403,8 +414,7 @@ func (s *Subscriptions) processDomainPermission(
 
 	case !existing && *permSub.AsDraft:
 		// No existing perm, create as draft.
-		err = s.state.DB.PutDomainPermissionDraft(
-			ctx,
+		err = s.state.DB.PutDomainPermissionDraft(ctx,
 			&gtsmodel.DomainPermissionDraft{
 				ID:                 id.NewULID(),
 				PermissionType:     permSub.PermissionType,
@@ -439,6 +449,7 @@ func (s *Subscriptions) processDomainPermission(
 				Obfuscate:          wantedPerm.GetObfuscate(),
 				SubscriptionID:     permSub.ID,
 			}
+
 			insertF = func() error { return s.state.DB.PutDomainBlock(ctx, domainBlock) }
 
 			action = &gtsmodel.AdminAction{
@@ -448,6 +459,7 @@ func (s *Subscriptions) processDomainPermission(
 				Type:           gtsmodel.AdminActionSuspend,
 				AccountID:      permSub.CreatedByAccountID,
 			}
+
 			actionF = s.state.AdminActions.DomainBlockF(action.ID, domainBlock)
 
 		} else {
@@ -462,6 +474,7 @@ func (s *Subscriptions) processDomainPermission(
 				Obfuscate:          wantedPerm.GetObfuscate(),
 				SubscriptionID:     permSub.ID,
 			}
+
 			insertF = func() error { return s.state.DB.PutDomainAllow(ctx, domainAllow) }
 
 			action = &gtsmodel.AdminAction{
@@ -471,6 +484,7 @@ func (s *Subscriptions) processDomainPermission(
 				Type:           gtsmodel.AdminActionUnsuspend,
 				AccountID:      permSub.CreatedByAccountID,
 			}
+
 			actionF = s.state.AdminActions.DomainAllowF(action.ID, domainAllow)
 		}
 
@@ -483,7 +497,8 @@ func (s *Subscriptions) processDomainPermission(
 
 		// Run admin action to process
 		// side effects of permission.
-		err = s.state.AdminActions.Run(ctx, action, actionF)
+		err = s.state.AdminActions.Run(ctx,
+			action, actionF)
 
 	case existingPerm.IsOrphan():
 		// Perm already exists, but it's not managed

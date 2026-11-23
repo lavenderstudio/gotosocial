@@ -21,7 +21,7 @@ import (
 	"sync/atomic"
 
 	"code.superseriousbusiness.org/gopkg/log"
-	"code.superseriousbusiness.org/gotosocial/internal/cache/domain"
+	"code.superseriousbusiness.org/gotosocial/internal/cache/host"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"codeberg.org/gruf/go-structr"
@@ -59,13 +59,13 @@ type DBCaches struct {
 	ConversationLastStatusIDs SliceCache[string]
 
 	// DomainAllow provides access to the domain allow database cache.
-	DomainAllow *domain.Cache
+	DomainAllow *host.Cache
 
 	// DomainBlock provides access to the domain block database cache.
-	DomainBlock *domain.Cache
+	DomainBlock *host.Cache
 
 	// DomainLimited provides access to the domain limits matching trie cache.
-	DomainLimited *domain.Cache
+	DomainLimited *host.Cache
 
 	// DomainLimit provides access to the domain limit database cache.
 	DomainLimit StructCache[*gtsmodel.DomainLimit]
@@ -77,7 +77,7 @@ type DBCaches struct {
 	DomainPermissionSubscription StructCache[*gtsmodel.DomainPermissionSubscription]
 
 	// DomainPermissionExclude provides access to the domain permission exclude database cache.
-	DomainPermissionExclude *domain.Cache
+	DomainPermissionExclude *host.Cache
 
 	// Emoji provides access to the gtsmodel Emoji database cache.
 	Emoji StructCache[*gtsmodel.Emoji]
@@ -572,11 +572,11 @@ func (c *Caches) initConversationLastStatusIDs() {
 }
 
 func (c *Caches) initDomainAllow() {
-	c.DB.DomainAllow = new(domain.Cache)
+	c.DB.DomainAllow = new(host.Cache)
 }
 
 func (c *Caches) initDomainBlock() {
-	c.DB.DomainBlock = new(domain.Cache)
+	c.DB.DomainBlock = new(host.Cache)
 }
 
 func (c *Caches) initDomainLimit() {
@@ -612,7 +612,7 @@ func (c *Caches) initDomainLimit() {
 }
 
 func (c *Caches) initDomainLimited() {
-	c.DB.DomainLimited = new(domain.Cache)
+	c.DB.DomainLimited = new(host.Cache)
 }
 
 func (c *Caches) initDomainPermissionDraft() {
@@ -679,7 +679,7 @@ func (c *Caches) initDomainPermissionSubscription() {
 }
 
 func (c *Caches) initDomainPermissionExclude() {
-	c.DB.DomainPermissionExclude = new(domain.Cache)
+	c.DB.DomainPermissionExclude = new(host.Cache)
 }
 
 func (c *Caches) initEmoji() {

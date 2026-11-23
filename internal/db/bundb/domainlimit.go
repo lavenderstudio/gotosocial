@@ -28,6 +28,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtscontext"
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
+	"code.superseriousbusiness.org/gotosocial/internal/netutil"
 	"code.superseriousbusiness.org/gotosocial/internal/paging"
 	"code.superseriousbusiness.org/gotosocial/internal/util"
 	"github.com/uptrace/bun"
@@ -79,8 +80,7 @@ func (d *domainDB) GetDomainLimitByID(
 	ctx context.Context,
 	id string,
 ) (*gtsmodel.DomainLimit, error) {
-	return d.getDomainLimit(
-		ctx,
+	return d.getDomainLimit(ctx,
 		"ID",
 		func(permLimit *gtsmodel.DomainLimit) error {
 			return d.db.
@@ -93,24 +93,23 @@ func (d *domainDB) GetDomainLimitByID(
 	)
 }
 
-func (d *domainDB) GetDomainLimitByDomain(
-	ctx context.Context,
-	domain string,
-) (*gtsmodel.DomainLimit, error) {
-	// Normalize domain as punycode for lookup.
+func (d *domainDB) GetDomainLimitByDomain(ctx context.Context, domain string) (*gtsmodel.DomainLimit, error) {
+	// Normalize as punycode for lookup.
 	domain, err := util.Punify(domain)
 	if err != nil {
 		return nil, gtserror.Newf("error punifying domain %s: %w", domain, err)
 	}
 
-	// Check for easy case, domain referencing *us*
+	// Trim port from received domain.
+	domain = netutil.TrimPort(domain)
+
+	// Check for easy case, of a domain referencing *us*
 	if domain == "" || domain == config.GetAccountDomain() ||
 		domain == config.GetHost() {
 		return nil, db.ErrNoEntries
 	}
 
-	return d.getDomainLimit(
-		ctx,
+	return d.getDomainLimit(ctx,
 		"Domain",
 		func(permLimit *gtsmodel.DomainLimit) error {
 			return d.db.
@@ -222,15 +221,15 @@ func (d *domainDB) GetDomainLimits(
 	return permLimits, nil
 }
 
-func (d *domainDB) MatchDomainLimit(
-	ctx context.Context,
-	domain string,
-) (*gtsmodel.DomainLimit, error) {
-	// Normalize domain as punycode for lookup.
+func (d *domainDB) MatchDomainLimit(ctx context.Context, domain string) (*gtsmodel.DomainLimit, error) {
+	// Normalize as punycode for lookup.
 	domain, err := util.Punify(domain)
 	if err != nil {
 		return nil, gtserror.Newf("error punifying domain %s: %w", domain, err)
 	}
+
+	// Trim port from received domain.
+	domain = netutil.TrimPort(domain)
 
 	// Domain referencing *us* cannot be limited.
 	if domain == "" || domain == config.GetAccountDomain() ||
@@ -271,10 +270,7 @@ func (d *domainDB) MatchDomainLimit(
 	return d.GetDomainLimitByDomain(ctx, matchedOn)
 }
 
-func (d *domainDB) PutDomainLimit(
-	ctx context.Context,
-	limit *gtsmodel.DomainLimit,
-) error {
+func (d *domainDB) PutDomainLimit(ctx context.Context, limit *gtsmodel.DomainLimit) error {
 	var err error
 
 	// Normalize the domain as punycode, note the extra
@@ -283,6 +279,9 @@ func (d *domainDB) PutDomainLimit(
 	if err != nil {
 		return gtserror.Newf("error punifying domain %s: %w", limit.Domain, err)
 	}
+
+	// Trim port from received domain before insert.
+	limit.Domain = netutil.TrimPort(limit.Domain)
 
 	// Store the domain limit using cache.
 	if err := d.state.Caches.DB.DomainLimit.Store(
@@ -305,19 +304,16 @@ func (d *domainDB) PutDomainLimit(
 	return nil
 }
 
-func (d *domainDB) UpdateDomainLimit(
-	ctx context.Context,
-	limit *gtsmodel.DomainLimit,
-	columns ...string,
-) error {
-	var err error
-
+func (d *domainDB) UpdateDomainLimit(ctx context.Context, limit *gtsmodel.DomainLimit, columns ...string) (err error) {
 	// Normalize the domain as punycode, note the extra
 	// validation step for domain name write operations.
 	limit.Domain, err = util.PunifySafely(limit.Domain)
 	if err != nil {
 		return gtserror.Newf("error punifying domain %s: %w", limit.Domain, err)
 	}
+
+	// Trim port from received domain before insert.
+	limit.Domain = netutil.TrimPort(limit.Domain)
 
 	// Update the domain limit using cache.
 	if err := d.state.Caches.DB.DomainLimit.Store(
@@ -342,11 +338,8 @@ func (d *domainDB) UpdateDomainLimit(
 	return nil
 }
 
-func (d *domainDB) DeleteDomainLimit(
-	ctx context.Context,
-	id string,
-) error {
-	// Delete the permLimit from DB.
+func (d *domainDB) DeleteDomainLimit(ctx context.Context, id string) error {
+	// Delete the from DB.
 	q := d.db.NewDelete().
 		TableExpr(
 			"? AS ?",
@@ -364,7 +357,7 @@ func (d *domainDB) DeleteDomainLimit(
 		return err
 	}
 
-	// Invalidate any cached model by ID.
+	// Invalidate any cached domain model by ID.
 	d.state.Caches.DB.DomainLimit.Invalidate("ID", id)
 
 	// Clear the domain limited cache,

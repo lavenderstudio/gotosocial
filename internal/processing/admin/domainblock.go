@@ -27,6 +27,7 @@ import (
 	"code.superseriousbusiness.org/gotosocial/internal/gtserror"
 	"code.superseriousbusiness.org/gotosocial/internal/gtsmodel"
 	"code.superseriousbusiness.org/gotosocial/internal/id"
+	"code.superseriousbusiness.org/gotosocial/internal/netutil"
 	"code.superseriousbusiness.org/gotosocial/internal/text"
 )
 
@@ -38,7 +39,14 @@ func (p *Processor) createDomainBlock(
 	publicComment string,
 	privateComment string,
 	subscriptionID string,
-) (*apimodel.DomainPermission, string, gtserror.WithCode) {
+) (
+	*apimodel.DomainPermission,
+	string,
+	gtserror.WithCode,
+) {
+	// Normalize the provided domain.
+	domain = netutil.TrimPort(domain)
+
 	// Check if a block already exists for this domain.
 	domainBlock, err := p.state.DB.GetDomainBlock(ctx, domain)
 	if err != nil && !errors.Is(err, db.ErrNoEntries) {

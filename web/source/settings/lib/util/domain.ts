@@ -17,9 +17,9 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import validateDomain from "is-valid-domain";
 import { get } from "psl";
 import { DefaultParams } from "wouter";
+import { formDomainValidator } from "./formvalidators";
 
 /**
  * Check the input string to ensure it's a valid
@@ -28,10 +28,7 @@ import { DefaultParams } from "wouter";
  * @returns 
  */
 export function isValidDomain(domain: string): boolean {
-	return validateDomain(domain, {
-		wildcard: false,
-		allowUnicode: true
-	});
+	return formDomainValidator(domain) == "";
 }
 
 /**

@@ -47,7 +47,8 @@ func (p *Processor) Delete(ctx context.Context, requester *gtsmodel.Account, sta
 	}
 
 	// Convert the status to API model BEFORE deleting it.
-	apiStatus, errWithCode := p.c.GetAPIStatus(ctx, requester, status)
+	apiStatus, errWithCode := p.c.GetAPIStatus(ctx, requester,
+		status)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}

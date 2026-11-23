@@ -18,6 +18,7 @@
 */
 
 import isValidDomain from "is-valid-domain";
+import { isValid as isValidIP } from "ipaddr.js";
 import { useCallback } from "react";
 import { ValidScopes, ValidTopLevelScopes } from "../types/scopes";
 
@@ -31,11 +32,7 @@ export function formDomainValidator(domain: string): string {
 		return "";
 	}
 
-	// Allow localhost for testing.
-	if (domain === "localhost") {
-		return "";
-	}
-
+	// Must not end in .
 	if (domain[domain.length-1] === ".") {
 		return "invalid domain";
 	}
@@ -44,6 +41,22 @@ export function formDomainValidator(domain: string): string {
 	// this is not how GtS does domain blocks etc.
 	if (domain.includes("*")) {
 		return "domain must not include '*'";
+	}
+
+	// Remove port before further validating.
+	const colonIndex = domain.lastIndexOf(":");
+	if (colonIndex != -1) {
+		domain = domain.substring(0, colonIndex);
+	}
+
+	// Allow localhost for testing.
+	if (domain === "localhost") {
+		return "";
+	}
+
+	// Allow IP addresses.
+	if (isValidIP(domain)) {
+		return "";
 	}
 
 	const valid = isValidDomain(domain, {
