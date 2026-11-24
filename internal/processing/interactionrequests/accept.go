@@ -214,7 +214,7 @@ func (p *Processor) acceptAnnounce(
 	// If the Announce is missing, that means it's
 	// probably already been undone by someone,
 	// so there's nothing to actually accept.
-	if req.Reply == nil {
+	if req.Announce == nil {
 		err := gtserror.Newf("no Announce found for interaction request %s", req.ID)
 		return gtserror.NewErrorNotFound(err)
 	}

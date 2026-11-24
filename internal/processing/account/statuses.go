@@ -270,8 +270,16 @@ func (p *Processor) WebStatusesGet(
 		hi = statuses[0].ID
 	)
 
+	// Convert fetched statuses
+	// to web view statuses.
 	for _, s := range statuses {
-		// Convert fetched statuses to web view statuses.
+		if s.Flags.PendingApproval() {
+			// Don't show eg., boosts or
+			// replies that are pending
+			// approval by interactee.
+			continue
+		}
+
 		item, err := p.converter.StatusToWebStatus(ctx, s)
 		if err != nil {
 			log.Errorf(ctx, "error convering to web status: %v", err)

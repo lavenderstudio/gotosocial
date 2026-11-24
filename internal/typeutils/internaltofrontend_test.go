@@ -3074,14 +3074,14 @@ func (suite *InternalToFrontendTestSuite) TestIntReqToAPI() {
     "uri": "http://localhost:8080/users/1happyturtle/statuses/01F8MHC8VWDRBQR0N1BATDDEM5",
     "url": "http://localhost:8080/@1happyturtle/statuses/01F8MHC8VWDRBQR0N1BATDDEM5",
     "replies_count": 1,
-    "reblogs_count": 0,
+    "reblogs_count": 1,
     "favourites_count": 0,
     "favourited": false,
     "reblogged": false,
     "muted": false,
     "bookmarked": false,
     "pinned": false,
-    "content": "<p>🐢 i don't mind people sharing and liking this one but I want to moderate replies to it 🐢</p>",
+    "content": "<p>🐢 i don't mind people liking this one but I want to moderate replies and boosts 🐢</p>",
     "reblog": null,
     "application": {
       "name": "kindaweird",
@@ -3131,7 +3131,7 @@ func (suite *InternalToFrontendTestSuite) TestIntReqToAPI() {
     "emojis": [],
     "card": null,
     "poll": null,
-    "text": "🐢 i don't mind people sharing and liking this one but I want to moderate replies to it 🐢",
+    "text": "🐢 i don't mind people liking this one but I want to moderate replies and boosts 🐢",
     "content_type": "text/plain",
     "interaction_policy": {
       "can_favourite": {
@@ -3152,10 +3152,12 @@ func (suite *InternalToFrontendTestSuite) TestIntReqToAPI() {
       },
       "can_reblog": {
         "automatic_approval": [
-          "public",
+          "author",
           "me"
         ],
-        "manual_approval": []
+        "manual_approval": [
+          "public"
+        ]
       }
     }
   },

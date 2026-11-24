@@ -57,7 +57,7 @@ func (suite *AccountTestSuite) TestGetAccountWebStatuses() {
 func (suite *AccountTestSuite) TestGetAccountWebStatusesIncludeBoosts() {
 	statuses, err := suite.db.GetAccountWebStatuses(suite.T().Context(), suite.testAccounts["admin_account"], &paging.Page{Limit: 20}, false, true)
 	suite.NoError(err)
-	suite.Len(statuses, 3)
+	suite.Len(statuses, 4)
 }
 
 func (suite *AccountTestSuite) TestGetAccountWebStatusesUnlisted() {
@@ -179,7 +179,7 @@ func (suite *AccountTestSuite) TestGetAccountWebStatusesUnlisted() {
 	//
 	statuses, err = suite.db.GetAccountWebStatuses(suite.T().Context(), testAccount, &paging.Page{Limit: 20}, false, true)
 	suite.NoError(err)
-	suite.Len(statuses, 3)
+	suite.Len(statuses, 4)
 
 	// Get the statuses with boosts + media only:
 	//

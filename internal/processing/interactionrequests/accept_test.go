@@ -30,7 +30,7 @@ type AcceptTestSuite struct {
 	InteractionRequestsTestSuite
 }
 
-func (suite *AcceptTestSuite) TestAccept() {
+func (suite *AcceptTestSuite) TestAcceptReply() {
 	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
 	defer testrig.TearDownTestStructs(testStructs)
 
@@ -76,6 +76,59 @@ func (suite *AcceptTestSuite) TestAccept() {
 			ctx,
 			gtsmodel.NotificationMention,
 			dbStatus.InReplyToAccountID,
+			dbStatus.AccountID,
+			dbStatus.ID,
+		)
+		return notif != nil && err == nil
+	})
+}
+
+func (suite *AcceptTestSuite) TestAcceptAnnounce() {
+	testStructs := testrig.SetupTestStructs(rMediaPath, rTemplatePath)
+	defer testrig.TearDownTestStructs(testStructs)
+
+	var (
+		ctx    = suite.T().Context()
+		state  = testStructs.State
+		acct   = suite.testAccounts["local_account_2"]
+		intReq = suite.testInteractionRequests["admin_account_announce_turtle"]
+	)
+
+	// Create interaction reqs processor.
+	p := interactionrequests.New(
+		testStructs.Common,
+		testStructs.State,
+		testStructs.TypeConverter,
+	)
+
+	apiReq, errWithCode := p.Accept(ctx, acct, intReq.ID)
+	if errWithCode != nil {
+		suite.FailNow(errWithCode.Error())
+	}
+
+	// Get db interaction request.
+	dbReq, err := state.DB.GetInteractionRequestByID(ctx, apiReq.ID)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+	suite.True(dbReq.IsAccepted())
+
+	// Interacting status
+	// should now be approved.
+	dbStatus, err := state.DB.GetStatusByURI(ctx, dbReq.InteractionURI)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+	suite.False(dbStatus.Flags.PendingApproval())
+	suite.Equal(dbReq.AuthorizationURI, dbStatus.ApprovedByURI)
+
+	// Wait for a notification
+	// for interacting status.
+	testrig.WaitFor(func() bool {
+		notif, err := state.DB.GetNotification(
+			ctx,
+			gtsmodel.NotificationReblog,
+			dbStatus.BoostOfAccountID,
 			dbStatus.AccountID,
 			dbStatus.ID,
 		)
