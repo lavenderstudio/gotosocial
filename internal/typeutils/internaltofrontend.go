@@ -991,18 +991,27 @@ func (c *Converter) statusToAPIStatus(
 		}
 	}
 
-	if addPendingNote {
-		// If this status is pending approval and
-		// replies to the requester, add a note
-		// about how to approve or reject the reply.
-		if status.Flags.PendingApproval() &&
-			requester != nil &&
-			requester.ID == status.InReplyToAccountID {
+	// If status is pending approval, then
+	// depending on requester ID we may want
+	// to add a note explaining what's going on.
+	if addPendingNote && requester != nil &&
+		status.Flags.PendingApproval() {
+		switch requester.ID {
+		case status.InReplyToAccountID:
+			// Status replies to the requester;
+			// add a note explaining how they
+			// can approve or reject the reply.
 			pendingNote, err := c.pendingReplyNote(ctx, status)
 			if err != nil {
 				return nil, gtserror.Newf("error deriving 'pending reply' note: %w", err)
 			}
 			apiStatus.Content += pendingNote
+		case status.AccountID:
+			// Status is created by the requester;
+			// add a note explaining that they won't
+			// be able to reply to their own status
+			// until it's approved by the replyee.
+			apiStatus.Content += ownPendingStatusNote()
 		}
 	}
 

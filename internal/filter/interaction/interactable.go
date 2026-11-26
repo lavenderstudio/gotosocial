@@ -19,7 +19,6 @@ package interaction
 
 import (
 	"context"
-	"fmt"
 
 	"code.superseriousbusiness.org/gopkg/log"
 	"code.superseriousbusiness.org/gotosocial/internal/config"
@@ -35,29 +34,6 @@ const (
 	implicit matchType = 1
 	explicit matchType = 2
 )
-
-// startedThread returns true if requester started
-// the thread that the given status is part of.
-// Ie., requester created the first post in the thread.
-func (f *Filter) startedThread(
-	ctx context.Context,
-	requester *gtsmodel.Account,
-	status *gtsmodel.Status,
-) (bool, error) {
-	parents, err := f.state.DB.GetStatusParents(ctx, status)
-	if err != nil {
-		return false, fmt.Errorf("db error getting parents of %s: %w", status.ID, err)
-	}
-
-	if len(parents) == 0 {
-		// No parents available. Just check
-		// if this status belongs to requester.
-		return status.AccountID == requester.ID, nil
-	}
-
-	// Check if OG status owned by requester.
-	return parents[0].AccountID == requester.ID, nil
-}
 
 // StatusLikeable checks if the given status
 // is likeable by the requester account.
@@ -126,34 +102,13 @@ func (f *Filter) StatusReplyable(
 	requester *gtsmodel.Account,
 	status *gtsmodel.Status,
 ) (*gtsmodel.PolicyCheckResult, error) {
-	if status.Flags.PendingApproval() {
-		// Target status is pending approval,
-		// check who started this thread.
-		startedThread, err := f.startedThread(
-			ctx,
-			requester,
-			status,
-		)
-		if err != nil {
-			err := gtserror.Newf("error checking thread ownership: %w", err)
-			return nil, err
-		}
-
-		if !startedThread {
-			// If status is itself still pending approval,
-			// and the requester didn't start this thread,
-			// then buddy, any status that tries to reply
-			// to it must be pending approval too. We do
-			// this to prevent someone replying to a status
-			// with a policy set that causes that reply to
-			// require approval, *THEN* replying to their
-			// own reply (which may not have a policy set)
-			// and having the reply-to-their-own-reply go
-			// through as Permitted. None of that!
-			return &gtsmodel.PolicyCheckResult{
-				Permission: gtsmodel.PolicyPermissionManualApproval,
-			}, nil
-		}
+	if status.Flags.PendingApproval() &&
+		requester.ID != status.InReplyToAccountID {
+		// Can't reply to a status that is itself
+		// pending approval and is not a reply to us.
+		return &gtsmodel.PolicyCheckResult{
+			Permission: gtsmodel.PolicyPermissionForbidden,
+		}, nil
 	}
 
 	if requester.ID == status.AccountID {

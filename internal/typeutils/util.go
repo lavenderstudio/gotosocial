@@ -296,16 +296,23 @@ func (c *Converter) pendingReplyNote(
 	)
 
 	var note strings.Builder
-	note.WriteString(`<hr>`)
-	note.WriteString(`<p><i lang="en">ℹ️ Note from ` + host + `: `)
-	note.WriteString(`This reply is pending your approval. You can quickly accept it by liking, boosting or replying to it. You can also accept or reject it at the following link: `)
-	note.WriteString(`<a href="` + settingsURL + `" `)
-	note.WriteString(`rel="noreferrer noopener" target="_blank">`)
+	note.WriteString(`<hr><p><i lang="en">ℹ️ Note from `)
+	note.WriteString(host)
+	note.WriteString(`: This reply is pending your approval. You can quickly accept it by liking, boosting or replying to it. You can also accept or reject it at the following link: <a href="`)
 	note.WriteString(settingsURL)
-	note.WriteString(`</a>.`)
-	note.WriteString(`</i></p>`)
+	note.WriteString(`" rel="noreferrer noopener" target="_blank">`)
+	note.WriteString(settingsURL)
+	note.WriteString(`</a>.</i></p>`)
 
 	return systemMessage("gts-pending-reply", note.String()), nil
+}
+
+func ownPendingStatusNote() string {
+	var note strings.Builder
+	note.WriteString(`<hr><p><i lang="en">ℹ️ Note from `)
+	note.WriteString(config.GetHost())
+	note.WriteString(`: Your reply is awaiting approval by the replied-to account. You must wait for your reply to be approved before you can make further posts below it.</i></p>`)
+	return systemMessage("gts-pending-reply", note.String())
 }
 
 // systemMessage wraps a note with a div with semantic classes that aren't allowed through the sanitizer,

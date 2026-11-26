@@ -1611,6 +1611,122 @@ func (suite *InternalToFrontendTestSuite) TestStatusToAPIStatusPendingApproval()
 }`, out)
 }
 
+func (suite *InternalToFrontendTestSuite) TestStatusToAPIStatusOwnReplyPendingApproval() {
+	var (
+		testStatus = suite.testStatuses["admin_account_status_5"]
+		requester  = suite.testAccounts["admin_account"]
+	)
+
+	apiStatus, err := suite.typeconverter.StatusToAPIStatus(
+		suite.T().Context(),
+		testStatus,
+		requester,
+	)
+	if err != nil {
+		suite.FailNow(err.Error())
+	}
+
+	out := testrig.MustJSONString(apiStatus)
+	suite.Equal(`{
+  "id": "01J5QVB9VC76NPPRQ207GG4DRZ",
+  "created_at": "2024-02-20T10:41:37.000Z",
+  "edited_at": null,
+  "in_reply_to_id": "01F8MHC8VWDRBQR0N1BATDDEM5",
+  "in_reply_to_account_id": "01F8MH5NBDF2MV7CTC4Q5128HF",
+  "sensitive": false,
+  "spoiler_text": "",
+  "visibility": "public",
+  "language": null,
+  "uri": "http://localhost:8080/users/admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ",
+  "url": "http://localhost:8080/@admin/statuses/01J5QVB9VC76NPPRQ207GG4DRZ",
+  "replies_count": 0,
+  "reblogs_count": 0,
+  "favourites_count": 0,
+  "favourited": false,
+  "reblogged": false,
+  "muted": false,
+  "bookmarked": false,
+  "pinned": false,
+  "content": "<p>Hi <span class=\"h-card\"><a href=\"http://localhost:8080/@1happyturtle\" class=\"u-url mention\" rel=\"nofollow noreferrer noopener\" target=\"_blank\">@<span>1happyturtle</span></a></span>, can I reply?</p><div class=\"gts-system-message gts-pending-reply\"><hr><p><i lang=\"en\">ℹ️ Note from localhost:8080: Your reply is awaiting approval by the replied-to account. You must wait for your reply to be approved before you can make further posts below it.</i></p></div>",
+  "reblog": null,
+  "application": {
+    "name": "superseriousbusiness",
+    "website": "https://superserious.business"
+  },
+  "account": {
+    "id": "01F8MH17FWEB39HZJ76B6VXSKF",
+    "username": "admin",
+    "acct": "admin",
+    "display_name": "",
+    "locked": false,
+    "discoverable": true,
+    "indexable": true,
+    "noindex": false,
+    "bot": false,
+    "created_at": "2022-05-17T13:10:59.000Z",
+    "note": "",
+    "url": "http://localhost:8080/@admin",
+    "avatar": "",
+    "avatar_static": "",
+    "header": "http://localhost:8080/assets/default_header.webp",
+    "header_static": "http://localhost:8080/assets/default_header.webp",
+    "header_description": "Flat gray background (default header).",
+    "followers_count": 1,
+    "following_count": 1,
+    "statuses_count": 4,
+    "last_status_at": "2021-10-20",
+    "emojis": [],
+    "fields": [],
+    "enable_rss": true,
+    "roles": [
+      {
+        "id": "admin",
+        "name": "admin",
+        "color": ""
+      }
+    ],
+    "group": false
+  },
+  "media_attachments": [],
+  "mentions": [
+    {
+      "id": "01F8MH5NBDF2MV7CTC4Q5128HF",
+      "username": "1happyturtle",
+      "url": "http://localhost:8080/@1happyturtle",
+      "acct": "1happyturtle"
+    }
+  ],
+  "tags": [],
+  "emojis": [],
+  "card": null,
+  "poll": null,
+  "text": "Hi @1happyturtle, can I reply?",
+  "content_type": "text/markdown",
+  "interaction_policy": {
+    "can_favourite": {
+      "automatic_approval": [
+        "public",
+        "me"
+      ],
+      "manual_approval": []
+    },
+    "can_reply": {
+      "automatic_approval": [
+        "public"
+      ],
+      "manual_approval": []
+    },
+    "can_reblog": {
+      "automatic_approval": [
+        "public",
+        "me"
+      ],
+      "manual_approval": []
+    }
+  }
+}`, out)
+}
+
 func (suite *InternalToFrontendTestSuite) TestStatusWithLinkToFrontend() {
 	testStatus := new(gtsmodel.Status)
 	*testStatus = *suite.testStatuses["admin_account_status_1"]

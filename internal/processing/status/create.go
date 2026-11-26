@@ -223,13 +223,17 @@ func (p *Processor) Create(
 		}
 	}
 
-	// Check + attach in-reply-to status.
-	if errWithCode := p.processInReplyTo(ctx,
+	// Check inReplyToID + attach in-reply-to status if
+	// necessary, getting the reply policy check result back.
+	//
+	// Result will be `nil, nil` if inReplyToID is not set.
+	replyPolicyCheckResult, errWithCode := p.processInReplyTo(ctx,
 		requester,
 		status,
 		form.InReplyToID,
 		backfill,
-	); errWithCode != nil {
+	)
+	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
@@ -292,20 +296,22 @@ func (p *Processor) Create(
 	}
 
 	// If the new status replies to a status that
-	// replies to us, use our reply as an implicit
-	// accept of any pending interaction.
-	implicitlyAccepted, errWithCode := p.implicitlyAccept(ctx,
-		requester, status,
-	)
-	if errWithCode != nil {
-		return nil, errWithCode
-	}
+	// is pending our approval, use our reply as
+	// an implicit accept of pending interaction.
+	if status.InReplyTo != nil {
+		implicitlyAccepted, errWithCode := p.implicitlyAccept(ctx,
+			requester, status.InReplyTo,
+		)
+		if errWithCode != nil {
+			return nil, errWithCode
+		}
 
-	// If we ended up implicitly accepting, mark the
-	// replied-to status as no longer pending approval
-	// so it's serialized properly via the API.
-	if implicitlyAccepted {
-		status.InReplyTo.Flags.SetPendingApproval(false)
+		// If we ended up implicitly accepting, mark the
+		// replied-to status as no longer pending approval
+		// so it's serialized properly via the API.
+		if implicitlyAccepted {
+			status.InReplyTo.Flags.SetPendingApproval(false)
+		}
 	}
 
 	switch {
@@ -336,6 +342,18 @@ func (p *Processor) Create(
 			GTSModel:       status,
 			Origin:         requester,
 		})
+	}
+
+	// If this is a reply which will get automatic approval from
+	// the remote for matching on a collection (eg., a reply to a
+	// followers-only status), then it's jarring if we show the
+	// "you must wait for your reply to be approved" message when
+	// returning the created status, as it will receive approval
+	// prettymuch immediately (likely within less than a second).
+	// So, fudge the `PendingApproval` field for API serialization.
+	if replyPolicyCheckResult != nil &&
+		replyPolicyCheckResult.MatchedOnCollection() {
+		status.Flags.SetPendingApproval(false)
 	}
 
 	return p.c.GetAPIStatus(ctx, requester, status)
@@ -383,11 +401,14 @@ func (p *Processor) processInReplyTo(
 	status *gtsmodel.Status,
 	inReplyToID string,
 	backfill bool,
-) gtserror.WithCode {
+) (
+	*gtsmodel.PolicyCheckResult,
+	gtserror.WithCode,
+) {
 	if inReplyToID == "" {
 		// Not a reply.
 		// Nothing to do.
-		return nil
+		return nil, nil
 	}
 
 	// Fetch target in-reply-to status (checking visibility).
@@ -397,7 +418,7 @@ func (p *Processor) processInReplyTo(
 		nil,
 	)
 	if errWithCode != nil {
-		return errWithCode
+		return nil, errWithCode
 	}
 
 	// If this is boost, unwrap to get source status.
@@ -406,7 +427,7 @@ func (p *Processor) processInReplyTo(
 		inReplyTo,
 	)
 	if errWithCode != nil {
-		return errWithCode
+		return nil, errWithCode
 	}
 
 	// Ensure status is valid reply target for requester.
@@ -416,18 +437,18 @@ func (p *Processor) processInReplyTo(
 	)
 	if err != nil {
 		err := gtserror.Newf("error checking status replyability: %w", err)
-		return gtserror.NewErrorInternalError(err)
+		return nil, gtserror.NewErrorInternalError(err)
 	}
 
 	if policyResult.Forbidden() {
 		const text = "you do not have permission to reply to this status"
-		return gtserror.NewErrorForbidden(errors.New(text), text)
+		return nil, gtserror.NewErrorForbidden(errors.New(text), text)
 	}
 
 	// When backfilling, only self-replies are allowed.
 	if backfill && requester.ID != inReplyTo.AccountID {
 		const text = "replies to others can't be backfilled"
-		return gtserror.NewErrorForbidden(errors.New(text), text)
+		return nil, gtserror.NewErrorForbidden(errors.New(text), text)
 	}
 
 	// Derive pendingApproval.
@@ -468,7 +489,7 @@ func (p *Processor) processInReplyTo(
 	status.InReplyToURI = inReplyTo.URI
 	status.InReplyToAccountID = inReplyTo.AccountID
 
-	return nil
+	return policyResult, nil
 }
 
 func processVisibility(
