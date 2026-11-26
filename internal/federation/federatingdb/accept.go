@@ -147,10 +147,24 @@ func (f *DB) Accept(ctx context.Context, accept vocab.ActivityStreamsAccept) err
 					return err
 				}
 
-			// Todo: ACCEPT POLITE INLINED LIKE REQUEST.
-			//
-			// Implement this when we start
-			// sending out polite LikeRequests.
+			// ACCEPT POLITE INLINED LIKE REQUEST.
+			case name == ap.ActivityLikeRequest:
+				likeReq, ok := asType.(vocab.GoToSocialLikeRequest)
+				if !ok {
+					const text = "malformed LikeRequest as object of Accept"
+					return gtserror.NewErrorBadRequest(errors.New(text), text)
+				}
+
+				if err := f.acceptPoliteLikeRequest(
+					ctx,
+					acceptID,
+					accept,
+					likeReq,
+					requesting,
+					receiving,
+				); err != nil {
+					return err
+				}
 
 			// ACCEPT POLITE INLINED REPLY REQUEST
 			case name == ap.ActivityReplyRequest:
@@ -171,10 +185,24 @@ func (f *DB) Accept(ctx context.Context, accept vocab.ActivityStreamsAccept) err
 					return err
 				}
 
-			// Todo: ACCEPT POLITE INLINED ANNOUNCE REQUEST
-			//
-			// Implement this when we start
-			// sending out polite AnnounceRequests.
+			// ACCEPT POLITE INLINED ANNOUNCE REQUEST
+			case name == ap.ActivityAnnounceRequest:
+				announceReq, ok := asType.(vocab.GoToSocialAnnounceRequest)
+				if !ok {
+					const text = "malformed AnnounceRequest as object of Accept"
+					return gtserror.NewErrorBadRequest(errors.New(text), text)
+				}
+
+				if err := f.acceptPoliteAnnounceRequest(
+					ctx,
+					acceptID,
+					accept,
+					announceReq,
+					requesting,
+					receiving,
+				); err != nil {
+					return err
+				}
 
 			// UNHANDLED
 			default:
@@ -762,6 +790,127 @@ func (f *DB) parseAcceptInteractionRequestable(
 	}, nil
 }
 
+// acceptPoliteLikeRequest handles the Accept of a polite LikeRequest,
+// ie., something that looks like this:
+//
+//	{
+//	  "@context": [
+//	    "https://www.w3.org/ns/activitystreams",
+//	    "https://gotosocial.org/ns"
+//	  ],
+//	  "type": "Accept",
+//	  "to": "https://example.com/users/bob",
+//	  "id": "https://example.com/users/alice/activities/1234",
+//	  "actor": "https://example.com/users/alice",
+//	  "object": {
+//	    "type": "LikeRequest",
+//	    "id": "https://example.com/users/bob/interaction_requests/12345",
+//	    "actor": "https://example.com/users/bob",
+//	    "object": "https://example.com/users/alice/statuses/1",
+//	    "instrument": "https://example.org/users/bob/faves/12345"
+//	  },
+//	  "result": "https://example.com/users/alice/authorizations/1"
+//	}
+func (f *DB) acceptPoliteLikeRequest(
+	ctx context.Context,
+	acceptID *url.URL,
+	accept vocab.ActivityStreamsAccept,
+	likeRequest vocab.GoToSocialLikeRequest,
+	requesting *gtsmodel.Account,
+	receiving *gtsmodel.Account,
+) error {
+	// Parse out the Accept and
+	// embedded interaction requestable.
+	partial, err := f.parseAcceptInteractionRequestable(
+		ctx,
+		accept,
+		likeRequest,
+		requesting,
+		receiving,
+	)
+	if err != nil {
+		return err
+	}
+
+	if partial == nil {
+		// Nothing to do!
+		return nil
+	}
+
+	if partial.intReq == nil {
+		log.Debug(ctx, "not interested in remote Accept of remote LikeRequest")
+		return nil
+	}
+
+	// Make sure the stored interaction request
+	// lines up with the Accept LikeRequest.
+	if partial.intReq.InteractionType != gtsmodel.InteractionLike {
+		const text = "Accept LikeRequest targets interaction request that isn't of type Like"
+		return gtserror.NewErrorBadRequest(errors.New(text), text)
+	}
+
+	// The stored fave must be the same as
+	// the instrument of the LikeRequest.
+	fave := partial.intReq.Like
+	if fave.URI != partial.instrumentURI.String() {
+		const text = "Accept LikeRequest mismatched instrument URI"
+		return gtserror.NewErrorForbidden(errors.New(text), text)
+	}
+
+	// Ensure fave is populated.
+	if err := f.state.DB.PopulateStatusFave(ctx, fave); err != nil {
+		return gtserror.Newf("db error populating status fave: %w", err)
+	}
+
+	// The actor of the stored like must be the
+	// same as the actor of the LikeRequest.
+	if fave.Account.URI != partial.actorURI.String() {
+		const text = "Accept LikeRequest mismatched actor URI"
+		return gtserror.NewErrorForbidden(errors.New(text), text)
+	}
+
+	// This all looks good, we can update the
+	// interaction request and stored fave.
+	unlock := f.state.FedLocks.Lock(partial.intReq.InteractionURI)
+	defer unlock()
+
+	authURIStr := partial.authURI.String()
+	partial.intReq.AcceptedAt = time.Now()
+	partial.intReq.AuthorizationURI = authURIStr
+	partial.intReq.ResponseURI = acceptID.String()
+	if err := f.state.DB.UpdateInteractionRequest(ctx,
+		partial.intReq,
+		"accepted_at",
+		"authorization_uri",
+		"response_uri",
+	); err != nil {
+		return gtserror.Newf("db error updating interaction request: %w", err)
+	}
+
+	fave.ApprovedByURI = authURIStr
+	fave.PendingApproval = new(bool)
+	if err := f.state.DB.UpdateStatusFave(ctx,
+		fave,
+		"approved_by_uri",
+		"pending_approval",
+	); err != nil {
+		return gtserror.Newf("db error updating fave: %w", err)
+	}
+
+	// Handle any remaining side effects in the processor.
+	f.state.Workers.Federator.Queue.Push(&messages.FromFediAPI{
+		APObjectType:   ap.ActivityLikeRequest,
+		APActivityType: ap.ActivityAccept,
+		APIRI:          partial.authURI,
+		APObject:       partial.instrumentURI,
+		GTSModel:       partial.intReq,
+		Requesting:     requesting,
+		Receiving:      receiving,
+	})
+
+	return nil
+}
+
 // acceptPoliteReplyRequest handles the Accept of a polite ReplyRequest,
 // ie., something that looks like this:
 //
@@ -828,10 +977,8 @@ func (f *DB) acceptPoliteReplyRequest(
 		return nil
 	}
 
-	// We already have a request stored for this interaction.
-	//
-	// Note: this path is not actually possible until v0.21.0,
-	// because we don't send out polite requests yet in v0.20.0.
+	// We already have a request
+	// stored for this interaction.
 
 	// Make sure the stored interaction request
 	// lines up with the Accept ReplyRequest.
@@ -897,6 +1044,122 @@ func (f *DB) acceptPoliteReplyRequest(
 	return nil
 }
 
+// acceptPoliteAnnounceRequest handles the Accept of a polite AnnounceRequest,
+// ie., something that looks like this:
+//
+//	{
+//	  "@context": [
+//	    "https://www.w3.org/ns/activitystreams",
+//	    "https://gotosocial.org/ns"
+//	  ],
+//	  "type": "Accept",
+//	  "to": "https://example.com/users/bob",
+//	  "id": "https://example.com/users/alice/activities/1234",
+//	  "actor": "https://example.com/users/alice",
+//	  "object": {
+//	    "type": "AnnounceRequest",
+//	    "id": "https://example.com/users/bob/interaction_requests/12345",
+//	    "actor": "https://example.com/users/bob",
+//	    "object": "https://example.com/users/alice/statuses/1",
+//	    "instrument": "https://example.org/users/bob/announces/12345"
+//	  },
+//	  "result": "https://example.com/users/alice/authorizations/1"
+//	}
+func (f *DB) acceptPoliteAnnounceRequest(
+	ctx context.Context,
+	acceptID *url.URL,
+	accept vocab.ActivityStreamsAccept,
+	announceRequest vocab.GoToSocialAnnounceRequest,
+	requesting *gtsmodel.Account,
+	receiving *gtsmodel.Account,
+) error {
+	// Parse out the Accept and
+	// embedded interaction requestable.
+	partial, err := f.parseAcceptInteractionRequestable(
+		ctx,
+		accept,
+		announceRequest,
+		requesting,
+		receiving,
+	)
+	if err != nil {
+		return err
+	}
+
+	if partial == nil {
+		// Nothing to do!
+		return nil
+	}
+
+	if partial.intReq == nil {
+		log.Debug(ctx, "not interested in remote Accept of remote AnnounceRequest")
+		return nil
+	}
+
+	// Make sure the stored interaction request
+	// lines up with the Accept AnnounceRequest.
+	if partial.intReq.InteractionType != gtsmodel.InteractionAnnounce {
+		const text = "Accept AnnounceRequest targets interaction request that isn't of type Announce"
+		return gtserror.NewErrorBadRequest(errors.New(text), text)
+	}
+
+	// The stored boost must be the same as
+	// the instrument of the AnnounceRequest.
+	boost := partial.intReq.Announce
+	if boost.URI != partial.instrumentURI.String() {
+		const text = "Accept AnnounceRequest mismatched instrument URI"
+		return gtserror.NewErrorForbidden(errors.New(text), text)
+	}
+
+	// The actor of the stored boost must be the
+	// same as the actor of the AnnounceRequest.
+	if boost.AccountURI != partial.actorURI.String() {
+		const text = "Accept AnnounceRequest mismatched actor URI"
+		return gtserror.NewErrorForbidden(errors.New(text), text)
+	}
+
+	// This all looks good, we can update the
+	// interaction request and stored fave.
+	unlock := f.state.FedLocks.Lock(partial.intReq.InteractionURI)
+	defer unlock()
+
+	authURIStr := partial.authURI.String()
+	partial.intReq.AcceptedAt = time.Now()
+	partial.intReq.AuthorizationURI = authURIStr
+	partial.intReq.ResponseURI = acceptID.String()
+	if err := f.state.DB.UpdateInteractionRequest(ctx,
+		partial.intReq,
+		"accepted_at",
+		"authorization_uri",
+		"response_uri",
+	); err != nil {
+		return gtserror.Newf("db error updating interaction request: %w", err)
+	}
+
+	boost.ApprovedByURI = authURIStr
+	boost.Flags.SetPendingApproval(false)
+	if err := f.state.DB.UpdateStatus(ctx,
+		boost,
+		"approved_by_uri",
+		"flags",
+	); err != nil {
+		return gtserror.Newf("db error updating boost: %w", err)
+	}
+
+	// Handle any remaining side effects in the processor.
+	f.state.Workers.Federator.Queue.Push(&messages.FromFediAPI{
+		APObjectType:   ap.ActivityAnnounceRequest,
+		APActivityType: ap.ActivityAccept,
+		APIRI:          partial.authURI,
+		APObject:       partial.instrumentURI,
+		GTSModel:       partial.intReq,
+		Requesting:     requesting,
+		Receiving:      receiving,
+	})
+
+	return nil
+}
+
 // approvedByURI extracts the appropriate *url.URL
 // to use as an interaction's approvedBy value by
 // checking to see if the Accept has a result URL set.
@@ -907,9 +1170,6 @@ func (f *DB) acceptPoliteReplyRequest(
 //
 // Error is only returned if the result URI is set
 // but the host differs from the Accept ID host.
-//
-// TODO: This function could be updated at some
-// point to check for inlined result type.
 func approvedByURI(
 	acceptID *url.URL,
 	accept vocab.ActivityStreamsAccept,

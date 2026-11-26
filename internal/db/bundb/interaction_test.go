@@ -210,22 +210,17 @@ func (suite *InteractionTestSuite) TestGetPending() {
 
 func (suite *InteractionTestSuite) TestGetPendingRepliesOnly() {
 	var (
-		testStatus = suite.testStatuses["local_account_1_status_1"]
-		ctx        = suite.T().Context()
-		acctID     = suite.testAccounts["local_account_1"].ID
-		statusID   = ""
-		likes      = false
-		replies    = true
-		boosts     = false
-		page       = &paging.Page{
+		ctx      = suite.T().Context()
+		acctID   = suite.testAccounts["local_account_2"].ID
+		statusID = ""
+		likes    = false
+		replies  = true
+		boosts   = false
+		page     = &paging.Page{
 			Max:   paging.MaxID(id.Highest),
 			Limit: 20,
 		}
 	)
-
-	// Update target test status to mark
-	// all interactions with it pending.
-	suite.markInteractionsPending(ctx, testStatus.ID)
 
 	// Get pendingInts interactions.
 	pendingInts, err := suite.state.DB.GetInteractionsRequestsForAcct(
@@ -242,6 +237,40 @@ func (suite *InteractionTestSuite) TestGetPendingRepliesOnly() {
 	// Ensure only replies returned.
 	for _, pendingInt := range pendingInts {
 		suite.Equal(gtsmodel.InteractionReply, pendingInt.InteractionType)
+	}
+}
+
+func (suite *InteractionTestSuite) TestGetByTargetStatusID() {
+	var (
+		testStatus = suite.testStatuses["local_account_2_status_3"]
+		ctx        = suite.T().Context()
+		acctID     = ""
+		statusID   = testStatus.ID
+		likes      = true
+		replies    = true
+		boosts     = true
+		page       = &paging.Page{
+			Max:   paging.MaxID(id.Highest),
+			Limit: 20,
+		}
+	)
+
+	// Get interactions.
+	pendingInts, err := suite.state.DB.GetInteractionsRequestsForAcct(
+		ctx,
+		acctID,
+		statusID,
+		likes,
+		replies,
+		boosts,
+		page,
+	)
+	suite.NoError(err)
+
+	// Ensure only interactions
+	// targeting this status returned.
+	for _, pendingInt := range pendingInts {
+		suite.Equal(statusID, pendingInt.TargetStatusID)
 	}
 }
 

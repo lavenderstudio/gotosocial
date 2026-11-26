@@ -155,6 +155,10 @@ func (p *Processor) ProcessFromFediAPI(ctx context.Context, fMsg *messages.FromF
 		case ap.ActivityLike:
 			return p.fediAPI.AcceptLike(ctx, fMsg)
 
+		// ACCEPT (pending) POLITE LIKE REQUEST
+		case ap.ActivityLikeRequest:
+			return p.fediAPI.AcceptPoliteLikeRequest(ctx, fMsg)
+
 		// ACCEPT (pending) REPLY
 		case ap.ObjectNote:
 			return p.fediAPI.AcceptReply(ctx, fMsg)
@@ -166,6 +170,10 @@ func (p *Processor) ProcessFromFediAPI(ctx context.Context, fMsg *messages.FromF
 		// ACCEPT (pending) ANNOUNCE
 		case ap.ActivityAnnounce:
 			return p.fediAPI.AcceptAnnounce(ctx, fMsg)
+
+		// ACCEPT (pending) POLITE ANNOUNCE REQUEST
+		case ap.ActivityAnnounceRequest:
+			return p.fediAPI.AcceptPoliteAnnounceRequest(ctx, fMsg)
 
 		// ACCEPT (remote) IMPOLITE REPLY or ANNOUNCE
 		case ap.ObjectUnknown:
@@ -1436,6 +1444,12 @@ func (p *fediAPI) AcceptLike(ctx context.Context, fMsg *messages.FromFediAPI) er
 	return nil
 }
 
+func (p *fediAPI) AcceptPoliteLikeRequest(ctx context.Context, fMsg *messages.FromFediAPI) error {
+	// TODO: Add something here if we ever implement sending out Likes to
+	// followers more broadly and not just the owner of the Liked status.
+	return nil
+}
+
 func (p *fediAPI) AcceptReply(ctx context.Context, fMsg *messages.FromFediAPI) error {
 	reply, ok := fMsg.GTSModel.(*gtsmodel.Status)
 	if !ok {
@@ -1540,6 +1554,28 @@ func (p *fediAPI) AcceptAnnounce(ctx context.Context, fMsg *messages.FromFediAPI
 	if !ok {
 		return gtserror.Newf("%T not parseable as *gtsmodel.Status", fMsg.GTSModel)
 	}
+
+	// Timeline and notify the boost wrapper status.
+	if err := p.surfacer.TimelineAndNotifyStatus(ctx, boost); err != nil {
+		log.Errorf(ctx, "error timelining and notifying status: %v", err)
+	}
+
+	// Send out the boost again, fully this time.
+	if err := p.federate.Announce(ctx, boost); err != nil {
+		log.Errorf(ctx, "error federating announce: %v", err)
+	}
+
+	return nil
+}
+
+func (p *fediAPI) AcceptPoliteAnnounceRequest(ctx context.Context, fMsg *messages.FromFediAPI) error {
+	// Since the int req + boost have already been updated
+	// in the federatingDB, we just need to do side effects.
+	intReq, ok := fMsg.GTSModel.(*gtsmodel.InteractionRequest)
+	if !ok {
+		return gtserror.Newf("%T not parseable as *gtsmodel.InteractionRequest", fMsg.GTSModel)
+	}
+	boost := intReq.Announce
 
 	// Timeline and notify the boost wrapper status.
 	if err := p.surfacer.TimelineAndNotifyStatus(ctx, boost); err != nil {

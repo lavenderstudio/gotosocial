@@ -136,6 +136,7 @@ func (m *Module) ListTimelineGETHandler(c *httputil.Context) {
 	targetListID, errWithCode := apiutil.ParseID(c.PathValue(apiutil.IDKey))
 	if errWithCode != nil {
 		apiutil.ErrorHandler(c, m.templates, errWithCode)
+		return
 	}
 
 	page, errWithCode := paging.ParseIDPage(c,

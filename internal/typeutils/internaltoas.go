@@ -1104,7 +1104,7 @@ func (c *Converter) FaveToAS(ctx context.Context, f *gtsmodel.StatusFave) (vocab
 	}
 	ap.AppendTo(like, toIRI)
 
-	// Parse + set authorization.
+	// `approvedBy` and/or `likeAuthorization` property.
 	if f.ApprovedByURI != "" {
 		err := c.appendASInteractionAuthorization(
 			ctx,
@@ -1185,13 +1185,16 @@ func (c *Converter) BoostToAS(ctx context.Context, bw *gtsmodel.Status) (vocab.A
 		ap.AppendCc(announce, ap.PublicIRI())
 	}
 
-	// Parse + set authorization.
+	// `approvedBy` and/or `announceAuthorization` property.
 	if bw.ApprovedByURI != "" {
-		approvedBy, err := url.Parse(bw.ApprovedByURI)
+		err := c.appendASInteractionAuthorization(
+			ctx,
+			bw.ApprovedByURI,
+			announce,
+		)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing approvedBy: %w", err)
+			return nil, gtserror.Newf("error setting announce authorization field(s): %w", err)
 		}
-		ap.SetApprovedBy(announce, approvedBy)
 	}
 
 	return announce, nil

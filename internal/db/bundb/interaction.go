@@ -344,7 +344,7 @@ func (i *interactionDB) GetInteractionsRequestsForAcct(
 
 	// Select interactions targeting status.
 	if statusID != "" {
-		q = q.Where("? = ?", bun.Ident("status_id"), statusID)
+		q = q.Where("? = ?", bun.Ident("target_status_id"), statusID)
 	}
 
 	// Select interactions targeting account.
